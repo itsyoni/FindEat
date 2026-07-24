@@ -6,7 +6,7 @@ import {
 } from "@/lib/appAlert";
 import type { AlertButton } from "react-native";
 import { Modal, Pressable, View } from "react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export function AppAlertProvider({ children }: { children: React.ReactNode }) {
@@ -14,32 +14,52 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation("common");
   const isRtl = i18n.language.startsWith("he");
   const [request, setRequest] = useState<AppAlertRequest | null>(null);
+  const pendingActionRef = useRef<(() => void) | null>(null);
+  const dismissFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     registerAppAlertHandler(setRequest);
-    return () => registerAppAlertHandler(null);
+    return () => {
+      registerAppAlertHandler(null);
+      if (dismissFallbackRef.current) {
+        clearTimeout(dismissFallbackRef.current);
+      }
+    };
   }, []);
 
-  const buttons = useMemo<AlertButton[]>(
-    () =>
-      request?.buttons?.length
-        ? request.buttons
-        : [{ text: t("ok") }],
-    [request?.buttons, t],
-  );
+  const buttons: AlertButton[] = request?.buttons?.length
+    ? request.buttons
+    : [{ text: t("ok") }];
+
+  const runPendingAction = useCallback(() => {
+    if (dismissFallbackRef.current) {
+      clearTimeout(dismissFallbackRef.current);
+      dismissFallbackRef.current = null;
+    }
+
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action?.();
+  }, []);
 
   const close = useCallback(
     (button?: AlertButton) => {
       const onPress = button?.onPress;
       const onDismiss = request?.options?.onDismiss;
-      setRequest(null);
-
-      requestAnimationFrame(() => {
+      pendingActionRef.current = () => {
         onPress?.();
         onDismiss?.();
-      });
+      };
+      setRequest(null);
+
+      // iOS invokes `onDismiss` after the fade completes. The fallback covers
+      // platforms where that event is not emitted.
+      if (dismissFallbackRef.current) {
+        clearTimeout(dismissFallbackRef.current);
+      }
+      dismissFallbackRef.current = setTimeout(runPendingAction, 400);
     },
-    [request?.options?.onDismiss],
+    [request?.options?.onDismiss, runPendingAction],
   );
 
   const cancelButton = buttons.find((button) => button.style === "cancel");
@@ -92,6 +112,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
         animationType="fade"
         statusBarTranslucent
         presentationStyle="overFullScreen"
+        onDismiss={runPendingAction}
         onRequestClose={() => {
           if (cancelButton) close(cancelButton);
           else if (canDismissBackdrop) close();
