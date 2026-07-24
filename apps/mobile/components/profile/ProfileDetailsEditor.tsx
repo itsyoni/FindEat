@@ -2,7 +2,7 @@ import Text from "@/components/common/AppText";
 import { DirectionalForwardIcon } from "@/components/common/icons/DirectionalIcon";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { CalendarBlankIcon, XCircleIcon } from "phosphor-react-native";
+import { CalendarBlankIcon, CheckCircleIcon, XCircleIcon } from "phosphor-react-native";
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,6 +21,23 @@ import ProfileTagPickerPage, {
   type ProfileTagField,
 } from "./ProfileTagPickerPage";
 
+export type ProfileDetailAnswerField =
+  | "birthday"
+  | "pronouns"
+  | "allergies"
+  | "foodPreferences"
+  | "dietaryRestrictions"
+  | "favoriteCuisines";
+
+export const PROFILE_DETAIL_ANSWER_FIELDS: ProfileDetailAnswerField[] = [
+  "birthday",
+  "pronouns",
+  "allergies",
+  "foodPreferences",
+  "dietaryRestrictions",
+  "favoriteCuisines",
+];
+
 export type ProfileDetailsDraft = {
   birthday: string;
   pronouns: string[];
@@ -29,6 +46,7 @@ export type ProfileDetailsDraft = {
   foodPreferences: string[];
   dietaryRestrictions: string[];
   favoriteCuisines: string[];
+  completedFields: ProfileDetailAnswerField[];
 };
 
 export const EMPTY_PROFILE_DETAILS: ProfileDetailsDraft = {
@@ -39,6 +57,7 @@ export const EMPTY_PROFILE_DETAILS: ProfileDetailsDraft = {
   foodPreferences: [],
   dietaryRestrictions: [],
   favoriteCuisines: [],
+  completedFields: [],
 };
 
 type Props = {
@@ -78,6 +97,18 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
     nextValue: ProfileDetailsDraft[K],
   ) => onChange((current) => ({ ...current, [key]: nextValue }));
 
+  const isCompleted = (field: ProfileDetailAnswerField) =>
+    value.completedFields.includes(field);
+
+  function setCompleted(field: ProfileDetailAnswerField, completed = true) {
+    onChange((current) => ({
+      ...current,
+      completedFields: completed
+        ? Array.from(new Set([...current.completedFields, field]))
+        : current.completedFields.filter((item) => item !== field),
+    }));
+  }
+
   const formattedBirthday = useMemo(() => {
     if (!value.birthday) return "";
     return new Intl.DateTimeFormat(i18n.language.startsWith("he") ? "he-IL" : "en-GB", {
@@ -95,6 +126,7 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
   function handleAndroidDate(date: Date) {
     setBirthdayPickerOpen(false);
     update("birthday", isoFromDate(date));
+    setCompleted("birthday");
   }
 
   return (
@@ -103,7 +135,10 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
         {t("profile:foodProfileHint")}
       </Text>
 
-      <FieldLabel label={t("profile:birthday")} />
+      <FieldLabel
+        label={t("profile:birthday")}
+        completed={!!value.birthday || isCompleted("birthday")}
+      />
       <TouchableOpacity
         onPress={openBirthdayPicker}
         activeOpacity={0.75}
@@ -117,7 +152,10 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
         </Text>
         {!!value.birthday && (
           <TouchableOpacity
-            onPress={() => update("birthday", "")}
+            onPress={() => {
+              update("birthday", "");
+              setCompleted("birthday", false);
+            }}
             hitSlop={10}
             accessibilityLabel={t("profile:clearBirthday")}
           >
@@ -125,10 +163,30 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
           </TouchableOpacity>
         )}
       </TouchableOpacity>
+      {!value.birthday && (
+        <TouchableOpacity
+          onPress={() => setCompleted("birthday", true)}
+          className={`mt-2 flex-row items-center gap-2 self-start rounded-full px-3 py-2 ${
+            isCompleted("birthday")
+              ? "bg-gray-200 dark:bg-gray-800"
+              : "bg-amber-100 dark:bg-amber-900/40"
+          }`}
+        >
+          <CheckCircleIcon
+            size={18}
+            color={isCompleted("birthday") ? (isDark ? "#D1D5DB" : "#525252") : "#D6A92D"}
+            weight={isCompleted("birthday") ? "fill" : "regular"}
+          />
+          <Text className="text-sm text-gray-700 dark:text-gray-200">
+            {t("profile:preferNotToAnswer")}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <SelectedTagsField
         field="pronouns"
         selected={value.pronouns}
+        completed={value.pronouns.length > 0 || isCompleted("pronouns")}
         onPress={() => setActiveTagField("pronouns")}
       />
       <View className="mt-2 flex-row items-center justify-between rounded-2xl bg-[#f8f8f8] px-4 py-3 dark:bg-gray-900">
@@ -148,6 +206,7 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
           key={field}
           field={field}
           selected={value[field]}
+          completed={value[field].length > 0 || isCompleted(field)}
           onPress={() => setActiveTagField(field)}
         />
       ))}
@@ -160,9 +219,13 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
         <ProfileTagPickerPage
           field={activeTagField}
           selected={value[activeTagField]}
+          noneSelected={
+            value[activeTagField].length === 0 && isCompleted(activeTagField)
+          }
           onClose={() => setActiveTagField(null)}
-          onDone={(selected) => {
+          onDone={(selected, noneSelected) => {
             update(activeTagField, selected);
+            setCompleted(activeTagField, selected.length > 0 || noneSelected);
             setActiveTagField(null);
           }}
         />
@@ -202,6 +265,7 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
                 <TouchableOpacity
                   onPress={() => {
                     update("birthday", isoFromDate(pendingBirthday));
+                    setCompleted("birthday");
                     setBirthdayPickerOpen(false);
                   }}
                   className="px-2 py-3"
@@ -230,21 +294,41 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
   );
 }
 
-function FieldLabel({ label }: { label: string }) {
+function FieldLabel({
+  label,
+  completed,
+}: {
+  label: string;
+  completed?: boolean;
+}) {
+  const { t } = useTranslation("profile");
+
   return (
-    <Text className="mb-2 mt-5 text-sm text-gray-500" weight="bold">
-      {label}
-    </Text>
+    <View className="mb-2 mt-5 flex-row items-center justify-between">
+      <Text className="text-sm text-gray-500" weight="bold">
+        {label}
+      </Text>
+      {completed === false && (
+        <View className="flex-row items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 dark:bg-amber-900/40">
+          <View className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <Text className="text-xs text-amber-800 dark:text-amber-200" weight="bold">
+            {t("notSelected")}
+          </Text>
+        </View>
+      )}
+    </View>
   );
 }
 
 function SelectedTagsField({
   field,
   selected,
+  completed,
   onPress,
 }: {
   field: ProfileTagField;
   selected: string[];
+  completed: boolean;
   onPress: () => void;
 }) {
   const { t } = useTranslation("profile");
@@ -252,7 +336,7 @@ function SelectedTagsField({
 
   return (
     <View>
-      <FieldLabel label={t(field)} />
+      <FieldLabel label={t(field)} completed={completed} />
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.75}
@@ -267,8 +351,14 @@ function SelectedTagsField({
                 </Text>
               </View>
             ))
+          ) : completed ? (
+            <Text className="py-1 text-gray-500 dark:text-gray-300">
+              {t("preferNotToAnswer")}
+            </Text>
           ) : (
-            <Text className="py-1 text-gray-400">{t("noTagsSelected")}</Text>
+            <Text className="py-1 text-amber-700 dark:text-amber-300">
+              {t("noTagsSelected")}
+            </Text>
           )}
         </View>
         <View>

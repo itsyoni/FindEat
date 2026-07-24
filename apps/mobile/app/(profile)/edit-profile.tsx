@@ -1,10 +1,12 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { AppButton, IconButton, Skeleton, SkeletonPulse } from "@/components/common";
+import ConfettiBurst from "@/components/common/feedback/ConfettiBurst";
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import FormInput from "@/components/forms/FormInput";
 import ProfileDetailsEditor, {
   EMPTY_PROFILE_DETAILS,
+  PROFILE_DETAIL_ANSWER_FIELDS,
   type ProfileDetailsDraft,
 } from "@/components/profile/ProfileDetailsEditor";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +16,7 @@ import { uploadImage } from "@/lib/uploadImage";
 import ImageCropPicker from "react-native-image-crop-picker";
 import { router } from "expo-router";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Image, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -33,6 +35,8 @@ export default function EditProfileScreen() {
   const [newCoverUri, setNewCoverUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const previousCompletion = useRef<number | null>(null);
   const { refreshUser } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
@@ -56,6 +60,50 @@ export default function EditProfileScreen() {
     newAvatarUri !== null ||
     newCoverUri !== null;
 
+  const completedDetailFields = new Set(details.completedFields);
+  const profileCompletionItems = [
+    Boolean(newAvatarUri || avatarUrl),
+    Boolean(newCoverUri || coverUrl),
+    Boolean(displayName.trim()),
+    Boolean(username.trim()),
+    Boolean(bio.trim()),
+    Boolean(details.birthday || completedDetailFields.has("birthday")),
+    Boolean(details.pronouns.length || completedDetailFields.has("pronouns")),
+    Boolean(details.allergies.length || completedDetailFields.has("allergies")),
+    Boolean(
+      details.foodPreferences.length ||
+        completedDetailFields.has("foodPreferences"),
+    ),
+    Boolean(
+      details.dietaryRestrictions.length ||
+        completedDetailFields.has("dietaryRestrictions"),
+    ),
+    Boolean(
+      details.favoriteCuisines.length ||
+        completedDetailFields.has("favoriteCuisines"),
+    ),
+  ];
+  const completedProfileItems = profileCompletionItems.filter(Boolean).length;
+  const profileCompletion = Math.round(
+    (completedProfileItems / profileCompletionItems.length) * 100,
+  );
+
+  useEffect(() => {
+    if (initialLoading) return;
+
+    if (
+      previousCompletion.current !== null &&
+      previousCompletion.current < 100 &&
+      profileCompletion === 100
+    ) {
+      setShowConfetti(true);
+    }
+
+    previousCompletion.current = profileCompletion;
+  }, [initialLoading, profileCompletion]);
+
+  const finishConfetti = useCallback(() => setShowConfetti(false), []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -74,6 +122,15 @@ export default function EditProfileScreen() {
           foodPreferences: data.foodPreferences ?? [],
           dietaryRestrictions: data.dietaryRestrictions ?? [],
           favoriteCuisines: data.favoriteCuisines ?? [],
+          completedFields: PROFILE_DETAIL_ANSWER_FIELDS.filter(
+            (field) =>
+              data.profileCompletedFields?.includes(field) ||
+              (field === "birthday"
+                ? Boolean(data.birthday)
+                : field === "pronouns"
+                  ? Boolean(data.pronouns)
+                  : (data[field]?.length ?? 0) > 0),
+          ),
         };
         setOriginal({
           username: data.username ?? "",
@@ -155,6 +212,7 @@ export default function EditProfileScreen() {
         foodPreferences: details.foodPreferences,
         dietaryRestrictions: details.dietaryRestrictions,
         favoriteCuisines: details.favoriteCuisines,
+        profileCompletedFields: details.completedFields,
         showPronouns: details.showPronouns,
       });
 
@@ -197,6 +255,7 @@ export default function EditProfileScreen() {
         onSelect(image.path);
       } catch (error) {
         if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
+          console.error("Could not open profile camera or crop photo", error);
           Alert.alert(t("common:error"), t("profile:imagePickerError"));
         }
       }
@@ -208,6 +267,7 @@ export default function EditProfileScreen() {
         onSelect(image.path);
       } catch (error) {
         if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
+          console.error("Could not open profile gallery or crop photo", error);
           Alert.alert(t("common:error"), t("profile:imagePickerError"));
         }
       }
@@ -307,6 +367,12 @@ export default function EditProfileScreen() {
           </Text>
         </View>
         <View className="px-5 pb-10">
+          <ProfileCompletion
+            percentage={profileCompletion}
+            completed={completedProfileItems}
+            total={profileCompletionItems.length}
+          />
+
           <TouchableOpacity
             onPress={() => pickImage([3, 1], setNewCoverUri)}
             className="mt-6 h-48 overflow-hidden rounded-3xl bg-gray-100 dark:bg-gray-800"
@@ -363,17 +429,62 @@ export default function EditProfileScreen() {
 
           <SectionTitle title={t("profile:personalization")} />
           <ProfileDetailsEditor value={details} onChange={setDetails} />
-
+        </View>
+        </ScrollView>
+        <View className="border-t border-black/5 bg-canvas px-5 pb-2 pt-3 dark:border-white/10 dark:bg-black">
           <AppButton
             title={loading ? t("common:saving") : t("common:save")}
             onPress={saveProfile}
             disabled={loading}
           />
-
         </View>
-        </ScrollView>
       </KeyboardAvoidingView>
+      {showConfetti && profileCompletion === 100 && (
+        <ConfettiBurst onComplete={finishConfetti} />
+      )}
     </SafeAreaView>
+  );
+}
+
+function ProfileCompletion({
+  percentage,
+  completed,
+  total,
+}: {
+  percentage: number;
+  completed: number;
+  total: number;
+}) {
+  const { t } = useTranslation("profile");
+
+  return (
+    <View className="mt-5 rounded-3xl bg-[#F1EFEA] p-4 dark:bg-gray-900">
+      <View className="flex-row items-center justify-between gap-4">
+        <View className="flex-1">
+          <Text className="text-base font-bold text-black dark:text-white">
+            {t("profileCompletion")}
+          </Text>
+          <Text className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
+            {percentage === 100
+              ? t("profileCompletionDone")
+              : t("profileCompletionHint", {
+                  count: total - completed,
+                })}
+          </Text>
+        </View>
+        <Text className="text-xl font-bold text-amber-600 dark:text-amber-300">
+          {percentage}%
+        </Text>
+      </View>
+      {percentage < 100 && (
+        <View className="mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+          <View
+            className="h-full rounded-full bg-amber-400"
+            style={{ width: `${percentage}%` }}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 

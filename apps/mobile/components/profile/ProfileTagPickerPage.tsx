@@ -48,13 +48,15 @@ export function getProfileTagLabel(t: TFunction, value: string) {
 type Props = {
   field: ProfileTagField;
   selected: string[];
+  noneSelected?: boolean;
   onClose: () => void;
-  onDone: (selected: string[]) => void;
+  onDone: (selected: string[], noneSelected: boolean) => void;
 };
 
 export default function ProfileTagPickerPage({
   field,
   selected,
+  noneSelected = false,
   onClose,
   onDone,
 }: Props) {
@@ -62,6 +64,7 @@ export default function ProfileTagPickerPage({
   const { isDark } = useAppTheme();
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<string[]>(selected);
+  const [choseNone, setChoseNone] = useState(noneSelected);
   const [customPronouns, setCustomPronouns] = useState("");
 
   const fieldLabel = t(field);
@@ -83,6 +86,7 @@ export default function ProfileTagPickerPage({
   }, [options, query, t]);
 
   function toggle(option: string) {
+    setChoseNone(false);
     setDraft((current) =>
       current.includes(option)
         ? current.filter((item) => item !== option)
@@ -93,6 +97,7 @@ export default function ProfileTagPickerPage({
   function addCustomPronouns() {
     const custom = customPronouns.trim();
     if (!custom) return;
+    setChoseNone(false);
     setDraft((current) =>
       current.some((item) => item.toLocaleLowerCase() === custom.toLocaleLowerCase())
         ? current
@@ -123,10 +128,15 @@ export default function ProfileTagPickerPage({
                 {t("chooseTags", { name: fieldLabel })}
               </Text>
               <Text className="mt-0.5 text-center text-xs text-gray-500 dark:text-gray-400">
-                {t("selectedCount", { count: draft.length })}
+                {choseNone
+                  ? t("preferNotToAnswer")
+                  : t("selectedCount", { count: draft.length })}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => onDone(draft)} className="min-w-11 px-1 py-3">
+            <TouchableOpacity
+              onPress={() => onDone(choseNone ? [] : draft, choseNone)}
+              className="min-w-11 px-1 py-3"
+            >
               <Text className="text-right font-bold text-amber-600 dark:text-amber-300">
                 {t("common:done")}
               </Text>
@@ -183,7 +193,13 @@ export default function ProfileTagPickerPage({
               {fieldLabel}
             </Text>
             {!!draft.length && (
-              <TouchableOpacity onPress={() => setDraft([])} className="px-2 py-2">
+              <TouchableOpacity
+                onPress={() => {
+                  setDraft([]);
+                  setChoseNone(false);
+                }}
+                className="px-2 py-2"
+              >
                 <Text className="text-sm font-bold text-red-500">{t("clearAll")}</Text>
               </TouchableOpacity>
             )}
@@ -195,6 +211,30 @@ export default function ProfileTagPickerPage({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 28 }}
             ItemSeparatorComponent={() => <View className="h-px bg-black/5 dark:bg-white/10" />}
+            ListHeaderComponent={
+              <TouchableOpacity
+                onPress={() => {
+                  setDraft([]);
+                  setChoseNone(true);
+                }}
+                activeOpacity={0.7}
+                className="mb-2 flex-row items-center rounded-2xl bg-[#F1EFEA] px-4 py-4 dark:bg-gray-900"
+              >
+                <View className="flex-1">
+                  <Text className="text-base text-black dark:text-white" weight="bold">
+                    {t("noneOption")}
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {t("noneOptionHint")}
+                  </Text>
+                </View>
+                <CheckCircleIcon
+                  size={25}
+                  color={choseNone ? "#D6A92D" : isDark ? "#4B5563" : "#D1D5DB"}
+                  weight={choseNone ? "fill" : "regular"}
+                />
+              </TouchableOpacity>
+            }
             ListEmptyComponent={
               <View className="items-center px-6 py-16">
                 <Text className="text-center text-gray-500 dark:text-gray-400">

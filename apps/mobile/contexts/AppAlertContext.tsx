@@ -42,6 +42,16 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
     action?.();
   }, []);
 
+  const schedulePendingAction = useCallback(() => {
+    if (dismissFallbackRef.current) {
+      clearTimeout(dismissFallbackRef.current);
+    }
+
+    // Native controllers such as the camera and photo picker need the
+    // presenting view controller to settle after the alert has disappeared.
+    dismissFallbackRef.current = setTimeout(runPendingAction, 250);
+  }, [runPendingAction]);
+
   const close = useCallback(
     (button?: AlertButton) => {
       const onPress = button?.onPress;
@@ -52,12 +62,12 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
       };
       setRequest(null);
 
-      // iOS invokes `onDismiss` after the fade completes. The fallback covers
-      // platforms where that event is not emitted.
+      // `onDismiss` schedules the action with a small post-animation buffer.
+      // Keep a longer fallback for platforms where that event is not emitted.
       if (dismissFallbackRef.current) {
         clearTimeout(dismissFallbackRef.current);
       }
-      dismissFallbackRef.current = setTimeout(runPendingAction, 400);
+      dismissFallbackRef.current = setTimeout(runPendingAction, 700);
     },
     [request?.options?.onDismiss, runPendingAction],
   );
@@ -112,7 +122,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
         animationType="fade"
         statusBarTranslucent
         presentationStyle="overFullScreen"
-        onDismiss={runPendingAction}
+        onDismiss={schedulePendingAction}
         onRequestClose={() => {
           if (cancelButton) close(cancelButton);
           else if (canDismissBackdrop) close();

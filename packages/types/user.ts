@@ -24,6 +24,7 @@ export type User = {
   foodPreferences?: string[];
   dietaryRestrictions?: string[];
   favoriteCuisines?: string[];
+  profileCompletedFields?: string[];
   showPhoneNumber?: boolean;
   showBirthday?: boolean;
   showPronouns?: boolean;
