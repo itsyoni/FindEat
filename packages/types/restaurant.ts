@@ -91,6 +91,8 @@ export type ManagedRestaurant = {
   followersCount?: number;
   averageRating?: number | null;
   reviewsCount?: number;
+  accessRole?: "OWNER" | "MANAGER" | "ADMIN" | null;
+  status?: RestaurantStatus;
 };
 
 export const RESTAURANT_CATEGORY_OPTIONS = [

@@ -48,7 +48,9 @@ export function SupportTicketsPanel() {
     setLoading(true);
     setError("");
     try {
-      const next = await request<SupportTicket[]>("/admin/support-tickets");
+      const next = await request<SupportTicket[]>("/admin/support-tickets", {
+        cache: "reload",
+      });
       setTickets(next);
       setSelectedId((current) =>
         current && next.some((ticket) => ticket.id === current)

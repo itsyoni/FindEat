@@ -33,6 +33,7 @@ import {
   CheckIcon,
   CrosshairIcon,
   FunnelIcon,
+  HeartIcon,
   StorefrontIcon,
   XIcon,
 } from "phosphor-react-native";
@@ -45,24 +46,91 @@ import { useSaveToLists } from "@/contexts/SaveToListsContext";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "");
 
-const MAP_STATUS_IMAGES = {
-  "map-status-favorite": require("@/assets/images/map-status-heart.png"),
-  "map-status-visited": require("@/assets/images/map-status-check.png"),
-};
+// The marker is 48px wide. Cluster only when markers would substantially
+// overlap, so nearby restaurants remain individually discoverable for longer.
+const MARKER_CLUSTER_RADIUS = 42;
 
-const MEDIA_BASE_URL = (
-  process.env.EXPO_PUBLIC_MEDIA_URL ?? "https://media.findeat.space"
-).replace(/\/$/, "");
-const IMAGE_TRANSFORM_BASE_URL = (
-  process.env.EXPO_PUBLIC_IMAGE_TRANSFORM_URL ?? "https://media.findeat.space"
-).replace(/\/$/, "");
+function projectCoordinate(longitude: number, latitude: number, zoom: number) {
+  const worldSize = 256 * 2 ** zoom;
+  const latitudeRadians = (latitude * Math.PI) / 180;
+  const sinLatitude = Math.min(
+    Math.max(Math.sin(latitudeRadians), -0.9999),
+    0.9999,
+  );
 
-function getCircularMapLogoUrl(url: string) {
-  if (url.startsWith(`${MEDIA_BASE_URL}/`)) {
-    return `${IMAGE_TRANSFORM_BASE_URL}/cdn-cgi/image/width=128,height=128,fit=cover,format=png,quality=85/${url}`;
+  return {
+    x: ((longitude + 180) / 360) * worldSize,
+    y:
+      (0.5 -
+        Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) *
+      worldSize,
+  };
+}
+
+function clusterRestaurants(restaurants: Restaurant[], zoom: number) {
+  const points = restaurants.map((restaurant) => ({
+    restaurant,
+    ...projectCoordinate(
+      restaurant.longitude as number,
+      restaurant.latitude as number,
+      zoom,
+    ),
+  }));
+  const remaining = new Set(points.map((_, index) => index));
+  const groups: {
+    id: string;
+    restaurants: Restaurant[];
+    coordinate: [number, number];
+  }[] = [];
+
+  while (remaining.size > 0) {
+    const firstIndex = remaining.values().next().value as number;
+    remaining.delete(firstIndex);
+    const memberIndexes = [firstIndex];
+    const queue = [firstIndex];
+
+    // Build connected groups. As the map zooms out, projected distances only
+    // become smaller, so an existing cluster can merge with another cluster
+    // but can never split or silently lose one of its restaurants.
+    while (queue.length > 0) {
+      const currentIndex = queue.shift() as number;
+      const current = points[currentIndex];
+
+      for (const candidateIndex of [...remaining]) {
+        const candidate = points[candidateIndex];
+        const distance = Math.hypot(
+          current.x - candidate.x,
+          current.y - candidate.y,
+        );
+        if (distance <= MARKER_CLUSTER_RADIUS) {
+          remaining.delete(candidateIndex);
+          memberIndexes.push(candidateIndex);
+          queue.push(candidateIndex);
+        }
+      }
+    }
+
+    const members = memberIndexes.map((index) => points[index].restaurant);
+    groups.push({
+      id: members
+        .map((restaurant) => restaurant.id)
+        .sort()
+        .join("-"),
+      restaurants: members,
+      coordinate: [
+        members.reduce(
+          (sum, restaurant) => sum + (restaurant.longitude as number),
+          0,
+        ) / members.length,
+        members.reduce(
+          (sum, restaurant) => sum + (restaurant.latitude as number),
+          0,
+        ) / members.length,
+      ],
+    });
   }
 
-  return url;
+  return groups;
 }
 
 export default function MapScreen() {
@@ -75,6 +143,7 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<MapViewMode>("MAP");
   const [isSearching, setIsSearching] = useState(false);
+  const [currentMapZoom, setCurrentMapZoom] = useState(13);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mapFilter, setMapFilter] = useState<RestaurantMapFilter>(
     DEFAULT_MAP_PREFERENCES.filter,
@@ -170,59 +239,19 @@ export default function MapScreen() {
     [restaurants, statusOverrides],
   );
 
-  const restaurantsWithLocation = mapRestaurants.filter(
-    (restaurant) =>
-      typeof restaurant.latitude === "number" &&
-      typeof restaurant.longitude === "number",
-  );
-
-  const restaurantLogoImages = useMemo(
+  const restaurantsWithLocation = useMemo(
     () =>
-      Object.fromEntries(
-        restaurantsWithLocation
-          .filter((restaurant) => !!restaurant.logoUrl)
-          .map((restaurant) => [
-            `restaurant-logo-${restaurant.id}`,
-            { uri: getCircularMapLogoUrl(restaurant.logoUrl as string) },
-          ]),
+      mapRestaurants.filter(
+        (restaurant) =>
+          typeof restaurant.latitude === "number" &&
+          typeof restaurant.longitude === "number",
       ),
-    [restaurantsWithLocation],
+    [mapRestaurants],
   );
 
-  const restaurantsGeoJson = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: restaurantsWithLocation.map((restaurant) => ({
-        type: "Feature" as const,
-        id: restaurant.id,
-        properties: {
-          id: restaurant.id,
-          name: restaurant.name,
-          favorite: !!restaurant.userRestaurant?.favorite,
-          visited: !!restaurant.userRestaurant?.visited,
-          wantToTry: !!restaurant.userRestaurant?.wantToTry,
-          hasOverlayStatus: !!(
-            restaurant.userRestaurant?.favorite ||
-            restaurant.userRestaurant?.visited
-          ),
-          selected: selectedRestaurant?.id === restaurant.id,
-          hasLogo: !!restaurant.logoUrl,
-          logoImage: `restaurant-logo-${restaurant.id}`,
-          fallbackLetter: restaurant.name.trim().charAt(0).toUpperCase(),
-          statusIconImage: restaurant.userRestaurant?.favorite
-            ? "map-status-favorite"
-            : "map-status-visited",
-        },
-        geometry: {
-          type: "Point" as const,
-          coordinates: [
-            restaurant.longitude as number,
-            restaurant.latitude as number,
-          ],
-        },
-      })),
-    }),
-    [restaurantsWithLocation, selectedRestaurant],
+  const restaurantMarkerGroups = useMemo(
+    () => clusterRestaurants(restaurantsWithLocation, currentMapZoom),
+    [currentMapZoom, restaurantsWithLocation],
   );
 
   const loadRestaurants = useCallback(async (coordinates?: { latitude: number; longitude: number }) => {
@@ -540,6 +569,15 @@ export default function MapScreen() {
                 styleURL={
                   isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street
                 }
+                onCameraChanged={(state) => {
+                  // Re-cluster while the gesture is happening so markers never
+                  // lag behind the visible zoom. Quantizing to 0.2 zoom steps
+                  // avoids a React update for every native camera frame.
+                  const nextZoom = Math.round(state.properties.zoom * 5) / 5;
+                  setCurrentMapZoom((current) =>
+                    current === nextZoom ? current : nextZoom,
+                  );
+                }}
                 onPress={() => {
                   bottomSheetRef.current?.close();
                   dismissRestaurantPreview();
@@ -556,217 +594,120 @@ export default function MapScreen() {
                 />
                 <Mapbox.UserLocation visible />
 
-                <Mapbox.Images
-                  images={{ ...restaurantLogoImages, ...MAP_STATUS_IMAGES }}
-                />
-
-                <Mapbox.ShapeSource
-                  id="restaurants"
-                  shape={restaurantsGeoJson}
-                  cluster
-                  clusterRadius={50}
-                  clusterMaxZoomLevel={14}
-                  onPress={(event) => {
-                    const feature = event.features[0];
-
-                    if (!feature) return;
-
-                    if (feature.properties?.cluster) {
-                      setSelectedRestaurant(null);
-
-                      const coordinates = (feature.geometry as any)
-                        ?.coordinates;
-
-                      if (Array.isArray(coordinates)) {
-                        cameraRef.current?.setCamera({
-                          centerCoordinate: coordinates,
-                          zoomLevel: 15,
-                          animationDuration: 500,
-                        });
-                      }
-
-                      return;
-                    }
-
-                    const restaurantId = feature.properties?.id;
-
-                    if (!restaurantId) return;
-
-                    const restaurant = restaurants.find(
-                      (r) => r.id === restaurantId,
+                {restaurantMarkerGroups.map((group) => {
+                  if (group.restaurants.length > 1) {
+                    return (
+                      <Mapbox.MarkerView
+                        key={`cluster-${group.id}`}
+                        coordinate={group.coordinate}
+                        anchor={{ x: 0.5, y: 0.5 }}
+                        allowOverlap
+                        allowOverlapWithPuck
+                      >
+                        <TouchableOpacity
+                          activeOpacity={0.82}
+                          onPress={() => {
+                            bottomSheetRef.current?.close();
+                            setSelectedRestaurant(null);
+                            cameraRef.current?.setCamera({
+                              centerCoordinate: group.coordinate,
+                              zoomLevel: Math.min(currentMapZoom + 2, 17),
+                              animationDuration: 450,
+                            });
+                          }}
+                          className="h-12 w-12 items-center justify-center rounded-full border-[3px] border-white bg-[#212121]"
+                          style={{
+                            shadowColor: "#000",
+                            shadowOpacity: 0.24,
+                            shadowRadius: 4,
+                            shadowOffset: { width: 0, height: 2 },
+                            elevation: 5,
+                          }}
+                        >
+                          <Text className="text-sm font-bold text-white">
+                            {group.restaurants.length}
+                          </Text>
+                        </TouchableOpacity>
+                      </Mapbox.MarkerView>
                     );
+                  }
 
-                    if (!restaurant) return;
+                  const restaurant = group.restaurants[0];
+                  const isSelected = selectedRestaurant?.id === restaurant.id;
+                  const isFavorite = !!restaurant.userRestaurant?.favorite;
+                  const isVisited = !!restaurant.userRestaurant?.visited;
+                  const isWantToTry = !!restaurant.userRestaurant?.wantToTry;
+                  const markerColor = isSelected
+                    ? "#111827"
+                    : isFavorite
+                      ? "#EF4444"
+                      : isVisited
+                        ? "#22C55E"
+                        : isWantToTry
+                          ? "#EAB308"
+                          : "#6B7280";
 
-                    const temporaryId = temporaryRestaurantIdRef.current;
-                    if (temporaryId && temporaryId !== restaurant.id) {
-                      setRestaurants((current) =>
-                        current.filter((item) => item.id !== temporaryId),
-                      );
-                      temporaryRestaurantIdRef.current = null;
-                    }
-
-                    setSelectedRestaurant(restaurant);
-                    void hydrateSelectedRestaurant(restaurant);
-
-                    const coordinates = (feature.geometry as any)?.coordinates;
-
-                    if (Array.isArray(coordinates)) {
-                      cameraRef.current?.setCamera({
-                        centerCoordinate: coordinates,
-                        zoomLevel: 16,
-                        padding: {
-                          paddingBottom: 220,
-                          paddingTop: 80,
-                          paddingLeft: 40,
-                          paddingRight: 40,
-                        },
-                        animationDuration: 500,
-                      });
-                    }
-                  }}
-                >
-                  <Mapbox.CircleLayer
-                    id="restaurant-selected-ring"
-                    filter={[
-                      "all",
-                      ["!", ["has", "point_count"]],
-                      ["==", ["get", "selected"], true],
-                    ]}
-                    style={{
-                      circleRadius: 26,
-                      circleColor: "#111827",
-                      circleStrokeWidth: 2,
-                      circleStrokeColor: "#FFFFFF",
-                    }}
-                  />
-
-                  <Mapbox.CircleLayer
-                    id="restaurant-logo-border"
-                    filter={["!", ["has", "point_count"]]}
-                    style={{
-                      circleRadius: 23,
-                      circleColor: [
-                        "case",
-                        ["==", ["get", "favorite"], true],
-                        "#EF4444",
-                        ["==", ["get", "visited"], true],
-                        "#22C55E",
-                        ["==", ["get", "wantToTry"], true],
-                        "#EAB308",
-                        "#6B7280",
-                      ],
-                      circleStrokeWidth: 2,
-                      circleStrokeColor: "#FFFFFF",
-                    }}
-                  />
-
-                  <Mapbox.CircleLayer
-                    id="restaurant-logo-background"
-                    filter={["!", ["has", "point_count"]]}
-                    style={{
-                      circleRadius: 19,
-                      circleColor: isDark ? "#1F2937" : "#FFFFFF",
-                    }}
-                  />
-
-                  <Mapbox.SymbolLayer
-                    id="restaurant-logo-images"
-                    filter={[
-                      "all",
-                      ["!", ["has", "point_count"]],
-                      ["==", ["get", "hasLogo"], true],
-                    ]}
-                    style={{
-                      iconImage: ["get", "logoImage"],
-                      iconSize: 0.25,
-                      iconAllowOverlap: true,
-                      iconIgnorePlacement: true,
-                    }}
-                  />
-
-                  <Mapbox.SymbolLayer
-                    id="restaurant-logo-fallback"
-                    filter={[
-                      "all",
-                      ["!", ["has", "point_count"]],
-                      ["==", ["get", "hasLogo"], false],
-                    ]}
-                    style={{
-                      textField: ["get", "fallbackLetter"],
-                      textSize: 19,
-                      textColor: isDark ? "#FFFFFF" : "#111827",
-                      textAllowOverlap: true,
-                      textIgnorePlacement: true,
-                    }}
-                  />
-
-                  <Mapbox.CircleLayer
-                    id="restaurant-status-overlay"
-                    filter={[
-                      "all",
-                      ["!", ["has", "point_count"]],
-                      ["==", ["get", "hasOverlayStatus"], true],
-                    ]}
-                    style={{
-                      circleRadius: 19,
-                      circleColor: [
-                        "case",
-                        ["==", ["get", "favorite"], true],
-                        "#EF4444",
-                        ["==", ["get", "visited"], true],
-                        "#22C55E",
-                        "#EAB308",
-                      ],
-                      circleOpacity: 0.42,
-                    }}
-                  />
-
-                  <Mapbox.SymbolLayer
-                    id="restaurant-status-icon"
-                    filter={[
-                      "all",
-                      ["!", ["has", "point_count"]],
-                      ["==", ["get", "hasOverlayStatus"], true],
-                    ]}
-                    style={{
-                      iconImage: ["get", "statusIconImage"],
-                      iconSize: 0.3,
-                      iconAllowOverlap: true,
-                      iconIgnorePlacement: true,
-                    }}
-                  />
-
-                  <Mapbox.CircleLayer
-                    id="restaurant-clusters"
-                    filter={["has", "point_count"]}
-                    style={{
-                      circleRadius: [
-                        "step",
-                        ["get", "point_count"],
-                        18,
-                        10,
-                        24,
-                        50,
-                        32,
-                      ],
-                      circleColor: "#212121",
-                      circleStrokeWidth: 3,
-                      circleStrokeColor: "#FFFFFF",
-                    }}
-                  />
-
-                  <Mapbox.SymbolLayer
-                    id="restaurant-cluster-count"
-                    filter={["has", "point_count"]}
-                    style={{
-                      textField: ["get", "point_count_abbreviated"],
-                      textSize: 13,
-                      textColor: "#FFFFFF",
-                      textAllowOverlap: true,
-                    }}
-                  />
-                </Mapbox.ShapeSource>
+                  return (
+                    <Mapbox.MarkerView
+                      key={restaurant.id}
+                      coordinate={[
+                        restaurant.longitude as number,
+                        restaurant.latitude as number,
+                      ]}
+                      anchor={{ x: 0.5, y: 0.5 }}
+                      allowOverlap
+                      allowOverlapWithPuck
+                      isSelected={isSelected}
+                    >
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => selectRestaurant(restaurant)}
+                        style={{
+                          width: isSelected ? 52 : 48,
+                          height: isSelected ? 52 : 48,
+                          borderRadius: isSelected ? 26 : 24,
+                          borderWidth: isSelected ? 4 : 3,
+                          borderColor: markerColor,
+                          backgroundColor: isDark ? "#111827" : "#FFFFFF",
+                          padding: 3,
+                          shadowColor: "#000",
+                          shadowOpacity: 0.22,
+                          shadowRadius: 4,
+                          shadowOffset: { width: 0, height: 2 },
+                          elevation: 5,
+                        }}
+                      >
+                        <Avatar
+                          uri={restaurant.logoUrl}
+                          username={restaurant.name}
+                          fallbackType="restaurant"
+                          size={isSelected ? 38 : 36}
+                        />
+                        {(isFavorite || isVisited) && (
+                          <View
+                            pointerEvents="none"
+                            style={{
+                              position: "absolute",
+                              inset: isSelected ? 7 : 6,
+                              borderRadius: isSelected ? 19 : 18,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              backgroundColor: isFavorite
+                                ? "rgba(239, 68, 68, 0.42)"
+                                : "rgba(34, 197, 94, 0.42)",
+                            }}
+                          >
+                            {isFavorite ? (
+                              <HeartIcon size={19} color="#FFF" weight="fill" />
+                            ) : (
+                              <CheckIcon size={20} color="#FFF" weight="bold" />
+                            )}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </Mapbox.MarkerView>
+                  );
+                })}
               </Mapbox.MapView>
 
               {selectedRestaurant && (

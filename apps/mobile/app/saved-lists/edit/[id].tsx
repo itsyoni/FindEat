@@ -1,4 +1,5 @@
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -24,9 +25,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Switch,
   TextInput,
   TouchableOpacity,
@@ -162,14 +161,11 @@ export default function EditSavedListScreen() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
-      >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
+      <View className="flex-1">
+        <KeyboardAwareFormScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
+          bottomOffset={28}
         >
           <TouchableOpacity
             activeOpacity={0.85}
@@ -326,8 +322,8 @@ export default function EditSavedListScreen() {
               />
             </View>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareFormScrollView>
+      </View>
     </SafeAreaView>
   );
 }

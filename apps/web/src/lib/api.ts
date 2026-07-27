@@ -10,23 +10,63 @@ import type {
 
 export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')
 
+const responseCache = new Map<string, Promise<unknown>>()
+const MAX_CACHE_ENTRIES = 150
+
 export function getAccessToken() {
   return localStorage.getItem('findeat-business-token')
 }
 
+export function invalidateRequestCache(pathPrefix?: string) {
+  if (!pathPrefix) {
+    responseCache.clear()
+    return
+  }
+  for (const key of responseCache.keys()) {
+    if (key.split(':', 2)[1]?.startsWith(pathPrefix)) {
+      responseCache.delete(key)
+    }
+  }
+}
+
 export async function request<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken()
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  })
-  const body = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(body?.message || 'Something went wrong')
-  return body as T
+  const method = (init?.method ?? 'GET').toUpperCase()
+  const cacheable = method === 'GET' && init?.cache !== 'no-store'
+  const refreshCache = method === 'GET' && init?.cache === 'reload'
+  const cacheKey = `${token ?? 'anonymous'}:${path}`
+  const existing = cacheable && !refreshCache
+    ? responseCache.get(cacheKey)
+    : undefined
+  if (existing) return existing as Promise<T>
+
+  const pending = (async () => {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    })
+    const body = await response.json().catch(() => null)
+    if (!response.ok) {
+      if (response.status === 401) responseCache.clear()
+      throw new Error(body?.message || 'Something went wrong')
+    }
+    if (method !== 'GET' && method !== 'HEAD') responseCache.clear()
+    return body as T
+  })()
+
+  if (cacheable) {
+    responseCache.set(cacheKey, pending)
+    if (responseCache.size > MAX_CACHE_ENTRIES) {
+      responseCache.delete(responseCache.keys().next().value as string)
+    }
+    pending.catch(() => responseCache.delete(cacheKey))
+  }
+
+  return pending
 }
 
 export async function uploadImage(
@@ -59,15 +99,23 @@ export async function uploadImage(
   return ticket.imageUrl
 }
 
-export async function loadRestaurantReviews(restaurantId: string): Promise<RestaurantReview[]> {
+export async function loadRestaurantReviews(
+  restaurantId: string,
+  refresh = false,
+): Promise<RestaurantReview[]> {
+  const init = refresh ? { cache: 'reload' as const } : undefined
   try {
-    const reviews = await request<RestaurantReview[]>(`/restaurants/${restaurantId}/business/reviews`)
+    const reviews = await request<RestaurantReview[]>(
+      `/restaurants/${restaurantId}/business/reviews`,
+      init,
+    )
     return reviews.map((review) => ({ ...review, items: review.items ?? [] }))
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : ''
     if (!message.includes('cannot get') && !message.includes('not found')) throw error
     const fallback = await request<{ items: RestaurantReview[] }>(
       `/restaurants/${restaurantId}/posts?section=REVIEWS&limit=30`,
+      init,
     )
     return fallback.items.map((review) => ({
       ...review,
@@ -80,9 +128,11 @@ export async function loadRestaurantReviews(restaurantId: string): Promise<Resta
 export async function fetchRestaurantConversations(
   restaurantId: string,
   currentUserId: string,
+  refresh = false,
 ): Promise<RestaurantConversation[]> {
+  const init = refresh ? { cache: 'reload' as const } : undefined
   const fetchFromChatList = async () => {
-    const chats = await request<Chat[]>('/chats')
+    const chats = await request<Chat[]>('/chats', init)
     return chats
       .filter((chat) => chat.type === 'RESTAURANT' && chat.restaurantId === restaurantId)
       .map((chat) => ({
@@ -97,6 +147,7 @@ export async function fetchRestaurantConversations(
   try {
     const conversations = await request<RestaurantConversation[]>(
       `/chats/restaurants/${restaurantId}/conversations`,
+      init,
     )
     return conversations.length > 0 ? conversations : fetchFromChatList()
   } catch (error) {
@@ -109,16 +160,21 @@ export async function fetchRestaurantConversations(
 export async function fetchRestaurantMessages(
   restaurantId: string,
   conversationId: string,
+  refresh = false,
 ): Promise<RestaurantMessage[]> {
+  const init = refresh ? { cache: 'reload' as const } : undefined
   try {
     const messages = await request<RestaurantMessage[]>(
       `/chats/restaurants/${restaurantId}/conversations/${conversationId}/messages`,
+      init,
     )
-    return messages.length > 0 ? messages : request<RestaurantMessage[]>(`/chats/${conversationId}/messages`)
+    return messages.length > 0
+      ? messages
+      : request<RestaurantMessage[]>(`/chats/${conversationId}/messages`, init)
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : ''
     if (message.includes('cannot get') || message.includes('not found')) {
-      return request<RestaurantMessage[]>(`/chats/${conversationId}/messages`)
+      return request<RestaurantMessage[]>(`/chats/${conversationId}/messages`, init)
     }
     throw error
   }
@@ -140,10 +196,13 @@ export async function sendRestaurantReply(
 
 export async function fetchRestaurantNotifications(
   restaurantId: string,
+  refresh = false,
 ): Promise<RestaurantNotificationsPage> {
+  const init = refresh ? { cache: 'reload' as const } : undefined
   try {
     return await request<RestaurantNotificationsPage>(
       `/notifications/restaurants/${restaurantId}?limit=40`,
+      init,
     )
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : ''

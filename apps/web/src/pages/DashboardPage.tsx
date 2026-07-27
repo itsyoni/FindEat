@@ -40,6 +40,7 @@ import { ProfilePage } from "./ProfilePage";
 import { ReviewsPage } from "./ReviewsPage";
 import { OwnerSupportPage } from "./OwnerSupportPage";
 import { SettingsPage } from "./SettingsPage";
+import { ErrorPage } from "../components/ErrorPage";
 import {
   adminPaths,
   adminSectionFromPath,
@@ -48,6 +49,7 @@ import {
   navigateTo,
   usePathname,
 } from "../lib/navigation";
+import { WEB_VERSION } from "../lib/version";
 import "../App.css";
 
 function normalizeRestaurantSetup(restaurant: ManagedRestaurant) {
@@ -97,9 +99,22 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   const routedAdminSection = adminSectionFromPath(pathname);
   const isAdminRoute = pathname.startsWith("/admin");
   const section = routedBusinessSection ?? "overview";
+  const [visitedSections, setVisitedSections] = useState<
+    Set<BusinessDashboardSection>
+  >(() => new Set([section]));
   const navigateSection = useCallback((next: BusinessDashboardSection) => {
     navigateTo(businessPaths[next]);
   }, []);
+
+  useEffect(() => {
+    // Keep an already-opened section mounted so its local state and loaded
+    // data survive navigation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisitedSections((current) => {
+      if (current.has(section)) return current;
+      return new Set([...current, section]);
+    });
+  }, [section]);
 
   const loadRestaurantConversations = useCallback(
     async (restaurantId: string) => {
@@ -107,6 +122,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       const nextConversations = await fetchRestaurantConversations(
         restaurantId,
         account.id,
+        true,
       );
       setConversations(nextConversations);
     },
@@ -117,7 +133,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
     async (restaurantId: string, showLoading = false) => {
       if (showLoading) setNotificationsLoading(true);
       try {
-        const page = await fetchRestaurantNotifications(restaurantId);
+        const page = await fetchRestaurantNotifications(restaurantId, true);
         setRestaurantNotifications(page.items);
         setRestaurantUnreadCount(page.unreadCount);
       } finally {
@@ -129,7 +145,8 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
 
   const refreshRestaurantSummary = useCallback(async () => {
     const nextRestaurants = await request<ManagedRestaurant[]>(
-      "/restaurants/me",
+      "/restaurants/manageable",
+      { cache: "reload" },
     );
     setRestaurants(nextRestaurants.map(normalizeRestaurantSetup));
   }, []);
@@ -153,7 +170,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       ) {
         void loadRestaurantConversations(notification.restaurantId);
       } else if (notification.type === "RESTAURANT_REVIEW") {
-        void loadRestaurantReviews(notification.restaurantId).then(setReviews);
+        void loadRestaurantReviews(notification.restaurantId, true).then(
+          setReviews,
+        );
       } else if (notification.type === "RESTAURANT_FOLLOW") {
         void refreshRestaurantSummary();
       }
@@ -219,7 +238,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       }
 
       const nextRestaurants = (
-        await request<ManagedRestaurant[]>("/restaurants/me")
+        await request<ManagedRestaurant[]>(
+          "/restaurants/manageable",
+        )
       ).map(normalizeRestaurantSetup);
       setRestaurants(nextRestaurants);
       if (nextRestaurants.length) {
@@ -227,7 +248,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           (item) => !item.setupComplete,
         );
         const nextRestaurantId =
-          incompleteRestaurant?.id ??
+          (isAdminAccount ? null : incompleteRestaurant?.id) ??
           (nextRestaurants.some((item) => item.id === selectedRestaurantId)
             ? selectedRestaurantId!
             : nextRestaurants[0].id);
@@ -294,10 +315,6 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     if (loading || !account) return;
-    if (isAdminRoute && !isAdmin) {
-      navigateTo(businessPaths.overview, true);
-      return;
-    }
     if (isAdmin && !restaurant && !isAdminRoute) {
       navigateTo(adminPaths.claims, true);
       return;
@@ -367,22 +384,29 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   if (loading) return <div className="loading">Loading your restaurant…</div>;
   if (error)
     return (
-      <div className="loading">
-        <div>
-          <h2>We couldn’t open your dashboard</h2>
-          <p>{error}</p>
-          <div className="loading-actions">
-            <button className="primary" onClick={() => void load()}>
-              Try again
-            </button>
-            <button className="secondary" onClick={onLogout}>
-              Sign out
-            </button>
-          </div>
-        </div>
-      </div>
+      <ErrorPage
+        status={error.toLowerCase().includes("fetch") ? 503 : 500}
+        title="We couldn’t open your dashboard."
+        detail={error}
+        primaryAction={{ label: "Try again", onClick: () => void load() }}
+        secondaryAction={{ label: "Sign out", onClick: onLogout }}
+      />
     );
   if (!account) return <div className="loading">Loading your account…</div>;
+  if (isAdminRoute && !isAdmin)
+    return (
+      <ErrorPage
+        status={403}
+        primaryAction={{
+          label: "Back to dashboard",
+          onClick: () => navigateTo(businessPaths.overview),
+        }}
+        secondaryAction={{
+          label: "Go back",
+          onClick: () => window.history.back(),
+        }}
+      />
+    );
   if (isAdmin && (!restaurant || isAdminRoute))
     return (
       <AdminPage
@@ -408,7 +432,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         </div>
       </div>
     );
-  if (!restaurant.setupComplete)
+  if (!restaurant.setupComplete && !isAdmin)
     return (
       <div className="restaurant-setup-shell">
         <div className="restaurant-setup-topbar">
@@ -453,7 +477,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           <div>
             <strong>{restaurant.name}</strong>
             <small>
-              {restaurants.length > 1
+              {restaurant.accessRole === "ADMIN"
+                ? `${restaurants.length} restaurants · admin access`
+                : restaurants.length > 1
                 ? `${restaurants.length} restaurants · switch`
                 : restaurant.city || "Restaurant"}
             </small>
@@ -551,13 +577,20 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             Use the FindEat app to create and publish official content.
           </small>
           <button onClick={onLogout}>Sign out</button>
+          <small className="web-version">Web v{WEB_VERSION}</small>
         </div>
       </aside>
       <main className="content">
         <header>
           <div>
             <strong>{restaurant.name}</strong>
-            <span className="claimed">Claimed</span>
+            <span className="claimed">
+              {restaurant.accessRole === "ADMIN"
+                ? "Admin access"
+                : restaurant.status === "CLAIMED"
+                  ? "Claimed"
+                  : "Unclaimed"}
+            </span>
           </div>
           <div className="top-actions">
             <div className="notifications-menu">
@@ -599,48 +632,77 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             </div>
           </div>
         </header>
-        {section === "overview" && (
-          <OverviewPage
-            restaurant={restaurant}
-            menuCount={menus.length}
-            itemCount={itemCount}
-            reviewCount={reviews.length}
-            onOpenMenu={() => navigateTo(businessPaths.menu)}
-            onOpenProfile={() => navigateTo(businessPaths.profile)}
-          />
+        {(section === "overview" || visitedSections.has("overview")) && (
+          <div
+            className="dashboard-page-slot"
+            hidden={section !== "overview"}
+          >
+            <OverviewPage
+              restaurant={restaurant}
+              menuCount={menus.length}
+              itemCount={itemCount}
+              reviewCount={reviews.length}
+              onOpenMenu={() => navigateTo(businessPaths.menu)}
+              onOpenProfile={() => navigateTo(businessPaths.profile)}
+            />
+          </div>
         )}
-        {section === "dashboard" && (
-          <AnalyticsPage menus={menus} reviews={reviews} />
+        {(section === "dashboard" || visitedSections.has("dashboard")) && (
+          <div
+            className="dashboard-page-slot"
+            hidden={section !== "dashboard"}
+          >
+            <AnalyticsPage menus={menus} reviews={reviews} />
+          </div>
         )}
-        {section === "menu" && (
-          <MenuPage
-            key={restaurant.id}
-            menus={menus}
-            restaurantId={restaurant.id}
-            reload={load}
-          />
+        {(section === "menu" || visitedSections.has("menu")) && (
+          <div className="dashboard-page-slot" hidden={section !== "menu"}>
+            <MenuPage
+              key={restaurant.id}
+              menus={menus}
+              restaurantId={restaurant.id}
+              reload={load}
+            />
+          </div>
         )}
-        {section === "reviews" && <ReviewsPage reviews={reviews} />}
-        {section === "messages" && (
-          <MessagesPage
-            key={restaurant.id}
-            restaurant={restaurant}
-            account={account}
-            conversations={conversations}
-            reloadConversations={loadRestaurantConversations}
-          />
+        {(section === "reviews" || visitedSections.has("reviews")) && (
+          <div className="dashboard-page-slot" hidden={section !== "reviews"}>
+            <ReviewsPage reviews={reviews} />
+          </div>
         )}
-        {section === "profile" && (
-          <ProfilePage
-            key={restaurant.id}
-            restaurant={restaurant}
-            onSaved={load}
-          />
+        {(section === "messages" || visitedSections.has("messages")) && (
+          <div
+            className="dashboard-page-slot messages-page-slot"
+            hidden={section !== "messages"}
+          >
+            <MessagesPage
+              key={restaurant.id}
+              restaurant={restaurant}
+              account={account}
+              conversations={conversations}
+              reloadConversations={loadRestaurantConversations}
+            />
+          </div>
         )}
-        {section === "support" && (
-          <OwnerSupportPage key={restaurant.id} restaurant={restaurant} />
+        {(section === "profile" || visitedSections.has("profile")) && (
+          <div className="dashboard-page-slot" hidden={section !== "profile"}>
+            <ProfilePage
+              key={restaurant.id}
+              restaurant={restaurant}
+              onSaved={load}
+            />
+          </div>
         )}
-        {section === "settings" && <SettingsPage />}
+        {(section === "support" || visitedSections.has("support")) && (
+          <div className="dashboard-page-slot" hidden={section !== "support"}>
+            <OwnerSupportPage key={restaurant.id} restaurant={restaurant} />
+          </div>
+        )}
+        {(section === "settings" || visitedSections.has("settings")) && (
+          <div className="dashboard-page-slot" hidden={section !== "settings"}>
+            <SettingsPage />
+          </div>
+        )}
       </main>
     </div>
   );

@@ -1,11 +1,11 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { AppButton, TextInput , ThemedSafeAreaView } from "@/components/common";
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { router } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform } from "react-native";
 
 export default function CreateMenuScreen() {
   const [title, setTitle] = useState("");
@@ -37,9 +37,10 @@ export default function CreateMenuScreen() {
 
   return (
     <ThemedSafeAreaView>
-      <KeyboardAvoidingView
-        className="flex-1 px-5 pt-6"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareFormScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 48 }}
+        bottomOffset={28}
       >
         <Text className="text-3xl font-bold text-black">Add menu section</Text>
 
@@ -70,7 +71,7 @@ export default function CreateMenuScreen() {
           onPress={createMenu}
           disabled={loading}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </ThemedSafeAreaView>
   );
 }

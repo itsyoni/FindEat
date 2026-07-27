@@ -30,7 +30,12 @@ export function ModerationPanel() {
     try {
       setLoading(true);
       setError("");
-      setReports(await request<ModerationReport[]>(`/admin/reports?status=${status}`));
+      setReports(
+        await request<ModerationReport[]>(
+          `/admin/reports?status=${status}`,
+          { cache: "reload" },
+        ),
+      );
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Could not load reports");
     } finally {
@@ -115,7 +120,7 @@ export function ModerationPanel() {
 
       <div className="moderation-filters">
         {(["PENDING", "RESOLVED", "DISMISSED"] as ReportStatus[]).map((item) => (
-          <button key={item} className={status === item ? "active" : ""} onClick={() => {
+          <button type="button" key={item} aria-pressed={status === item} className={status === item ? "active" : ""} onClick={() => {
             setLoading(true);
             setStatus(item);
           }}>

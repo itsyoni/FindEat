@@ -1,12 +1,13 @@
 import Text from '@/components/common/AppText';
 import { Skeleton, SkeletonPulse } from '@/components/common';
 import AppButton from '@/components/common/buttons/AppButton';
+import KeyboardAwareFormScrollView from '@/components/common/layout/KeyboardAwareFormScrollView';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { api } from '@/lib/api';
 import type { SupportTicket, SupportTicketCategory, SupportTicketStatus } from '@findeat/types';
 import { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import useSettingsDirection from '@/components/settings/useSettingsDirection';
@@ -92,10 +93,9 @@ export default function HelpSupportScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <SettingsHeader title={t('helpSupport')} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={8}>
-        <ScrollView
+      <KeyboardAwareFormScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
-          keyboardShouldPersistTaps="handled"
+          bottomOffset={28}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadTickets(); }} tintColor={colors.text} />}
         >
           <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 22, padding: 18 }}>
@@ -164,8 +164,7 @@ export default function HelpSupportScreen() {
               </View> : null}
             </View>
           ))}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </SafeAreaView>
   );
 }

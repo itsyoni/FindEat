@@ -1,11 +1,11 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { AppButton, TextInput , ThemedSafeAreaView } from "@/components/common";
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 
 export default function EditMenuSectionScreen() {
   const params = useLocalSearchParams<{
@@ -85,11 +85,10 @@ export default function EditMenuSectionScreen() {
 
   return (
     <ThemedSafeAreaView>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareFormScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+        bottomOffset={28}
       >
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
           <Text className="text-3xl font-bold text-black">Edit section</Text>
 
           <TextInput
@@ -121,8 +120,7 @@ export default function EditMenuSectionScreen() {
             onPress={deleteSection}
             disabled={loading}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </ThemedSafeAreaView>
   );
 }

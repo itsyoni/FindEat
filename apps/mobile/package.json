@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "scripts": {
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
@@ -76,6 +76,7 @@
     "react-native-gesture-handler": "~2.31.1",
     "react-native-heroicons": "^4.0.0",
     "react-native-image-crop-picker": "^0.51.1",
+    "react-native-keyboard-controller": "1.21.6",
     "react-native-maps": "1.27.2",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",

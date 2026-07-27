@@ -1,5 +1,6 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { TextInput } from "@/components/common";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import Text from "@/components/common/AppText";
 import AddressAutocomplete from "@/components/forms/AddressAutocomplete";
 import { api } from "@/lib/api";
@@ -8,7 +9,7 @@ import { uploadImage } from "@/lib/uploadImage";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image, ScrollView, TouchableOpacity } from "react-native";
+import { Image, TouchableOpacity } from "react-native";
 
 export default function CreateRestaurantScreen() {
   const [name, setName] = useState("");
@@ -82,7 +83,10 @@ export default function CreateRestaurantScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white px-6 pt-10 dark:bg-black">
+    <KeyboardAwareFormScrollView
+      className="flex-1 bg-white px-6 pt-10 dark:bg-black"
+      bottomOffset={28}
+    >
       <Text className="text-3xl font-bold mb-8">Create Restaurant</Text>
 
       <TouchableOpacity
@@ -139,6 +143,6 @@ export default function CreateRestaurantScreen() {
           {loading ? "Creating..." : "Create Restaurant"}
         </Text>
       </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAwareFormScrollView>
   );
 }

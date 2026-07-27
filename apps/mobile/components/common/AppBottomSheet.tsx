@@ -82,6 +82,9 @@ function PresentedBottomSheet({
       enablePanDownToClose
       enableContentPanningGesture
       enableHandlePanningGesture
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       onDismiss={onClose}
       backdropComponent={renderBackdrop}
       footerComponent={footerComponent}

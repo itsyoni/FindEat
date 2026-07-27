@@ -56,6 +56,7 @@ export function RestaurantOwnershipManager() {
       setRestaurants(
         await request<RestaurantOwnershipRecord[]>(
           `/admin/restaurant-ownership${suffix}`,
+          { cache: "reload" },
         ),
       );
     } catch (nextError) {

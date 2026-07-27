@@ -28,6 +28,7 @@ import {
   useAccessibilityPreferences,
 } from "@/contexts/AccessibilityContext";
 import { SaveToListsProvider } from "@/contexts/SaveToListsContext";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
 // The reduced-motion override intentionally emits a warning whenever it
 // mounts. Keep genuine Reanimated errors visible without noisy dev notices.
@@ -73,29 +74,31 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AccessibilityProvider>
-        <ThemeProvider>
-          <SafeAreaProvider>
-          <AppAlertProvider>
-            <QueryClientProvider client={queryClient}>
-              <AuthProvider>
-                <ToastProvider>
-                  <NotificationProvider>
-                    <BottomSheetModalProvider>
-                      <AccessibilityMotionConfig />
-                      <SaveToListsProvider>
-                        <RootNavigator />
-                      </SaveToListsProvider>
-                      <PortalHost name="pinch-zoom" />
-                    </BottomSheetModalProvider>
-                  </NotificationProvider>
-                </ToastProvider>
-              </AuthProvider>
-            </QueryClientProvider>
-          </AppAlertProvider>
-          </SafeAreaProvider>
-        </ThemeProvider>
-      </AccessibilityProvider>
+      <KeyboardProvider>
+        <AccessibilityProvider>
+          <ThemeProvider>
+            <SafeAreaProvider>
+              <AppAlertProvider>
+                <QueryClientProvider client={queryClient}>
+                  <AuthProvider>
+                    <ToastProvider>
+                      <NotificationProvider>
+                        <BottomSheetModalProvider>
+                          <AccessibilityMotionConfig />
+                          <SaveToListsProvider>
+                            <RootNavigator />
+                          </SaveToListsProvider>
+                          <PortalHost name="pinch-zoom" />
+                        </BottomSheetModalProvider>
+                      </NotificationProvider>
+                    </ToastProvider>
+                  </AuthProvider>
+                </QueryClientProvider>
+              </AppAlertProvider>
+            </SafeAreaProvider>
+          </ThemeProvider>
+        </AccessibilityProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

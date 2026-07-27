@@ -1,4 +1,5 @@
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { Dish } from "@findeat/types";
 import {
   ReviewDishDraft,
@@ -6,16 +7,7 @@ import {
 } from "@findeat/types/review";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import {
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+import { Image, TouchableOpacity, View } from "react-native";
 import { ThemedSafeAreaView, AppButton, TextInput } from "@/components/common";
 import PriceInput from "../components/PriceInput";
 import RatingPicker from "../components/RatingPicker";
@@ -110,19 +102,14 @@ export default function AddDishDetailsStep({
 
   return (
     <ThemedSafeAreaView>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <KeyboardAwareFormScrollView
+        bottomOffset={28}
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: 32,
+          paddingBottom: 40,
+        }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              paddingHorizontal: 24,
-              paddingTop: 32,
-              paddingBottom: 40,
-            }}
-          >
             <View className="flex-row items-center justify-between">
               <TouchableOpacity onPress={onBack}>
                 <Text className="font-bold text-black dark:text-white">
@@ -278,9 +265,7 @@ export default function AddDishDetailsStep({
             </View>
 
             <AppButton title={t("saveDish")} onPress={handleSave} />
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </ThemedSafeAreaView>
   );
 }

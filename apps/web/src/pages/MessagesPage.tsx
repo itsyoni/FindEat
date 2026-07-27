@@ -47,11 +47,19 @@ export function MessagesPage({
   }, [conversations, selectedId]);
 
   const loadMessages = useCallback(
-    async (conversationId: string, showLoading = true) => {
+    async (
+      conversationId: string,
+      showLoading = true,
+      refresh = false,
+    ) => {
       if (showLoading) setLoading(true);
       try {
         setMessages(
-          await fetchRestaurantMessages(restaurant.id, conversationId),
+          await fetchRestaurantMessages(
+            restaurant.id,
+            conversationId,
+            refresh,
+          ),
         );
         setError("");
       } catch (nextError) {
@@ -93,7 +101,7 @@ export function MessagesPage({
 
   const refreshConnectedConversation = useCallback(() => {
     if (!selectedId) return;
-    void loadMessages(selectedId, false);
+    void loadMessages(selectedId, false, true);
     void reloadConversations(restaurant.id);
   }, [loadMessages, reloadConversations, restaurant.id, selectedId]);
 
@@ -114,7 +122,7 @@ export function MessagesPage({
       reloadConversations(restaurant.id),
     );
     const interval = window.setInterval(() => {
-      void loadMessages(selectedId, false);
+      void loadMessages(selectedId, false, true);
       void reloadConversations(restaurant.id);
     }, 30_000);
     return () => window.clearInterval(interval);

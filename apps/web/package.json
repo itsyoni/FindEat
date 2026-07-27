@@ -1,14 +1,19 @@
 {
   "name": "web",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run version:check && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "version:check": "node ../../scripts/web-version.mjs check",
+    "version:patch": "node ../../scripts/web-version.mjs patch",
+    "version:minor": "node ../../scripts/web-version.mjs minor",
+    "version:major": "node ../../scripts/web-version.mjs major",
+    "version:set": "node ../../scripts/web-version.mjs set"
   },
   "dependencies": {
     "@findeat/legal": "*",

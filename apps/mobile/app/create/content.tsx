@@ -7,6 +7,7 @@ import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 import PostConnectionPicker from "@/components/posts/PostConnectionPicker";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -21,23 +22,31 @@ import {
 } from "@/lib/postDrafts";
 import type { PostVisibility, SelectedRestaurant } from "@findeat/types";
 import { getErrorMessage } from "@findeat/utils";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import {
+  CameraView,
+  useCameraPermissions,
+  type CameraType,
+  type FlashMode,
+} from "expo-camera";
 import ImageCropPicker from "react-native-image-crop-picker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import {
   ArrowCounterClockwiseIcon,
   CameraIcon,
   ImagesSquareIcon,
+  LightningIcon,
+  LightningSlashIcon,
   LockIcon,
   StorefrontIcon,
   XIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, AppState, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, AppState, Image, Linking, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 type Step = "CAMERA" | "DETAILS" | "RESTAURANT";
 
@@ -74,6 +83,7 @@ export default function CreateContentScreen() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const cameraRef = useRef<CameraView>(null);
+  const cameraSessionRef = useRef(0);
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>("CAMERA");
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -85,6 +95,15 @@ export default function CreateContentScreen() {
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<SelectedRestaurant | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
+  const [flashMode, setFlashMode] = useState<FlashMode>("off");
+  const [cameraZoom, setCameraZoomState] = useState(0);
+  const [autofocus, setAutofocus] = useState<"on" | "off">("off");
+  const [focusPoint, setFocusPoint] = useState<{
+    x: number;
+    y: number;
+    id: number;
+  } | null>(null);
   const [pictureSize, setPictureSize] = useState<string>();
   const [capturing, setCapturing] = useState(false);
   const [showCaptureProgress, setShowCaptureProgress] = useState(false);
@@ -221,20 +240,89 @@ export default function CreateContentScreen() {
   }
 
   function openCamera() {
+    cameraSessionRef.current += 1;
     setCameraReady(false);
     setShowCaptureProgress(false);
     setStep("CAMERA");
   }
 
+  const setCameraZoom = useCallback((value: number) => {
+    const next = Math.max(0, Math.min(0.6, value));
+    setCameraZoomState(next);
+  }, []);
+
+  const focusCamera = useCallback((x: number, y: number) => {
+    const id = Date.now();
+    setFocusPoint({ x, y, id });
+    // Expo exposes point-independent autofocus. Toggling it performs a fresh
+    // focus pass on iOS; Android continues using its native continuous focus.
+    setAutofocus("on");
+    setTimeout(() => {
+      setAutofocus("off");
+      setFocusPoint((current) => (current?.id === id ? null : current));
+    }, 850);
+  }, []);
+
+  const adjustCameraZoom = useCallback((delta: number) => {
+    setCameraZoomState((current) =>
+      Math.max(0, Math.min(0.6, current + delta)),
+    );
+  }, []);
+
+  const cameraGesture = Gesture.Simultaneous(
+    Gesture.Pinch()
+      .runOnJS(true)
+      .onChange(({ scaleChange }) => {
+        adjustCameraZoom(Math.log2(Math.max(scaleChange, 0.1)) * 0.16);
+      }),
+    Gesture.Tap()
+      .maxDuration(250)
+      .runOnJS(true)
+      .onEnd(({ x, y }) => focusCamera(x, y)),
+  );
+
+  function cycleFlashMode() {
+    setFlashMode((current) =>
+      current === "off" ? "auto" : current === "auto" ? "on" : "off",
+    );
+  }
+
+  function cycleZoom() {
+    if (cameraZoom < 0.05) setCameraZoom(0.12);
+    else if (cameraZoom < 0.2) setCameraZoom(0.28);
+    else setCameraZoom(0);
+  }
+
+  function flipCamera() {
+    cameraSessionRef.current += 1;
+    setCameraReady(false);
+    setPictureSize(undefined);
+    setCameraFacing((current) => (current === "back" ? "front" : "back"));
+    setFlashMode("off");
+    setCameraZoom(0);
+  }
+
+  const zoomLabel =
+    cameraZoom < 0.05 ? "1×" : cameraZoom < 0.2 ? "2×" : "3×";
+
   async function handleCameraReady() {
-    if (!cameraRef.current) return;
+    const session = cameraSessionRef.current;
+
+    // Capturing is safe as soon as the native camera reports that it is ready.
+    // Picture-size discovery is only an optimization and may resolve slowly on
+    // some front-facing cameras, so it must not keep the shutter disabled.
+    setCameraReady(true);
+
+    const camera = cameraRef.current;
+    if (!camera) return;
+
     try {
-      const sizes = await cameraRef.current.getAvailablePictureSizesAsync();
-      setPictureSize((current) => current ?? selectFastPictureSize(sizes));
+      const sizes = await camera.getAvailablePictureSizesAsync();
+      if (session === cameraSessionRef.current) {
+        setPictureSize(selectFastPictureSize(sizes));
+      }
     } catch (error) {
       console.warn("Could not configure camera picture size", error);
-    } finally {
-      setCameraReady(true);
     }
   }
 
@@ -396,15 +484,38 @@ export default function CreateContentScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         {permissionGranted ? (
           <View style={{ flex: 1 }}>
-            <CameraView
-              ref={cameraRef}
-              style={{ position: "absolute", inset: 0 }}
-              facing="back"
-              mode="picture"
-              pictureSize={pictureSize}
-              onCameraReady={() => void handleCameraReady()}
-            />
+            <GestureDetector gesture={cameraGesture}>
+              <View style={{ position: "absolute", inset: 0 }}>
+                <CameraView
+                  key={cameraFacing}
+                  ref={cameraRef}
+                  style={{ position: "absolute", inset: 0 }}
+                  facing={cameraFacing}
+                  flash={
+                    cameraFacing === "front" && flashMode === "on"
+                      ? "screen"
+                      : flashMode
+                  }
+                  zoom={cameraZoom}
+                  autofocus={autofocus}
+                  mode="picture"
+                  pictureSize={pictureSize}
+                  onCameraReady={() => void handleCameraReady()}
+                />
+                {focusPoint && (
+                  <View
+                    pointerEvents="none"
+                    className="absolute h-16 w-16 rounded-2xl border-2 border-amber-300"
+                    style={{
+                      left: focusPoint.x - 32,
+                      top: focusPoint.y - 32,
+                    }}
+                  />
+                )}
+              </View>
+            </GestureDetector>
             <SafeAreaView
+              pointerEvents="box-none"
               style={{
                 flex: 1,
                 justifyContent: "space-between",
@@ -419,15 +530,41 @@ export default function CreateContentScreen() {
                 >
                   <XIcon size={24} color="white" weight="bold" />
                 </TouchableOpacity>
-                <SaveDraftButton
-                  darkSurface
-                  disabled={!imageUri}
-                  saving={savingDraft}
-                  onPress={() => void handleSaveDraft()}
-                />
+                <View className="flex-row items-center gap-2">
+                  <TouchableOpacity
+                    onPress={cycleFlashMode}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(`flash${flashMode === "off" ? "Off" : flashMode === "auto" ? "Auto" : "On"}`)}
+                    className="h-11 min-w-11 flex-row items-center justify-center rounded-full bg-black/45 px-3"
+                  >
+                    {flashMode === "off" ? (
+                      <LightningSlashIcon size={22} color="white" weight="bold" />
+                    ) : (
+                      <LightningIcon size={22} color="#F6C445" weight="fill" />
+                    )}
+                    {flashMode === "auto" && (
+                      <Text className="ml-1 text-xs font-bold text-white">A</Text>
+                    )}
+                  </TouchableOpacity>
+                  <SaveDraftButton
+                    darkSurface
+                    disabled={!imageUri}
+                    saving={savingDraft}
+                    onPress={() => void handleSaveDraft()}
+                  />
+                </View>
               </View>
 
-              <View className="flex-row items-center justify-between px-2">
+              <View>
+                <TouchableOpacity
+                  onPress={cycleZoom}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("cameraZoom", { value: zoomLabel })}
+                  className="mb-4 self-center rounded-full bg-black/55 px-4 py-2"
+                >
+                  <Text className="font-bold text-white">{zoomLabel}</Text>
+                </TouchableOpacity>
+                <View className="flex-row items-center justify-between px-2">
                 <TouchableOpacity
                   onPress={() => void openGallery()}
                   className="h-14 w-14 items-center justify-center rounded-2xl bg-black/50"
@@ -445,7 +582,15 @@ export default function CreateContentScreen() {
                   <View className="h-16 w-16 rounded-full bg-white" />
                 </TouchableOpacity>
 
-                <View className="h-14 w-14" />
+                <TouchableOpacity
+                  onPress={flipCamera}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("flipCamera")}
+                  className="h-14 w-14 items-center justify-center rounded-full bg-black/50"
+                >
+                  <ArrowCounterClockwiseIcon size={26} color="white" weight="bold" />
+                </TouchableOpacity>
+                </View>
               </View>
             </SafeAreaView>
           </View>
@@ -567,9 +712,8 @@ export default function CreateContentScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
+    <View
       style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView className="flex-1">
@@ -608,9 +752,9 @@ export default function CreateContentScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAwareFormScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
+          bottomOffset={28}
         >
           {imageUri && (
             <View
@@ -707,8 +851,8 @@ export default function CreateContentScreen() {
               onChange={setVisibility}
             />
           </View>
-        </ScrollView>
+        </KeyboardAwareFormScrollView>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

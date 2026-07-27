@@ -1,13 +1,14 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { AppButton, TextInput , ThemedSafeAreaView } from "@/components/common";
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { uploadImage } from "@/lib/uploadImage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, ScrollView, Switch, TouchableOpacity, View } from "react-native";
+import { Image, Switch, TouchableOpacity, View } from "react-native";
 
 export default function EditMenuItemScreen() {
   const params = useLocalSearchParams<{
@@ -120,11 +121,10 @@ export default function EditMenuItemScreen() {
 
   return (
     <ThemedSafeAreaView>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareFormScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+        bottomOffset={28}
       >
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
           <Text className="text-3xl font-bold text-black">Edit dish</Text>
 
           <TouchableOpacity
@@ -212,8 +212,7 @@ export default function EditMenuItemScreen() {
             onPress={deleteDish}
             disabled={loading}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </ThemedSafeAreaView>
   );
 }

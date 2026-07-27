@@ -1,6 +1,7 @@
 import Text from '@/components/common/AppText';
 import AppButton from '@/components/common/buttons/AppButton';
 import TextInput from '@/components/common/inputs/AppTextInput';
+import KeyboardAwareFormScrollView from '@/components/common/layout/KeyboardAwareFormScrollView';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -9,7 +10,7 @@ import { getErrorMessage } from '@findeat/utils';
 import { PauseCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useSettingsDirection from '@/components/settings/useSettingsDirection';
 
@@ -39,14 +40,10 @@ export default function DeactivateAccountScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#FBFAF8' }}>
       <SettingsHeader title={t('deactivateAccount')} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <KeyboardAwareFormScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        bottomOffset={28}
       >
-        <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-          keyboardShouldPersistTaps="handled"
-        >
           <View className="items-center rounded-3xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900 dark:bg-amber-950/30">
             <View className="h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950">
               <PauseCircleIcon size={34} color="#D97706" weight="fill" />
@@ -97,8 +94,7 @@ export default function DeactivateAccountScreen() {
             onPress={() => void deactivateAccount()}
             className="mt-6"
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </SafeAreaView>
   );
 }

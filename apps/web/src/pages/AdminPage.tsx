@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
@@ -22,6 +22,7 @@ import { RestaurantOwnershipManager } from "../components/RestaurantOwnershipMan
 import { SupportTicketsPanel } from "../components/SupportTicketsPanel";
 import { ProductUpdatesAdmin } from "../components/ProductUpdatesAdmin";
 import { SettingsPage } from "./SettingsPage";
+import { WEB_VERSION } from "../lib/version";
 import { UserIdentity } from "../components/UserIdentity";
 import { ModerationPanel } from "../components/ModerationPanel";
 import { AddressChangeRequestsPanel } from "../components/AddressChangeRequestsPanel";
@@ -53,6 +54,18 @@ export function AdminPage({
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [visitedSections, setVisitedSections] = useState<
+    Set<AdminDashboardSection>
+  >(() => new Set([section]));
+
+  useEffect(() => {
+    // Preserve loaded admin panels when moving between sections.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisitedSections((current) => {
+      if (current.has(section)) return current;
+      return new Set([...current, section]);
+    });
+  }, [section]);
 
   async function decide(claimId: string, decision: "approve" | "reject") {
     if (
@@ -260,6 +273,7 @@ export function AdminPage({
             admins.
           </small>
           <button onClick={onLogout}>Sign out</button>
+          <small className="web-version">Web v{WEB_VERSION}</small>
         </div>
       </aside>
       <main className="content">
@@ -271,6 +285,39 @@ export function AdminPage({
           <AccountAvatar account={account} />
         </header>
         <div className={`admin-content ${section === "support" ? "support-admin-content" : ""}`}>
+          {(section === "addresses" || visitedSections.has("addresses")) && (
+            <div className="admin-page-slot" hidden={section !== "addresses"}>
+              <AddressChangeRequestsPanel />
+            </div>
+          )}
+          {(section === "moderation" || visitedSections.has("moderation")) && (
+            <div className="admin-page-slot" hidden={section !== "moderation"}>
+              <ModerationPanel />
+            </div>
+          )}
+          {(section === "ownership" || visitedSections.has("ownership")) && (
+            <div className="admin-page-slot" hidden={section !== "ownership"}>
+              <RestaurantOwnershipManager />
+            </div>
+          )}
+          {(section === "support" || visitedSections.has("support")) && (
+            <div
+              className="admin-page-slot admin-support-slot"
+              hidden={section !== "support"}
+            >
+              <SupportTicketsPanel />
+            </div>
+          )}
+          {(section === "updates" || visitedSections.has("updates")) && (
+            <div className="admin-page-slot" hidden={section !== "updates"}>
+              <ProductUpdatesAdmin />
+            </div>
+          )}
+          {(section === "settings" || visitedSections.has("settings")) && (
+            <div className="admin-page-slot" hidden={section !== "settings"}>
+              <SettingsPage />
+            </div>
+          )}
           {section === "claims" ? (
             <>
               <div className="page-heading">
@@ -354,19 +401,7 @@ export function AdminPage({
                 </div>
               )}
             </>
-          ) : section === "addresses" ? (
-            <AddressChangeRequestsPanel />
-          ) : section === "moderation" ? (
-            <ModerationPanel />
-          ) : section === "ownership" ? (
-            <RestaurantOwnershipManager />
-          ) : section === "support" ? (
-            <SupportTicketsPanel />
-          ) : section === "updates" ? (
-            <ProductUpdatesAdmin />
-          ) : section === "settings" ? (
-            <SettingsPage />
-          ) : (
+          ) : section === "admins" ? (
             <>
               <div className="page-heading">
                 <div>
@@ -479,7 +514,7 @@ export function AdminPage({
                 </div>
               </section>
             </>
-          )}
+          ) : null}
         </div>
       </main>
     </div>

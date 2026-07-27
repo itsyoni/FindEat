@@ -1,11 +1,11 @@
 import { SkeletonList, TextInput , ThemedSafeAreaView } from "@/components/common";
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { api } from "@/lib/api";
 import { Dish, Restaurant } from "@findeat/types";
 import { useEffect, useMemo, useState } from "react";
 import {
   Image,
-  ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -74,8 +74,8 @@ export default function SelectMenuDishStep({
 
   return (
     <ThemedSafeAreaView>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAwareFormScrollView
+        bottomOffset={28}
         contentContainerStyle={{
           paddingHorizontal: 24,
           paddingTop: 32,
@@ -190,7 +190,7 @@ export default function SelectMenuDishStep({
             ))}
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareFormScrollView>
     </ThemedSafeAreaView>
   );
 }

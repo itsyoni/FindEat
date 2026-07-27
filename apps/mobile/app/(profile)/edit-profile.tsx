@@ -1,6 +1,7 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { AppButton, IconButton, Skeleton, SkeletonPulse } from "@/components/common";
 import ConfettiBurst from "@/components/common/feedback/ConfettiBurst";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import FormInput from "@/components/forms/FormInput";
@@ -18,7 +19,7 @@ import { router } from "expo-router";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { Image, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
@@ -344,16 +345,11 @@ export default function EditProfileScreen() {
     <SafeAreaView
       style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
     >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
+      <View style={{ flex: 1 }}>
+        <KeyboardAwareFormScrollView
           className="flex-1 bg-canvas dark:bg-black"
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           contentInsetAdjustmentBehavior="automatic"
+          bottomOffset={28}
         >
         <View className="flex-row items-center px-5 pt-4">
           <IconButton
@@ -430,7 +426,7 @@ export default function EditProfileScreen() {
           <SectionTitle title={t("profile:personalization")} />
           <ProfileDetailsEditor value={details} onChange={setDetails} />
         </View>
-        </ScrollView>
+        </KeyboardAwareFormScrollView>
         <View className="border-t border-black/5 bg-canvas px-5 pb-2 pt-3 dark:border-white/10 dark:bg-black">
           <AppButton
             title={loading ? t("common:saving") : t("common:save")}
@@ -438,7 +434,7 @@ export default function EditProfileScreen() {
             disabled={loading}
           />
         </View>
-      </KeyboardAvoidingView>
+      </View>
       {showConfetti && profileCompletion === 100 && (
         <ConfettiBurst onComplete={finishConfetti} />
       )}

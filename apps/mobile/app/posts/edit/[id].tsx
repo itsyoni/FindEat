@@ -1,5 +1,6 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { AppButton, Skeleton, SkeletonPulse, TextInput } from "@/components/common";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import Text from "@/components/common/AppText";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -15,7 +16,7 @@ import {
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { Image, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function dishName(item: ReviewItem) {
@@ -153,10 +154,7 @@ export default function EditPostScreen() {
       style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
+      <View style={{ flex: 1 }}>
         <View className="flex-row items-center border-b border-line px-4 py-3 dark:border-gray-800">
           <TouchableOpacity
             onPress={() => router.back()}
@@ -175,10 +173,10 @@ export default function EditPostScreen() {
           <View className="w-11" />
         </View>
 
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAwareFormScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ padding: 20, paddingBottom: 44 }}
+          bottomOffset={28}
         >
           <Text className="leading-5 text-gray-500 dark:text-gray-400">
             {t(isContent ? "editContentHint" : "editReviewHint")}
@@ -344,8 +342,8 @@ export default function EditPostScreen() {
             disabled={!isDirty}
             className="mt-8"
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareFormScrollView>
+      </View>
     </SafeAreaView>
   );
 }

@@ -54,7 +54,11 @@ export function ProductUpdatesAdmin() {
     setLoading(true);
     setError("");
     try {
-      setUpdates(await request<ProductUpdate[]>("/admin/product-updates"));
+      setUpdates(
+        await request<ProductUpdate[]>("/admin/product-updates", {
+          cache: "reload",
+        }),
+      );
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Could not load updates");
     } finally {

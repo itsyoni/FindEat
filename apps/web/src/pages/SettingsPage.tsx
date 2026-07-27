@@ -8,6 +8,7 @@ import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import { LEGAL_URLS } from "@findeat/legal";
 import type { WebThemePreference } from "../contexts/webThemeContext";
 import { useWebTheme } from "../hooks/useWebTheme";
+import { WEB_VERSION } from "../lib/version";
 
 const appearanceOptions: {
   value: WebThemePreference;
@@ -131,6 +132,9 @@ export function SettingsPage() {
           })}
         </div>
       </section>
+      <p className="web-settings-version">
+        FindEat for Business · Version {WEB_VERSION}
+      </p>
     </div>
   );
 }

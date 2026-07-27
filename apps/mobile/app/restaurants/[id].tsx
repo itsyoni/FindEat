@@ -35,7 +35,6 @@ export default function RestaurantScreen() {
   const { isDark } = useAppTheme();
   const {
     openManageSavedPlace,
-    quickSavePlace,
     savedListCounts,
     statusOverrides,
   } = useSaveToLists();
@@ -210,10 +209,7 @@ export default function RestaurantScreen() {
       <View className="bg-surface px-5 pb-5 pt-2 dark:bg-black">
         <View className="flex-row gap-3">
           <TouchableOpacity
-            onPress={() => {
-              if (isPlaceSaved || savedListCount > 0) openSavedPlaceManager();
-              else void quickSavePlace(restaurant.id);
-            }}
+            onPress={openSavedPlaceManager}
             className={`flex-1 flex-row items-center justify-center rounded-xl px-4 py-3 ${isPlaceSaved || savedListCount > 0 ? "bg-amber-500" : "bg-gray-100 dark:bg-gray-800"}`}
           >
             <PlaceStatusBookmark

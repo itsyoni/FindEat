@@ -24,7 +24,6 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   TouchableOpacity,
@@ -32,6 +31,7 @@ import {
   Image,
   TextInput as RNTextInput,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Socket } from "socket.io-client";
 import { io } from "socket.io-client";

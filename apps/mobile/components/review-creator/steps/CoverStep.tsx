@@ -1,7 +1,8 @@
 import Text from "@/components/common/AppText";
+import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { CreateReviewDraft } from "@findeat/types/review";
 import * as ImagePicker from "expo-image-picker";
-import { Image, ScrollView, TouchableOpacity, View } from "react-native";
+import { Image, TouchableOpacity, View } from "react-native";
 import { ThemedSafeAreaView, TextInput } from "@/components/common";
 import RatingPicker from "../components/RatingPicker";
 import { useTranslation } from "react-i18next";
@@ -36,8 +37,8 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
 
   return (
     <ThemedSafeAreaView>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAwareFormScrollView
+        bottomOffset={28}
         contentContainerStyle={{
           paddingHorizontal: 24,
           paddingTop: 32,
@@ -172,7 +173,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
             {t("continue")}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareFormScrollView>
     </ThemedSafeAreaView>
   );
 }

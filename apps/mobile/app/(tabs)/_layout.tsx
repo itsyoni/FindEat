@@ -20,6 +20,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: isDark ? "#000" : "#FFF",

@@ -18,12 +18,12 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 type Step = "MEMBERS" | "DETAILS";
 

@@ -49,6 +49,7 @@ export function OwnerSupportPage({ restaurant }: { restaurant: ManagedRestaurant
       setTickets(
         await request<SupportTicket[]>(
           `/support/tickets/me?restaurantId=${encodeURIComponent(restaurant.id)}`,
+          { cache: "reload" },
         ),
       );
     } catch (nextError) {

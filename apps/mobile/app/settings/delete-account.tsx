@@ -1,12 +1,13 @@
 import Text from '@/components/common/AppText';
 import AppButton from '@/components/common/buttons/AppButton';
 import TextInput from '@/components/common/inputs/AppTextInput';
+import KeyboardAwareFormScrollView from '@/components/common/layout/KeyboardAwareFormScrollView';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@findeat/utils';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WarningCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
@@ -41,8 +42,10 @@ export default function DeleteAccountScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#FBFAF8' }}>
       <SettingsHeader title={t('deleteAccount')} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareFormScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        bottomOffset={28}
+      >
           <View className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900 dark:bg-amber-950/30">
             <Text weight="bold" className="text-lg text-amber-900 dark:text-amber-200" style={textStyle}>
               {t('preferDeactivationTitle')}
@@ -117,8 +120,7 @@ export default function DeleteAccountScreen() {
           <Text className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
             {t('deleteAccountFinalNotice')}
           </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </SafeAreaView>
   );
 }
