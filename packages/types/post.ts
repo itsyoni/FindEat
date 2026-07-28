@@ -1,4 +1,5 @@
 import type { Restaurant } from "./restaurant";
+import type { UserRelationship } from "./profile";
 import type { UserSummary } from "./user";
 
 export type PostType = "CONTENT" | "REVIEW";
@@ -18,6 +19,7 @@ export type ContentPost = {
   description?: string | null;
   descriptionEditedAt?: string | null;
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   videoUrl?: string | null;
 };
 
@@ -32,6 +34,7 @@ export type ReviewItem = {
     description?: string | null;
     price?: number | null;
     imageUrl?: string | null;
+    thumbnailUrl?: string | null;
     category?: string | null;
     dishTags?: string[];
   } | null;
@@ -40,6 +43,7 @@ export type ReviewItem = {
   customPrice?: number | null;
 
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   rating?: number | null;
   text?: string | null;
   textEditedAt?: string | null;
@@ -48,12 +52,54 @@ export type ReviewItem = {
 
   createdAt: string;
   updatedAt: string;
+  primaryMediaId?: string | null;
+  primaryMedia?: ReviewDishMedia | null;
+  contributions?: ReviewDishContribution[];
+  media?: ReviewDishMedia[];
+};
+
+export type ReviewDishContribution = {
+  id: string;
+  reviewItemId: string;
+  userId: string;
+  rating?: number | null;
+  text?: string | null;
+  textEditedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: UserSummary;
+};
+
+export type ReviewDishMedia = {
+  id: string;
+  reviewItemId: string;
+  uploadedById: string;
+  imageUrl: string;
+  thumbnailUrl?: string | null;
+  createdAt: string;
+  uploadedBy: UserSummary;
+};
+
+export type ReviewParticipantStatus = "INVITED" | "JOINED" | "DECLINED";
+
+export type ReviewParticipant = {
+  id: string;
+  postId: string;
+  userId: string;
+  invitedById?: string | null;
+  status: ReviewParticipantStatus;
+  joinedAt?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: UserSummary;
 };
 
 export type ReviewPost = {
   postId: string;
 
   coverImageUrl?: string | null;
+  coverThumbnailUrl?: string | null;
   title?: string | null;
   summary?: string | null;
   summaryEditedAt?: string | null;
@@ -94,6 +140,7 @@ type PostAuthorRestaurant = {
   id: string;
   name: string;
   logoUrl?: string | null;
+  logoThumbnailUrl?: string | null;
 };
 
 export type Post = {
@@ -103,6 +150,7 @@ export type Post = {
 
   authorId?: string | null;
   author?: UserSummary | null;
+  authorRelationship?: UserRelationship | null;
 
   authorRestaurantId?: string | null;
   authorRestaurant?: PostAuthorRestaurant | null;
@@ -114,6 +162,9 @@ export type Post = {
   reviewPost?: ReviewPost | null;
   experienceId?: string | null;
   linkedPosts?: LinkedPost[];
+  reviewParticipants?: ReviewParticipant[];
+  canContribute?: boolean;
+  collaborationStatus?: ReviewParticipantStatus | null;
 
   createdAt: string;
   updatedAt: string;

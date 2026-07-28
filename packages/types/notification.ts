@@ -26,7 +26,10 @@ export type NotificationType =
   | 'RESTAURANT_FOLLOW'
   | 'RESTAURANT_REVIEW'
   | 'PLACE_LIST_INVITE'
-  | 'PROFILE_TAG_UNLOCKED';
+  | 'PROFILE_TAG_UNLOCKED'
+  | 'REVIEW_INVITE'
+  | 'REVIEW_JOINED'
+  | 'REVIEW_CONTRIBUTION';
 
 export type AppNotification = {
   id: string;

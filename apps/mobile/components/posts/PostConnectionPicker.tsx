@@ -11,11 +11,11 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 
 type Props = {
   restaurantId?: string;
@@ -82,7 +82,7 @@ export default function PostConnectionPicker({
               >
                 <View className="h-24 bg-gray-200 dark:bg-gray-800">
                   {imageUrl ? (
-                    <Image
+                    <ProgressiveImage
                       source={{ uri: imageUrl }}
                       className="h-full w-full"
                       resizeMode="cover"

@@ -1,10 +1,11 @@
 import { Post, PostType } from "@findeat/types/post";
-import { Image, Pressable, TouchableOpacity, View } from "react-native";
+import { Pressable, TouchableOpacity, View } from "react-native";
 import Text from "../common/AppText";
 import { ImagesSquareIcon, StarIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { Skeleton, SkeletonPulse } from "../common";
+import ProgressiveImage from "../common/ProgressiveImage";
 
 type Props = {
   posts: Post[];
@@ -20,6 +21,12 @@ function getPostImage(post: Post) {
   }
 
   return post.contentPost?.imageUrl ?? null;
+}
+
+function getPostThumbnail(post: Post) {
+  return post.type === "REVIEW"
+    ? post.reviewPost?.coverThumbnailUrl
+    : post.contentPost?.thumbnailUrl;
 }
 
 function getPostText(post: Post) {
@@ -94,6 +101,7 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
     >
       {posts.map((post) => {
         const imageUrl = getPostImage(post);
+        const thumbnailUrl = getPostThumbnail(post);
         const text = getPostText(post);
 
         return (
@@ -105,10 +113,11 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
           >
             {imageUrl ? (
               <>
-                <Image
+                <ProgressiveImage
                   source={{ uri: imageUrl }}
+                  thumbnailUrl={thumbnailUrl}
                   className="h-full w-full"
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
 
                 {post.type === "REVIEW" && (

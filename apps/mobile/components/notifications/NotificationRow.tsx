@@ -2,7 +2,8 @@ import Avatar from '@/components/common/Avatar';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import type { AppNotification } from '@findeat/types';
 import { useTranslation } from 'react-i18next';
-import { GestureResponderEvent, Image, Text, TouchableOpacity, View } from 'react-native';
+import { GestureResponderEvent, Text, TouchableOpacity, View } from 'react-native';
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ImagesSquareIcon, TagIcon } from 'phosphor-react-native';
 import {
   notificationText,
@@ -68,7 +69,7 @@ export default function NotificationRow({
           className="ml-3 h-17 w-13 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800"
         >
           {postPreview?.imageUrl ? (
-            <Image
+            <ProgressiveImage
               source={{ uri: postPreview.imageUrl }}
               className="h-full w-full"
               resizeMode="cover"

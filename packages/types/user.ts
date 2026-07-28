@@ -9,7 +9,9 @@ export type User = {
   username: string;
   createdAt: string;
   avatarUrl: string;
+  avatarThumbnailUrl?: string | null;
   coverUrl?: string | null;
+  coverThumbnailUrl?: string | null;
   bio?: string | null;
   language: Language;
   showActivityStatus?: boolean;
@@ -45,6 +47,7 @@ export type UserSummary = {
   username: string;
   displayName?: string | null;
   avatarUrl?: string | null;
+  avatarThumbnailUrl?: string | null;
   isOnline?: boolean;
   lastSeenAt?: string | null;
   showActivityStatus?: boolean;

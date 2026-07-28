@@ -9,7 +9,8 @@ import { ForkKnifeIcon, HeartIcon, StarIcon } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DishCompatibilityChips } from "@/components/restaurants/FoodCompatibility";
 import { AppAlert as Alert } from "@/lib/appAlert";
@@ -191,7 +192,7 @@ export default function MenuItemScreen() {
         }}
       >
         {dish.imageUrl ? (
-          <Image
+          <ProgressiveImage
             source={{ uri: dish.imageUrl }}
             className="h-96 w-full bg-gray-100 dark:bg-gray-900"
             resizeMode="cover"
@@ -388,7 +389,7 @@ export default function MenuItemScreen() {
                         )}
                       </View>
                       {userDishPhoto && (
-                        <Image
+                        <ProgressiveImage
                           source={{ uri: userDishPhoto }}
                           className="mt-4 h-52 w-full rounded-2xl bg-gray-100 dark:bg-gray-800"
                           resizeMode="cover"

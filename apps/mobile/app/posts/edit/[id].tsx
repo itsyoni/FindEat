@@ -16,7 +16,8 @@ import {
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function dishName(item: ReviewItem) {
@@ -184,7 +185,7 @@ export default function EditPostScreen() {
 
           <View className="mt-6 overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-gray-900">
             {mediaUrl ? (
-              <Image
+              <ProgressiveImage
                 source={{ uri: mediaUrl }}
                 className="h-52 w-full bg-gray-100 dark:bg-gray-800"
                 resizeMode="cover"
@@ -241,7 +242,7 @@ export default function EditPostScreen() {
                     >
                       <View className="flex-row items-center gap-3 p-4">
                         {imageUrl ? (
-                          <Image
+                          <ProgressiveImage
                             source={{ uri: imageUrl }}
                             className="h-16 w-16 rounded-2xl bg-gray-100 dark:bg-gray-800"
                             resizeMode="cover"

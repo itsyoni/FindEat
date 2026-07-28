@@ -4,6 +4,7 @@ import { SelectedRestaurant } from "@findeat/types/restaurant";
 import { TouchableOpacity, View } from "react-native";
 import { Skeleton, SkeletonPulse, ThemedSafeAreaView } from "@/components/common";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   selectedRestaurant: SelectedRestaurant | null;
@@ -22,25 +23,31 @@ export default function RestaurantStep({
   onSaveDraft,
   savingDraft,
 }: Props) {
+  const { t } = useTranslation(["create", "common"]);
+
   return (
     <ThemedSafeAreaView
       style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 }}
     >
       <View className="flex-row items-center justify-between">
         <TouchableOpacity onPress={onBack} className="py-2 pr-4">
-          <Text className="font-bold text-black dark:text-white">← Back</Text>
+          <Text className="font-bold text-black dark:text-white">
+            {t("common:back")}
+          </Text>
         </TouchableOpacity>
         <View className="flex-row items-center gap-2">
           {onSaveDraft && <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />}
-          <Text className="text-sm font-semibold text-gray-400">1 of 4</Text>
+          <Text className="text-sm font-semibold text-gray-400">
+            {t("create:stepOf", { current: 1, total: 4 })}
+          </Text>
         </View>
       </View>
       <Text className="text-3xl font-bold text-black dark:text-white">
-        Where did you eat?
+        {t("create:reviewRestaurantTitle")}
       </Text>
 
       <Text className="mt-2 text-gray-500">
-        Start by choosing the place you want to review.
+        {t("create:reviewRestaurantSubtitle")}
       </Text>
 
       {loading ? (

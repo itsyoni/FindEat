@@ -24,8 +24,6 @@ const relationshipNotificationTypes = new Set<AppNotification["type"]>([
   "FRIEND",
 ]);
 
-const PUSH_TOKEN_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
-
 type CachedPushToken = {
   token: string;
   refreshedAt: number;
@@ -260,42 +258,41 @@ export function NotificationProvider({
               });
         if (permission.status !== "granted" || cancelled) return;
 
-        if (!forceRefresh) {
-          const cached = readCachedPushToken(
-            await AsyncStorage.getItem(cacheKey),
-          );
-          if (
-            cached &&
-            Date.now() - cached.refreshedAt < PUSH_TOKEN_CACHE_MAX_AGE
-          ) {
-            if (cached.token !== lastRegisteredToken) {
-              await api.notifications.registerPushToken({
-                token: cached.token,
-                platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
-                deviceId: Device.modelId || undefined,
-              });
-              lastRegisteredToken = cached.token;
-            }
-            return;
+        const cached = forceRefresh
+          ? null
+          : readCachedPushToken(await AsyncStorage.getItem(cacheKey));
+        let pushToken: string;
+        try {
+          pushToken = (
+            await Notifications.getExpoPushTokenAsync({ projectId })
+          ).data;
+        } catch (error) {
+          // A temporary Expo/network failure must not prevent an already known
+          // device from being re-associated with the currently signed-in user.
+          // Keep retrying below so a rotated token replaces this fallback.
+          if (cached?.token && cached.token !== lastRegisteredToken) {
+            await api.notifications.registerPushToken({
+              token: cached.token,
+              platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
+              deviceId: Device.modelId || undefined,
+            });
+            lastRegisteredToken = cached.token;
           }
+          throw error;
         }
-
-        const pushToken = await Notifications.getExpoPushTokenAsync({
-          projectId,
-        });
         if (cancelled) return;
-        if (pushToken.data !== lastRegisteredToken) {
+        if (pushToken !== lastRegisteredToken) {
           await api.notifications.registerPushToken({
-            token: pushToken.data,
+            token: pushToken,
             platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
             deviceId: Device.modelId || undefined,
           });
         }
-        lastRegisteredToken = pushToken.data;
+        lastRegisteredToken = pushToken;
         await AsyncStorage.setItem(
           cacheKey,
           JSON.stringify({
-            token: pushToken.data,
+            token: pushToken,
             refreshedAt: Date.now(),
           } satisfies CachedPushToken),
         );

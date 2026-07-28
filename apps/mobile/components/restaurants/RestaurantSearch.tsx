@@ -342,8 +342,12 @@ export default function RestaurantSearch({
               {typeof distance === "number" && (
                 <Text className="ml-3 text-xs font-semibold text-gray-400">
                   {distance < 1
-                    ? `${Math.round(distance * 1000)} m`
-                    : `${distance.toFixed(1)} km`}
+                    ? t("create:distanceMeters", {
+                        value: Math.round(distance * 1000),
+                      })
+                    : t("create:distanceKilometers", {
+                        value: distance.toFixed(1),
+                      })}
                 </Text>
               )}
             </TouchableOpacity>

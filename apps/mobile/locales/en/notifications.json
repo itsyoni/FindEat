@@ -11,6 +11,7 @@
   "confirm": "Confirm",
   "viewPost": "View post",
   "openChat": "Open chat",
+  "joinReview": "Join",
   "emptyTitle": "No notifications yet",
   "emptyBody": "Likes, comments, follows and messages will appear here.",
   "aggregatedTypes": {
@@ -37,6 +38,9 @@
     "RESTAURANT_CLAIM_APPROVED": "Your restaurant claim was approved",
     "RESTAURANT_CLAIM_REJECTED": "Your restaurant claim was rejected",
     "PLACE_LIST_INVITE": "{{name}} invited you to a shared list",
-    "PROFILE_TAG_UNLOCKED": "You unlocked a new profile tag"
+    "PROFILE_TAG_UNLOCKED": "You unlocked a new profile tag",
+    "REVIEW_INVITE": "{{name}} invited you to review a meal together",
+    "REVIEW_JOINED": "{{name}} joined your shared review",
+    "REVIEW_CONTRIBUTION": "{{name}} added their take to your shared review"
   }
 }

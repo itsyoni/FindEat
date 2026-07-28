@@ -85,6 +85,8 @@
   "tapToReveal": "לחיצה לחשיפה",
   "manageConnections": "פוסטים מחוברים",
   "manageConnectionsOptionHint": "חיבור הפוסט לביקורת או לפוסט מהיר",
+  "manageReviewPeople": "ביקורת משותפת",
+  "manageReviewPeopleHint": "הזמנת אנשים או הסרתם מהביקורת המשותפת",
   "manageConnectionsHint": "אפשר לחבר פוסטים מאותה חוויה במסעדה, כדי לעבור בקלות בין הסיפור החזותי לביקורת הכתובה.",
   "connectedPosts": "מחוברים",
   "availableToConnect": "זמינים לחיבור",

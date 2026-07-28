@@ -19,9 +19,11 @@ import { router } from "expo-router";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { getProfileCompletion } from "@/lib/profileCompletion";
 
 export default function EditProfileScreen() {
   const { t } = useTranslation(["profile", "common"]);
@@ -61,33 +63,21 @@ export default function EditProfileScreen() {
     newAvatarUri !== null ||
     newCoverUri !== null;
 
-  const completedDetailFields = new Set(details.completedFields);
-  const profileCompletionItems = [
-    Boolean(newAvatarUri || avatarUrl),
-    Boolean(newCoverUri || coverUrl),
-    Boolean(displayName.trim()),
-    Boolean(username.trim()),
-    Boolean(bio.trim()),
-    Boolean(details.birthday || completedDetailFields.has("birthday")),
-    Boolean(details.pronouns.length || completedDetailFields.has("pronouns")),
-    Boolean(details.allergies.length || completedDetailFields.has("allergies")),
-    Boolean(
-      details.foodPreferences.length ||
-        completedDetailFields.has("foodPreferences"),
-    ),
-    Boolean(
-      details.dietaryRestrictions.length ||
-        completedDetailFields.has("dietaryRestrictions"),
-    ),
-    Boolean(
-      details.favoriteCuisines.length ||
-        completedDetailFields.has("favoriteCuisines"),
-    ),
-  ];
-  const completedProfileItems = profileCompletionItems.filter(Boolean).length;
-  const profileCompletion = Math.round(
-    (completedProfileItems / profileCompletionItems.length) * 100,
-  );
+  const completion = getProfileCompletion({
+    avatarUrl: newAvatarUri || avatarUrl,
+    coverUrl: newCoverUri || coverUrl,
+    displayName,
+    username,
+    bio,
+    birthday: details.birthday,
+    pronouns: details.pronouns,
+    allergies: details.allergies,
+    foodPreferences: details.foodPreferences,
+    dietaryRestrictions: details.dietaryRestrictions,
+    favoriteCuisines: details.favoriteCuisines,
+    profileCompletedFields: details.completedFields,
+  });
+  const profileCompletion = completion.percentage;
 
   useEffect(() => {
     if (initialLoading) return;
@@ -365,8 +355,8 @@ export default function EditProfileScreen() {
         <View className="px-5 pb-10">
           <ProfileCompletion
             percentage={profileCompletion}
-            completed={completedProfileItems}
-            total={profileCompletionItems.length}
+            completed={completion.completed}
+            total={completion.total}
           />
 
           <TouchableOpacity
@@ -374,7 +364,7 @@ export default function EditProfileScreen() {
             className="mt-6 h-48 overflow-hidden rounded-3xl bg-gray-100 dark:bg-gray-800"
           >
             {newCoverUri || coverUrl ? (
-              <Image
+              <ProgressiveImage
                 source={{ uri: newCoverUri ?? coverUrl ?? "" }}
                 className="h-full w-full"
                 resizeMode="cover"

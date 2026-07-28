@@ -6,16 +6,16 @@ import {
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import Tabs from "@/components/common/Tabs";
+import RelationshipActionButton from "@/components/profile/RelationshipActionButton";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { ConnectionItem, UserRelationship } from "@findeat/types";
 import {
   getNextRelationshipAfterToggle,
-  getRelationshipButtonColor,
-  isFriendRelationship,
   shouldRemoveFollowRelationship,
 } from "@findeat/utils";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, TouchableOpacity, View } from "react-native";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ type ConnectionsTab = "followers" | "following" | "friends";
 
 export default function ConnectionsScreen() {
   const { t } = useTranslation(["profile", "common", "notifications"]);
+  const { user: currentUser } = useAuth();
   const { id, type } = useLocalSearchParams<{
     id: string;
     type?: ConnectionsTab;
@@ -35,6 +36,7 @@ export default function ConnectionsScreen() {
   const [items, setItems] = useState<ConnectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const followRequestsInFlight = useRef(new Set<string>());
 
   async function onRefresh() {
     setRefreshing(true);
@@ -65,38 +67,52 @@ export default function ConnectionsScreen() {
     targetUserId: string,
     relationship?: UserRelationship,
   ) {
+    if (followRequestsInFlight.current.has(targetUserId)) return;
+    followRequestsInFlight.current.add(targetUserId);
     const isFollowing = shouldRemoveFollowRelationship(relationship);
+    const optimisticRelationship =
+      getNextRelationshipAfterToggle(relationship);
 
-    setItems((prev) =>
-      prev.map((item) => {
-        const user = getUserFromConnection(item);
+    function updateRelationship(nextRelationship: UserRelationship) {
+      setItems((current) =>
+        current.map((item) => {
+          const user = getUserFromConnection(item);
 
-        if (user?.id !== targetUserId) return item;
+          if (user?.id !== targetUserId) return item;
+          if (user.relationship === nextRelationship) return item;
 
-        const nextRelationship = getNextRelationshipAfterToggle(relationship);
+          if (activeTab === "following") {
+            return {
+              ...item,
+              following: {
+                ...item.following!,
+                relationship: nextRelationship,
+              },
+            };
+          }
 
-        if (activeTab === "following") {
           return {
             ...item,
-            following: {
-              ...item.following!,
+            follower: {
+              ...item.follower!,
               relationship: nextRelationship,
             },
           };
-        }
+        }),
+      );
+    }
 
-        return {
-          ...item,
-          follower: {
-            ...item.follower!,
-            relationship: nextRelationship,
-          },
-        };
-      }),
-    );
+    updateRelationship(optimisticRelationship);
 
-    await api.users.toggleFollow(targetUserId, isFollowing);
-    await loadConnections();
+    try {
+      const result = await api.users.toggleFollow(targetUserId, isFollowing);
+      updateRelationship(result.relationship);
+    } catch (error) {
+      console.error("Could not update follow relationship", error);
+      updateRelationship(relationship ?? "NONE");
+    } finally {
+      followRequestsInFlight.current.delete(targetUserId);
+    }
   }
   function getUserFromConnection(item: ConnectionItem) {
     if (activeTab === "following") return item.following;
@@ -165,6 +181,7 @@ export default function ConnectionsScreen() {
           const relationship = user.relationship;
 
           const buttonText = getRelationshipText(relationship);
+          const isCurrentUser = currentUser?.id === user.id;
 
           return (
             <TouchableOpacity
@@ -193,27 +210,17 @@ export default function ConnectionsScreen() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                className={`w-30 items-center rounded-xl px-4 py-2 ${getRelationshipButtonColor(
-                  relationship,
-                )}`}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  toggleFollow(user.id, relationship);
-                }}
-              >
-                <Text
-                  className={`text-center font-bold ${
-                    isFriendRelationship(user.relationship)
-                      ? "text-black"
-                      : user.relationship === "REQUESTED"
-                        ? "text-black dark:text-white"
-                      : "text-white dark:text-black"
-                  }`}
-                >
-                  {buttonText}
-                </Text>
-              </TouchableOpacity>
+              {!isCurrentUser ? (
+                <RelationshipActionButton
+                  className="w-30"
+                  relationship={relationship}
+                  label={buttonText}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void toggleFollow(user.id, relationship);
+                  }}
+                />
+              ) : null}
             </TouchableOpacity>
           );
         }}

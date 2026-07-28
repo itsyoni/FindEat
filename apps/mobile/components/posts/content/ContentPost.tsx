@@ -29,6 +29,7 @@ import { isRtlText } from "@/lib/textDirection";
 import PostConnectionCard from "@/components/posts/PostConnectionCard";
 import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
+import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 
 type Props = {
   post: Post;
@@ -234,6 +235,7 @@ export default function ContentPost({
         {imageUrl ? (
           <PinchZoomImage
             uri={imageUrl}
+            thumbnailUrl={content?.thumbnailUrl}
             style={{ position: "absolute", inset: 0 }}
             resizeMode="cover"
             onDoubleTap={handleDoubleTapLike}
@@ -292,56 +294,62 @@ export default function ContentPost({
           />
         </TouchableOpacity>
         <View className="absolute bottom-8 left-4 right-20">
-          <TouchableOpacity
-            className="mb-3 flex-row items-center gap-3"
-            activeOpacity={0.8}
-            onPress={() => {
-              if (isOfficialPost && post.restaurant) {
+          <View className="mb-3 flex-row items-center justify-between gap-3">
+            <TouchableOpacity
+              className="min-w-0 flex-1 flex-row items-center gap-3"
+              activeOpacity={0.8}
+              onPress={() => {
+                if (isOfficialPost && post.restaurant) {
+                  router.push({
+                    pathname: "/restaurants/[id]",
+                    params: { id: post.restaurant.id },
+                  });
+                  return;
+                }
+
+                if (!post.author?.id) return;
+
                 router.push({
-                  pathname: "/restaurants/[id]",
-                  params: { id: post.restaurant.id },
+                  pathname: "/(users)/[id]",
+                  params: { id: post.author.id },
                 });
-                return;
-              }
+              }}
+            >
+              <Avatar
+                uri={displayAvatar}
+                username={displayName ?? ""}
+                size={42}
+                fallbackType={isOfficialPost ? "restaurant" : "user"}
+              />
 
-              if (!post.author?.id) return;
+              <View className="min-w-0 flex-1">
+                <View className="flex-row items-center">
+                  <Text
+                    numberOfLines={1}
+                    className="shrink font-bold text-white"
+                  >
+                    {isOfficialPost ? displayName : `@${displayName}`}
+                  </Text>
+                  {isOfficialPost ? <RestaurantBadge /> : null}
+                  {!isOfficialPost && post.visibility !== "PUBLIC" ? (
+                    <View className="ml-1.5">
+                      <PostVisibilityIcon
+                        visibility={post.visibility}
+                        color="#FFFFFFCC"
+                      />
+                    </View>
+                  ) : null}
+                </View>
 
-              router.push({
-                pathname: "/(users)/[id]",
-                params: { id: post.author.id },
-              });
-            }}
-          >
-            <Avatar
-              uri={displayAvatar}
-              username={displayName ?? ""}
-              size={42}
-              fallbackType={isOfficialPost ? "restaurant" : "user"}
-            />
-
-            <View>
-              <View className="flex-row items-center">
-                <Text className="font-bold text-white">
-                  {isOfficialPost ? displayName : `@${displayName}`}
-                </Text>
-                {isOfficialPost ? <RestaurantBadge /> : null}
-                {!isOfficialPost && post.visibility !== "PUBLIC" ? (
-                  <View className="ml-1.5">
-                    <PostVisibilityIcon
-                      visibility={post.visibility}
-                      color="#FFFFFFCC"
-                    />
-                  </View>
-                ) : null}
+                {isOfficialPost && (
+                  <Text className="mt-1 text-xs font-semibold text-[#F7D786]">
+                    Official restaurant
+                  </Text>
+                )}
               </View>
-
-              {isOfficialPost && (
-                <Text className="mt-1 text-xs font-semibold text-[#F7D786]">
-                  Official restaurant
-                </Text>
-              )}
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+            <PostAuthorFollowAction post={post} onMedia />
+          </View>
 
           {!!post.restaurant && (
             <TouchableOpacity

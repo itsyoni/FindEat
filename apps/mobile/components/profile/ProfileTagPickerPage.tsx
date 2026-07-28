@@ -34,6 +34,8 @@ export const PROFILE_TAG_OPTIONS: Record<ProfileTagField, readonly string[]> = {
   favoriteCuisines: CUISINE_OPTIONS,
 };
 
+const NONE_OPTION = "__NONE__";
+
 function humanizeTag(value: string) {
   return value
     .toLowerCase()
@@ -68,10 +70,15 @@ export default function ProfileTagPickerPage({
   const [customPronouns, setCustomPronouns] = useState("");
 
   const fieldLabel = t(field);
+  const optionLabel = (option: string) =>
+    option === NONE_OPTION ? t("noneOption") : getProfileTagLabel(t, option);
   const options = useMemo(() => {
     const seenLabels = new Set<string>();
-    return [...selected, ...PROFILE_TAG_OPTIONS[field]].filter((option) => {
-      const label = getProfileTagLabel(t, option).toLocaleLowerCase();
+    return [NONE_OPTION, ...selected, ...PROFILE_TAG_OPTIONS[field]].filter((option) => {
+      const label =
+        option === NONE_OPTION
+          ? t("noneOption").toLocaleLowerCase()
+          : getProfileTagLabel(t, option).toLocaleLowerCase();
       if (seenLabels.has(label)) return false;
       seenLabels.add(label);
       return true;
@@ -81,11 +88,18 @@ export default function ProfileTagPickerPage({
     const normalizedQuery = query.trim().toLocaleLowerCase();
     if (!normalizedQuery) return options;
     return options.filter((option) =>
-      getProfileTagLabel(t, option).toLocaleLowerCase().includes(normalizedQuery),
+      (option === NONE_OPTION ? t("noneOption") : getProfileTagLabel(t, option))
+        .toLocaleLowerCase()
+        .includes(normalizedQuery),
     );
   }, [options, query, t]);
 
   function toggle(option: string) {
+    if (option === NONE_OPTION) {
+      setDraft([]);
+      setChoseNone(true);
+      return;
+    }
     setChoseNone(false);
     setDraft((current) =>
       current.includes(option)
@@ -211,30 +225,6 @@ export default function ProfileTagPickerPage({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 28 }}
             ItemSeparatorComponent={() => <View className="h-px bg-black/5 dark:bg-white/10" />}
-            ListHeaderComponent={
-              <TouchableOpacity
-                onPress={() => {
-                  setDraft([]);
-                  setChoseNone(true);
-                }}
-                activeOpacity={0.7}
-                className="mb-2 flex-row items-center rounded-2xl bg-[#F1EFEA] px-4 py-4 dark:bg-gray-900"
-              >
-                <View className="flex-1">
-                  <Text className="text-base text-black dark:text-white" weight="bold">
-                    {t("noneOption")}
-                  </Text>
-                  <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    {t("noneOptionHint")}
-                  </Text>
-                </View>
-                <CheckCircleIcon
-                  size={25}
-                  color={choseNone ? "#D6A92D" : isDark ? "#4B5563" : "#D1D5DB"}
-                  weight={choseNone ? "fill" : "regular"}
-                />
-              </TouchableOpacity>
-            }
             ListEmptyComponent={
               <View className="items-center px-6 py-16">
                 <Text className="text-center text-gray-500 dark:text-gray-400">
@@ -243,7 +233,8 @@ export default function ProfileTagPickerPage({
               </View>
             }
             renderItem={({ item }) => {
-              const isSelected = draft.includes(item);
+              const isSelected =
+                item === NONE_OPTION ? choseNone : draft.includes(item);
               return (
                 <TouchableOpacity
                   onPress={() => toggle(item)}
@@ -251,7 +242,7 @@ export default function ProfileTagPickerPage({
                   className="flex-row items-center py-4"
                 >
                   <Text className="flex-1 text-base text-black dark:text-white">
-                    {getProfileTagLabel(t, item)}
+                    {optionLabel(item)}
                   </Text>
                   <CheckCircleIcon
                     size={25}

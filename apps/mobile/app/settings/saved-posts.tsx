@@ -7,7 +7,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { api } from "@/lib/api";
 import type { Post, SavedPostAttribution } from "@findeat/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image } from "expo-image";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { router, useFocusEffect } from "expo-router";
 import { BookmarkSimpleIcon, MapPinIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
@@ -101,7 +101,7 @@ export function SavedPostCard({ item }: { item: SavedPostAttribution }) {
         style={rowStyle}
       >
         {image ? (
-          <Image source={{ uri: image }} style={{ width: 92, height: 116, borderRadius: 17 }} contentFit="cover" transition={150} />
+          <ProgressiveImage source={{ uri: image }} style={{ width: 92, height: 116, borderRadius: 17 }} contentFit="cover" transition={150} />
         ) : (
           <View className="h-[116px] w-[92px] items-center justify-center rounded-[17px] bg-gray-100 dark:bg-gray-900">
             <BookmarkSimpleIcon size={27} color="#D1A928" weight="fill" />

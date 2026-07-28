@@ -1,9 +1,10 @@
 import { Post } from "@findeat/types/post";
-import { useState } from "react";
-import { FlatList, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FlatList, View, type ViewToken } from "react-native";
 import ContentPost from "./ContentPost";
 import EmptyPostsState from "../EmptyPostsState";
 import { Skeleton, SkeletonPulse } from "@/components/common";
+import { prefetchUpcomingPosts } from "@/lib/imagePrefetch";
 
 type Props = {
   posts: Post[];
@@ -27,6 +28,8 @@ type Props = {
   loading?: boolean;
 };
 
+const contentViewabilityConfig = { itemVisiblePercentThreshold: 60 };
+
 export default function ContentFeed({
   posts,
   height,
@@ -44,6 +47,21 @@ export default function ContentFeed({
   loading = false,
 }: Props) {
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
+  const postsRef = useRef(posts);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<Post>[] }) => {
+      const index = viewableItems.find(
+        (item) => item.isViewable && typeof item.index === "number",
+      )?.index;
+      if (typeof index === "number") {
+        prefetchUpcomingPosts(postsRef.current, index);
+      }
+    },
+    [],
+  );
 
   if (loading) {
     return (
@@ -83,6 +101,8 @@ export default function ContentFeed({
       maxToRenderPerBatch={2}
       windowSize={3}
       removeClippedSubviews
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={contentViewabilityConfig}
       pagingEnabled
       scrollEnabled={!isPinchingMedia}
       showsVerticalScrollIndicator={false}

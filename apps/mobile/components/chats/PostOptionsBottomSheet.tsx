@@ -13,6 +13,7 @@ import {
   FlagIcon,
   UserMinusIcon,
   LinkSimpleIcon,
+  UsersThreeIcon,
 } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -141,6 +142,13 @@ export default function PostOptionsBottomSheet({
     router.push({ pathname: "/posts/connections/[id]", params: { id } });
   }
 
+  function manageReviewPeople() {
+    if (!postId) return;
+    const id = postId;
+    closeSheet();
+    router.push({ pathname: "/posts/collaborators/[id]", params: { id } });
+  }
+
   function finishReport() {
     if (activePost?.authorId && activePost.author && !activePost.canDelete) {
       setReporting(false);
@@ -172,7 +180,9 @@ export default function PostOptionsBottomSheet({
           : askingToBlock
             ? "48%"
             : activePost?.canDelete
-              ? "67%"
+              ? activePost.type === "REVIEW"
+                ? "78%"
+                : "67%"
               : "34%",
       ]}
       onClose={closeSheet}
@@ -320,6 +330,33 @@ export default function PostOptionsBottomSheet({
                 weight="bold"
               />
             </TouchableOpacity>
+
+            {activePost.type === "REVIEW" ? (
+              <TouchableOpacity
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                onPress={manageReviewPeople}
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-yellow-50 dark:bg-yellow-950/40">
+                  <UsersThreeIcon size={21} color="#D4A72C" weight="fill" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("manageReviewPeople")}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {t("manageReviewPeopleHint")}
+                  </Text>
+                </View>
+                <DirectionalIcon
+                  direction="forward"
+                  size={18}
+                  color={isDark ? "#6B7280" : "#9CA3AF"}
+                  weight="bold"
+                />
+              </TouchableOpacity>
+            ) : null}
 
             <TouchableOpacity
               disabled={archiving}

@@ -38,6 +38,15 @@ import { isRtlText } from "@/lib/textDirection";
 import PostConnectionCard from "@/components/posts/PostConnectionCard";
 import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
+import ReviewCollaborationCard from "./ReviewCollaborationCard";
+import DishContributionsBottomSheet from "./DishContributionsBottomSheet";
+import type { ReviewItem } from "@findeat/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
+import { prefetchImageUrls } from "@/lib/imagePrefetch";
 
 type Props = {
   post: Post;
@@ -57,6 +66,7 @@ type ReviewSlide =
       type: "COVER";
       id: string;
       imageUrl?: string | null;
+      thumbnailUrl?: string | null;
       text?: string | null;
       textEditedAt?: string | null;
     }
@@ -64,6 +74,7 @@ type ReviewSlide =
       type: "DISH";
       id: string;
       imageUrl?: string | null;
+      thumbnailUrl?: string | null;
       text?: string | null;
       textEditedAt?: string | null;
       dishName: string;
@@ -71,6 +82,8 @@ type ReviewSlide =
       rating?: number | null;
       menuItemId?: string | null;
       isLinkedToMenu: boolean;
+      reviewItem: ReviewItem;
+      contributionCount: number;
     };
 
 const reviewViewabilityConfig = { itemVisiblePercentThreshold: 60 };
@@ -118,11 +131,20 @@ export default function ReviewPost({
   const { isDark } = useAppTheme();
   const { t } = useTranslation("restaurants");
   const { t: tCommon, i18n } = useTranslation("common");
+  const { t: tCollaboration } = useTranslation("collaborativeReview");
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const isRtl = i18n.language.startsWith("he");
   const actionColor = isDark ? "#E5E7EB" : "#212121";
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
+  const [selectedContributionsItem, setSelectedContributionsItem] =
+    useState<ReviewItem | null>(null);
+  const [primaryMediaOverrides, setPrimaryMediaOverrides] = useState<
+    Record<string, { id: string; imageUrl: string }>
+  >({});
   const review = post.reviewPost;
   const items = review?.items ?? [];
 
@@ -136,24 +158,55 @@ export default function ReviewPost({
       type: "COVER",
       id: "cover",
       imageUrl: review?.coverImageUrl,
+      thumbnailUrl: review?.coverThumbnailUrl,
       text: review?.summary,
       textEditedAt: review?.summaryEditedAt,
     },
-    ...items.map((item) => ({
+    ...items.map((item) => {
+      const contributionRatings = (item.contributions ?? [])
+        .map((contribution) => contribution.rating)
+        .filter((rating): rating is number => typeof rating === "number");
+      const combinedRating =
+        contributionRatings.length > 0
+          ? contributionRatings.reduce((sum, rating) => sum + rating, 0) /
+            contributionRatings.length
+          : item.rating;
+      return {
       type: "DISH" as const,
       id: item.id,
       menuItemId: item.menuItemId,
       isLinkedToMenu: !!item.menuItemId,
-      imageUrl: item.imageUrl ?? item.menuItem?.imageUrl,
+      imageUrl:
+        primaryMediaOverrides[item.id]?.imageUrl ??
+        item.primaryMedia?.imageUrl ??
+        item.imageUrl ??
+        item.menuItem?.imageUrl,
+      thumbnailUrl:
+        item.primaryMedia?.thumbnailUrl ??
+        item.thumbnailUrl ??
+        item.menuItem?.thumbnailUrl,
       text: item.text,
       textEditedAt: item.textEditedAt,
       dishName: item.menuItem?.name ?? item.customDishName ?? "Dish",
       price: item.menuItem?.price ?? item.customPrice,
-      rating: item.rating,
-    })),
+      rating: combinedRating,
+      reviewItem: item,
+      contributionCount: item.contributions?.length ?? 0,
+    };
+    }),
   ];
 
   const activeSlide = slides[activeIndex];
+  const upcomingSlideUrls = slides
+    .slice(activeIndex + 1, activeIndex + 3)
+    .map((slide) => slide.imageUrl)
+    .filter((url): url is string => !!url)
+    .join("|");
+  useEffect(() => {
+    if (upcomingSlideUrls) {
+      prefetchImageUrls(upcomingSlideUrls.split("|"));
+    }
+  }, [upcomingSlideUrls]);
   const activeTextIsRtl = isRtlText(activeSlide?.text, isRtl);
   const indicatorSlides = I18nManager.isRTL ? [...slides].reverse() : slides;
   const onViewableItemsChanged = useCallback(
@@ -167,6 +220,29 @@ export default function ReviewPost({
   );
 
   const isRestaurantPost = !!post.authorRestaurantId && !!post.authorRestaurant;
+
+  async function choosePrimaryMedia(itemId: string, mediaId: string) {
+    const item = items.find((candidate) => candidate.id === itemId);
+    const media = item?.media?.find((candidate) => candidate.id === mediaId);
+    if (!media) return;
+    try {
+      await api.posts.setReviewDishPrimaryMedia(post.id, itemId, mediaId);
+      setPrimaryMediaOverrides((current) => ({
+        ...current,
+        [itemId]: { id: mediaId, imageUrl: media.imageUrl },
+      }));
+      setSelectedContributionsItem((current) =>
+        current?.id === itemId
+          ? { ...current, primaryMedia: media, primaryMediaId: mediaId }
+          : current,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["feed"] });
+      showToast(tCollaboration("primaryUpdated"));
+    } catch (error) {
+      console.error("Could not update dish primary image", error);
+      showToast(tCollaboration("primaryUpdateError"), { kind: "error" });
+    }
+  }
 
   const displayAvatar = isRestaurantPost
     ? post.authorRestaurant?.logoUrl
@@ -333,14 +409,19 @@ export default function ReviewPost({
           </View>
         </View>
 
-        <TouchableOpacity
-          className="ml-3 p-2"
-          activeOpacity={0.8}
-          onPress={() => onOpenPostOptions(post.id)}
-        >
-          <DotsThreeOutlineIcon size={28} color="#6B7280" weight="fill" />
-        </TouchableOpacity>
+        <View className="ml-3 flex-row items-center gap-2">
+          <PostAuthorFollowAction post={post} />
+          <TouchableOpacity
+            className="p-2"
+            activeOpacity={0.8}
+            onPress={() => onOpenPostOptions(post.id)}
+          >
+            <DotsThreeOutlineIcon size={28} color="#6B7280" weight="fill" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <ReviewCollaborationCard post={post} />
 
       <View className="relative">
         <Animated.View
@@ -385,6 +466,7 @@ export default function ReviewPost({
               {item.imageUrl ? (
                 <PinchZoomImage
                   uri={item.imageUrl}
+                  thumbnailUrl={item.thumbnailUrl}
                   style={{ width: "100%", height: "100%" }}
                   resizeMode="cover"
                   onDoubleTap={handleDoubleTapLike}
@@ -477,7 +559,10 @@ export default function ReviewPost({
                         <View className="mt-1 flex-row items-center gap-1">
                           <StarIcon size={15} color="#F7D786" weight="fill" />
                           <Text className="font-bold text-white">
-                            {item.rating}/10
+                            {Number.isInteger(item.rating)
+                              ? item.rating
+                              : item.rating.toFixed(1)}
+                            /10
                           </Text>
                         </View>
                       )}
@@ -570,6 +655,37 @@ export default function ReviewPost({
         </View>
 
         <View className="mt-3">
+          {activeSlide?.type === "DISH" &&
+            activeSlide.contributionCount > 0 && (
+              <TouchableOpacity
+                onPress={() =>
+                  setSelectedContributionsItem(activeSlide.reviewItem)
+                }
+                className="mb-3 self-start flex-row items-center rounded-full bg-brand/15 px-3 py-2"
+              >
+                <View className="mr-2 flex-row">
+                  {(activeSlide.reviewItem.contributions ?? [])
+                    .slice(0, 3)
+                    .map((contribution, index) => (
+                      <View
+                        key={contribution.id}
+                        style={{ marginLeft: index === 0 ? 0 : -7 }}
+                      >
+                        <Avatar
+                          uri={contribution.user.avatarUrl}
+                          username={contribution.user.username}
+                          size={24}
+                        />
+                      </View>
+                    ))}
+                </View>
+                <Text className="text-xs font-bold text-black dark:text-white">
+                  {tCollaboration("reviewTakes", {
+                    count: activeSlide.contributionCount,
+                  })}
+                </Text>
+              </TouchableOpacity>
+            )}
           {!!activeSlide?.text && (
             <>
               <ExpandablePostCaption
@@ -604,6 +720,20 @@ export default function ReviewPost({
           />
         </View>
       </View>
+      <DishContributionsBottomSheet
+        item={selectedContributionsItem}
+        onClose={() => setSelectedContributionsItem(null)}
+        canChoosePrimary={post.authorId === user?.id}
+        primaryMediaId={
+          selectedContributionsItem
+            ? (primaryMediaOverrides[selectedContributionsItem.id]?.id ??
+              selectedContributionsItem.primaryMediaId)
+            : null
+        }
+        onChoosePrimary={(itemId, mediaId) =>
+          void choosePrimaryMedia(itemId, mediaId)
+        }
+      />
     </View>
   );
 }

@@ -18,6 +18,8 @@
   "profileCompletionHint_one": "נשאר רק פרט אחד. תמיד אפשר לבחור ״אין / מעדיפ/ה לא לענות״.",
   "profileCompletionHint_other": "נשארו עוד {{count}} פרטים. תמיד אפשר לבחור ״אין / מעדיפ/ה לא לענות״.",
   "profileCompletionDone": "הכול מוכן. תמיד אפשר לשנות את הפרטים האלה.",
+  "profileCompletionStatus_one": "{{percentage}}% הושלמו · נשאר פרט אחד",
+  "profileCompletionStatus_other": "{{percentage}}% הושלמו · נשארו {{count}} פרטים",
   "phoneNumber": "מספר טלפון",
   "phoneNumberPlaceholder": "+972 50 000 0000",
   "birthday": "יום הולדת",

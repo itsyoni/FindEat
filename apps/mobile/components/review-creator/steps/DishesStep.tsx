@@ -4,6 +4,7 @@ import { ScrollView, TouchableOpacity, View } from "react-native";
 import { ThemedSafeAreaView } from "@/components/common";
 import DishCard from "../components/DishCard";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   items: ReviewDishDraft[];
@@ -26,6 +27,8 @@ export default function DishesStep({
   onSaveDraft,
   savingDraft,
 }: Props) {
+  const { t } = useTranslation(["create", "common"]);
+
   return (
     <ThemedSafeAreaView>
       <ScrollView
@@ -37,20 +40,24 @@ export default function DishesStep({
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity onPress={onBack}>
-            <Text className="font-bold text-black dark:text-white">← Back</Text>
+            <Text className="font-bold text-black dark:text-white">
+              {t("common:back")}
+            </Text>
           </TouchableOpacity>
           <View className="flex-row items-center gap-2">
             <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
-            <Text className="text-sm font-semibold text-gray-400">3 of 4</Text>
+            <Text className="text-sm font-semibold text-gray-400">
+              {t("create:stepOf", { current: 3, total: 4 })}
+            </Text>
           </View>
         </View>
 
         <Text className="mt-6 text-3xl font-bold text-black dark:text-white">
-          What did you order?
+          {t("create:whatDidYouOrder")}
         </Text>
 
         <Text className="mt-2 text-gray-500">
-          Add dishes if you want to rate them individually, or skip this step.
+          {t("create:dishesStepSubtitle")}
         </Text>
 
         <View className="mt-7 gap-3">
@@ -59,13 +66,13 @@ export default function DishesStep({
             onPress={onAddMenuDish}
           >
             <Text className="text-center font-bold text-white dark:text-black">
-              Choose from restaurant menu
+              {t("create:chooseFromRestaurantMenu")}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity className="py-2" onPress={onAddCustomDish}>
             <Text className="text-center font-bold text-gray-500">
-              Can’t find it? Add a custom dish
+              {t("create:addCustomDishPrompt")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -73,11 +80,11 @@ export default function DishesStep({
         {items.length === 0 ? (
           <View className="mt-6 items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 dark:border-gray-700 dark:bg-gray-900">
             <Text className="text-center text-lg font-bold text-black dark:text-white">
-              No dishes yet
+              {t("create:noDishesYet")}
             </Text>
 
             <Text className="mt-2 text-center text-gray-500">
-              This is optional. You can continue with only the restaurant review.
+              {t("create:noDishesReviewHint")}
             </Text>
           </View>
         ) : (
@@ -97,7 +104,9 @@ export default function DishesStep({
           onPress={onNext}
         >
           <Text className="text-center font-bold text-white dark:text-black">
-            {items.length > 0 ? "Review everything" : "Skip dishes"}
+            {items.length > 0
+              ? t("create:reviewEverything")
+              : t("create:skipDishes")}
           </Text>
         </TouchableOpacity>
       </ScrollView>

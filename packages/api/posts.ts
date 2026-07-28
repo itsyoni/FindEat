@@ -39,6 +39,7 @@ export function createPostsApi(api: AxiosInstance) {
       valueRating?: number;
       totalPrice?: number;
       linkedPostId?: string;
+      participantIds?: string[];
       items: Array<{
         menuItemId?: string | null;
         customDishName?: string | null;
@@ -120,6 +121,101 @@ export function createPostsApi(api: AxiosInstance) {
 
     async get(id: string) {
       const { data } = await api.get<Post>(`/posts/${id}`);
+      return data;
+    },
+
+    async updateReviewParticipants(id: string, participantIds: string[]) {
+      const { data } = await api.put<Post>(`/posts/${id}/collaborators`, {
+        participantIds,
+      });
+      return data;
+    },
+
+    async joinReview(id: string) {
+      const { data } = await api.post<Post>(
+        `/posts/${id}/collaboration/join`,
+      );
+      return data;
+    },
+
+    async declineReview(id: string) {
+      const { data } = await api.post<{ ok: boolean }>(
+        `/posts/${id}/collaboration/decline`,
+      );
+      return data;
+    },
+
+    async leaveReview(id: string) {
+      const { data } = await api.delete<{ ok: boolean }>(
+        `/posts/${id}/collaboration`,
+      );
+      return data;
+    },
+
+    async upsertReviewContribution(
+      postId: string,
+      itemId: string,
+      payload: {
+        rating?: number;
+        text?: string;
+        imageUrls?: string[];
+      },
+    ) {
+      const { data } = await api.put<Post>(
+        `/posts/${postId}/review/items/${itemId}/contribution`,
+        payload,
+      );
+      return data;
+    },
+
+    async removeReviewContribution(postId: string, itemId: string) {
+      const { data } = await api.delete<Post>(
+        `/posts/${postId}/review/items/${itemId}/contribution`,
+      );
+      return data;
+    },
+
+    async addCollaborativeReviewDish(
+      postId: string,
+      payload: {
+        menuItemId?: string;
+        customDishName?: string;
+        customPrice?: number;
+        rating?: number;
+        text?: string;
+        imageUrls?: string[];
+      },
+    ) {
+      const { data } = await api.post<{ post: Post; itemId: string }>(
+        `/posts/${postId}/review/items`,
+        payload,
+      );
+      return data;
+    },
+
+    async removeReviewDishMedia(postId: string, mediaId: string) {
+      const { data } = await api.delete<Post>(
+        `/posts/${postId}/review/media/${mediaId}`,
+      );
+      return data;
+    },
+
+    async setReviewDishPrimaryMedia(
+      postId: string,
+      itemId: string,
+      mediaId: string,
+    ) {
+      const { data } = await api.patch<Post>(
+        `/posts/${postId}/review/items/${itemId}/primary-media/${mediaId}`,
+      );
+      return data;
+    },
+
+    async reorderReviewDishes(postId: string, itemIds: string[]) {
+      const { data } = await api.patch<Post>(
+        `/posts/${postId}/review/items-order`,
+        { itemIds },
+      );
       return data;
     },
 

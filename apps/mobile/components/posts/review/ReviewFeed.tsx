@@ -1,9 +1,15 @@
 import { Post } from "@findeat/types/post";
-import { ActivityIndicator, FlatList, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  View,
+  type ViewToken,
+} from "react-native";
 import ReviewPost from "./ReviewPost";
 import ReviewFeedEmptyState from "./ReviewFeedEmptyState";
 import { Skeleton, SkeletonPulse } from "@/components/common";
-import { useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { prefetchUpcomingPosts } from "@/lib/imagePrefetch";
 
 type Props = {
   posts: Post[];
@@ -25,6 +31,8 @@ type Props = {
   initialIndex?: number;
 };
 
+const feedViewabilityConfig = { itemVisiblePercentThreshold: 50 };
+
 export default function ReviewFeed({
   posts,
   refreshing,
@@ -41,6 +49,21 @@ export default function ReviewFeed({
   initialIndex = 0,
 }: Props) {
   const listRef = useRef<FlatList<Post>>(null);
+  const postsRef = useRef(posts);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<Post>[] }) => {
+      const index = viewableItems.find(
+        (item) => item.isViewable && typeof item.index === "number",
+      )?.index;
+      if (typeof index === "number") {
+        prefetchUpcomingPosts(postsRef.current, index);
+      }
+    },
+    [],
+  );
   if (loading) {
     return (
       <SkeletonPulse style={{ flex: 1, paddingTop: contentTopInset + 12 }}>
@@ -74,6 +97,8 @@ export default function ReviewFeed({
       maxToRenderPerBatch={3}
       windowSize={5}
       removeClippedSubviews
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={feedViewabilityConfig}
       initialScrollIndex={initialIndex > 0 ? initialIndex : undefined}
       onScrollToIndexFailed={({ index, averageItemLength }) => {
         listRef.current?.scrollToOffset({

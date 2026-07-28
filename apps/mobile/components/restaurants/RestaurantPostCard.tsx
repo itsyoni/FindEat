@@ -1,5 +1,6 @@
 import { Restaurant } from "@findeat/types";
-import { Image, View } from "react-native";
+import { View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import Text from "../common/AppText";
 
 type Props = {
@@ -10,7 +11,7 @@ export default function RestaurantPostCard({ post }: Props) {
   return (
     <View className="mt-4 rounded-2xl border border-gray-200 p-4">
       {!!post.imageUrl && (
-        <Image
+        <ProgressiveImage
           source={{ uri: post.imageUrl }}
           className="mb-3 h-48 w-full rounded-2xl bg-gray-100"
           resizeMode="cover"

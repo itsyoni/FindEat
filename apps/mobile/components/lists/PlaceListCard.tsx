@@ -1,7 +1,7 @@
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import type { PlaceListSummary } from "@findeat/types";
-import { Image } from "expo-image";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { CalendarBlankIcon, FolderSimpleIcon, UsersThreeIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
@@ -25,7 +25,7 @@ export default function PlaceListCard({ list, onPress }: Props) {
     >
       <View className="h-40 overflow-hidden rounded-[22px] bg-amber-50 dark:bg-amber-950/40">
         {list.coverUrl ? (
-          <Image
+          <ProgressiveImage
             source={{ uri: list.coverUrl }}
             style={{ width: "100%", height: "100%" }}
             contentFit="cover"
@@ -36,7 +36,7 @@ export default function PlaceListCard({ list, onPress }: Props) {
             {Array.from({ length: 4 }, (_, index) => {
               const uri = previews[index];
               return uri ? (
-                <Image
+                <ProgressiveImage
                   key={`${uri}-${index}`}
                   source={{ uri }}
                   style={{ width: "50%", height: "50%" }}

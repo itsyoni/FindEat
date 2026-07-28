@@ -4,7 +4,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { api } from '@/lib/api';
 import type { ProductUpdate } from '@findeat/types';
 import { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, TouchableOpacity, View } from 'react-native';
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SparkleIcon, XIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -45,7 +46,7 @@ export default function WhatsNewModal() {
         <Pressable className="absolute inset-0" onPress={() => setUpdates([])} />
         <View style={{ backgroundColor: surface, maxHeight: '82%' }} className="w-full max-w-md overflow-hidden rounded-[30px]">
           {current.imageUrl ? (
-            <Image source={{ uri: current.imageUrl }} className="h-56 w-full" resizeMode="cover" />
+            <ProgressiveImage source={{ uri: current.imageUrl }} className="h-56 w-full" resizeMode="cover" />
           ) : (
             <View className="h-40 items-center justify-center bg-amber-100 dark:bg-amber-950/40">
               <View className="h-20 w-20 items-center justify-center rounded-full bg-brand">

@@ -1,6 +1,7 @@
 import { XIcon } from "phosphor-react-native";
 import { StatusBar } from "expo-status-bar";
-import { Image, Modal, Pressable, View } from "react-native";
+import { Modal, Pressable, View } from "react-native";
+import ProgressiveImage from "./ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SvgUri } from "react-native-svg";
 
@@ -38,7 +39,7 @@ export default function FullScreenImageViewer({
           {isSvg ? (
             <SvgUri width="100%" height="100%" uri={uri} />
           ) : (
-            <Image
+            <ProgressiveImage
               source={{ uri }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="contain"

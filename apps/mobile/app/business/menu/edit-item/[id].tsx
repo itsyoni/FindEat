@@ -8,7 +8,8 @@ import { uploadImage } from "@/lib/uploadImage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Image, Switch, TouchableOpacity, View } from "react-native";
+import { Switch, TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 
 export default function EditMenuItemScreen() {
   const params = useLocalSearchParams<{
@@ -132,7 +133,7 @@ export default function EditMenuItemScreen() {
             onPress={pickImage}
           >
             {displayedImage ? (
-              <Image
+              <ProgressiveImage
                 source={{ uri: displayedImage }}
                 className="h-56 w-full rounded-2xl"
                 resizeMode="cover"

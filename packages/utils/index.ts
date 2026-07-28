@@ -6,3 +6,4 @@ export * from "./users/relationship";
 export * from "./errors/getErrorMessage";
 export * from "./arrays";
 export * from "./search";
+export * from "./media";

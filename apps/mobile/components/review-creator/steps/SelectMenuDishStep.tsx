@@ -5,11 +5,12 @@ import { api } from "@/lib/api";
 import { Dish, Restaurant } from "@findeat/types";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Image,
   TouchableOpacity,
   View,
 } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   restaurant: Restaurant | null;
@@ -28,6 +29,7 @@ export default function SelectMenuDishStep({
   onSaveDraft,
   savingDraft,
 }: Props) {
+  const { t } = useTranslation(["create", "common"]);
   const [fullRestaurant, setFullRestaurant] = useState<Restaurant | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(!!restaurant?.id);
@@ -84,18 +86,20 @@ export default function SelectMenuDishStep({
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity onPress={onBack}>
-            <Text className="font-bold text-black dark:text-white">← Back</Text>
+            <Text className="font-bold text-black dark:text-white">
+              {t("common:back")}
+            </Text>
           </TouchableOpacity>
           <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
         </View>
 
         <Text className="mt-6 text-3xl font-bold text-black dark:text-white">
-          Choose from menu
+          {t("create:chooseFromMenu")}
         </Text>
 
         <TextInput
           className="mt-6 rounded-2xl border border-gray-200 px-4 py-4 text-base text-black dark:border-gray-700 dark:text-white"
-          placeholder="Search dishes..."
+          placeholder={t("create:searchDishes")}
           value={query}
           onChangeText={setQuery}
         />
@@ -107,19 +111,21 @@ export default function SelectMenuDishStep({
         {!loading && filteredMenus.length === 0 && (
           <View className="mt-10 rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 dark:border-gray-700 dark:bg-gray-900">
             <Text className="text-center font-bold text-black dark:text-white">
-              {query.trim() ? "No matching dishes" : "No restaurant menu yet"}
+              {query.trim()
+                ? t("create:noMatchingDishes")
+                : t("create:noRestaurantMenuYet")}
             </Text>
             <Text className="mt-2 text-center text-gray-500">
               {query.trim()
-                ? "Try another search or add this dish yourself."
-                : "You can still add and review the dish manually."}
+                ? t("create:tryAnotherDishSearch")
+                : t("create:addDishManuallyHint")}
             </Text>
             <TouchableOpacity
               onPress={onAddCustom}
               className="mt-5 rounded-2xl bg-black py-3.5 dark:bg-white"
             >
               <Text className="text-center font-bold text-white dark:text-black">
-                Add a custom dish
+                {t("create:addCustomDish")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -143,7 +149,7 @@ export default function SelectMenuDishStep({
                     >
                       <View className="flex-row gap-3">
                         {dish.imageUrl ? (
-                          <Image
+                          <ProgressiveImage
                             source={{ uri: dish.imageUrl }}
                             className="h-16 w-16 rounded-xl bg-gray-100"
                             resizeMode="cover"

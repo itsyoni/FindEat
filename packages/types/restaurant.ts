@@ -53,6 +53,7 @@ export type RestaurantPostPreview = {
   type: "CONTENT" | "REVIEW";
   description?: string | null;
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   rating?: number | null;
   author: UserSummary;
   _count: {
@@ -67,6 +68,7 @@ export type RestaurantMembership = {
     id: string;
     name: string;
     logoUrl: string | null;
+    logoThumbnailUrl?: string | null;
     city: string | null;
     status: RestaurantStatus;
   };
@@ -76,7 +78,9 @@ export type ManagedRestaurant = {
   id: string;
   name: string;
   logoUrl?: string | null;
+  logoThumbnailUrl?: string | null;
   coverUrl?: string | null;
+  coverThumbnailUrl?: string | null;
   address?: string | null;
   city?: string | null;
   phone?: string | null;
@@ -136,7 +140,9 @@ export type Restaurant = {
   name: string;
   bio?: string | null;
   logoUrl?: string | null;
+  logoThumbnailUrl?: string | null;
   coverUrl?: string | null;
+  coverThumbnailUrl?: string | null;
 
   address?: string | null;
   city?: string | null;

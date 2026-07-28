@@ -28,9 +28,9 @@ import {
   Pressable,
   TouchableOpacity,
   View,
-  Image,
   TextInput as RNTextInput,
 } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Socket } from "socket.io-client";
@@ -1376,7 +1376,7 @@ export default function ChatScreen() {
                               return (
                                 <>
                                   {!!image && (
-                                    <Image
+                                    <ProgressiveImage
                                       source={{ uri: image }}
                                       className="h-40 w-56"
                                       resizeMode="cover"

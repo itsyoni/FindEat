@@ -16,11 +16,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Target = LinkedPost | Post;
@@ -101,7 +101,7 @@ export default function PostConnectionsScreen() {
       >
         <View className="h-16 w-14 items-center justify-center overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} className="h-full w-full" resizeMode="cover" />
+            <ProgressiveImage source={{ uri: imageUrl }} className="h-full w-full" resizeMode="cover" />
           ) : review ? (
             <NotePencilIcon size={25} color="#9CA3AF" weight="fill" />
           ) : (

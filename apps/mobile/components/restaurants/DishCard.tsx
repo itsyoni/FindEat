@@ -1,5 +1,6 @@
 import { Restaurant } from "@findeat/types";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import Text from "../common/AppText";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -42,7 +43,7 @@ export default function DishCard({
       <View className="flex-row gap-3">
         <View className="relative h-28 w-36">
           {item.imageUrl ? (
-            <Image
+            <ProgressiveImage
               source={{ uri: item.imageUrl }}
               className="h-28 w-36 rounded-2xl bg-gray-100 dark:bg-gray-800"
               resizeMode="cover"

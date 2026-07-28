@@ -23,6 +23,7 @@ export type PlaceListSummary = {
   name: string;
   description?: string | null;
   coverUrl?: string | null;
+  coverThumbnailUrl?: string | null;
   isPrivate: boolean;
   eventType?: PlaceListEventType | null;
   eventAt?: string | null;

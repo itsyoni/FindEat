@@ -20,6 +20,8 @@ import ParallaxProfileCover from "./ParallaxProfileCover";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import CreatorLevelBadge from "./CreatorLevelBadge";
 import ProfileTagBadge from "./ProfileTagBadge";
+import { getProfileCompletion } from "@/lib/profileCompletion";
+import { DirectionalForwardIcon } from "@/components/common/icons/DirectionalIcon";
 
 type Props = {
   profile?: Profile | null;
@@ -31,6 +33,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
   const { t } = useTranslation(["common", "profile"]);
   const { isDark } = useAppTheme();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const completion = profile ? getProfileCompletion(profile) : null;
 
   if (loading || !profile) {
     return (
@@ -189,6 +192,30 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
             </Text>
           </TouchableOpacity>
         </View>
+
+        {completion && completion.percentage < 100 ? (
+          <TouchableOpacity
+            onPress={() => router.push("/(profile)/edit-profile")}
+            activeOpacity={0.75}
+            className="mx-5 mt-3 self-stretch flex-row items-center rounded-2xl bg-amber-50 px-4 py-3 dark:bg-amber-950/40"
+          >
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-900">
+              <PencilSimpleIcon size={18} color="#B45309" weight="bold" />
+            </View>
+            <View className="ml-3 flex-1">
+              <Text className="font-bold text-amber-950 dark:text-amber-100">
+                {t("profile:profileCompletion")}
+              </Text>
+              <Text className="mt-0.5 text-xs text-amber-800 dark:text-amber-300">
+                {t("profile:profileCompletionStatus", {
+                  percentage: completion.percentage,
+                  count: completion.remaining,
+                })}
+              </Text>
+            </View>
+            <DirectionalForwardIcon size={18} color="#D97706" weight="bold" />
+          </TouchableOpacity>
+        ) : null}
       </View>
       <FullScreenImageViewer
         uri={profile.avatarUrl}

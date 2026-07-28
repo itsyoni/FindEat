@@ -143,6 +143,8 @@ function RootNavigator() {
         <Stack.Screen name="(posts)/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="posts/edit/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="posts/connections/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="posts/contribute/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="posts/collaborators/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="create/content" options={{ headerShown: false }} />
         <Stack.Screen name="create/review" options={{ headerShown: false }} />
         <Stack.Screen name="business/index" />

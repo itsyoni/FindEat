@@ -16,14 +16,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PostType } from "@findeat/types/post";
 import {
   filterPostsByType,
-  getRelationshipButtonColor,
   getRelationshipButtonText,
   isFollowingRelationship,
-  isFriendRelationship,
   shouldRemoveFollowRelationship,
 } from "@findeat/utils";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import {
+  ChatCircleIcon,
   DotsThreeIcon,
   LockKeyIcon,
   ProhibitIcon,
@@ -41,6 +40,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import CreatorLevelBadge from "@/components/profile/CreatorLevelBadge";
 import ProfileTagBadge from "@/components/profile/ProfileTagBadge";
+import RelationshipActionButton from "@/components/profile/RelationshipActionButton";
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams();
@@ -310,31 +310,31 @@ export default function UserProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <View className="mt-5 w-full flex-row gap-3">
-            <TouchableOpacity
-              className={`flex-1 rounded-2xl py-4 ${getRelationshipButtonColor(user.relationship)}`}
+          <View className="mt-5 w-full flex-row gap-2">
+            <RelationshipActionButton
+              className="rounded-xl py-2.5"
+              style={{ flex: 1, flexBasis: 0 }}
+              relationship={user.relationship}
+              label={getRelationshipButtonText(user.relationship)}
               onPress={toggleFollow}
-            >
-              <Text
-                className={`text-center font-bold ${
-                  isFriendRelationship(user.relationship)
-                    ? "text-black"
-                    : user.relationship === "REQUESTED"
-                      ? "text-black dark:text-white"
-                    : "text-white dark:text-black"
-                }`}
-              >
-                {getRelationshipButtonText(user.relationship)}
-              </Text>
-            </TouchableOpacity>
+              showIcon
+            />
 
             <TouchableOpacity
-              className="flex-1 rounded-2xl border border-gray-200 py-4 dark:border-gray-700"
+              className="items-center justify-center rounded-xl bg-[#F5F4F5] py-2.5 dark:bg-gray-800"
+              style={{ flex: 1, flexBasis: 0 }}
               onPress={startChat}
             >
-              <Text className="text-center font-bold text-black dark:text-white">
+              <View className="flex-row items-center justify-center">
+                <ChatCircleIcon
+                  size={18}
+                  color={isDark ? "#FFFFFF" : "#171717"}
+                  weight="bold"
+                />
+                <Text className="ml-2 text-center font-bold text-black dark:text-white">
                 {t("profile:message")}
-              </Text>
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>

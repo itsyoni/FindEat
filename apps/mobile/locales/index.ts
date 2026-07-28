@@ -7,6 +7,7 @@ import enMap from "./en/map.json";
 import enChat from "./en/chat.json";
 import enNotifications from "./en/notifications.json";
 import enRestaurants from "./en/restaurants.json";
+import enCollaborativeReview from "./en/collaborativeReview.json";
 
 import heCommon from "./he/common.json";
 import heAuth from "./he/auth.json";
@@ -17,6 +18,7 @@ import heMap from "./he/map.json";
 import heChat from "./he/chat.json";
 import heNotifications from "./he/notifications.json";
 import heRestaurants from "./he/restaurants.json";
+import heCollaborativeReview from "./he/collaborativeReview.json";
 
 export const resources = {
   en: {
@@ -29,6 +31,7 @@ export const resources = {
     chat: enChat,
     notifications: enNotifications,
     restaurants: enRestaurants,
+    collaborativeReview: enCollaborativeReview,
   },
   he: {
     common: heCommon,
@@ -40,5 +43,6 @@ export const resources = {
     chat: heChat,
     notifications: heNotifications,
     restaurants: heRestaurants,
+    collaborativeReview: heCollaborativeReview,
   },
 };

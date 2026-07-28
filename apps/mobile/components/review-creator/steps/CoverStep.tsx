@@ -2,11 +2,16 @@ import Text from "@/components/common/AppText";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { CreateReviewDraft } from "@findeat/types/review";
 import * as ImagePicker from "expo-image-picker";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ThemedSafeAreaView, TextInput } from "@/components/common";
 import RatingPicker from "../components/RatingPicker";
 import { useTranslation } from "react-i18next";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
+import Avatar from "@/components/common/Avatar";
+import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
+import { UsersThreeIcon } from "phosphor-react-native";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -15,10 +20,12 @@ type Props = {
   onNext: () => void;
   onSaveDraft: () => void;
   savingDraft?: boolean;
+  onChooseParticipants: () => void;
 };
 
-export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft, savingDraft }: Props) {
-  const { t } = useTranslation("create");
+export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft, savingDraft, onChooseParticipants }: Props) {
+  const { t } = useTranslation(["create", "common"]);
+  const { isDark } = useAppTheme();
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
       ? draft.restaurant.restaurant.name
@@ -47,11 +54,15 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity onPress={onBack}>
-            <Text className="font-bold text-black dark:text-white">← Back</Text>
+            <Text className="font-bold text-black dark:text-white">
+              {t("common:back")}
+            </Text>
           </TouchableOpacity>
           <View className="flex-row items-center gap-2">
             <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
-            <Text className="text-sm font-semibold text-gray-400">2 of 4</Text>
+            <Text className="text-sm font-semibold text-gray-400">
+              {t("create:stepOf", { current: 2, total: 4 })}
+            </Text>
           </View>
         </View>
 
@@ -64,6 +75,47 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
         <Text className="mt-2 leading-5 text-gray-500 dark:text-gray-400">
           {t("reviewEverythingOptional")}
         </Text>
+
+        <TouchableOpacity
+          onPress={onChooseParticipants}
+          className="mt-7 flex-row items-center rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
+        >
+          <View className="h-11 w-11 items-center justify-center rounded-full bg-brand/15">
+            <UsersThreeIcon size={23} color="#D4A72C" weight="fill" />
+          </View>
+          <View className="ml-3 flex-1">
+            <Text className="font-bold text-black dark:text-white">
+              {t("reviewTogetherRowTitle")}
+            </Text>
+            <Text className="mt-1 text-sm text-gray-500">
+              {draft.participants.length > 0
+                ? t("reviewTogetherPeopleSelected", {
+                    count: draft.participants.length,
+                  })
+                : t("reviewTogetherRowHint")}
+            </Text>
+          </View>
+          {draft.participants.slice(0, 3).map((participant, index) => (
+            <View
+              key={participant.id}
+              style={{ marginLeft: index === 0 ? 0 : -9, zIndex: 3 - index }}
+            >
+              <Avatar
+                uri={participant.avatarUrl}
+                username={participant.username}
+                size={32}
+              />
+            </View>
+          ))}
+          <View className="ml-2">
+            <DirectionalIcon
+              direction="forward"
+              size={18}
+              color={isDark ? "#9CA3AF" : "#6B7280"}
+              weight="bold"
+            />
+          </View>
+        </TouchableOpacity>
 
         <View className="mt-7">
           <View className="mb-3 flex-row items-center justify-between">
@@ -83,7 +135,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
           >
             {draft.coverImageUri ? (
               <View className="w-full">
-                <Image
+                <ProgressiveImage
                   source={{ uri: draft.coverImageUri }}
                   className="h-52 w-full"
                   resizeMode="cover"

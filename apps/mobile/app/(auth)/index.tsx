@@ -6,9 +6,17 @@ import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 import Text from "@/components/common/AppText";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ImageBackground, TouchableOpacity, View } from "react-native";
+import {
+  AppState,
+  ImageBackground,
+  Keyboard,
+  Platform,
+  TextInput as NativeTextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, {
   FadeInLeft,
   FadeInRight,
@@ -34,6 +42,29 @@ export default function AuthIndexScreen() {
   const [pendingEmail, setPendingEmail] = useState("");
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const isRtl = i18n.language.startsWith("he");
+
+  useEffect(() => {
+    const dismissKeyboard = () => {
+      NativeTextInput.State.currentlyFocusedInput?.()?.blur();
+      Keyboard.dismiss();
+    };
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      dismissKeyboard();
+      if (nextState === "active" && sheetOpen) {
+        requestAnimationFrame(() => bottomSheetRef.current?.snapToIndex(0));
+      }
+    });
+
+    return () => subscription.remove();
+  }, [sheetOpen]);
+
+  useEffect(() => {
+    Keyboard.dismiss();
+    if (sheetOpen) {
+      requestAnimationFrame(() => bottomSheetRef.current?.snapToIndex(0));
+    }
+  }, [authMode, sheetOpen]);
 
   const steps = [
     {
@@ -242,8 +273,9 @@ export default function AuthIndexScreen() {
           ref={bottomSheetRef}
           index={-1}
           enablePanDownToClose
-          keyboardBehavior="interactive"
-          keyboardBlurBehavior="restore"
+          keyboardBehavior={Platform.OS === "android" ? "fillParent" : "interactive"}
+          keyboardBlurBehavior="none"
+          enableBlurKeyboardOnGesture
           android_keyboardInputMode="adjustResize"
           onClose={() => setSheetOpen(false)}
           backgroundStyle={{

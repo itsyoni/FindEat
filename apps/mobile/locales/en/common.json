@@ -83,6 +83,8 @@
   "tapToReveal": "Tap to reveal",
   "manageConnections": "Connected posts",
   "manageConnectionsOptionHint": "Connect this post to a review or quick post",
+  "manageReviewPeople": "Review together",
+  "manageReviewPeopleHint": "Invite or remove people from this shared review",
   "manageConnectionsHint": "Connect posts from the same restaurant experience so people can move between the visual story and your written review.",
   "connectedPosts": "Connected",
   "availableToConnect": "Available to connect",

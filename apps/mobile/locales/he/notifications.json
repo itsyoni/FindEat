@@ -11,6 +11,7 @@
   "confirm": "אישור",
   "viewPost": "צפה בפוסט",
   "openChat": "פתיחת הצ׳אט",
+  "joinReview": "הצטרפות",
   "emptyTitle": "אין התראות עדיין",
   "emptyBody": "לייקים, תגובות, עוקבים והודעות יופיעו כאן.",
   "aggregatedTypes": {
@@ -37,6 +38,9 @@
     "RESTAURANT_CLAIM_APPROVED": "הבקשה שלך למסעדה אושרה",
     "RESTAURANT_CLAIM_REJECTED": "הבקשה שלך למסעדה נדחתה",
     "PLACE_LIST_INVITE": "{{name}} הזמין/ה אותך לרשימה משותפת",
-    "PROFILE_TAG_UNLOCKED": "פתחת תג פרופיל חדש"
+    "PROFILE_TAG_UNLOCKED": "פתחת תג פרופיל חדש",
+    "REVIEW_INVITE": "{{name}} הזמין/ה אותך לכתוב ביקורת משותפת",
+    "REVIEW_JOINED": "{{name}} הצטרף/ה לביקורת המשותפת שלך",
+    "REVIEW_CONTRIBUTION": "{{name}} הוסיף/ה את החוויה שלו/ה לביקורת המשותפת"
   }
 }

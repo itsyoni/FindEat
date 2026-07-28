@@ -1,13 +1,12 @@
 import { Portal } from "@gorhom/portal";
 import {
-  Image,
-  ImageProps,
   Platform,
   StyleProp,
   StyleSheet,
   View,
   ViewStyle,
 } from "react-native";
+import type { ImageContentFit } from "expo-image";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { FullWindowOverlay } from "react-native-screens";
 import Animated, {
@@ -20,11 +19,13 @@ import Animated, {
   runOnJS,
   withSpring,
 } from "react-native-reanimated";
+import ProgressiveImage from "./ProgressiveImage";
 
 type Props = {
   uri: string;
+  thumbnailUrl?: string | null;
   style?: StyleProp<ViewStyle>;
-  resizeMode?: ImageProps["resizeMode"];
+  resizeMode?: ImageContentFit;
   maxScale?: number;
   onDoubleTap?: (x: number, y: number) => void;
   onPinchStart?: () => void;
@@ -39,6 +40,7 @@ const resetSpring = {
 
 export default function PinchZoomImage({
   uri,
+  thumbnailUrl,
   style,
   resizeMode = "cover",
   maxScale = 4,
@@ -131,10 +133,12 @@ export default function PinchZoomImage({
     <View pointerEvents="none" style={styles.overlayRoot}>
       <Animated.View style={[styles.backdrop, backdropStyle]} />
       <Animated.View style={[styles.overlayImage, overlayImageStyle]}>
-        <Image
+        <ProgressiveImage
           source={{ uri }}
+          thumbnailUrl={thumbnailUrl}
           style={StyleSheet.absoluteFill}
-          resizeMode={resizeMode}
+          contentFit={resizeMode}
+          priority="high"
         />
       </Animated.View>
     </View>
@@ -144,10 +148,12 @@ export default function PinchZoomImage({
     <>
       <GestureDetector gesture={mediaGesture}>
         <Animated.View ref={imageRef} style={[style, sourceStyle]}>
-          <Image
+          <ProgressiveImage
             source={{ uri }}
+            thumbnailUrl={thumbnailUrl}
             style={StyleSheet.absoluteFill}
-            resizeMode={resizeMode}
+            contentFit={resizeMode}
+            priority="high"
           />
         </Animated.View>
       </GestureDetector>

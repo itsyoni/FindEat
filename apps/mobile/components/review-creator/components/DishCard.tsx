@@ -1,7 +1,9 @@
 import Text from "@/components/common/AppText";
 import { ReviewDishDraft } from "@findeat/types/review";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { XIcon } from "phosphor-react-native";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   item: ReviewDishDraft;
@@ -9,13 +11,14 @@ type Props = {
 };
 
 export default function DishCard({ item, onRemove }: Props) {
-  const name = item.menuItemName ?? item.customDishName ?? "Dish";
+  const { t } = useTranslation(["create", "common"]);
+  const name = item.menuItemName ?? item.customDishName ?? t("create:dish");
   const price = item.customPrice;
 
   return (
     <View className="rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
       {(item.imageUri || item.fallbackImageUrl) && (
-        <Image
+        <ProgressiveImage
           source={{ uri: item.imageUri ?? item.fallbackImageUrl ?? undefined }}
           className="mb-4 h-48 w-full rounded-2xl bg-gray-100"
           resizeMode="cover"
@@ -43,7 +46,7 @@ export default function DishCard({ item, onRemove }: Props) {
 
         {onRemove && (
           <TouchableOpacity
-            accessibilityLabel="Remove dish"
+            accessibilityLabel={t("common:removeDish")}
             onPress={onRemove}
             className="h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
           >

@@ -1,6 +1,7 @@
 import { StorefrontIcon, UserIcon } from "phosphor-react-native";
-import { Image, StyleProp, View, ViewStyle } from "react-native";
+import { StyleProp, View, ViewStyle } from "react-native";
 import { SvgUri } from "react-native-svg";
+import ProgressiveImage from "./ProgressiveImage";
 
 type Props = {
   uri?: string | null;
@@ -48,8 +49,9 @@ export default function Avatar({
       {isSvg ? (
         <SvgUri width={size} height={size} uri={uri} />
       ) : (
-        <Image
+        <ProgressiveImage
           source={{ uri }}
+          transition={160}
           style={{
             width: size,
             height: size,

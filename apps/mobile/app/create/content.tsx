@@ -43,7 +43,8 @@ import {
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, AppState, Image, Linking, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, AppState, Linking, TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -761,7 +762,7 @@ export default function CreateContentScreen() {
               style={{ width: "72%", aspectRatio: 4 / 5, alignSelf: "center" }}
               className="my-5 overflow-hidden rounded-3xl bg-black"
             >
-              <Image
+              <ProgressiveImage
                 source={{ uri: imageUri }}
                 className="h-full w-full"
                 resizeMode="contain"

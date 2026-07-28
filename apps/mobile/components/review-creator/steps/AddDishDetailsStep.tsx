@@ -7,7 +7,8 @@ import {
 } from "@findeat/types/review";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ThemedSafeAreaView, AppButton, TextInput } from "@/components/common";
 import PriceInput from "../components/PriceInput";
 import RatingPicker from "../components/RatingPicker";
@@ -33,7 +34,7 @@ export default function AddDishDetailsStep({
   onSaveDraft,
   savingDraft,
 }: Props) {
-  const { t } = useTranslation("create");
+  const { t } = useTranslation(["create", "common"]);
   const isFromMenu = !!selectedDish;
 
   const [dishName, setDishName] = useState(
@@ -113,7 +114,7 @@ export default function AddDishDetailsStep({
             <View className="flex-row items-center justify-between">
               <TouchableOpacity onPress={onBack}>
                 <Text className="font-bold text-black dark:text-white">
-                  ← Back
+                  {t("common:back")}
                 </Text>
               </TouchableOpacity>
               <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
@@ -136,7 +137,7 @@ export default function AddDishDetailsStep({
               >
                 {imageUri ? (
                   <View className="w-full">
-                    <Image
+                    <ProgressiveImage
                       source={{ uri: imageUri }}
                       className="h-64 w-full"
                       resizeMode="cover"

@@ -11,7 +11,7 @@ import type {
 } from "@findeat/types";
 import { uploadImage } from "@/lib/uploadImage";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Image } from "expo-image";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
@@ -173,7 +173,7 @@ export default function EditSavedListScreen() {
             className="h-48 overflow-hidden rounded-[26px] bg-amber-50 dark:bg-amber-950/40"
           >
             {coverPreview ? (
-              <Image source={{ uri: coverPreview }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+              <ProgressiveImage source={{ uri: coverPreview }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
             ) : (
               <View className="flex-1 items-center justify-center">
                 <CameraIcon size={34} color="#D97706" weight="duotone" />

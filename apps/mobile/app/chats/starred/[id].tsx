@@ -8,7 +8,8 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router
 import { ChatCircleIcon, ImageIcon, MapPinIcon, StarIcon } from "phosphor-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Image, TouchableOpacity, View } from "react-native";
+import { FlatList, TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StarredMessagesScreen() {
@@ -97,7 +98,7 @@ export default function StarredMessagesScreen() {
               </View>
               <View className="mt-3 flex-row items-center rounded-2xl bg-gray-50 p-3 dark:bg-black/25">
                 {item.type === "IMAGE" && item.imageUrl ? (
-                  <Image source={{ uri: item.imageUrl }} className="mr-3 h-14 w-14 rounded-xl" />
+                  <ProgressiveImage source={{ uri: item.imageUrl }} className="mr-3 h-14 w-14 rounded-xl" />
                 ) : item.type === "POST" ? (
                   <ImageIcon size={20} color="#9CA3AF" weight="duotone" style={{ marginRight: 10 }} />
                 ) : item.type === "RESTAURANT" ? (

@@ -5,6 +5,7 @@ import type { UserSummary } from "./user";
 export type CreateReviewStep =
   | "RESTAURANT"
   | "COVER"
+  | "PARTICIPANTS"
   | "DISHES"
   | "SELECT_MENU_DISH"
   | "ADD_DISH_DETAILS"
@@ -32,6 +33,14 @@ export type ReviewDishFormDraft = {
   text: string;
 };
 
+export type ReviewInviteeDraft = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  locked?: boolean;
+};
+
 export type CreateReviewDraft = {
   visibility: PostVisibility;
   restaurant: SelectedRestaurant | null;
@@ -44,6 +53,7 @@ export type CreateReviewDraft = {
   valueRating?: number;
   totalPrice?: number;
   items: ReviewDishDraft[];
+  participants: ReviewInviteeDraft[];
 };
 
 type RestaurantReviewItem = {

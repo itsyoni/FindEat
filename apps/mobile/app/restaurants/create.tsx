@@ -9,7 +9,8 @@ import { uploadImage } from "@/lib/uploadImage";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image, TouchableOpacity } from "react-native";
+import { TouchableOpacity } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 
 export default function CreateRestaurantScreen() {
   const [name, setName] = useState("");
@@ -94,7 +95,7 @@ export default function CreateRestaurantScreen() {
         onPress={pickLogo}
       >
         {avatarUri ? (
-          <Image
+          <ProgressiveImage
             source={{ uri: avatarUri }}
             className="w-full h-full rounded-2xl"
           />
@@ -108,7 +109,7 @@ export default function CreateRestaurantScreen() {
         onPress={pickCover}
       >
         {coverUri ? (
-          <Image
+          <ProgressiveImage
             source={{ uri: coverUri }}
             className="w-full h-full rounded-2xl"
           />

@@ -7,7 +7,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type { Post } from "@findeat/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image } from "expo-image";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ArchiveIcon, ArrowCounterClockwiseIcon } from "phosphor-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -113,7 +113,7 @@ export default function ArchivedPostsScreen() {
             return (
               <View className="flex-row overflow-hidden rounded-3xl border border-line bg-white p-3 dark:border-gray-800 dark:bg-gray-950" style={rowStyle}>
                 {image ? (
-                  <Image source={{ uri: image }} style={{ width: 92, height: 112, borderRadius: 18 }} contentFit="cover" transition={180} />
+                  <ProgressiveImage source={{ uri: image }} style={{ width: 92, height: 112, borderRadius: 18 }} contentFit="cover" transition={180} />
                 ) : (
                   <View className="h-28 w-[92px] items-center justify-center rounded-[18px] bg-gray-100 dark:bg-gray-900">
                     <ArchiveIcon size={25} color="#9CA3AF" weight="fill" />

@@ -7,7 +7,8 @@ import { api } from '@/lib/api';
 import type { ProductUpdate } from '@findeat/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ViewToken } from 'react-native';
-import { FlatList, Image, Switch, View } from 'react-native';
+import { FlatList, Switch, View } from 'react-native';
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SparkleIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
@@ -129,7 +130,7 @@ export default function WhatsNewScreen() {
           )}
           renderItem={({ item: update }) => (
             <View className="mb-4 overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-[#111]">
-              {update.imageUrl ? <Image source={{ uri: update.imageUrl }} className="h-48 w-full" resizeMode="cover" /> : null}
+              {update.imageUrl ? <ProgressiveImage source={{ uri: update.imageUrl }} className="h-48 w-full" resizeMode="cover" /> : null}
               <View className="p-5">
                 <View className="flex-row items-center" style={rowStyle}>
                   <SparkleIcon size={17} color="#F4B942" weight="fill" />

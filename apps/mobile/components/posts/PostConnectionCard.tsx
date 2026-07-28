@@ -12,7 +12,8 @@ import {
 } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -95,7 +96,7 @@ export default function PostConnectionCard({
           className={`${targets.length > 1 ? "h-24 w-28" : "h-14 w-14"} items-center justify-center overflow-hidden rounded-xl bg-black/10 dark:bg-white/10`}
         >
           {imageUrl ? (
-            <Image
+            <ProgressiveImage
               source={{ uri: imageUrl }}
               className="h-full w-full"
               resizeMode="cover"
@@ -162,7 +163,7 @@ export default function PostConnectionCard({
         <View className="relative h-12 w-12">
           <View className="absolute bottom-0 right-0 h-10 w-10 rotate-6 overflow-hidden rounded-xl bg-black/15 dark:bg-white/10">
             {teaserImage ? (
-              <Image
+              <ProgressiveImage
                 source={{ uri: teaserImage }}
                 blurRadius={1.5}
                 className="h-full w-full opacity-75"

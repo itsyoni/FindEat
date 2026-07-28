@@ -8,6 +8,7 @@ import {
   CreateReviewStep,
   ReviewDishFormDraft,
 } from "@findeat/types/review";
+import type { PostVisibility } from "@findeat/types";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState, View } from "react-native";
@@ -17,6 +18,7 @@ import DishesStep from "./steps/DishesStep";
 import PreviewStep from "./steps/PreviewStep";
 import RestaurantStep from "./steps/RestaurantStep";
 import SelectMenuDishStep from "./steps/SelectMenuDishStep";
+import ReviewParticipantsStep from "./steps/ReviewParticipantsStep";
 import {
   prependPostToFeedCache,
   updateRestaurantStatusInFeedCache,
@@ -37,6 +39,7 @@ const initialDraft: CreateReviewDraft = {
   restaurant: null,
   summary: "",
   items: [],
+  participants: [],
 };
 
 export default function ReviewCreator({
@@ -87,7 +90,10 @@ export default function ReviewCreator({
           {
             text: t("continueDraft"),
             onPress: () => {
-              setDraft(savedDraft.draft);
+              setDraft({
+                ...savedDraft.draft,
+                participants: savedDraft.draft.participants ?? [],
+              });
               setSelectedMenuDish(savedDraft.selectedMenuDish ?? null);
               setPendingDish(savedDraft.pendingDish ?? null);
               setStep(savedDraft.step);
@@ -115,6 +121,7 @@ export default function ReviewCreator({
       !!draft.coverImageUri ||
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
+      draft.participants.length > 0 ||
       draft.overallRating !== undefined ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
@@ -138,6 +145,7 @@ export default function ReviewCreator({
       !!draft.coverImageUri ||
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
+      draft.participants.length > 0 ||
       draft.overallRating !== undefined ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
@@ -194,6 +202,26 @@ export default function ReviewCreator({
     }));
   }
 
+  function changeVisibility(visibility: PostVisibility) {
+    if (visibility === "PRIVATE" && draft.participants.length > 0) {
+      Alert.alert(
+        t("privateReviewTogetherTitle"),
+        t("privateReviewTogetherBody"),
+        [
+          { text: t("cancel"), style: "cancel" },
+          {
+            text: t("makePrivate"),
+            style: "destructive",
+            onPress: () =>
+              updateDraft({ visibility, participants: [] }),
+          },
+        ],
+      );
+      return;
+    }
+    updateDraft({ visibility });
+  }
+
   function calculateOverallRating() {
     if (typeof draft.overallRating === "number") {
       return draft.overallRating;
@@ -231,7 +259,7 @@ export default function ReviewCreator({
 
   async function publishReview() {
     if (!draft.restaurant) {
-      Alert.alert("Missing restaurant", "Please choose a restaurant");
+      Alert.alert(t("missingRestaurantTitle"), t("missingRestaurantBody"));
       return;
     }
 
@@ -243,7 +271,7 @@ export default function ReviewCreator({
       const restaurantId = await getRestaurantId();
 
       if (!restaurantId) {
-        Alert.alert("Missing restaurant", "Please choose a restaurant");
+        Alert.alert(t("missingRestaurantTitle"), t("missingRestaurantBody"));
         return;
       }
 
@@ -275,6 +303,9 @@ export default function ReviewCreator({
         serviceRating: draft.serviceRating,
         valueRating: draft.valueRating,
         linkedPostId: draft.linkedPostId,
+        participantIds: draft.participants.map(
+          (participant) => participant.id,
+        ),
         items: uploadedItems,
       });
       draftSnapshotRef.current = null;
@@ -323,7 +354,10 @@ export default function ReviewCreator({
       }
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", getErrorMessage(error, "Could not publish review"));
+      Alert.alert(
+        t("publishError"),
+        getErrorMessage(error, t("reviewPublishErrorBody")),
+      );
     } finally {
       setLoading(false);
     }
@@ -379,8 +413,17 @@ export default function ReviewCreator({
             setStep("RESTAURANT");
           }}
           onNext={() => setStep("DISHES")}
+          onChooseParticipants={() => setStep("PARTICIPANTS")}
           onSaveDraft={() => void handleSaveDraft()}
           savingDraft={savingDraft}
+        />
+      )}
+
+      {step === "PARTICIPANTS" && (
+        <ReviewParticipantsStep
+          selected={draft.participants}
+          onChange={(participants) => updateDraft({ participants })}
+          onBack={() => setStep("COVER")}
         />
       )}
 
@@ -469,7 +512,7 @@ export default function ReviewCreator({
           loading={loading}
           onBack={() => setStep("DISHES")}
           onPublish={publishReview}
-          onVisibilityChange={(visibility) => updateDraft({ visibility })}
+          onVisibilityChange={changeVisibility}
           onLinkedPostChange={(linkedPostId) => updateDraft({ linkedPostId })}
           onSaveDraft={() => void handleSaveDraft()}
           savingDraft={savingDraft}

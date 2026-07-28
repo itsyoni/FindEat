@@ -79,6 +79,7 @@ export type Dish = {
   description?: string | null;
   price?: number | null;
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   category?: string | null;
   isAvailable: boolean;
   isFeatured: boolean;
@@ -98,6 +99,7 @@ export type Dish = {
 type DishReview = {
   id: string;
   imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   rating?: number | null;
   text?: string | null;
   reviewPost?: {

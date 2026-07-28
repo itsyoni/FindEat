@@ -11,7 +11,8 @@ import {
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useTranslation } from "react-i18next";
-import { Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import RestaurantBadge from "./RestaurantBadge";
 
 type Props = {
@@ -86,7 +87,7 @@ export default function MapRestaurantListCard({
       <View className="flex-row p-3">
         <View className="relative h-28 w-28 overflow-hidden rounded-[20px] bg-[#F1EEE8] dark:bg-gray-900">
           {restaurant.coverUrl ? (
-            <Image
+            <ProgressiveImage
               source={{ uri: restaurant.coverUrl }}
               className="h-full w-full"
               resizeMode="cover"

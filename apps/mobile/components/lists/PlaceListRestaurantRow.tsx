@@ -1,7 +1,7 @@
 import Text from "@/components/common/AppText";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import type { PlaceListDetail } from "@findeat/types";
-import { Image } from "expo-image";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { CaretRightIcon, StorefrontIcon } from "phosphor-react-native";
 import { TouchableOpacity, View } from "react-native";
 
@@ -26,7 +26,7 @@ export default function PlaceListRestaurantRow({
     >
       <View className="h-[74px] w-[74px] overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
         {image ? (
-          <Image
+          <ProgressiveImage
             source={{ uri: image }}
             style={{ width: "100%", height: "100%" }}
             contentFit="cover"

@@ -14,7 +14,7 @@ import { CalendarBlankIcon, DotsThreeIcon, FolderSimpleIcon, MapPinIcon, PlusIco
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, TouchableOpacity, View } from "react-native";
-import { Image } from "expo-image";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SavedListDetailScreen() {
@@ -165,7 +165,7 @@ export default function SavedListDetailScreen() {
               <View className="mb-4">
                 <View className="h-48 overflow-hidden rounded-[26px] bg-amber-50 dark:bg-amber-950/40">
                   {list.coverUrl || list.items[0]?.restaurant.coverUrl || list.items[0]?.restaurant.logoUrl ? (
-                    <Image
+                    <ProgressiveImage
                       source={{
                         uri:
                           list.coverUrl ??

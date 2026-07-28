@@ -139,49 +139,65 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
         label={t("profile:birthday")}
         completed={!!value.birthday || isCompleted("birthday")}
       />
-      <TouchableOpacity
-        onPress={openBirthdayPicker}
-        activeOpacity={0.75}
-        className="flex-row items-center gap-3 rounded-2xl bg-[#f8f8f8] px-4 py-4 dark:bg-gray-900"
-      >
-        <CalendarBlankIcon size={21} color={isDark ? "#D1D5DB" : "#525252"} />
-        <Text
-          className={`flex-1 text-base ${formattedBirthday ? "text-black dark:text-white" : "text-gray-400"}`}
-        >
-          {formattedBirthday || t("profile:birthdayPlaceholder")}
-        </Text>
-        {!!value.birthday && (
-          <TouchableOpacity
-            onPress={() => {
-              update("birthday", "");
-              setCompleted("birthday", false);
-            }}
-            hitSlop={10}
-            accessibilityLabel={t("profile:clearBirthday")}
-          >
-            <XCircleIcon size={21} color={isDark ? "#9CA3AF" : "#737373"} weight="fill" />
-          </TouchableOpacity>
-        )}
-      </TouchableOpacity>
-      {!value.birthday && (
+      <View className="overflow-hidden rounded-2xl bg-[#f8f8f8] dark:bg-gray-900">
         <TouchableOpacity
-          onPress={() => setCompleted("birthday", true)}
-          className={`mt-2 flex-row items-center gap-2 self-start rounded-full px-3 py-2 ${
-            isCompleted("birthday")
-              ? "bg-gray-200 dark:bg-gray-800"
-              : "bg-amber-100 dark:bg-amber-900/40"
-          }`}
+          onPress={openBirthdayPicker}
+          activeOpacity={0.75}
+          className="flex-row items-center gap-3 px-4 py-4"
         >
-          <CheckCircleIcon
-            size={18}
-            color={isCompleted("birthday") ? (isDark ? "#D1D5DB" : "#525252") : "#D6A92D"}
-            weight={isCompleted("birthday") ? "fill" : "regular"}
-          />
-          <Text className="text-sm text-gray-700 dark:text-gray-200">
+          <CalendarBlankIcon size={21} color={isDark ? "#D1D5DB" : "#525252"} />
+          <Text
+            className={`flex-1 text-base ${
+              formattedBirthday
+                ? "text-black dark:text-white"
+                : "text-gray-400"
+            }`}
+          >
+            {formattedBirthday || t("profile:birthdayPlaceholder")}
+          </Text>
+          {!!value.birthday && (
+            <TouchableOpacity
+              onPress={() => {
+                update("birthday", "");
+                setCompleted("birthday", false);
+              }}
+              hitSlop={10}
+              accessibilityLabel={t("profile:clearBirthday")}
+            >
+              <XCircleIcon
+                size={21}
+                color={isDark ? "#9CA3AF" : "#737373"}
+                weight="fill"
+              />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+        <View className="h-px bg-black/5 dark:bg-white/10" />
+        <TouchableOpacity
+          onPress={() => {
+            update("birthday", "");
+            setCompleted("birthday", true);
+          }}
+          className="flex-row items-center px-4 py-4"
+        >
+          <Text className="flex-1 text-base text-black dark:text-white">
             {t("profile:preferNotToAnswer")}
           </Text>
+          <CheckCircleIcon
+            size={22}
+            color={
+              !value.birthday && isCompleted("birthday")
+                ? "#D6A92D"
+                : isDark
+                  ? "#4B5563"
+                  : "#D1D5DB"
+            }
+            weight={
+              !value.birthday && isCompleted("birthday") ? "fill" : "regular"
+            }
+          />
         </TouchableOpacity>
-      )}
+      </View>
 
       <SelectedTagsField
         field="pronouns"

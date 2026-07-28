@@ -7,7 +7,8 @@ import { Menu } from "@findeat/types";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Image, TouchableOpacity, View } from "react-native";
+import { FlatList, TouchableOpacity, View } from "react-native";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ThemedSafeAreaView, AppButton, Skeleton, SkeletonPulse, TextInput } from "@/components/common";
 
 export default function ManageMenuScreen() {
@@ -146,7 +147,7 @@ export default function ManageMenuScreen() {
                 onPress={pickDishImage}
               >
                 {dishImageUri ? (
-                  <Image
+                  <ProgressiveImage
                     source={{ uri: dishImageUri }}
                     className="h-40 w-full rounded-2xl"
                     resizeMode="cover"
@@ -220,7 +221,7 @@ export default function ManageMenuScreen() {
           >
             <View className="flex-row gap-4">
               {item.imageUrl ? (
-                <Image
+                <ProgressiveImage
                   source={{ uri: item.imageUrl }}
                   className="h-20 w-20 rounded-2xl bg-gray-200"
                   resizeMode="cover"

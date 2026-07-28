@@ -18,6 +18,8 @@
   "profileCompletionHint_one": "Just {{count}} detail left. You can always choose “None”.",
   "profileCompletionHint_other": "{{count}} details left. You can always choose “None”.",
   "profileCompletionDone": "You’re all set. You can change these details anytime.",
+  "profileCompletionStatus_one": "{{percentage}}% complete · {{count}} detail left",
+  "profileCompletionStatus_other": "{{percentage}}% complete · {{count}} details left",
   "phoneNumber": "Phone number",
   "phoneNumberPlaceholder": "+972 50 000 0000",
   "birthday": "Birthday",

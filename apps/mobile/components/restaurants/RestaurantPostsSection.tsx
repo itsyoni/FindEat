@@ -1,6 +1,7 @@
 import { Restaurant } from '@findeat/types';
 import { ImagesSquareIcon, StarIcon } from 'phosphor-react-native';
-import { ActivityIndicator, Image, Pressable, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Pressable, TouchableOpacity, View } from 'react-native';
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { useAppTheme } from '@/contexts/ThemeContext';
 import Text from '../common/AppText';
 import { useTranslation } from 'react-i18next';
@@ -57,7 +58,7 @@ export default function RestaurantPostsSection({ posts, emptyText, loading, load
           style={{ backgroundColor: isDark ? '#111827' : '#E5E7EB' }}
         >
           {post.imageUrl ? (
-            <Image source={{ uri: post.imageUrl }} className="h-full w-full" resizeMode="cover" />
+            <ProgressiveImage source={{ uri: post.imageUrl }} className="h-full w-full" resizeMode="cover" />
           ) : (
             <View className="h-full w-full items-center justify-center bg-gray-900 p-2">
               <Text className="text-center text-xs text-white" numberOfLines={4}>{post.description}</Text>

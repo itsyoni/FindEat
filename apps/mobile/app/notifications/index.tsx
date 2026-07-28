@@ -119,6 +119,23 @@ export default function NotificationsScreen() {
   }
 
   function notificationAction(item: AppNotification) {
+    if (item.type === 'REVIEW_INVITE' && item.postId) {
+      return {
+        label: t('joinReview'),
+        active: false,
+        isPost: false,
+        preview: undefined,
+        run: () => {
+          void api.posts.joinReview(item.postId!).then(() => {
+            router.push({
+              pathname: '/posts/contribute/[id]',
+              params: { id: item.postId! },
+            });
+          });
+        },
+      };
+    }
+
     if (item.type === 'FOLLOW_REQUEST' && item.actorId) {
       return {
         label: t('confirm'),
