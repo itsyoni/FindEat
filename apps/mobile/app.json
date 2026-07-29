@@ -3,7 +3,7 @@
     "name": "FindEat",
     "slug": "mobile",
     "scheme": "findeat",
-    "version": "1.9.0",
+    "version": "1.9.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",

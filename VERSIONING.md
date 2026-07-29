@@ -7,7 +7,7 @@ app.
 
 - Source of truth: `apps/mobile/app.json` (`expo.version`)
 - Synchronized copies: `apps/mobile/package.json` and the root lockfile
-- Current release: `1.9.0`
+- Current release: `1.9.1`
 - Do not bump the mobile version for visual-only adjustments.
 - Use a patch for fixes and small functional changes, a minor version for a
   meaningful feature release, and a major version only for a breaking release.
