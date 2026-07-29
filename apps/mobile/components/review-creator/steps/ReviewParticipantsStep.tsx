@@ -27,6 +27,7 @@ type Props = {
   onBack: () => void;
   onDone?: () => void;
   saving?: boolean;
+  mode?: "review" | "tag";
 };
 
 function toInvitee(item: SearchResultItem): ReviewInviteeDraft {
@@ -44,6 +45,7 @@ export default function ReviewParticipantsStep({
   onBack,
   onDone,
   saving = false,
+  mode = "review",
 }: Props) {
   const { t } = useTranslation("create");
   const { isDark } = useAppTheme();
@@ -132,10 +134,15 @@ export default function ReviewParticipantsStep({
         </TouchableOpacity>
         <View className="ml-2 flex-1">
           <Text className="text-xl font-bold text-black dark:text-white">
-            {t("reviewTogetherTitle")}
+            {t(mode === "tag" ? "tagPeopleTitle" : "reviewTogetherTitle")}
           </Text>
           <Text className="mt-0.5 text-sm text-gray-500">
-            {t("reviewTogetherSelected", { count: selected.length })}
+            {t(
+              mode === "tag"
+                ? "tagPeopleSelected"
+                : "reviewTogetherSelected",
+              { count: selected.length },
+            )}
           </Text>
         </View>
         <TouchableOpacity
@@ -200,7 +207,7 @@ export default function ReviewParticipantsStep({
       <SearchBar
         value={query}
         onChangeText={setQuery}
-        placeholder={t("searchFriendsToInvite")}
+        placeholder={t(mode === "tag" ? "searchFriendsToTag" : "searchFriendsToInvite")}
       />
 
       {loading || (!!query.trim() && searching) ? (
@@ -218,7 +225,11 @@ export default function ReviewParticipantsStep({
                   {t("suggestedFriends")}
                 </Text>
                 <Text className="mt-1 text-sm text-gray-500">
-                  {t("reviewTogetherFriendsOnly")}
+                  {t(
+                    mode === "tag"
+                      ? "tagPeopleFriendsOnly"
+                      : "reviewTogetherFriendsOnly",
+                  )}
                 </Text>
               </View>
             ) : null

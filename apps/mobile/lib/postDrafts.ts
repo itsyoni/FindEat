@@ -6,17 +6,29 @@ import type {
   Dish,
   PostVisibility,
   ReviewDishFormDraft,
+  ReviewInviteeDraft,
   SelectedRestaurant,
 } from "@findeat/types";
 
 export type ContentPostDraft = {
-  step: "CAMERA" | "DETAILS" | "RESTAURANT";
-  imageUri: string;
+  step: "CAMERA" | "DETAILS" | "RESTAURANT" | "PEOPLE";
+  imageUri?: string;
+  media: ContentMediaDraft[];
   description: string;
   visibility: PostVisibility;
   linkedPostId?: string;
   selectedRestaurant: SelectedRestaurant | null;
+  taggedPeople: ReviewInviteeDraft[];
   updatedAt: string;
+};
+
+export type ContentMediaDraft = {
+  id: string;
+  type: "IMAGE" | "VIDEO";
+  uri: string;
+  width: number;
+  height: number;
+  durationMs?: number;
 };
 
 export type ReviewPostDraft = {
@@ -29,8 +41,31 @@ export type ReviewPostDraft = {
 
 type DraftType = "content" | "review";
 
+const draftOperationQueues = new Map<string, Promise<unknown>>();
+
 function storageKey(userId: string, type: DraftType) {
   return `findeat_post_draft_${userId}_${type}`;
+}
+
+function enqueueDraftOperation<T>(
+  userId: string,
+  type: DraftType,
+  operation: () => Promise<T>,
+) {
+  const key = storageKey(userId, type);
+  const previous = draftOperationQueues.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(operation);
+  const settled = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  draftOperationQueues.set(key, settled);
+  void settled.finally(() => {
+    if (draftOperationQueues.get(key) === settled) {
+      draftOperationQueues.delete(key);
+    }
+  });
+  return next;
 }
 
 function draftDirectory(userId: string, type: DraftType) {
@@ -70,29 +105,76 @@ export async function loadContentPostDraft(userId: string) {
   const stored = await AsyncStorage.getItem(storageKey(userId, "content"));
   if (!stored) return null;
   const parsed = JSON.parse(stored) as ContentPostDraft;
-  const imageUri = await existingImage(parsed.imageUri);
-  if (!imageUri) {
+  const legacyMedia: ContentMediaDraft[] = parsed.imageUri
+    ? [
+        {
+          id: "legacy-image",
+          type: "IMAGE",
+          uri: parsed.imageUri,
+          width: 4,
+          height: 5,
+        },
+      ]
+    : [];
+  const media = await Promise.all(
+    (parsed.media ?? legacyMedia).map(async (item) => ({
+      ...item,
+      uri: await existingImage(item.uri),
+    })),
+  );
+  const existingMedia = media.filter(
+    (item): item is ContentMediaDraft => !!item.uri,
+  );
+  if (!existingMedia.length) {
     await clearPostDraft(userId, "content");
     return null;
   }
-  return { ...parsed, imageUri };
+  return { ...parsed, imageUri: existingMedia[0].uri, media: existingMedia };
 }
 
 export async function saveContentPostDraft(
   userId: string,
   draft: Omit<ContentPostDraft, "updatedAt">,
 ) {
-  const imageUri = await keepDraftImage(
-    draft.imageUri,
-    userId,
-    "content",
-    "post-image",
-  );
-  if (!imageUri) return;
-  await AsyncStorage.setItem(
-    storageKey(userId, "content"),
-    JSON.stringify({ ...draft, imageUri, updatedAt: new Date().toISOString() }),
-  );
+  return enqueueDraftOperation(userId, "content", async () => {
+    const sourceMedia =
+      draft.media?.length
+        ? draft.media
+        : draft.imageUri
+          ? [
+              {
+                id: "legacy-image",
+                type: "IMAGE" as const,
+                uri: draft.imageUri,
+                width: 4,
+                height: 5,
+              },
+            ]
+          : [];
+    const media = (
+      await Promise.all(
+        sourceMedia.map(async (item, index) => {
+          const uri = await keepDraftImage(
+            item.uri,
+            userId,
+            "content",
+            `post-media-${index}`,
+          );
+          return uri ? { ...item, uri } : null;
+        }),
+      )
+    ).filter((item): item is ContentMediaDraft => !!item);
+    if (!media.length) return;
+    await AsyncStorage.setItem(
+      storageKey(userId, "content"),
+      JSON.stringify({
+        ...draft,
+        imageUri: media[0].uri,
+        media,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+  });
 }
 
 export async function loadReviewPostDraft(userId: string) {
@@ -124,51 +206,59 @@ export async function saveReviewPostDraft(
   userId: string,
   value: Omit<ReviewPostDraft, "updatedAt">,
 ) {
-  const draft = {
-    ...value.draft,
-    coverImageUri: await keepDraftImage(
-      value.draft.coverImageUri,
-      userId,
-      "review",
-      "cover",
-    ),
-    items: await Promise.all(
-      value.draft.items.map(async (item) => ({
-        ...item,
-        imageUri: await keepDraftImage(
-          item.imageUri,
-          userId,
-          "review",
-          `dish-${item.id}`,
-        ),
-      })),
-    ),
-  };
-  const pendingDish = value.pendingDish
-    ? {
-        ...value.pendingDish,
-        imageUri: await keepDraftImage(
-          value.pendingDish.imageUri,
-          userId,
-          "review",
-          "pending-dish",
-        ),
-      }
-    : null;
-  await AsyncStorage.setItem(
-    storageKey(userId, "review"),
-    JSON.stringify({
-      ...value,
-      draft,
-      pendingDish,
-      updatedAt: new Date().toISOString(),
-    }),
-  );
+  return enqueueDraftOperation(userId, "review", async () => {
+    const draft = {
+      ...value.draft,
+      coverImageUri: await keepDraftImage(
+        value.draft.coverImageUri,
+        userId,
+        "review",
+        "cover",
+      ),
+      items: await Promise.all(
+        value.draft.items.map(async (item) => ({
+          ...item,
+          imageUri: await keepDraftImage(
+            item.imageUri,
+            userId,
+            "review",
+            `dish-${item.id}`,
+          ),
+        })),
+      ),
+    };
+    const pendingDish = value.pendingDish
+      ? {
+          ...value.pendingDish,
+          imageUri: await keepDraftImage(
+            value.pendingDish.imageUri,
+            userId,
+            "review",
+            "pending-dish",
+          ),
+        }
+      : null;
+    await AsyncStorage.setItem(
+      storageKey(userId, "review"),
+      JSON.stringify({
+        ...value,
+        draft,
+        pendingDish,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+  });
 }
 
 export async function clearPostDraft(userId: string, type: DraftType) {
-  await AsyncStorage.removeItem(storageKey(userId, type));
-  await FileSystem.deleteAsync(draftDirectory(userId, type), {
-    idempotent: true,
+  return enqueueDraftOperation(userId, type, async () => {
+    await AsyncStorage.removeItem(storageKey(userId, type));
+    try {
+      await FileSystem.deleteAsync(draftDirectory(userId, type), {
+        idempotent: true,
+      });
+    } catch (error) {
+      console.warn("Could not remove post draft images", error);
+    }
   });
 }

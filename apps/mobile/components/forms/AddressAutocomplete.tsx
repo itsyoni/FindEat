@@ -3,6 +3,7 @@ import { TouchableOpacity, View } from "react-native";
 import Text from "../common/AppText";
 import TextInput from "../common/inputs/AppTextInput";
 import type { SelectedAddress } from "@findeat/types";
+import { useTranslation } from "react-i18next";
 
 type MapboxFeature = {
   id: string;
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export default function AddressAutocomplete({ onSelect }: Props) {
+  const { i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MapboxFeature[]>([]);
   const [selectedText, setSelectedText] = useState("");
@@ -36,12 +38,14 @@ export default function AddressAutocomplete({ onSelect }: Props) {
       }
 
       const encodedQuery = encodeURIComponent(query);
+      const language = encodeURIComponent(
+        i18n.resolvedLanguage ?? i18n.language ?? "en",
+      );
       const url =
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedQuery}.json` +
         `?access_token=${token}` +
         `&autocomplete=true` +
-        `&country=il` +
-        `&language=he,en` +
+        `&language=${language}` +
         `&types=address,poi,place`;
 
       fetch(url)
@@ -51,7 +55,7 @@ export default function AddressAutocomplete({ onSelect }: Props) {
     }, 350);
 
     return () => clearTimeout(timeout);
-  }, [query, selectedText]);
+  }, [i18n.language, i18n.resolvedLanguage, query, selectedText]);
 
   function getCity(feature: MapboxFeature) {
     const context = feature.context ?? [];

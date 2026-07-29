@@ -48,19 +48,23 @@ export default function SearchResultsView<T>({
 
     if (!q) return;
 
+    let active = true;
     const timeout = setTimeout(async () => {
       try {
-        setLoading(true);
+        if (active) setLoading(true);
         const results = await searchRequest(q);
-        setRemoteResults(results);
+        if (active) setRemoteResults(results);
       } catch (error) {
         console.error("search failed", error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }, 250);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
   }, [query, searchRequest, isRemoteSearch]);
 
   const localResults = useMemo(() => {
@@ -85,7 +89,10 @@ export default function SearchResultsView<T>({
             value={query}
             onChangeText={(text) => {
               setQuery(text);
-              if (!text.trim()) setRemoteResults([]);
+              if (!text.trim()) {
+                setRemoteResults([]);
+                setLoading(false);
+              }
             }}
             placeholder={placeholder}
             autoFocus

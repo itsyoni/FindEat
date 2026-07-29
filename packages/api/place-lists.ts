@@ -11,8 +11,10 @@ import type { AxiosInstance } from "axios";
 
 export function createPlaceListsApi(api: AxiosInstance) {
   return {
-    async mine() {
-      const { data } = await api.get<PlaceListSummary[]>("/place-lists");
+    async mine(query?: string) {
+      const { data } = await api.get<PlaceListSummary[]>("/place-lists", {
+        params: query?.trim() ? { q: query.trim() } : undefined,
+      });
       return data;
     },
 

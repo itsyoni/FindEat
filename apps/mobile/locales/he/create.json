@@ -182,5 +182,22 @@
   "makePrivate": "מעבר לפרטי",
   "reviewingTogether": "כותבים ביקורת יחד",
   "reviewInvitesAfterPublish_one": "החבר יקבל הזמנה לאחר הפרסום.",
-  "reviewInvitesAfterPublish_other": "{{count}} חברים יקבלו הזמנה לאחר הפרסום."
+  "reviewInvitesAfterPublish_other": "{{count}} חברים יקבלו הזמנה לאחר הפרסום.",
+  "tagPeopleTitle": "תיוג אנשים",
+  "tagPeopleSelected_one": "נבחר אדם אחד",
+  "tagPeopleSelected_other": "נבחרו {{count}} אנשים",
+  "tagPeopleRowTitle": "תיוג אנשים",
+  "tagPeopleRowHint": "הצגת האנשים שהיו איתך בפוסט המהיר",
+  "tagPeopleInPost_one": "עם אדם אחד",
+  "tagPeopleInPost_other": "עם {{count}} אנשים",
+  "searchFriendsToTag": "חיפוש חברים",
+  "tagPeopleFriendsOnly": "אפשר לתייג בפוסט מהיר רק חברים.",
+  "privateTagPeopleTitle": "להסיר את האנשים שתויגו?",
+  "privateTagPeopleBody": "פוסט פרטי גלוי רק לך. המעבר לפרטי יסיר את האנשים שבחרת.",
+  "chooseShortVideo": "בחירת סרטון קצר",
+  "changeMedia": "החלפה",
+  "videoTooLongTitle": "הסרטון ארוך מדי",
+  "videoTooLongBody": "יש לבחור סרטון באורך של עד 10 שניות.",
+  "videoPickerErrorTitle": "לא ניתן להשתמש בסרטון הזה",
+  "videoPickerErrorBody": "יש לבחור סרטון קצר אחר ולנסות שוב."
 }

@@ -1,7 +1,11 @@
 import { Post, PostType } from "@findeat/types/post";
 import { Pressable, TouchableOpacity, View } from "react-native";
 import Text from "../common/AppText";
-import { ImagesSquareIcon, StarIcon } from "phosphor-react-native";
+import {
+  ImagesSquareIcon,
+  PlayCircleIcon,
+  StarIcon,
+} from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { Skeleton, SkeletonPulse } from "../common";
@@ -20,13 +24,18 @@ function getPostImage(post: Post) {
     return post.reviewPost?.coverImageUrl ?? null;
   }
 
-  return post.contentPost?.imageUrl ?? null;
+  return (
+    post.contentPost?.media?.find((item) => item.type === "IMAGE")?.imageUrl ??
+    post.contentPost?.imageUrl ??
+    null
+  );
 }
 
 function getPostThumbnail(post: Post) {
   return post.type === "REVIEW"
     ? post.reviewPost?.coverThumbnailUrl
-    : post.contentPost?.thumbnailUrl;
+    : (post.contentPost?.media?.find((item) => item.type === "IMAGE")
+        ?.thumbnailUrl ?? post.contentPost?.thumbnailUrl);
 }
 
 function getPostText(post: Post) {
@@ -103,6 +112,8 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
         const imageUrl = getPostImage(post);
         const thumbnailUrl = getPostThumbnail(post);
         const text = getPostText(post);
+        const contentMedia = post.contentPost?.media ?? [];
+        const isVideo = contentMedia[0]?.type === "VIDEO" || !!post.contentPost?.videoUrl;
 
         return (
           <Pressable
@@ -135,14 +146,23 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
               </>
             ) : (
               <View className="h-full w-full items-center justify-center bg-gray-900 px-2">
-                <Text
-                  className="text-center text-xs text-white"
-                  numberOfLines={3}
-                >
-                  {text}
-                </Text>
+                {isVideo ? (
+                  <PlayCircleIcon size={34} color="#FFF" weight="fill" />
+                ) : (
+                  <Text
+                    className="text-center text-xs text-white"
+                    numberOfLines={3}
+                  >
+                    {text}
+                  </Text>
+                )}
               </View>
             )}
+            {contentMedia.length > 1 ? (
+              <View className="absolute right-2 top-2 rounded-full bg-black/65 p-1.5">
+                <ImagesSquareIcon size={15} color="#FFF" weight="fill" />
+              </View>
+            ) : null}
           </Pressable>
         );
       })}

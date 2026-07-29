@@ -17,6 +17,12 @@ import type {
 import type { AxiosInstance } from "axios";
 
 export function createRestaurantsApi(api: AxiosInstance) {
+  type SearchOptions = {
+    latitude?: number;
+    longitude?: number;
+    languageCode?: string;
+  };
+
   return {
     async mine() {
       const { data } = await api.get<ManagedRestaurant[]>("/restaurants/me");
@@ -46,20 +52,20 @@ export function createRestaurantsApi(api: AxiosInstance) {
       return data;
     },
 
-    async search(query: string) {
+    async search(query: string, options: SearchOptions = {}) {
       const { data } = await api.get<RestaurantSearchResponse>(
         "/restaurants/search",
-        { params: { q: query } },
+        { params: { q: query, ...options } },
       );
 
       return data;
     },
 
-    async searchFindEat(query: string) {
+    async searchFindEat(query: string, options: SearchOptions = {}) {
       const { data } = await api.get<Restaurant[]>(
         "/restaurants/search/findeat",
         {
-          params: { q: query },
+          params: { q: query, ...options },
         },
       );
 
@@ -84,10 +90,11 @@ export function createRestaurantsApi(api: AxiosInstance) {
     },
 
     async discoverForMap(options: {
-      latitude: number;
-      longitude: number;
+      latitude?: number;
+      longitude?: number;
       radiusKm?: number;
       limit?: number;
+      listId?: string;
       filter?: RestaurantMapFilter;
       sort?: RestaurantMapSort;
       matchDietary?: boolean;
@@ -104,6 +111,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
       latitude: number;
       longitude: number;
       limit?: number;
+      languageCode?: string;
     }) {
       const { data } = await api.get<GoogleRestaurantSuggestion[]>(
         "/restaurants/nearby/google",

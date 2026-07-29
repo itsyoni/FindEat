@@ -22,6 +22,15 @@ export function createPostsApi(api: AxiosInstance) {
       restaurantId?: string;
       visibility?: PostVisibility;
       linkedPostId?: string;
+      taggedUserIds?: string[];
+      media?: Array<{
+        type: "IMAGE" | "VIDEO";
+        imageUrl?: string;
+        videoUrl?: string;
+        width: number;
+        height: number;
+        durationMs?: number;
+      }>;
     }) {
       const { data } = await api.post<Post>("/posts/content", payload);
 

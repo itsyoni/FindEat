@@ -29,6 +29,7 @@ import {
 } from "@/contexts/AccessibilityContext";
 import { SaveToListsProvider } from "@/contexts/SaveToListsContext";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import PresenceConnection from "@/components/presence/PresenceConnection";
 
 // The reduced-motion override intentionally emits a warning whenever it
 // mounts. Keep genuine Reanimated errors visible without noisy dev notices.
@@ -147,6 +148,8 @@ function RootNavigator() {
         <Stack.Screen name="posts/collaborators/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="create/content" options={{ headerShown: false }} />
         <Stack.Screen name="create/review" options={{ headerShown: false }} />
+        <Stack.Screen name="create/snap" options={{ headerShown: false }} />
+        <Stack.Screen name="snaps/[userId]" options={{ headerShown: false }} />
         <Stack.Screen name="business/index" />
         <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
         <Stack.Screen name="saved/index" options={{ headerShown: false }} />
@@ -176,6 +179,7 @@ function RootNavigator() {
       </Stack>
 
       <StatusBar style={isDark ? "light" : "dark"} />
+      {user ? <PresenceConnection /> : null}
       {user ? <WhatsNewModal /> : null}
     </>
   );

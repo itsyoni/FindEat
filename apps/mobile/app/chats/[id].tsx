@@ -71,6 +71,12 @@ type MessagesReadEvent = {
   readAt: string;
 };
 
+type PresenceChangedEvent = {
+  userId: string;
+  isOnline: boolean;
+  lastSeenAt: string | null;
+};
+
 function isSameDay(left?: string, right?: string) {
   if (!left || !right) return false;
 
@@ -153,7 +159,7 @@ function TypingDots() {
 }
 
 export default function ChatScreen() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const currentUserId = user?.id;
   const { t } = useTranslation("chat");
   const { isDark } = useAppTheme();
@@ -535,10 +541,10 @@ export default function ChatScreen() {
   ]);
 
   useEffect(() => {
-    if (!user?.id || isNewChat) return;
+    if (!user?.id || !token || isNewChat) return;
 
     const socket = io(API_URL, {
-      auth: { userId: user.id },
+      auth: { token, trackPresence: false },
     });
     const typingUserTimers = typingUserTimersRef.current;
 
@@ -703,6 +709,40 @@ export default function ChatScreen() {
       },
     );
 
+    socket.on("presence_changed", (event: PresenceChangedEvent) => {
+      setChat((current) => {
+        if (!current) return current;
+        const participant = current.participants.find(
+          (item) => item.userId === event.userId,
+        );
+        const viewer = current.participants.find(
+          (item) => item.userId === user.id,
+        );
+        if (
+          !participant?.user.showActivityStatus ||
+          !viewer?.user.showActivityStatus
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          participants: current.participants.map((item) =>
+            item.userId === event.userId
+              ? {
+                  ...item,
+                  user: {
+                    ...item.user,
+                    isOnline: event.isOnline,
+                    lastSeenAt: event.lastSeenAt,
+                  },
+                }
+              : item,
+          ),
+        };
+      });
+    });
+
     return () => {
       if (sentTypingRef.current) {
         socket.emit("typing_stop", { conversationId });
@@ -719,10 +759,11 @@ export default function ChatScreen() {
       socket.off("message_deleted");
       socket.off("message_edited");
       socket.off("typing_changed");
+      socket.off("presence_changed");
       socket.disconnect();
       if (socketRef.current === socket) socketRef.current = null;
     };
-  }, [conversationId, isNewChat, removeTypingUser, user?.id]);
+  }, [conversationId, isNewChat, removeTypingUser, token, user?.id]);
 
   async function onRefresh() {
     if (isNewChat) return;

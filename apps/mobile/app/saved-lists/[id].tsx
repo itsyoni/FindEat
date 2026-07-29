@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import type { PlaceListDetail } from "@findeat/types";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { CalendarBlankIcon, DotsThreeIcon, FolderSimpleIcon, MapPinIcon, PlusIcon, UsersThreeIcon } from "phosphor-react-native";
+import { CalendarBlankIcon, DotsThreeIcon, FolderSimpleIcon, MapPinIcon, MapTrifoldIcon, PlusIcon, UsersThreeIcon } from "phosphor-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, TouchableOpacity, View } from "react-native";
@@ -213,6 +213,27 @@ export default function SavedListDetailScreen() {
                       </View>
                     ) : null}
                   </View>
+                ) : null}
+                {list.items.length > 0 ? (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(tabs)/map",
+                        params: { listId: list.id },
+                      })
+                    }
+                    className="mt-4 flex-row items-center justify-center rounded-2xl bg-black px-4 py-3.5 dark:bg-white"
+                  >
+                    <MapTrifoldIcon
+                      size={20}
+                      color={isDark ? "#111" : "#FFF"}
+                      weight="fill"
+                    />
+                    <Text className="ml-2 font-bold text-white dark:text-black">
+                      {t("viewFolderOnMap")}
+                    </Text>
+                  </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
                   onPress={() =>

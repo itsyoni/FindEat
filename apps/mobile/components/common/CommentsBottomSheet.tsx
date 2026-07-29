@@ -278,6 +278,9 @@ export default function CommentsBottomSheet({
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [creatingPoll, setCreatingPoll] = useState(false);
   const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
+  const [highlightedCommentId, setHighlightedCommentId] = useState<
+    string | null
+  >(null);
   const authorNote = useMemo(
     () => comments.find((comment) => comment.isAuthorNote && !comment.parentId) ?? null,
     [comments],
@@ -407,18 +410,46 @@ export default function CommentsBottomSheet({
   const listRef =
     useRef<React.ElementRef<typeof BottomSheetFlatList<Comment>>>(null);
 
+  const focusedCommentIndex = useMemo(
+    () =>
+      focusedCommentId
+        ? threadedComments.findIndex(
+            (comment) => comment.id === focusedCommentId,
+          )
+        : -1,
+    [focusedCommentId, threadedComments],
+  );
+
   useEffect(() => {
-    if (!focusedCommentId) return;
-    const index = threadedComments.findIndex(
-      (comment) => comment.id === focusedCommentId,
+    if (!focusedCommentId || focusedCommentIndex < 0) {
+      const clearTimer = setTimeout(() => setHighlightedCommentId(null), 0);
+      return () => clearTimeout(clearTimer);
+    }
+
+    const showTimer = setTimeout(
+      () => setHighlightedCommentId(focusedCommentId),
+      0,
     );
-    if (index < 0) return;
-    const timer = setTimeout(
-      () => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.4 }),
+    const scrollTimer = setTimeout(
+      () =>
+        listRef.current?.scrollToIndex({
+          index: focusedCommentIndex,
+          animated: true,
+          viewPosition: 0.4,
+        }),
       350,
     );
-    return () => clearTimeout(timer);
-  }, [focusedCommentId, threadedComments]);
+    const highlightTimer = setTimeout(
+      () => setHighlightedCommentId(null),
+      3000,
+    );
+
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(scrollTimer);
+      clearTimeout(highlightTimer);
+    };
+  }, [focusedCommentId, focusedCommentIndex]);
 
   const handleAddComment = useCallback(
     async (content: string, replyToId?: string): Promise<void> => {
@@ -556,7 +587,7 @@ export default function CommentsBottomSheet({
             ? embedded
               ? "pb-4"
               : "border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40"
-            : item.id === focusedCommentId
+            : item.id === highlightedCommentId
               ? "mb-5 bg-amber-50 p-2 dark:bg-amber-950/30"
               : "mb-5"
         }`}
@@ -669,7 +700,7 @@ export default function CommentsBottomSheet({
     },
     [
       deleteComment,
-      focusedCommentId,
+      highlightedCommentId,
       showToast,
       t,
       toggleCommentLike,

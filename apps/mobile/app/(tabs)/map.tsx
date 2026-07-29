@@ -6,6 +6,9 @@ import SearchBar from "@/components/common/inputs/SearchBar";
 import Tabs from "@/components/common/Tabs";
 import SearchResultsView from "@/components/search/SearchResultsView";
 import { api } from "@/lib/api";
+import { AppAlert as Alert } from "@/lib/appAlert";
+import { getFreshDeviceLocation } from "@/lib/currentLocation";
+import { mergeRestaurantSearchResults } from "@/lib/restaurantSearchResults";
 import {
   DEFAULT_MAP_PREFERENCES,
   getMapPreferences,
@@ -15,9 +18,11 @@ import {
   Restaurant,
   RestaurantMapFilter,
   RestaurantMapSort,
+  PlaceListSummary,
+  SelectedRestaurant,
 } from "@findeat/types";
 import type { MapViewMode } from "@findeat/types";
-import * as Location from "expo-location";
+import type { LocationObject } from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,6 +38,7 @@ import {
   CheckIcon,
   CrosshairIcon,
   FunnelIcon,
+  FolderSimpleIcon,
   HeartIcon,
   StorefrontIcon,
   XIcon,
@@ -134,8 +140,11 @@ function clusterRestaurants(restaurants: Restaurant[], zoom: number) {
 }
 
 export default function MapScreen() {
-  const { restaurantId } = useLocalSearchParams<{ restaurantId?: string }>();
-  const { t } = useTranslation(["common", "map", "restaurants"]);
+  const { restaurantId, listId } = useLocalSearchParams<{
+    restaurantId?: string;
+    listId?: string;
+  }>();
+  const { t, i18n } = useTranslation(["common", "map", "restaurants"]);
   const { isDark } = useAppTheme();
   const { user } = useAuth();
   const { statusOverrides } = useSaveToLists();
@@ -145,6 +154,8 @@ export default function MapScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [currentMapZoom, setCurrentMapZoom] = useState(13);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [placeLists, setPlaceLists] = useState<PlaceListSummary[]>([]);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [mapFilter, setMapFilter] = useState<RestaurantMapFilter>(
     DEFAULT_MAP_PREFERENCES.filter,
   );
@@ -179,9 +190,8 @@ export default function MapScreen() {
 
   const cameraRef = useRef<Mapbox.Camera>(null);
 
-  const [userLocation, setUserLocation] =
-    useState<Location.LocationObject | null>(null);
-  const userLocationRef = useRef<Location.LocationObject | null>(null);
+  const [userLocation, setUserLocation] = useState<LocationObject | null>(null);
+  const userLocationRef = useRef<LocationObject | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -207,6 +217,43 @@ export default function MapScreen() {
       active = false;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!filtersHydrated || !listId) return;
+
+    const timer = setTimeout(() => {
+      setSelectedListId(listId);
+      setMapFilter(DEFAULT_MAP_PREFERENCES.filter);
+      setRadiusKm(DEFAULT_MAP_PREFERENCES.radiusKm);
+      setMatchDietary(DEFAULT_MAP_PREFERENCES.matchDietary);
+      setMatchCuisines(DEFAULT_MAP_PREFERENCES.matchCuisines);
+      setHideFlaggedAllergens(
+        DEFAULT_MAP_PREFERENCES.hideFlaggedAllergens,
+      );
+      setViewMode("MAP");
+      router.setParams({ listId: undefined });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [filtersHydrated, listId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return undefined;
+
+      let active = true;
+      void api.placeLists
+        .mine()
+        .then((lists) => {
+          if (active) setPlaceLists(lists);
+        })
+        .catch((error) => console.error("Could not load map folders", error));
+
+      return () => {
+        active = false;
+      };
+    }, [user?.id]),
+  );
 
   useEffect(() => {
     if (!filtersHydrated || !user?.id) return;
@@ -256,13 +303,48 @@ export default function MapScreen() {
 
   const loadRestaurants = useCallback(async (coordinates?: { latitude: number; longitude: number }) => {
     try {
-      const latitude = coordinates?.latitude ?? userLocationRef.current?.coords.latitude ?? 32.0853;
-      const longitude = coordinates?.longitude ?? userLocationRef.current?.coords.longitude ?? 34.7818;
+      const latitude = coordinates?.latitude ?? userLocationRef.current?.coords.latitude;
+      const longitude = coordinates?.longitude ?? userLocationRef.current?.coords.longitude;
+      if (
+        (latitude === undefined || longitude === undefined) &&
+        !selectedListId
+      ) {
+        if (
+          restaurantId &&
+          handledRestaurantIdRef.current !== restaurantId
+        ) {
+          const requestedRestaurant = await api.restaurants.get(restaurantId);
+          setRestaurants([requestedRestaurant]);
+          handledRestaurantIdRef.current = requestedRestaurant.id;
+          temporaryRestaurantIdRef.current = requestedRestaurant.id;
+          setSelectedRestaurant(requestedRestaurant);
+          if (
+            typeof requestedRestaurant.latitude === "number" &&
+            typeof requestedRestaurant.longitude === "number"
+          ) {
+            setTimeout(() => {
+              cameraRef.current?.setCamera({
+                centerCoordinate: [
+                  requestedRestaurant.longitude as number,
+                  requestedRestaurant.latitude as number,
+                ],
+                zoomLevel: 15,
+                animationDuration: 600,
+              });
+            }, 150);
+          }
+        } else {
+          setRestaurants([]);
+        }
+        return;
+      }
       const nextRestaurants = await api.restaurants.discoverForMap({
-        latitude,
-        longitude,
+        ...(latitude !== undefined && longitude !== undefined
+          ? { latitude, longitude }
+          : {}),
         radiusKm: radiusKm ?? undefined,
-        limit: 10,
+        limit: 200,
+        listId: selectedListId ?? undefined,
         filter: mapFilter,
         sort: mapSort,
         matchDietary,
@@ -329,7 +411,42 @@ export default function MapScreen() {
     matchDietary,
     radiusKm,
     restaurantId,
+    selectedListId,
   ]);
+
+  useEffect(() => {
+    if (!selectedListId || restaurantsWithLocation.length === 0) return;
+
+    const timer = setTimeout(() => {
+      if (restaurantsWithLocation.length === 1) {
+        const restaurant = restaurantsWithLocation[0];
+        cameraRef.current?.setCamera({
+          centerCoordinate: [
+            restaurant.longitude as number,
+            restaurant.latitude as number,
+          ],
+          zoomLevel: 14,
+          animationDuration: 600,
+        });
+        return;
+      }
+
+      const longitudes = restaurantsWithLocation.map(
+        (restaurant) => restaurant.longitude as number,
+      );
+      const latitudes = restaurantsWithLocation.map(
+        (restaurant) => restaurant.latitude as number,
+      );
+      cameraRef.current?.fitBounds(
+        [Math.max(...longitudes), Math.max(...latitudes)],
+        [Math.min(...longitudes), Math.min(...latitudes)],
+        [90, 50, 180, 50],
+        650,
+      );
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [restaurantsWithLocation, selectedListId]);
 
   const dismissRestaurantPreview = useCallback(() => {
     setSelectedRestaurant(null);
@@ -346,15 +463,7 @@ export default function MapScreen() {
 
   const loadUserLocation = useCallback(async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-
-      if (status !== "granted") return null;
-
-      const location =
-        (await Location.getLastKnownPositionAsync()) ??
-        (await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        }));
+      const location = await getFreshDeviceLocation();
 
       if (!location) return null;
 
@@ -369,7 +478,7 @@ export default function MapScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!filtersHydrated) return undefined;
+      if (!filtersHydrated || listId) return undefined;
 
       let active = true;
       void (async () => {
@@ -391,7 +500,13 @@ export default function MapScreen() {
         active = false;
         dismissRestaurantPreview();
       };
-    }, [dismissRestaurantPreview, filtersHydrated, loadRestaurants, loadUserLocation]),
+    }, [
+      dismissRestaurantPreview,
+      filtersHydrated,
+      listId,
+      loadRestaurants,
+      loadUserLocation,
+    ]),
   );
 
   function selectRestaurant(restaurant: Restaurant) {
@@ -445,21 +560,55 @@ export default function MapScreen() {
     }
   }
 
-  function restaurantSearchFn(query: string, restaurant: Restaurant): boolean {
-    const q = query.trim().toLowerCase();
+  const searchRestaurantsForMap = useCallback(
+    async (query: string) => {
+      const location = userLocationRef.current;
+      const response = await api.restaurants.search(query, {
+        ...(location
+          ? {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            }
+          : {}),
+        languageCode: i18n.resolvedLanguage ?? i18n.language,
+      });
+      return mergeRestaurantSearchResults(response, query);
+    },
+    [i18n.language, i18n.resolvedLanguage],
+  );
 
-    return (
-      (restaurant.name ?? "").toLowerCase().includes(q) ||
-      (restaurant.address ?? "").toLowerCase().includes(q) ||
-      (restaurant.city ?? "").toLowerCase().includes(q)
-    );
+  async function selectMapSearchResult(item: SelectedRestaurant) {
+    try {
+      const restaurant =
+        item.source === "FINDEAT"
+          ? item.restaurant
+          : await api.restaurants.fromGoogle({
+              name: item.name,
+              address: item.address,
+              latitude: item.latitude,
+              longitude: item.longitude,
+              googlePlaceId: item.googlePlaceId,
+            });
+
+      setRestaurants((current) =>
+        current.some((candidate) => candidate.id === restaurant.id)
+          ? current
+          : [...current, restaurant],
+      );
+      temporaryRestaurantIdRef.current = restaurant.id;
+      selectRestaurant(restaurant);
+    } catch (error) {
+      console.error("Could not open restaurant search result", error);
+      Alert.alert(t("common:error"), t("common:somethingWentWrong"));
+    }
   }
 
-  function renderRestaurantSearchResult(restaurant: Restaurant) {
+  function renderRestaurantSearchResult(item: SelectedRestaurant) {
+    const restaurant = item.source === "FINDEAT" ? item.restaurant : item;
     return (
       <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-900">
         <Avatar
-          uri={restaurant.logoUrl}
+          uri={item.source === "FINDEAT" ? item.restaurant.logoUrl : null}
           username={restaurant.name}
           size={52}
           fallbackType="restaurant"
@@ -472,7 +621,9 @@ export default function MapScreen() {
             >
               {restaurant.name}
             </Text>
-            <RestaurantBadge status={restaurant.status} />
+            {item.source === "FINDEAT" ? (
+              <RestaurantBadge status={item.restaurant.status} />
+            ) : null}
           </View>
           {restaurant.address || restaurant.city ? (
             <Text numberOfLines={1} className="mt-1 text-sm text-gray-500">
@@ -493,7 +644,16 @@ export default function MapScreen() {
     selectedRestaurant?.averageRating ?? (selectedRatings.length > 0
       ? selectedRatings.reduce((total, rating) => total + rating, 0) /
         selectedRatings.length
-      : null);
+        : null);
+  const activeFilterCount = [
+    mapFilter !== "ALL",
+    selectedListId !== null,
+    radiusKm !== null,
+    matchDietary,
+    matchCuisines,
+    hideFlaggedAllergens,
+  ].filter(Boolean).length;
+  const selectedList = placeLists.find((list) => list.id === selectedListId);
 
   return (
     <SafeAreaView
@@ -508,13 +668,16 @@ export default function MapScreen() {
           className="flex-1"
         >
           <SearchResultsView
-            data={restaurants}
+            searchRequest={searchRestaurantsForMap}
             placeholder={t("map:searchRestaurants")}
             emptyText={t("map:noRestaurantsFound")}
-            keyExtractor={(restaurant) => restaurant.id}
-            searchFn={restaurantSearchFn}
+            keyExtractor={(item) =>
+              item.source === "FINDEAT"
+                ? `findeat-${item.restaurant.id}`
+                : `google-${item.googlePlaceId}`
+            }
             onCancel={() => setIsSearching(false)}
-            onSelect={selectRestaurant}
+            onSelect={(item) => void selectMapSearchResult(item)}
             renderItem={renderRestaurantSearchResult}
           />
         </Animated.View>
@@ -532,13 +695,20 @@ export default function MapScreen() {
             rightAccessory={
               <TouchableOpacity
                 onPress={() => setFiltersOpen(true)}
-                className="h-full aspect-square items-center justify-center rounded-2xl bg-ink"
+                className="relative h-full aspect-square items-center justify-center rounded-2xl bg-ink"
               >
                 <FunnelIcon
                   size={21}
                   color="#FFF"
                   weight="fill"
                 />
+                {activeFilterCount > 0 ? (
+                  <View className="absolute -right-1 -top-1 h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-brand px-1 dark:border-black">
+                    <Text className="text-[10px] font-bold text-white">
+                      {activeFilterCount}
+                    </Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             }
           />
@@ -585,11 +755,11 @@ export default function MapScreen() {
               >
                 <Mapbox.Camera
                   ref={cameraRef}
-                  zoomLevel={13}
+                  zoomLevel={userLocation ? 13 : 1.5}
                   animationDuration={0}
                   centerCoordinate={[
-                    userLocation?.coords.longitude ?? 34.7818,
-                    userLocation?.coords.latitude ?? 32.0853,
+                    userLocation?.coords.longitude ?? 0,
+                    userLocation?.coords.latitude ?? 20,
                   ]}
                 />
                 <Mapbox.UserLocation visible />
@@ -843,7 +1013,11 @@ export default function MapScreen() {
                 <View className="flex-row items-end justify-between px-4 pb-4 pt-5">
                   <View className="flex-1 pr-3">
                     <Text className="text-2xl font-bold text-black dark:text-white">
-                      {t("map:placesNearYou")}
+                      {selectedList
+                        ? t("map:placesInFolder", {
+                            name: selectedList.name,
+                          })
+                        : t("map:placesNearYou")}
                     </Text>
                     <Text className="mt-1 text-sm text-gray-500">
                       {t(`map:sort${mapSort}`)}
@@ -888,9 +1062,31 @@ export default function MapScreen() {
         <BottomSheetScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}
         >
-          <Text className="text-2xl font-bold text-black dark:text-white">
-            {t("map:filters")}
-          </Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-2xl font-bold text-black dark:text-white">
+              {t("map:filters")}
+            </Text>
+            {activeFilterCount > 0 ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setMapFilter(DEFAULT_MAP_PREFERENCES.filter);
+                  setMapSort(DEFAULT_MAP_PREFERENCES.sort);
+                  setRadiusKm(DEFAULT_MAP_PREFERENCES.radiusKm);
+                  setMatchDietary(DEFAULT_MAP_PREFERENCES.matchDietary);
+                  setMatchCuisines(DEFAULT_MAP_PREFERENCES.matchCuisines);
+                  setHideFlaggedAllergens(
+                    DEFAULT_MAP_PREFERENCES.hideFlaggedAllergens,
+                  );
+                  setSelectedListId(null);
+                }}
+                className="rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800"
+              >
+                <Text className="text-sm font-bold text-brand">
+                  {t("map:resetFilters")}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           <Text className="mb-2 mt-5 font-bold text-black dark:text-white">
             {t("map:show")}
@@ -914,6 +1110,64 @@ export default function MapScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
+            {t("map:folder")}
+          </Text>
+          <View className="gap-2">
+            <TouchableOpacity
+              onPress={() => setSelectedListId(null)}
+              className="flex-row items-center justify-between rounded-xl bg-gray-100 px-4 py-3.5 dark:bg-gray-800"
+            >
+              <View className="flex-1 flex-row items-center">
+                <FolderSimpleIcon
+                  size={20}
+                  color={selectedListId === null ? "#D6A92D" : "#9CA3AF"}
+                  weight={selectedListId === null ? "fill" : "regular"}
+                />
+                <Text className="ml-3 font-semibold text-black dark:text-white">
+                  {t("map:allFolders")}
+                </Text>
+              </View>
+              {selectedListId === null ? (
+                <CheckIcon size={18} color={isDark ? "#FFF" : "#111"} weight="bold" />
+              ) : null}
+            </TouchableOpacity>
+            {placeLists.map((list) => {
+              const selected = selectedListId === list.id;
+              return (
+                <TouchableOpacity
+                  key={list.id}
+                  onPress={() => setSelectedListId(list.id)}
+                  className="flex-row items-center justify-between rounded-xl bg-gray-100 px-4 py-3.5 dark:bg-gray-800"
+                >
+                  <View className="min-w-0 flex-1 flex-row items-center">
+                    <FolderSimpleIcon
+                      size={20}
+                      color={selected ? "#D6A92D" : "#9CA3AF"}
+                      weight={selected ? "fill" : "regular"}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      className="ml-3 min-w-0 flex-1 font-semibold text-black dark:text-white"
+                    >
+                      {list.name}
+                    </Text>
+                    <Text className="ml-2 text-xs text-gray-500">
+                      {t("map:folderPlaces", { count: list.itemCount })}
+                    </Text>
+                  </View>
+                  {selected ? (
+                    <CheckIcon
+                      size={18}
+                      color={isDark ? "#FFF" : "#111"}
+                      weight="bold"
+                    />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
@@ -970,19 +1224,15 @@ export default function MapScreen() {
           <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
             {t("map:distance")}
           </Text>
-          <View className="flex-row gap-2">
-            {[10, 50, 100, 200].map((distance) => (
+          <View className="flex-row flex-wrap gap-2">
+            {([null, 10, 50, 100, 200] as (number | null)[]).map((distance) => (
               <TouchableOpacity
-                key={distance}
-                onPress={() =>
-                  setRadiusKm((current) =>
-                    current === distance ? null : distance,
-                  )
-                }
-                className={`flex-1 items-center rounded-xl py-3 ${radiusKm === distance ? "bg-black dark:bg-white" : "bg-gray-100 dark:bg-gray-800"}`}
+                key={distance ?? "any"}
+                onPress={() => setRadiusKm(distance)}
+                className={`min-w-[30%] flex-1 items-center rounded-xl px-3 py-3 ${radiusKm === distance ? "bg-black dark:bg-white" : "bg-gray-100 dark:bg-gray-800"}`}
               >
                 <Text className={`font-bold ${radiusKm === distance ? "text-white dark:text-black" : "text-black dark:text-white"}`}>
-                  {distance} km
+                  {distance === null ? t("map:anyDistance") : `${distance} km`}
                 </Text>
               </TouchableOpacity>
             ))}

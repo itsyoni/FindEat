@@ -65,6 +65,7 @@ export default function ReviewCreator({
   const [resumedDraft, setResumedDraft] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const draftSnapshotRef = useRef<Omit<ReviewPostDraft, "updatedAt"> | null>(null);
+  const publishCompletedRef = useRef(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -115,7 +116,14 @@ export default function ReviewCreator({
   }, [t, user?.id]);
 
   useEffect(() => {
-    if (!draftHydrated || !user?.id || loading) return;
+    if (
+      !draftHydrated ||
+      !user?.id ||
+      loading ||
+      publishCompletedRef.current
+    ) {
+      return;
+    }
     const hasDraftContent =
       draft.restaurant !== null ||
       !!draft.coverImageUri ||
@@ -129,6 +137,7 @@ export default function ReviewCreator({
     if (!hasDraftContent) return;
 
     const timer = setTimeout(() => {
+      if (publishCompletedRef.current) return;
       void saveReviewPostDraft(user.id, {
         step,
         draft,
@@ -151,7 +160,10 @@ export default function ReviewCreator({
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined;
     draftSnapshotRef.current =
-      draftHydrated && hasDraftContent && !loading
+      draftHydrated &&
+      hasDraftContent &&
+      !loading &&
+      !publishCompletedRef.current
         ? { step, draft, selectedMenuDish, pendingDish }
         : null;
   }, [draft, draftHydrated, loading, pendingDish, selectedMenuDish, step]);
@@ -160,7 +172,11 @@ export default function ReviewCreator({
     if (!user?.id) return;
     const subscription = AppState.addEventListener("change", (state) => {
       const snapshot = draftSnapshotRef.current;
-      if (state !== "active" && snapshot) {
+      if (
+        state !== "active" &&
+        snapshot &&
+        !publishCompletedRef.current
+      ) {
         void saveReviewPostDraft(user.id, snapshot);
       }
     });
@@ -258,6 +274,8 @@ export default function ReviewCreator({
   }
 
   async function publishReview() {
+    if (publishCompletedRef.current) return;
+
     if (!draft.restaurant) {
       Alert.alert(t("missingRestaurantTitle"), t("missingRestaurantBody"));
       return;
@@ -308,8 +326,15 @@ export default function ReviewCreator({
         ),
         items: uploadedItems,
       });
+      publishCompletedRef.current = true;
       draftSnapshotRef.current = null;
-      if (user?.id) await clearPostDraft(user.id, "review");
+      if (user?.id) {
+        try {
+          await clearPostDraft(user.id, "review");
+        } catch (error) {
+          console.error("Could not clear published review draft", error);
+        }
+      }
 
       updateRestaurantStatusInFeedCache(queryClient, restaurantId, {
         visited: true,
@@ -319,38 +344,33 @@ export default function ReviewCreator({
       void queryClient.invalidateQueries({ queryKey: ["restaurant-posts"] });
       void refreshUser();
 
-      setDraft(initialDraft);
-      setSelectedMenuDish(null);
-      setStep("RESTAURANT");
+      router.dismissTo({
+        pathname: "/(tabs)",
+        params: {
+          feed: createdPost.type,
+          postId: createdPost.id,
+          refresh: Date.now().toString(),
+        },
+      });
 
-      const openFeed = () =>
-        router.replace({
-          pathname: "/(tabs)",
-          params: {
-            feed: createdPost.type,
-            postId: createdPost.id,
-            refresh: Date.now().toString(),
-          },
-        });
-
-      if (draft.linkedPostId) {
-        openFeed();
-      } else {
-        Alert.alert(
-          t("addContentPromptTitle"),
-          t("addContentPromptBody"),
-          [
-            { text: t("done"), style: "cancel", onPress: openFeed },
-            {
-              text: t("addQuickPost"),
-              onPress: () =>
-                router.replace({
-                  pathname: "/create/content",
-                  params: { restaurantId, linkedPostId: createdPost.id },
-                }),
-            },
-          ],
-        );
+      if (!draft.linkedPostId) {
+        setTimeout(() => {
+          Alert.alert(
+            t("addContentPromptTitle"),
+            t("addContentPromptBody"),
+            [
+              { text: t("done"), style: "cancel" },
+              {
+                text: t("addQuickPost"),
+                onPress: () =>
+                  router.push({
+                    pathname: "/create/content",
+                    params: { restaurantId, linkedPostId: createdPost.id },
+                  }),
+              },
+            ],
+          );
+        }, 450);
       }
     } catch (error) {
       console.error(error);

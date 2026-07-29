@@ -21,6 +21,20 @@ export type ContentPost = {
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
+  media?: ContentPostMedia[];
+};
+
+export type ContentPostMedia = {
+  id: string;
+  contentPostId: string;
+  type: "IMAGE" | "VIDEO";
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  videoUrl?: string | null;
+  width: number;
+  height: number;
+  durationMs?: number | null;
+  order: number;
 };
 
 export type ReviewItem = {
@@ -163,6 +177,7 @@ export type Post = {
   experienceId?: string | null;
   linkedPosts?: LinkedPost[];
   reviewParticipants?: ReviewParticipant[];
+  taggedUsers?: UserSummary[];
   canContribute?: boolean;
   collaborationStatus?: ReviewParticipantStatus | null;
 

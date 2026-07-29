@@ -8,12 +8,13 @@ import type {
 export const DEFAULT_MAP_PREFERENCES: MapPreferences = {
   filter: "ALL",
   sort: "BEST",
-  radiusKm: 50,
+  radiusKm: null,
   matchDietary: false,
   matchCuisines: false,
   hideFlaggedAllergens: false,
 };
 
+const MAP_PREFERENCES_VERSION = 2;
 const FILTERS: RestaurantMapFilter[] = [
   "ALL",
   "SAVED",
@@ -39,7 +40,18 @@ export async function getMapPreferences(userId: string) {
     const stored = await AsyncStorage.getItem(storageKey(userId));
     if (!stored) return DEFAULT_MAP_PREFERENCES;
 
-    const parsed = JSON.parse(stored) as Partial<MapPreferences>;
+    const parsed = JSON.parse(stored) as Partial<MapPreferences> & {
+      version?: number;
+    };
+    const storedRadius = RADII.includes(parsed.radiusKm as number | null)
+      ? (parsed.radiusKm as number | null)
+      : DEFAULT_MAP_PREFERENCES.radiusKm;
+    // Version 1 silently applied 50 km to every user. Treat that untouched
+    // legacy default as "any distance"; explicitly selected ranges survive.
+    const radiusKm =
+      parsed.version !== MAP_PREFERENCES_VERSION && storedRadius === 50
+        ? null
+        : storedRadius;
     return {
       filter: FILTERS.includes(parsed.filter as RestaurantMapFilter)
         ? (parsed.filter as RestaurantMapFilter)
@@ -47,9 +59,7 @@ export async function getMapPreferences(userId: string) {
       sort: SORTS.includes(parsed.sort as RestaurantMapSort)
         ? (parsed.sort as RestaurantMapSort)
         : DEFAULT_MAP_PREFERENCES.sort,
-      radiusKm: RADII.includes(parsed.radiusKm as number | null)
-        ? (parsed.radiusKm as number | null)
-        : DEFAULT_MAP_PREFERENCES.radiusKm,
+      radiusKm,
       matchDietary: parsed.matchDietary === true,
       matchCuisines: parsed.matchCuisines === true,
       hideFlaggedAllergens: parsed.hideFlaggedAllergens === true,
@@ -63,5 +73,8 @@ export async function saveMapPreferences(
   userId: string,
   preferences: MapPreferences,
 ) {
-  await AsyncStorage.setItem(storageKey(userId), JSON.stringify(preferences));
+  await AsyncStorage.setItem(
+    storageKey(userId),
+    JSON.stringify({ ...preferences, version: MAP_PREFERENCES_VERSION }),
+  );
 }

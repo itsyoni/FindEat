@@ -182,5 +182,22 @@
   "makePrivate": "Make private",
   "reviewingTogether": "Reviewing together",
   "reviewInvitesAfterPublish_one": "Your friend will be invited after you publish.",
-  "reviewInvitesAfterPublish_other": "{{count}} friends will be invited after you publish."
+  "reviewInvitesAfterPublish_other": "{{count}} friends will be invited after you publish.",
+  "tagPeopleTitle": "Tag people",
+  "tagPeopleSelected_one": "1 person selected",
+  "tagPeopleSelected_other": "{{count}} people selected",
+  "tagPeopleRowTitle": "Tag people",
+  "tagPeopleRowHint": "Show who you were with in this quick post",
+  "tagPeopleInPost_one": "With 1 person",
+  "tagPeopleInPost_other": "With {{count}} people",
+  "searchFriendsToTag": "Search friends",
+  "tagPeopleFriendsOnly": "Only friends can be tagged in a quick post.",
+  "privateTagPeopleTitle": "Remove tagged people?",
+  "privateTagPeopleBody": "A private post is visible only to you. Making it private will remove the people you selected.",
+  "chooseShortVideo": "Choose a short video",
+  "changeMedia": "Change",
+  "videoTooLongTitle": "Video is too long",
+  "videoTooLongBody": "Choose a video that is 10 seconds or shorter.",
+  "videoPickerErrorTitle": "Could not use this video",
+  "videoPickerErrorBody": "Please choose another short video and try again."
 }

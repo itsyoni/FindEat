@@ -4,8 +4,15 @@ import { fetch as expoFetch } from 'expo/fetch';
 import { File } from 'expo-file-system';
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
 
-function inferContentType(file: File) {
+function inferContentType(file: File, kind: "image" | "video") {
+  if (kind === "video") {
+    if (file.type === "video/quicktime" || file.extension === ".mov") {
+      return "video/quicktime";
+    }
+    return "video/mp4";
+  }
   if (file.type === 'image/jpg') return 'image/jpeg';
   if (
     file.type === 'image/jpeg' ||
@@ -34,7 +41,7 @@ export async function uploadImage(
     throw new Error('Image must be smaller than 20 MB.');
   }
 
-  const contentType = inferContentType(file);
+  const contentType = inferContentType(file, "image");
   const { data } = await apiClient.post<MediaUploadTicket>('/media/upload-url', {
     contentType,
     size: file.size,
@@ -49,4 +56,27 @@ export async function uploadImage(
   });
   if (!response.ok) throw new Error('Could not upload image. Please try again.');
   return data.imageUrl;
+}
+
+export async function uploadVideo(uri: string) {
+  const file = new File(uri);
+  if (!file.exists || file.size <= 0) throw new Error("Video file is unavailable.");
+  if (file.size > MAX_VIDEO_BYTES) {
+    throw new Error("Video must be smaller than 30 MB.");
+  }
+
+  const contentType = inferContentType(file, "video");
+  const { data } = await apiClient.post<MediaUploadTicket>("/media/upload-url", {
+    contentType,
+    size: file.size,
+    fileName: file.name,
+    purpose: "post",
+  });
+  const response = await expoFetch(data.uploadUrl, {
+    method: "PUT",
+    headers: data.headers,
+    body: file,
+  });
+  if (!response.ok) throw new Error("Could not upload video. Please try again.");
+  return data.mediaUrl ?? data.imageUrl;
 }

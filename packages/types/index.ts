@@ -21,5 +21,6 @@ export * from "./product-update";
 export * from "./restaurant";
 export * from "./review";
 export * from "./search";
+export * from "./snap";
 export * from "./support";
 export * from "./user";

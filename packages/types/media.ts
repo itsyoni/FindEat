@@ -7,11 +7,13 @@ export type MediaPurpose =
   | "restaurant"
   | "list"
   | "product-update"
+  | "snap"
   | "other";
 
 export type MediaUploadTicket = {
   uploadUrl: string;
   imageUrl: string;
+  mediaUrl?: string;
   thumbnailUrl: string;
   key: string;
   expiresIn: number;

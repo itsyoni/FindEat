@@ -9,7 +9,12 @@ import {
   ShareFatIcon,
   DotsThreeOutlineIcon,
 } from "phosphor-react-native";
-import { TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -30,6 +35,8 @@ import PostConnectionCard from "@/components/posts/PostConnectionCard";
 import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
+import ContentVideo from "./ContentVideo";
+import { useState } from "react";
 
 type Props = {
   post: Post;
@@ -63,6 +70,8 @@ export default function ContentPost({
 }: Props) {
   const { t } = useTranslation("restaurants");
   const { t: tCommon, i18n } = useTranslation("common");
+  const { width } = useWindowDimensions();
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const {
     openManageSavedPlace,
     quickSavePlace,
@@ -91,7 +100,35 @@ export default function ContentPost({
     ? (post.authorRestaurant?.name ?? "")
     : (post.author?.username ?? "");
 
-  const imageUrl = content?.imageUrl;
+  const media =
+    content?.media?.length
+      ? content.media
+      : content?.videoUrl
+        ? [
+            {
+              id: `${post.id}-video`,
+              contentPostId: post.id,
+              type: "VIDEO" as const,
+              videoUrl: content.videoUrl,
+              width: 4,
+              height: 5,
+              order: 0,
+            },
+          ]
+        : content?.imageUrl
+          ? [
+              {
+                id: `${post.id}-image`,
+                contentPostId: post.id,
+                type: "IMAGE" as const,
+                imageUrl: content.imageUrl,
+                thumbnailUrl: content.thumbnailUrl,
+                width: 4,
+                height: 5,
+                order: 0,
+              },
+            ]
+          : [];
   const description = content?.description;
   const descriptionIsRtl = isRtlText(description, isRtl);
 
@@ -232,15 +269,40 @@ export default function ContentPost({
             style={iconShadow}
           />
         </Animated.View>
-        {imageUrl ? (
-          <PinchZoomImage
-            uri={imageUrl}
-            thumbnailUrl={content?.thumbnailUrl}
+        {media.length ? (
+          <FlatList
             style={{ position: "absolute", inset: 0 }}
-            resizeMode="cover"
-            onDoubleTap={handleDoubleTapLike}
-            onPinchStart={onPinchStart}
-            onPinchEnd={onPinchEnd}
+            horizontal
+            pagingEnabled
+            data={media}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) =>
+              setActiveMediaIndex(
+                Math.round(event.nativeEvent.contentOffset.x / width),
+              )
+            }
+            renderItem={({ item }) => (
+              <View style={{ width, height, backgroundColor: "#080808" }}>
+                {item.type === "VIDEO" && item.videoUrl ? (
+                  <ContentVideo
+                    uri={item.videoUrl}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="contain"
+                  />
+                ) : item.imageUrl ? (
+                  <PinchZoomImage
+                    uri={item.imageUrl}
+                    thumbnailUrl={item.thumbnailUrl}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode="contain"
+                    onDoubleTap={handleDoubleTapLike}
+                    onPinchStart={onPinchStart}
+                    onPinchEnd={onPinchEnd}
+                  />
+                ) : null}
+              </View>
+            )}
           />
         ) : (
           <View className="absolute inset-0 items-center justify-center bg-gray-900">
@@ -260,6 +322,23 @@ export default function ContentPost({
             </Text>
           </View>
         )}
+
+        {media.length > 1 ? (
+          <View
+            pointerEvents="none"
+            className="absolute left-0 right-0 z-10 flex-row justify-center gap-1.5"
+            style={{ top: contentTopInset + 24 }}
+          >
+            {media.map((item, index) => (
+              <View
+                key={item.id}
+                className={`h-1.5 rounded-full ${
+                  index === activeMediaIndex ? "w-5 bg-white" : "w-1.5 bg-white/50"
+                }`}
+              />
+            ))}
+          </View>
+        ) : null}
 
         <AnimatedLinearGradient
           pointerEvents="none"
@@ -350,6 +429,56 @@ export default function ContentPost({
             </TouchableOpacity>
             <PostAuthorFollowAction post={post} onMedia />
           </View>
+
+          {!!post.taggedUsers?.length && (
+            <View className="mb-3 flex-row items-center">
+              <View className="mr-2 flex-row">
+                {post.taggedUsers.slice(0, 3).map((person, index) => (
+                  <TouchableOpacity
+                    key={person.id}
+                    activeOpacity={0.8}
+                    style={{ marginLeft: index === 0 ? 0 : -8 }}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(users)/[id]",
+                        params: { id: person.id },
+                      })
+                    }
+                  >
+                    <View className="rounded-full border border-white/80">
+                      <Avatar
+                        uri={person.avatarUrl}
+                        username={person.username}
+                        size={27}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(users)/[id]",
+                    params: { id: post.taggedUsers![0].id },
+                  })
+                }
+              >
+                <Text
+                  numberOfLines={1}
+                  style={textShadow}
+                  className="max-w-56 text-sm font-semibold text-white"
+                >
+                  {post.taggedUsers.length === 1
+                    ? `${tCommon("taggedWith")} @${post.taggedUsers[0].username}`
+                    : tCommon("taggedWithMore", {
+                        name: `@${post.taggedUsers[0].username}`,
+                        count: post.taggedUsers.length - 1,
+                      })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {!!post.restaurant && (
             <TouchableOpacity

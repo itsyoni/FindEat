@@ -3,7 +3,7 @@
     "name": "FindEat",
     "slug": "mobile",
     "scheme": "findeat",
-    "version": "1.7.2",
+    "version": "1.9.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "FindEat uses your camera so you can capture food posts and profile photos.",
-        "NSPhotoLibraryUsageDescription": "FindEat uses your photo library so you can choose photos for posts and your profile."
+        "NSPhotoLibraryUsageDescription": "FindEat uses your photo library so you can choose photos and short videos for posts and your profile."
       }
     },
     "android": {
@@ -61,8 +61,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "FindEat uses your photo library so you can choose photos for posts, reviews, dishes, and your profile.",
-          "cameraPermission": "FindEat uses your camera so you can capture photos for posts and reviews."
+          "photosPermission": "FindEat uses your photo library so you can choose photos and short videos for posts, reviews, dishes, and your profile.",
+          "cameraPermission": "FindEat uses your camera so you can capture photos for posts and reviews.",
+          "microphonePermission": false
         }
       ],
       [

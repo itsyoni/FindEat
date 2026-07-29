@@ -2,8 +2,9 @@ import Avatar from "@/components/common/Avatar";
 import Text from "@/components/common/AppText";
 import TextInput from "@/components/common/inputs/AppTextInput";
 import { api } from "@/lib/api";
+import { getFreshDeviceLocation } from "@/lib/currentLocation";
+import { mergeRestaurantSearchResults } from "@/lib/restaurantSearchResults";
 import type { SelectedRestaurant } from "@findeat/types";
-import * as Location from "expo-location";
 import {
   CheckCircleIcon,
   MagnifyingGlassIcon,
@@ -37,30 +38,24 @@ export default function RestaurantSearch({
   selectedRestaurant,
   onSelect,
 }: Props) {
-  const { t } = useTranslation(["restaurants", "create"]);
+  const { t, i18n } = useTranslation(["restaurants", "create"]);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SelectedRestaurant[]>([]);
   const [nearbyResults, setNearbyResults] = useState<SelectedRestaurant[]>([]);
   const [searching, setSearching] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [locationUnavailable, setLocationUnavailable] = useState(false);
+  const [searchLocation, setSearchLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function loadNearby() {
       try {
-        const permission = await Location.requestForegroundPermissionsAsync();
-        if (permission.status !== "granted") {
-          if (active) setLocationUnavailable(true);
-          return;
-        }
-
-        const location =
-          (await Location.getLastKnownPositionAsync()) ??
-          (await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          }));
+        const location = await getFreshDeviceLocation();
 
         if (!location) {
           if (active) setLocationUnavailable(true);
@@ -72,13 +67,22 @@ export default function RestaurantSearch({
           longitude: location.coords.longitude,
           limit: 10,
         };
+        if (active) {
+          setSearchLocation({
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+          });
+        }
         const [findeatRequest, googleRequest] = await Promise.allSettled([
           api.restaurants.discoverForMap({
             ...coordinates,
             filter: "ALL",
             sort: "DISTANCE",
           }),
-          api.restaurants.nearbyGoogle(coordinates),
+          api.restaurants.nearbyGoogle({
+            ...coordinates,
+            languageCode: i18n.resolvedLanguage ?? i18n.language,
+          }),
         ]);
         const findeat =
           findeatRequest.status === "fulfilled" ? findeatRequest.value : [];
@@ -136,7 +140,7 @@ export default function RestaurantSearch({
     return () => {
       active = false;
     };
-  }, []);
+  }, [i18n.language, i18n.resolvedLanguage]);
 
   useEffect(() => {
     const cleanQuery = query.trim();
@@ -148,16 +152,15 @@ export default function RestaurantSearch({
     const timeout = setTimeout(() => {
       setSearching(true);
       void api.restaurants
-        .search(cleanQuery)
+        .search(cleanQuery, {
+          ...(searchLocation ?? {}),
+          languageCode: i18n.resolvedLanguage ?? i18n.language,
+        })
         .then((results) => {
           if (!active) return;
-          setSearchResults([
-            ...(results.findeat ?? []).map((restaurant) => ({
-              source: "FINDEAT" as const,
-              restaurant,
-            })),
-            ...(results.google ?? []),
-          ]);
+          setSearchResults(
+            mergeRestaurantSearchResults(results, cleanQuery),
+          );
         })
         .catch((error) => {
           console.error("restaurant search failed", error);
@@ -172,7 +175,7 @@ export default function RestaurantSearch({
       active = false;
       clearTimeout(timeout);
     };
-  }, [query]);
+  }, [i18n.language, i18n.resolvedLanguage, query, searchLocation]);
 
   if (selectedRestaurant) {
     const restaurant =

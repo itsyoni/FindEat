@@ -1,6 +1,7 @@
 import { EmptyState, Skeleton, SkeletonPulse } from "@/components/common";
 import Text from "@/components/common/AppText";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
+import SearchBar from "@/components/common/inputs/SearchBar";
 import PlaceListCard from "@/components/lists/PlaceListCard";
 import Avatar from "@/components/common/Avatar";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -9,7 +10,7 @@ import { api } from "@/lib/api";
 import type { PlaceListInvitation, PlaceListSummary } from "@findeat/types";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { FolderSimpleIcon, PlusIcon, UserPlusIcon } from "phosphor-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -31,6 +32,11 @@ export default function SavedListsScreen() {
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(create === "1");
   const [name, setName] = useState("");
+  const [query, setQuery] = useState("");
+  const [searchResponse, setSearchResponse] = useState<{
+    query: string;
+    lists: PlaceListSummary[];
+  } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +59,28 @@ export default function SavedListsScreen() {
     }, [load]),
   );
 
+  useEffect(() => {
+    const search = query.trim();
+    if (!search) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void api.placeLists
+        .mine(search)
+        .then((results) => {
+          if (!cancelled) setSearchResponse({ query: search, lists: results });
+        })
+        .catch(() => {
+          if (!cancelled) setSearchResponse({ query: search, lists: [] });
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
   async function createList() {
     const trimmed = name.trim();
     if (!trimmed || creating) return;
@@ -62,6 +90,7 @@ export default function SavedListsScreen() {
       setLists((current) => [created, ...current]);
       setName("");
       setShowCreate(false);
+      setQuery("");
       showToast(t("listCreated"));
     } catch {
       showToast(t("listCreateError"), { kind: "error" });
@@ -69,6 +98,17 @@ export default function SavedListsScreen() {
       setCreating(false);
     }
   }
+
+  const visibleLists = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    if (!search) return lists;
+    if (searchResponse?.query.toLocaleLowerCase() === search) {
+      return searchResponse.lists;
+    }
+    return lists.filter((list) =>
+      list.name.toLocaleLowerCase().includes(search),
+    );
+  }, [lists, query, searchResponse]);
 
   async function respondToInvitation(
     invitation: PlaceListInvitation,
@@ -109,19 +149,27 @@ export default function SavedListsScreen() {
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
           {t("myLists")}
         </Text>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t("createNewList")}
-          hitSlop={12}
-          onPress={() => setShowCreate((current) => !current)}
-          className="h-11 w-11 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950"
-        >
-          <PlusIcon size={22} color="#D97706" weight="bold" />
-        </TouchableOpacity>
+        <View className="h-11 w-11" />
       </View>
 
+      <SearchBar
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t("searchListsAndRestaurants")}
+        rightAccessory={
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("createNewList")}
+            onPress={() => setShowCreate((current) => !current)}
+            className="h-full aspect-square items-center justify-center rounded-2xl bg-brand"
+          >
+            <PlusIcon size={23} color="#FFF" weight="bold" />
+          </TouchableOpacity>
+        }
+      />
+
       {showCreate ? (
-        <View className="mx-5 mb-3 mt-2 flex-row items-center rounded-2xl border border-amber-200 bg-white p-2 dark:border-amber-900 dark:bg-gray-900">
+        <View className="mx-5 mb-3 flex-row items-center rounded-2xl border border-amber-200 bg-white p-2 dark:border-amber-900 dark:bg-gray-900">
           <TextInput
             autoFocus
             value={name}
@@ -169,7 +217,7 @@ export default function SavedListsScreen() {
         </SkeletonPulse>
       ) : (
         <FlatList
-          data={lists}
+          data={visibleLists}
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={{ justifyContent: "space-between" }}
@@ -191,7 +239,7 @@ export default function SavedListsScreen() {
             />
           )}
           ListHeaderComponent={
-            invitations.length ? (
+            invitations.length && !query.trim() ? (
               <View className="mb-4">
                 <View className="mb-2 flex-row items-center">
                   <UserPlusIcon size={19} color="#D97706" weight="fill" />
@@ -241,11 +289,21 @@ export default function SavedListsScreen() {
             ) : null
           }
           ListEmptyComponent={
-            <EmptyState
-              icon={FolderSimpleIcon}
-              title={t("noLists")}
-              description={t("noListsHint")}
-            />
+            query.trim() && searchResponse?.query !== query.trim() ? (
+              <View className="flex-1 items-center justify-center">
+                <ActivityIndicator color="#D97706" />
+              </View>
+            ) : (
+              <EmptyState
+                icon={FolderSimpleIcon}
+                title={t(query.trim() ? "noListSearchResults" : "noLists")}
+                description={t(
+                  query.trim()
+                    ? "noListSearchResultsHint"
+                    : "noListsHint",
+                )}
+              />
+            )
           }
           showsVerticalScrollIndicator={false}
         />

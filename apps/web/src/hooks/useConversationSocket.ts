@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { RestaurantMessage } from "@findeat/types";
 import { io } from "socket.io-client";
-import { API_URL } from "../lib/api";
+import { API_URL, getAccessToken } from "../lib/api";
 
 type ConversationSocketOptions = {
   conversationId: string | null;
@@ -18,8 +18,12 @@ export function useConversationSocket({
 }: ConversationSocketOptions) {
   useEffect(() => {
     if (!conversationId || !userId) return;
+    const token = getAccessToken();
+    if (!token) return;
 
-    const socket = io(API_URL, { auth: { userId } });
+    const socket = io(API_URL, {
+      auth: { token, trackPresence: false },
+    });
 
     socket.on("connect", () => {
       socket.emit("join_conversation", { conversationId });

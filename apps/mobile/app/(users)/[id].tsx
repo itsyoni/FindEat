@@ -157,19 +157,57 @@ export default function UserProfileScreen() {
         <SkeletonPulse>
           <View className="relative">
             <Skeleton height={240} radius={0} />
-            <SafeAreaView edges={["top"]} style={{ position: "absolute", top: 0, left: 0, right: 0 }}>
-              <View className="mt-2 flex-row justify-between px-4"><Skeleton width={44} height={44} circle /><Skeleton width={44} height={44} circle /></View>
+            <SafeAreaView
+              edges={["top"]}
+              style={{ position: "absolute", top: 0, left: 0, right: 0 }}
+            >
+              <View className="mt-2 flex-row justify-between px-4">
+                <Skeleton width={44} height={44} circle />
+                <Skeleton width={44} height={44} circle />
+              </View>
             </SafeAreaView>
           </View>
           <View className="-mt-7 items-center rounded-t-[30px] bg-white pb-5 dark:bg-black">
-            <Skeleton width={112} height={112} circle style={{ marginTop: -48 }} />
-            <Skeleton width="48%" height={23} radius={9} style={{ marginTop: 12 }} />
-            <Skeleton width="28%" height={13} radius={6} style={{ marginTop: 8 }} />
-            <View className="mt-5 w-full flex-row">{[0, 1, 2].map((item) => <View key={item} className="flex-1 items-center gap-2"><Skeleton width={38} height={19} radius={7} /><Skeleton width={58} height={11} radius={6} /></View>)}</View>
-            <View className="mt-5 w-full flex-row gap-3 px-5"><Skeleton width="48%" height={44} radius={12} /><Skeleton width="48%" height={44} radius={12} /></View>
+            <Skeleton
+              width={112}
+              height={112}
+              circle
+              style={{ marginTop: -48 }}
+            />
+            <Skeleton
+              width="48%"
+              height={23}
+              radius={9}
+              style={{ marginTop: 12 }}
+            />
+            <Skeleton
+              width="28%"
+              height={13}
+              radius={6}
+              style={{ marginTop: 8 }}
+            />
+            <View className="mt-5 w-full flex-row">
+              {[0, 1, 2].map((item) => (
+                <View key={item} className="flex-1 items-center gap-2">
+                  <Skeleton width={38} height={19} radius={7} />
+                  <Skeleton width={58} height={11} radius={6} />
+                </View>
+              ))}
+            </View>
+            <View className="mt-5 w-full flex-row gap-3 px-5">
+              <Skeleton width="48%" height={44} radius={12} />
+              <Skeleton width="48%" height={44} radius={12} />
+            </View>
           </View>
         </SkeletonPulse>
-        <Tabs activeTab="CONTENT" onChange={() => undefined} tabs={[{ label: t("common:content"), value: "CONTENT" }, { label: t("common:reviews"), value: "REVIEW" }]} />
+        <Tabs
+          activeTab="CONTENT"
+          onChange={() => undefined}
+          tabs={[
+            { label: t("common:content"), value: "CONTENT" },
+            { label: t("common:reviews"), value: "REVIEW" },
+          ]}
+        />
         <SkeletonList variant="grid" count={9} />
       </ScrollView>
     );
@@ -182,7 +220,12 @@ export default function UserProfileScreen() {
           className="ml-4 mt-2 h-11 w-11 items-center justify-center"
           onPress={() => router.back()}
         >
-          <DirectionalIcon direction="back" size={24} color="#6B7280" weight="bold" />
+          <DirectionalIcon
+            direction="back"
+            size={24}
+            color="#6B7280"
+            weight="bold"
+          />
         </TouchableOpacity>
         <View className="flex-1 items-center justify-center px-8 pb-20">
           <View className="h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
@@ -249,131 +292,169 @@ export default function UserProfileScreen() {
               activeOpacity={user.avatarUrl ? 0.8 : 1}
               disabled={!user.avatarUrl}
               accessibilityRole={user.avatarUrl ? "imagebutton" : undefined}
-              accessibilityLabel={user.avatarUrl ? "Open profile picture" : undefined}
+              accessibilityLabel={
+                user.avatarUrl ? "Open profile picture" : undefined
+              }
               onPress={() => setAvatarOpen(true)}
               className="rounded-full bg-white p-1.5 dark:bg-black"
             >
-              <Avatar uri={user.avatarUrl} username={user.username} size={100} />
+              <Avatar
+                uri={user.avatarUrl}
+                username={user.username}
+                size={100}
+              />
             </TouchableOpacity>
           </View>
-        <View className="items-center px-5">
-          <View className="mt-2 flex-row items-center justify-center gap-2 px-5">
-            <Text className="shrink text-2xl font-bold text-black dark:text-white">
-              {user.displayName || user.username}
+          <View className="items-center px-5">
+            <View className="mt-2 flex-row items-center justify-center gap-2 px-5">
+              <Text className="shrink text-2xl font-bold text-black dark:text-white">
+                {user.displayName || user.username}
+              </Text>
+              <ProfileDetails profile={user} />
+            </View>
+            <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+              @{user.username}
             </Text>
-            <ProfileDetails profile={user} />
-          </View>
-          <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-            @{user.username}
-          </Text>
-          <CreatorLevelBadge score={user.creatorScore} />
-          <ProfileTagBadge tag={user.selectedProfileTag} />
+            <CreatorLevelBadge score={user.creatorScore} />
+            <ProfileTagBadge tag={user.selectedProfileTag} />
 
-          <View className="w-full">
-            <ProfileManagedRestaurants memberships={user.restaurantMemberships} />
-          </View>
-
-          {!!user.bio && (
-            <Text className="mt-4 text-center text-base text-black dark:text-white">{user.bio}</Text>
-          )}
-
-          <View className="mt-5 w-full flex-row">
-            <View className="flex-1">
-              <Text className="text-center text-xl font-bold text-black dark:text-white">{user.postsCount}</Text>
-              <Text className="mt-1 text-center text-sm text-gray-500">{t("profile:posts")}</Text>
+            <View className="w-full">
+              <ProfileManagedRestaurants
+                memberships={user.restaurantMemberships}
+              />
             </View>
 
-            <TouchableOpacity
-              className="flex-1"
-              onPress={() =>
-                router.push({
-                  pathname: "/(users)/connections",
-                  params: { id: user.id, type: "followers" },
-                })
-              }
-            >
-              <Text className="text-center text-xl font-bold text-black dark:text-white">{user.followersCount}</Text>
-              <Text className="mt-1 text-center text-sm text-gray-500">{t("profile:followers")}</Text>
-            </TouchableOpacity>
+            {!!user.bio && (
+              <Text className="mt-4 text-center text-base text-black dark:text-white">
+                {user.bio}
+              </Text>
+            )}
 
-            <TouchableOpacity
-              className="flex-1"
-              onPress={() =>
-                router.push({
-                  pathname: "/(users)/connections",
-                  params: { id: user.id, type: "following" },
-                })
-              }
-            >
-              <Text className="text-center text-xl font-bold text-black dark:text-white">{user.followingCount}</Text>
-              <Text className="mt-1 text-center text-sm text-gray-500">{t("profile:following")}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="mt-5 w-full flex-row gap-2">
-            <RelationshipActionButton
-              className="rounded-xl py-2.5"
-              style={{ flex: 1, flexBasis: 0 }}
-              relationship={user.relationship}
-              label={getRelationshipButtonText(user.relationship)}
-              onPress={toggleFollow}
-              showIcon
-            />
-
-            <TouchableOpacity
-              className="items-center justify-center rounded-xl bg-[#F5F4F5] py-2.5 dark:bg-gray-800"
-              style={{ flex: 1, flexBasis: 0 }}
-              onPress={startChat}
-            >
-              <View className="flex-row items-center justify-center">
-                <ChatCircleIcon
-                  size={18}
-                  color={isDark ? "#FFFFFF" : "#171717"}
-                  weight="bold"
-                />
-                <Text className="ml-2 text-center font-bold text-black dark:text-white">
-                {t("profile:message")}
+            <View className="mt-5 w-full flex-row">
+              <View className="flex-1">
+                <Text className="text-center text-xl font-bold text-black dark:text-white">
+                  {user.postsCount}
+                </Text>
+                <Text className="mt-1 text-center text-sm text-gray-500">
+                  {t("profile:posts")}
                 </Text>
               </View>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {user.isPrivate && !user.canViewPrivateContent ? (
-          <View className="mt-7 min-h-80 items-center border-t border-line px-8 pt-10 dark:border-gray-800">
-            <View className="h-16 w-16 items-center justify-center rounded-full border-2 border-black dark:border-white">
-              <LockKeyIcon size={29} color={isDark ? "#FFF" : "#171717"} weight="fill" />
+              <TouchableOpacity
+                className="flex-1"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(users)/connections",
+                    params: { id: user.id, type: "followers" },
+                  })
+                }
+              >
+                <Text className="text-center text-xl font-bold text-black dark:text-white">
+                  {user.followersCount}
+                </Text>
+                <Text className="mt-1 text-center text-sm text-gray-500">
+                  {t("profile:followers")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="flex-1"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(users)/connections",
+                    params: { id: user.id, type: "following" },
+                  })
+                }
+              >
+                <Text className="text-center text-xl font-bold text-black dark:text-white">
+                  {user.followingCount}
+                </Text>
+                <Text className="mt-1 text-center text-sm text-gray-500">
+                  {t("profile:following")}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Text weight="bold" className="mt-4 text-xl text-black dark:text-white">{t("profile:privateAccount")}</Text>
-            <Text className="mt-2 text-center leading-5 text-gray-500">{t("profile:privateAccountHint")}</Text>
-          </View>
-        ) : <>
-        <Tabs
-          activeTab={activeFeed}
-          onChange={setActiveFeed}
-          tabs={[
-            { label: t("common:content"), value: "CONTENT" },
-            { label: t("common:reviews"), value: "REVIEW" },
-          ]}
-        />
 
-        <ProfilePostGrid
-          posts={posts}
-          type={activeFeed}
-          onPressPost={(postId) => {
-            router.push({
-              pathname:
-                activeFeed === "CONTENT"
-                  ? "/(users)/content-feed"
-                  : "/(users)/reviews-feed",
-              params: {
-                userId: user.id,
-                postId,
-              },
-            });
-          }}
-        />
-        </>}
+            <View className="mt-5 w-full flex-row gap-2">
+              <View className="flex-1">
+                <RelationshipActionButton
+                  className="w-full rounded-xl py-2.5"
+                  relationship={user.relationship}
+                  label={getRelationshipButtonText(user.relationship)}
+                  onPress={toggleFollow}
+                  showIcon
+                />
+              </View>
+
+              <View className="flex-1">
+                <TouchableOpacity
+                  className="w-full items-center justify-center rounded-xl bg-[#F5F4F5] py-2.5 dark:bg-gray-800"
+                  onPress={startChat}
+                >
+                  <View className="flex-row items-center justify-center">
+                    <ChatCircleIcon
+                      size={18}
+                      color={isDark ? "#FFFFFF" : "#171717"}
+                      weight="bold"
+                    />
+
+                    <Text className="ml-2 text-center font-bold text-black dark:text-white">
+                      {t("profile:message")}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {user.isPrivate && !user.canViewPrivateContent ? (
+            <View className="mt-7 min-h-80 items-center border-t border-line px-8 pt-10 dark:border-gray-800">
+              <View className="h-16 w-16 items-center justify-center rounded-full border-2 border-black dark:border-white">
+                <LockKeyIcon
+                  size={29}
+                  color={isDark ? "#FFF" : "#171717"}
+                  weight="fill"
+                />
+              </View>
+              <Text
+                weight="bold"
+                className="mt-4 text-xl text-black dark:text-white"
+              >
+                {t("profile:privateAccount")}
+              </Text>
+              <Text className="mt-2 text-center leading-5 text-gray-500">
+                {t("profile:privateAccountHint")}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Tabs
+                activeTab={activeFeed}
+                onChange={setActiveFeed}
+                tabs={[
+                  { label: t("common:content"), value: "CONTENT" },
+                  { label: t("common:reviews"), value: "REVIEW" },
+                ]}
+              />
+
+              <ProfilePostGrid
+                posts={posts}
+                type={activeFeed}
+                onPressPost={(postId) => {
+                  router.push({
+                    pathname:
+                      activeFeed === "CONTENT"
+                        ? "/(users)/content-feed"
+                        : "/(users)/reviews-feed",
+                    params: {
+                      userId: user.id,
+                      postId,
+                    },
+                  });
+                }}
+              />
+            </>
+          )}
         </View>
       </Animated.ScrollView>
 

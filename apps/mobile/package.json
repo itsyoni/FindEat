@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "1.7.2",
+  "version": "1.9.0",
   "scripts": {
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
@@ -62,6 +62,7 @@
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.6",
     "expo-system-ui": "~56.0.5",
+    "expo-video": "~56.1.4",
     "expo-web-browser": "~56.0.5",
     "i18next": "^26.3.4",
     "nativewind": "^5.0.0-preview.4",

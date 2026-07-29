@@ -7,6 +7,11 @@ export function postImageUrls(post?: Post | null, firstOnly = false) {
   if (!post) return [];
 
   if (post.type === "CONTENT") {
+    const images =
+      post.contentPost?.media
+        ?.map((item) => item.imageUrl)
+        .filter((url): url is string => !!url) ?? [];
+    if (images.length) return firstOnly ? images.slice(0, 1) : images;
     return post.contentPost?.imageUrl ? [post.contentPost.imageUrl] : [];
   }
 

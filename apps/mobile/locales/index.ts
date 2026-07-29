@@ -6,6 +6,7 @@ import enSettings from "./en/settings.json";
 import enMap from "./en/map.json";
 import enChat from "./en/chat.json";
 import enNotifications from "./en/notifications.json";
+import enSnaps from "./en/snaps.json";
 import enRestaurants from "./en/restaurants.json";
 import enCollaborativeReview from "./en/collaborativeReview.json";
 
@@ -17,6 +18,7 @@ import heSettings from "./he/settings.json";
 import heMap from "./he/map.json";
 import heChat from "./he/chat.json";
 import heNotifications from "./he/notifications.json";
+import heSnaps from "./he/snaps.json";
 import heRestaurants from "./he/restaurants.json";
 import heCollaborativeReview from "./he/collaborativeReview.json";
 
@@ -30,6 +32,7 @@ export const resources = {
     map: enMap,
     chat: enChat,
     notifications: enNotifications,
+    snaps: enSnaps,
     restaurants: enRestaurants,
     collaborativeReview: enCollaborativeReview,
   },
@@ -42,6 +45,7 @@ export const resources = {
     map: heMap,
     chat: heChat,
     notifications: heNotifications,
+    snaps: heSnaps,
     restaurants: heRestaurants,
     collaborativeReview: heCollaborativeReview,
   },

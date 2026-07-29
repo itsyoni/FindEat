@@ -144,9 +144,15 @@ export default function MenuItemScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <SkeletonPulse>
           <Skeleton height={384} radius={0} />
-          <View className="-mt-8 min-h-[430px] gap-5 rounded-t-[34px] bg-white px-5 pb-16 pt-8 dark:bg-black">
-            <View className="flex-row justify-between"><Skeleton width="62%" height={30} radius={10} /><Skeleton width={78} height={42} radius={21} /></View>
-            <View className="flex-row gap-2"><Skeleton width={84} height={30} radius={15} /><Skeleton width={70} height={30} radius={15} /></View>
+          <View className="-mt-8 min-h-107.5 gap-5 rounded-t-[34px] bg-white px-5 pb-16 pt-8 dark:bg-black">
+            <View className="flex-row justify-between">
+              <Skeleton width="62%" height={30} radius={10} />
+              <Skeleton width={78} height={42} radius={21} />
+            </View>
+            <View className="flex-row gap-2">
+              <Skeleton width={84} height={30} radius={15} />
+              <Skeleton width={70} height={30} radius={15} />
+            </View>
             <Skeleton height={82} radius={24} />
             <Skeleton height={132} radius={24} />
             <Skeleton width="42%" height={21} radius={8} />
@@ -209,7 +215,7 @@ export default function MenuItemScreen() {
           </View>
         )}
 
-        <View className="-mt-8 min-h-[430px] rounded-t-[34px] bg-white px-5 pb-16 pt-8 dark:bg-black">
+        <View className="-mt-8 min-h-107.5 rounded-t-[34px] bg-white px-5 pb-16 pt-8 dark:bg-black">
           <View className="flex-row items-center justify-between gap-5">
             <Text className="min-w-0 flex-1 text-3xl font-bold leading-9 text-black dark:text-white">
               {dish.name}
@@ -231,7 +237,9 @@ export default function MenuItemScreen() {
               >
                 <HeartIcon
                   size={22}
-                  color={dish.isFavorite ? "#E11D48" : isDark ? "#D1D5DB" : "#6B7280"}
+                  color={
+                    dish.isFavorite ? "#E11D48" : isDark ? "#D1D5DB" : "#6B7280"
+                  }
                   weight={dish.isFavorite ? "fill" : "regular"}
                 />
                 <Text
@@ -295,10 +303,7 @@ export default function MenuItemScreen() {
             )}
           </View>
 
-          <DishCompatibilityChips
-            compatibility={dish.compatibility}
-            detailed
-          />
+          <DishCompatibilityChips compatibility={dish.compatibility} detailed />
 
           <View className="mt-6 flex-row items-center rounded-3xl border border-line bg-soft p-4 dark:border-gray-800 dark:bg-gray-900">
             <View className="h-12 w-12 items-center justify-center rounded-full bg-brand-soft dark:bg-orange-950/60">
@@ -419,7 +424,12 @@ export default function MenuItemScreen() {
             onPress={() => router.back()}
             className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
           >
-            <DirectionalIcon direction="back" size={24} color="white" weight="bold" />
+            <DirectionalIcon
+              direction="back"
+              size={24}
+              color="white"
+              weight="bold"
+            />
           </TouchableOpacity>
         </View>
       </SafeAreaView>

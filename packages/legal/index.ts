@@ -15,7 +15,7 @@ export const LEGAL_URLS = {
 
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "FindEat Terms of Service",
-  effectiveDate: "July 23, 2026",
+  effectiveDate: "July 29, 2026",
   introduction: [
     'These Terms of Service ("Terms") govern your use of the FindEat mobile application, website, restaurant-management tools, and related services (collectively, the "Service").',
     "By creating an account, accessing, or using the Service, you agree to these Terms. If you do not agree, do not use the Service.",
@@ -168,7 +168,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       bullets: [
         "Account information, including email address, username, display name, encrypted password, language, and account settings.",
         "Optional profile information, including biography, profile and cover images, birthday, pronouns, allergies, dietary restrictions, food preferences, and favorite cuisines.",
-        "User content, including posts, reviews, ratings, photos, videos, captions, comments, replies, polls, saved places, folders, and drafts.",
+        "User content, including posts, reviews, ratings, photos, videos, captions, snaps, comments, replies, polls, saved places, folders, and drafts.",
         "Communications, including direct and group messages, mentions, support requests, reports, and responses to notifications.",
         "Restaurant and business information, including menus, dishes, prices, opening hours, contact details, photos, claim evidence, ownership information, and address-change requests.",
       ],
@@ -193,7 +193,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       ],
       bullets: [
         "Location: with permission, precise or approximate location may be processed to show nearby restaurants, calculate distance, center the map, and improve local suggestions. You can search manually without location access.",
-        "Camera: used when you choose to capture a post, review, dish, profile, or restaurant image.",
+        "Camera: used when you choose to capture a post, review, snap, dish, profile, or restaurant image.",
         "Photos and media library: used when you choose an existing image or video to upload.",
         "Notifications: used to deliver messages, activity, security, restaurant, and product-update notifications according to your choices.",
       ],
@@ -242,7 +242,8 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: "8. Retention, deactivation, and deletion",
       paragraphs: [
         "We retain information while your account is active and as needed to provide the Service. A deactivated account remains stored so it can be reactivated, while its profile and content are hidden.",
-        "When you permanently delete your account, FindEat removes your profile details, posts, reviews, uploaded profile and post media, follows, saves, notifications, support requests, and restaurant-management access. Messages are marked deleted and comments are cleared so other users' conversations and threads remain understandable without identifying you.",
+        "Snaps are visible for up to 24 hours. Expired snap records and their uploaded media are removed through automated cleanup when the Service is active.",
+        "When you permanently delete your account, FindEat removes your profile details, posts, reviews, snaps, uploaded profile and content media, follows, saves, notifications, support requests, and restaurant-management access. Messages are marked deleted and comments are cleared so other users' conversations and threads remain understandable without identifying you.",
         "Temporary copies may remain in backups until they are overwritten. We may retain limited security, fraud-prevention, transaction, or legal records when reasonably necessary or required by law.",
       ],
     },
