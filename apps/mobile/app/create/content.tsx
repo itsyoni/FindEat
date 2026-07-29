@@ -12,6 +12,10 @@ import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwar
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  createCombinedUploadProgress,
+  usePostUpload,
+} from "@/contexts/PostUploadContext";
 import { prependPostToFeedCache } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
@@ -20,6 +24,7 @@ import {
   type ContentMediaDraft,
   type ContentPostDraft,
   loadContentPostDraft,
+  persistContentMediaUri,
   saveContentPostDraft,
 } from "@/lib/postDrafts";
 import type {
@@ -27,7 +32,6 @@ import type {
   ReviewInviteeDraft,
   SelectedRestaurant,
 } from "@findeat/types";
-import { getErrorMessage } from "@findeat/utils";
 import {
   CameraView,
   useCameraPermissions,
@@ -45,6 +49,7 @@ import {
   LightningSlashIcon,
   LockIcon,
   StorefrontIcon,
+  PlusIcon,
   UsersThreeIcon,
   XIcon,
 } from "phosphor-react-native";
@@ -100,12 +105,14 @@ export default function CreateContentScreen() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { startPostUpload } = usePostUpload();
   const { width: screenWidth } = useWindowDimensions();
   const cameraRef = useRef<CameraView>(null);
   const cameraSessionRef = useRef(0);
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>("CAMERA");
   const [media, setMedia] = useState<ContentMediaDraft[]>([]);
+  const [previewMediaIndex, setPreviewMediaIndex] = useState(0);
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<PostVisibility>("PUBLIC");
   const [linkedPostId, setLinkedPostId] = useState<string | undefined>(
@@ -298,6 +305,23 @@ export default function CreateContentScreen() {
     setStep("CAMERA");
   }
 
+  function removePreviewMedia() {
+    const remainingMedia = media.filter(
+      (_, index) => index !== previewMediaIndex,
+    );
+    setMedia(remainingMedia);
+
+    if (remainingMedia.length === 0) {
+      setPreviewMediaIndex(0);
+      openCamera();
+      return;
+    }
+
+    setPreviewMediaIndex(
+      Math.min(previewMediaIndex, remainingMedia.length - 1),
+    );
+  }
+
   const setCameraZoom = useCallback((value: number) => {
     const next = Math.max(0, Math.min(0.6, value));
     setCameraZoomState(next);
@@ -388,7 +412,14 @@ export default function CreateContentScreen() {
       const photo = await cameraRef.current.takePictureAsync({
         quality: CAMERA_CAPTURE_QUALITY,
       });
-      selectPhoto(photo.uri, photo.width, photo.height);
+      const stableUri = user?.id
+        ? await persistContentMediaUri(
+            user.id,
+            photo.uri,
+            `camera-${Date.now()}`,
+          )
+        : photo.uri;
+      selectPhoto(stableUri ?? photo.uri, photo.width, photo.height);
     } catch (error) {
       console.error("camera capture failed", error);
     } finally {
@@ -398,25 +429,30 @@ export default function CreateContentScreen() {
     }
   }
 
-  async function openGallery() {
+  async function openGallery(options?: { append?: boolean }) {
     try {
+      const existingPhotos =
+        options?.append && media.every((item) => item.type === "IMAGE")
+          ? media
+          : [];
+      const remaining = Math.max(1, 10 - existingPhotos.length);
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsMultipleSelection: true,
         orderedSelection: true,
-        selectionLimit: 10,
+        selectionLimit: remaining,
         quality: 0.9,
       });
       if (result.canceled) return;
-      setMedia(
-        result.assets.slice(0, 10).map((asset, index) => ({
+      const selected = result.assets.slice(0, remaining).map((asset, index) => ({
           id: asset.assetId ?? `${Date.now()}-${index}`,
           type: "IMAGE",
           uri: asset.uri,
           width: asset.width,
           height: asset.height,
-        })),
-      );
+        }) satisfies ContentMediaDraft);
+      setMedia([...existingPhotos, ...selected].slice(0, 10));
+      setPreviewMediaIndex(0);
       setStep("DETAILS");
     } catch (error) {
       console.error("content image picker failed", error);
@@ -437,7 +473,9 @@ export default function CreateContentScreen() {
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      const durationMs = asset.duration ?? 0;
+      // iOS reports video duration as a floating-point millisecond value,
+      // while the API and database store whole milliseconds.
+      const durationMs = Math.ceil(asset.duration ?? 0);
       if (!durationMs || durationMs > 10_000) {
         Alert.alert(t("videoTooLongTitle"), t("videoTooLongBody"));
         return;
@@ -475,7 +513,7 @@ export default function CreateContentScreen() {
     return restaurant.id;
   }
 
-  async function publish() {
+  function publish() {
     if (
       !media.length ||
       !selectedRestaurant ||
@@ -485,77 +523,103 @@ export default function CreateContentScreen() {
       return;
     }
 
-    try {
-      setPublishing(true);
-      const restaurantId = await getRestaurantId();
-      if (!restaurantId) return;
-      const uploadedMedia = await Promise.all(
-        media.map(async (item) =>
-          item.type === "IMAGE"
-            ? {
-                type: "IMAGE" as const,
-                imageUrl: await uploadImage(item.uri, "post"),
-                width: item.width,
-                height: item.height,
-              }
-            : {
-                type: "VIDEO" as const,
-                videoUrl: await uploadVideo(item.uri),
-                width: item.width,
-                height: item.height,
-                durationMs: item.durationMs,
-              },
-        ),
-      );
-      const createdPost = await api.posts.createContent({
-        restaurantId,
-        description: description.trim(),
-        visibility,
-        linkedPostId,
-        taggedUserIds: taggedPeople.map((person) => person.id),
-        media: uploadedMedia,
-      });
-      publishCompletedRef.current = true;
-      draftSnapshotRef.current = null;
-      if (user?.id) {
-        try {
-          await clearPostDraft(user.id, "content");
-        } catch (error) {
-          console.error("Could not clear published content draft", error);
+    setPublishing(true);
+    publishCompletedRef.current = true;
+    draftSnapshotRef.current = null;
+
+    const pendingMedia = [...media];
+    const pendingDescription = description.trim();
+    const pendingVisibility = visibility;
+    const pendingLinkedPostId = linkedPostId;
+    const pendingTaggedUserIds = taggedPeople.map((person) => person.id);
+    const pendingUserId = user?.id;
+
+    startPostUpload({
+      kind: "content",
+      run: async (reportProgress) => {
+        reportProgress(0.04);
+        const restaurantId = await getRestaurantId();
+        if (!restaurantId) throw new Error(t("restaurantRequired"));
+
+        const reportMediaProgress = createCombinedUploadProgress(
+          pendingMedia.length,
+          reportProgress,
+        );
+        const uploadedMedia = await Promise.all(
+          pendingMedia.map(async (item, index) =>
+            item.type === "IMAGE"
+              ? {
+                  type: "IMAGE" as const,
+                  imageUrl: await uploadImage(
+                    item.uri,
+                    "post",
+                    reportMediaProgress(index),
+                  ),
+                  width: item.width,
+                  height: item.height,
+                }
+              : {
+                  type: "VIDEO" as const,
+                  videoUrl: await uploadVideo(
+                    item.uri,
+                    reportMediaProgress(index),
+                  ),
+                  width: item.width,
+                  height: item.height,
+                  durationMs: item.durationMs,
+                },
+          ),
+        );
+        reportProgress(0.94);
+        const createdPost = await api.posts.createContent({
+          restaurantId,
+          description: pendingDescription,
+          visibility: pendingVisibility,
+          linkedPostId: pendingLinkedPostId,
+          taggedUserIds: pendingTaggedUserIds,
+          media: uploadedMedia,
+        });
+        reportProgress(0.98);
+
+        if (pendingUserId) {
+          try {
+            await clearPostDraft(pendingUserId, "content");
+          } catch (error) {
+            console.error("Could not clear published content draft", error);
+          }
         }
-      }
-
-      prependPostToFeedCache(queryClient, createdPost);
-      router.dismissTo({
-        pathname: "/(tabs)",
-        params: {
-          feed: createdPost.type,
+        prependPostToFeedCache(queryClient, createdPost);
+        void queryClient.invalidateQueries({ queryKey: ["restaurant-posts"] });
+        return {
+          type: "post",
           postId: createdPost.id,
-          refresh: Date.now().toString(),
-        },
-      });
+          afterOpen: pendingLinkedPostId
+            ? undefined
+            : () => {
+                Alert.alert(
+                  t("addReviewPromptTitle"),
+                  t("addReviewPromptBody"),
+                  [
+                    { text: t("maybeLater"), style: "cancel" },
+                    {
+                      text: t("writeFullReview"),
+                      onPress: () =>
+                        router.push({
+                          pathname: "/create/review",
+                          params: {
+                            restaurantId,
+                            linkedPostId: createdPost.id,
+                          },
+                        }),
+                    },
+                  ],
+                );
+              },
+        };
+      },
+    });
 
-      if (!linkedPostId) {
-        setTimeout(() => {
-          Alert.alert(t("addReviewPromptTitle"), t("addReviewPromptBody"), [
-            { text: t("maybeLater"), style: "cancel" },
-            {
-              text: t("writeFullReview"),
-              onPress: () =>
-                router.push({
-                  pathname: "/create/review",
-                  params: { restaurantId, linkedPostId: createdPost.id },
-                }),
-            },
-          ]);
-        }, 450);
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert(t("publishError"), getErrorMessage(error, t("publishErrorBody")));
-    } finally {
-      setPublishing(false);
-    }
+    router.dismissTo("/(tabs)");
   }
 
   async function handleSaveDraft() {
@@ -710,6 +774,8 @@ export default function CreateContentScreen() {
                 <View className="flex-row items-center justify-between px-2">
                 <View className="flex-row gap-2">
                   <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t("choosePhotos")}
                     onPress={() => void openGallery()}
                     className="h-12 w-12 items-center justify-center rounded-2xl bg-black/50"
                   >
@@ -821,12 +887,13 @@ export default function CreateContentScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 accessibilityRole="button"
+                accessibilityLabel={t("choosePhotos")}
                 onPress={() => void openGallery()}
                 className="w-full flex-row items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4"
               >
                 <ImagesSquareIcon size={21} color="#F7D786" weight="fill" />
                 <Text className="ml-2 text-center text-base font-bold text-white">
-                  {t("chooseFromGallery")}
+                  {t("choosePhotos")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -946,6 +1013,14 @@ export default function CreateContentScreen() {
                 data={media}
                 keyExtractor={(item) => item.id}
                 showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(event) =>
+                  setPreviewMediaIndex(
+                    Math.round(
+                      event.nativeEvent.contentOffset.x /
+                        (screenWidth * 0.72),
+                    ),
+                  )
+                }
                 renderItem={({ item, index }) => (
                   <View
                     style={{
@@ -977,11 +1052,24 @@ export default function CreateContentScreen() {
               />
 
               <TouchableOpacity
-                onPress={() => setMedia([])}
+                onPress={removePreviewMedia}
                 className="absolute left-4 top-4 h-9 w-9 items-center justify-center rounded-full bg-black/65"
               >
                 <XIcon size={18} color="white" weight="bold" />
               </TouchableOpacity>
+
+              {media[0].type === "IMAGE" && media.length < 10 ? (
+                <TouchableOpacity
+                  onPress={() => void openGallery({ append: true })}
+                  className="absolute bottom-4 left-4 flex-row items-center rounded-full border border-white/25 px-3 py-2.5"
+                  style={{ backgroundColor: "rgba(0, 0, 0, 0.62)" }}
+                >
+                  <PlusIcon size={17} color="white" weight="bold" />
+                  <Text className="ml-1.5 text-sm font-bold text-white">
+                    {t("addPhotos")}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
 
               <TouchableOpacity
                 onPress={() =>

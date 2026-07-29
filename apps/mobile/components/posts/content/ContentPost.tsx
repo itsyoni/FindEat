@@ -295,7 +295,7 @@ export default function ContentPost({
                     uri={item.imageUrl}
                     thumbnailUrl={item.thumbnailUrl}
                     style={{ width: "100%", height: "100%" }}
-                    resizeMode="contain"
+                    resizeMode="cover"
                     onDoubleTap={handleDoubleTapLike}
                     onPinchStart={onPinchStart}
                     onPinchEnd={onPinchEnd}

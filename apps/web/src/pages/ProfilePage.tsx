@@ -10,6 +10,7 @@ import {
   OpeningHoursEditor,
   normalizeOpeningHours,
 } from "../components/OpeningHoursEditor";
+import { ImageCropDialog } from "../components/ImageCropDialog";
 
 export function ProfilePage({
   restaurant,
@@ -38,6 +39,10 @@ export function ProfilePage({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(restaurant.logoUrl || "");
   const [coverPreview, setCoverPreview] = useState(restaurant.coverUrl || "");
+  const [cropRequest, setCropRequest] = useState<{
+    file: File;
+    type: "logo" | "cover";
+  } | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [proposedAddress, setProposedAddress] = useState("");
   const [addressReason, setAddressReason] = useState("");
@@ -48,18 +53,19 @@ export function ProfilePage({
 
   function selectImage(file: File | undefined, type: "logo" | "cover") {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const preview = typeof reader.result === "string" ? reader.result : "";
-      if (type === "logo") {
-        setLogoFile(file);
-        setLogoPreview(preview);
-      } else {
-        setCoverFile(file);
-        setCoverPreview(preview);
-      }
-    };
-    reader.readAsDataURL(file);
+    setCropRequest({ file, type });
+  }
+
+  function useCroppedImage(file: File, previewUrl: string) {
+    if (!cropRequest) return;
+    if (cropRequest.type === "logo") {
+      setLogoFile(file);
+      setLogoPreview(previewUrl);
+    } else {
+      setCoverFile(file);
+      setCoverPreview(previewUrl);
+    }
+    setCropRequest(null);
   }
 
   async function save(event: FormEvent) {
@@ -154,7 +160,10 @@ export function ProfilePage({
                 type="file"
                 accept="image/*"
                 onChange={(event) =>
-                  selectImage(event.target.files?.[0], "cover")
+                  {
+                    selectImage(event.target.files?.[0], "cover");
+                    event.target.value = "";
+                  }
                 }
               />
               <span>{coverFile ? "Cover selected" : "Change cover"}</span>
@@ -174,7 +183,10 @@ export function ProfilePage({
                   type="file"
                   accept="image/*"
                   onChange={(event) =>
-                    selectImage(event.target.files?.[0], "logo")
+                    {
+                      selectImage(event.target.files?.[0], "logo");
+                      event.target.value = "";
+                    }
                   }
                 />
                 <span>{logoFile ? "Logo selected" : "Change logo"}</span>
@@ -342,6 +354,14 @@ export function ProfilePage({
           </button>
         </div>
       </form>
+      {cropRequest && (
+        <ImageCropDialog
+          file={cropRequest.file}
+          kind={cropRequest.type}
+          onCancel={() => setCropRequest(null)}
+          onComplete={useCroppedImage}
+        />
+      )}
     </div>
   );
 }

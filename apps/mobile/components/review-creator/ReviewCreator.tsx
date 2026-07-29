@@ -1,6 +1,5 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { api } from "@/lib/api";
-import { getErrorMessage } from "@findeat/utils";
 import { uploadImage } from "@/lib/uploadImage";
 import { Dish } from "@findeat/types";
 import {
@@ -28,6 +27,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/contexts/ToastContext";
 import {
+  createCombinedUploadProgress,
+  usePostUpload,
+} from "@/contexts/PostUploadContext";
+import {
   clearPostDraft,
   loadReviewPostDraft,
   type ReviewPostDraft,
@@ -53,6 +56,7 @@ export default function ReviewCreator({
   const { refreshUser, user } = useAuth();
   const { t } = useTranslation("create");
   const { showToast } = useToast();
+  const { startPostUpload } = usePostUpload();
   const [step, setStep] = useState<CreateReviewStep>("RESTAURANT");
   const [draft, setDraft] = useState<CreateReviewDraft>(initialDraft);
   const [loading, setLoading] = useState(false);
@@ -273,7 +277,7 @@ export default function ReviewCreator({
     return restaurant.id;
   }
 
-  async function publishReview() {
+  function publishReview() {
     if (publishCompletedRef.current) return;
 
     if (!draft.restaurant) {
@@ -281,106 +285,124 @@ export default function ReviewCreator({
       return;
     }
 
-    const overallRating = calculateOverallRating();
+    setLoading(true);
+    publishCompletedRef.current = true;
+    draftSnapshotRef.current = null;
 
-    try {
-      setLoading(true);
+    const pendingDraft = {
+      ...draft,
+      items: draft.items.map((item) => ({ ...item })),
+      participants: [...draft.participants],
+    };
+    const pendingOverallRating = calculateOverallRating();
+    const pendingUserId = user?.id;
+    const uploadCount =
+      (pendingDraft.coverImageUri ? 1 : 0) +
+      pendingDraft.items.filter((item) => !!item.imageUri).length;
 
-      const restaurantId = await getRestaurantId();
+    startPostUpload({
+      kind: "review",
+      run: async (reportProgress) => {
+        reportProgress(0.04);
+        const restaurantId = await getRestaurantId();
+        if (!restaurantId) throw new Error(t("missingRestaurantBody"));
 
-      if (!restaurantId) {
-        Alert.alert(t("missingRestaurantTitle"), t("missingRestaurantBody"));
-        return;
-      }
+        const reportMediaProgress = createCombinedUploadProgress(
+          uploadCount,
+          reportProgress,
+        );
+        let uploadIndex = 0;
+        const coverImageUrl = pendingDraft.coverImageUri
+          ? await uploadImage(
+              pendingDraft.coverImageUri,
+              "review",
+              reportMediaProgress(uploadIndex++),
+            )
+          : undefined;
 
-      const coverImageUrl = draft.coverImageUri
-        ? await uploadImage(draft.coverImageUri, "review")
-        : undefined;
+        const uploadedItems = await Promise.all(
+          pendingDraft.items.map(async (item) => {
+            const progress =
+              item.imageUri
+                ? reportMediaProgress(uploadIndex++)
+                : undefined;
+            return {
+              menuItemId: item.menuItemId,
+              customDishName: item.customDishName?.trim() || undefined,
+              customPrice: item.customPrice,
+              imageUrl:
+                item.imageUri && progress
+                  ? await uploadImage(item.imageUri, "dish", progress)
+                  : undefined,
+              rating: item.rating,
+              text: item.text.trim(),
+              order: item.order,
+            };
+          }),
+        );
+        if (uploadCount === 0) reportProgress(0.9);
+        reportProgress(0.94);
+        const createdPost = await api.posts.createReview({
+          restaurantId,
+          visibility: pendingDraft.visibility,
+          coverImageUrl,
+          overallRating: pendingOverallRating,
+          summary: pendingDraft.summary.trim() || undefined,
+          atmosphereRating: pendingDraft.atmosphereRating,
+          serviceRating: pendingDraft.serviceRating,
+          valueRating: pendingDraft.valueRating,
+          linkedPostId: pendingDraft.linkedPostId,
+          participantIds: pendingDraft.participants.map(
+            (participant) => participant.id,
+          ),
+          items: uploadedItems,
+        });
+        reportProgress(0.98);
 
-      const uploadedItems = await Promise.all(
-        draft.items.map(async (item) => ({
-          menuItemId: item.menuItemId,
-          customDishName: item.customDishName?.trim() || undefined,
-          customPrice: item.customPrice,
-          imageUrl: item.imageUri
-            ? await uploadImage(item.imageUri, "dish")
-            : undefined,
-          rating: item.rating,
-          text: item.text.trim(),
-          order: item.order,
-        })),
-      );
-
-      const createdPost = await api.posts.createReview({
-        restaurantId,
-        visibility: draft.visibility,
-        coverImageUrl,
-        overallRating,
-        summary: draft.summary.trim() || undefined,
-        atmosphereRating: draft.atmosphereRating,
-        serviceRating: draft.serviceRating,
-        valueRating: draft.valueRating,
-        linkedPostId: draft.linkedPostId,
-        participantIds: draft.participants.map(
-          (participant) => participant.id,
-        ),
-        items: uploadedItems,
-      });
-      publishCompletedRef.current = true;
-      draftSnapshotRef.current = null;
-      if (user?.id) {
-        try {
-          await clearPostDraft(user.id, "review");
-        } catch (error) {
-          console.error("Could not clear published review draft", error);
+        if (pendingUserId) {
+          try {
+            await clearPostDraft(pendingUserId, "review");
+          } catch (error) {
+            console.error("Could not clear published review draft", error);
+          }
         }
-      }
-
-      updateRestaurantStatusInFeedCache(queryClient, restaurantId, {
-        visited: true,
-        wantToTry: false,
-      });
-      prependPostToFeedCache(queryClient, createdPost);
-      void queryClient.invalidateQueries({ queryKey: ["restaurant-posts"] });
-      void refreshUser();
-
-      router.dismissTo({
-        pathname: "/(tabs)",
-        params: {
-          feed: createdPost.type,
+        updateRestaurantStatusInFeedCache(queryClient, restaurantId, {
+          visited: true,
+          wantToTry: false,
+        });
+        prependPostToFeedCache(queryClient, createdPost);
+        void queryClient.invalidateQueries({ queryKey: ["restaurant-posts"] });
+        void refreshUser();
+        return {
+          type: "post",
           postId: createdPost.id,
-          refresh: Date.now().toString(),
-        },
-      });
-
-      if (!draft.linkedPostId) {
-        setTimeout(() => {
-          Alert.alert(
-            t("addContentPromptTitle"),
-            t("addContentPromptBody"),
-            [
-              { text: t("done"), style: "cancel" },
-              {
-                text: t("addQuickPost"),
-                onPress: () =>
-                  router.push({
-                    pathname: "/create/content",
-                    params: { restaurantId, linkedPostId: createdPost.id },
-                  }),
+          afterOpen: pendingDraft.linkedPostId
+            ? undefined
+            : () => {
+                Alert.alert(
+                  t("addContentPromptTitle"),
+                  t("addContentPromptBody"),
+                  [
+                    { text: t("done"), style: "cancel" },
+                    {
+                      text: t("addQuickPost"),
+                      onPress: () =>
+                        router.push({
+                          pathname: "/create/content",
+                          params: {
+                            restaurantId,
+                            linkedPostId: createdPost.id,
+                          },
+                        }),
+                    },
+                  ],
+                );
               },
-            ],
-          );
-        }, 450);
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert(
-        t("publishError"),
-        getErrorMessage(error, t("reviewPublishErrorBody")),
-      );
-    } finally {
-      setLoading(false);
-    }
+        };
+      },
+    });
+
+    router.dismissTo("/(tabs)");
   }
 
   async function handleSaveDraft() {

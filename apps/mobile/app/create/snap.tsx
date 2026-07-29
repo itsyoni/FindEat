@@ -7,6 +7,7 @@ import { AppAlert as Alert } from "@/lib/appAlert";
 import { uploadImage } from "@/lib/uploadImage";
 import type { SelectedRestaurant } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePostUpload } from "@/contexts/PostUploadContext";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
@@ -16,7 +17,7 @@ import {
   MapPinIcon,
   PaperPlaneTiltIcon,
 } from "phosphor-react-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -31,11 +32,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function CreateSnapScreen() {
   const { t } = useTranslation(["snaps", "common"]);
   const queryClient = useQueryClient();
+  const { startPostUpload } = usePostUpload();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [restaurant, setRestaurant] = useState<SelectedRestaurant | null>(null);
   const [choosingRestaurant, setChoosingRestaurant] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const publishStartedRef = useRef(false);
 
   async function takePhoto() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -62,40 +65,51 @@ export default function CreateSnapScreen() {
     if (!result.canceled) setImageUri(result.assets[0].uri);
   }
 
-  async function publish() {
-    if (!imageUri || publishing) return;
+  function publish() {
+    if (!imageUri || publishing || publishStartedRef.current) return;
 
-    try {
-      setPublishing(true);
-      const imageUrl = await uploadImage(imageUri, "snap");
-      const restaurantId =
-        restaurant?.source === "FINDEAT"
-          ? restaurant.restaurant.id
-          : restaurant?.source === "GOOGLE"
-            ? (
-                await api.restaurants.fromGoogle({
-                  name: restaurant.name,
-                  address: restaurant.address,
-                  latitude: restaurant.latitude,
-                  longitude: restaurant.longitude,
-                  googlePlaceId: restaurant.googlePlaceId,
-                })
-              ).id
-            : undefined;
+    setPublishing(true);
+    publishStartedRef.current = true;
+    const pendingImageUri = imageUri;
+    const pendingCaption = caption.trim() || undefined;
+    const pendingRestaurant = restaurant;
 
-      await api.snaps.create({
-        imageUrl,
-        caption: caption.trim() || undefined,
-        restaurantId,
-      });
-      await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
-      router.dismissTo("/(tabs)");
-    } catch (error) {
-      console.error("Could not publish snap", error);
-      Alert.alert(t("common:error"), t("snaps:publishError"));
-    } finally {
-      setPublishing(false);
-    }
+    startPostUpload({
+      kind: "snap",
+      run: async (reportProgress) => {
+        reportProgress(0.04);
+        const imageUrl = await uploadImage(
+          pendingImageUri,
+          "snap",
+          (progress) => reportProgress(0.08 + progress * 0.78),
+        );
+        reportProgress(0.88);
+        const restaurantId =
+          pendingRestaurant?.source === "FINDEAT"
+            ? pendingRestaurant.restaurant.id
+            : pendingRestaurant?.source === "GOOGLE"
+              ? (
+                  await api.restaurants.fromGoogle({
+                    name: pendingRestaurant.name,
+                    address: pendingRestaurant.address,
+                    latitude: pendingRestaurant.latitude,
+                    longitude: pendingRestaurant.longitude,
+                    googlePlaceId: pendingRestaurant.googlePlaceId,
+                  })
+                ).id
+              : undefined;
+
+        reportProgress(0.94);
+        const createdSnap = await api.snaps.create({
+          imageUrl,
+          caption: pendingCaption,
+          restaurantId,
+        });
+        void queryClient.invalidateQueries({ queryKey: snapsQueryKey });
+        return { type: "snap", userId: createdSnap.user.id };
+      },
+    });
+    router.dismissTo("/(tabs)");
   }
 
   if (choosingRestaurant) {

@@ -95,6 +95,14 @@ async function keepDraftImage(
   return destination;
 }
 
+export async function persistContentMediaUri(
+  userId: string,
+  uri: string,
+  name: string,
+) {
+  return keepDraftImage(uri, userId, "content", name);
+}
+
 async function existingImage(uri: string | undefined) {
   if (!uri) return undefined;
   const info = await FileSystem.getInfoAsync(uri);

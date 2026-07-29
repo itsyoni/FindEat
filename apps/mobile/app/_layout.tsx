@@ -30,6 +30,7 @@ import {
 import { SaveToListsProvider } from "@/contexts/SaveToListsContext";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import PresenceConnection from "@/components/presence/PresenceConnection";
+import { PostUploadProvider } from "@/contexts/PostUploadContext";
 
 // The reduced-motion override intentionally emits a warning whenever it
 // mounts. Keep genuine Reanimated errors visible without noisy dev notices.
@@ -83,15 +84,17 @@ export default function RootLayout() {
                 <QueryClientProvider client={queryClient}>
                   <AuthProvider>
                     <ToastProvider>
-                      <NotificationProvider>
-                        <BottomSheetModalProvider>
-                          <AccessibilityMotionConfig />
-                          <SaveToListsProvider>
-                            <RootNavigator />
-                          </SaveToListsProvider>
-                          <PortalHost name="pinch-zoom" />
-                        </BottomSheetModalProvider>
-                      </NotificationProvider>
+                      <PostUploadProvider>
+                        <NotificationProvider>
+                          <BottomSheetModalProvider>
+                            <AccessibilityMotionConfig />
+                            <SaveToListsProvider>
+                              <RootNavigator />
+                            </SaveToListsProvider>
+                            <PortalHost name="pinch-zoom" />
+                          </BottomSheetModalProvider>
+                        </NotificationProvider>
+                      </PostUploadProvider>
                     </ToastProvider>
                   </AuthProvider>
                 </QueryClientProvider>

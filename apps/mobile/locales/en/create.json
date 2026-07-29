@@ -195,6 +195,8 @@
   "privateTagPeopleTitle": "Remove tagged people?",
   "privateTagPeopleBody": "A private post is visible only to you. Making it private will remove the people you selected.",
   "chooseShortVideo": "Choose a short video",
+  "choosePhotos": "Choose up to 10 photos",
+  "addPhotos": "Add photos",
   "changeMedia": "Change",
   "videoTooLongTitle": "Video is too long",
   "videoTooLongBody": "Choose a video that is 10 seconds or shorter.",

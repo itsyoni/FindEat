@@ -1,10 +1,11 @@
 import { apiClient } from '@/lib/api';
 import type { MediaPurpose, MediaUploadTicket } from '@findeat/types';
-import { fetch as expoFetch } from 'expo/fetch';
 import { File } from 'expo-file-system';
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
+
+export type UploadProgressCallback = (progress: number) => void;
 
 function inferContentType(file: File, kind: "image" | "video") {
   if (kind === "video") {
@@ -34,6 +35,7 @@ function inferContentType(file: File, kind: "image" | "video") {
 export async function uploadImage(
   uri: string,
   purpose: MediaPurpose = 'other',
+  onProgress?: UploadProgressCallback,
 ) {
   const file = new File(uri);
   if (!file.exists || file.size <= 0) throw new Error('Image file is unavailable.');
@@ -49,16 +51,26 @@ export async function uploadImage(
     purpose,
   });
 
-  const response = await expoFetch(data.uploadUrl, {
-    method: 'PUT',
+  const task = file.createUploadTask(data.uploadUrl, {
+    httpMethod: 'PUT',
     headers: data.headers,
-    body: file,
+    sessionType: 'background',
+    onProgress: ({ bytesSent, totalBytes }) => {
+      if (totalBytes > 0) onProgress?.(bytesSent / totalBytes);
+    },
   });
-  if (!response.ok) throw new Error('Could not upload image. Please try again.');
+  const response = await task.uploadAsync();
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error('Could not upload image. Please try again.');
+  }
+  onProgress?.(1);
   return data.imageUrl;
 }
 
-export async function uploadVideo(uri: string) {
+export async function uploadVideo(
+  uri: string,
+  onProgress?: UploadProgressCallback,
+) {
   const file = new File(uri);
   if (!file.exists || file.size <= 0) throw new Error("Video file is unavailable.");
   if (file.size > MAX_VIDEO_BYTES) {
@@ -72,11 +84,18 @@ export async function uploadVideo(uri: string) {
     fileName: file.name,
     purpose: "post",
   });
-  const response = await expoFetch(data.uploadUrl, {
-    method: "PUT",
+  const task = file.createUploadTask(data.uploadUrl, {
+    httpMethod: "PUT",
     headers: data.headers,
-    body: file,
+    sessionType: "background",
+    onProgress: ({ bytesSent, totalBytes }) => {
+      if (totalBytes > 0) onProgress?.(bytesSent / totalBytes);
+    },
   });
-  if (!response.ok) throw new Error("Could not upload video. Please try again.");
+  const response = await task.uploadAsync();
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error("Could not upload video. Please try again.");
+  }
+  onProgress?.(1);
   return data.mediaUrl ?? data.imageUrl;
 }

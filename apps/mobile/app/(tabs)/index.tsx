@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { CommentsBottomSheet } from "@/components/common";
 import ContentFeedList from "@/components/posts/content/ContentFeed";
@@ -250,16 +251,17 @@ export default function HomeScreen() {
   const iconShadow = {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.75,
+    shadowOpacity: 0.35,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 6,
   };
   const titleShadow = {
-    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowColor: "#000",
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 5,
+    textShadowRadius: 8,
   };
   const overlayInset = insets.top + (snapsCollapsed ? 72 : 150);
+  const headerGradientHeight = overlayInset + 96;
 
   return (
     <View
@@ -339,9 +341,25 @@ export default function HomeScreen() {
 
           <View
             pointerEvents="box-none"
-            className="absolute left-0 right-0 z-20"
-            style={{ top: insets.top }}
+            className="absolute left-0 right-0 top-0 z-20"
           >
+            <LinearGradient
+              pointerEvents="none"
+              colors={[
+                "rgba(0,0,0,0.5)",
+                "rgba(0,0,0,0.25)",
+                "rgba(0,0,0,0.1)",
+                "transparent",
+              ]}
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                height: headerGradientHeight,
+              }}
+            />
+            <View style={{ marginTop: insets.top }}>
             <View className={snapsCollapsed ? "h-6" : ""}>
               {!snapsCollapsed ? <SnapsTray overlay /> : null}
               <TouchableOpacity
@@ -433,6 +451,7 @@ export default function HomeScreen() {
                 ) : null}
               </TouchableOpacity>
 
+            </View>
             </View>
           </View>
           <PostOptionsBottomSheet
