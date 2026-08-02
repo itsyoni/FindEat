@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { CommentsBottomSheet } from "@/components/common";
 import ContentFeedList from "@/components/posts/content/ContentFeed";
@@ -23,7 +22,12 @@ import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeInUp,
+  FadeOut,
+  FadeOutUp,
+} from "react-native-reanimated";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -35,7 +39,6 @@ import { useNotificationUnreadCount } from "@/hooks/useNotifications";
 import {
   BellIcon,
   CaretDownIcon,
-  CaretUpIcon,
   MagnifyingGlassIcon,
 } from "phosphor-react-native";
 import SnapsTray from "@/components/snaps/SnapsTray";
@@ -61,7 +64,10 @@ export default function HomeScreen() {
     longitude: number;
   } | null>(null);
 
-  const feed = useFeed(activeFeed, !!user && !authLoading);
+  const feedsEnabled = !!user && !authLoading;
+  const contentFeed = useFeed("CONTENT", feedsEnabled);
+  const reviewFeed = useFeed("REVIEW", feedsEnabled);
+  const feed = activeFeed === "CONTENT" ? contentFeed : reviewFeed;
   const posts = useMemo(
     () => feed.data?.pages.flatMap((page) => page.items) ?? [],
     [feed.data],
@@ -256,16 +262,21 @@ export default function HomeScreen() {
     elevation: 6,
   };
   const titleShadow = {
-    textShadowColor: "#000",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   };
-  const overlayInset = insets.top + (snapsCollapsed ? 72 : 150);
-  const headerGradientHeight = overlayInset + 96;
+  const topBarInset = insets.top + 56;
+  const contentCardTopInset = snapsCollapsed ? 0 : insets.top + 150;
+  const contentControlsTopInset = snapsCollapsed ? topBarInset : 0;
 
   return (
     <View
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{
+        flex: 1,
+        backgroundColor:
+          activeFeed === "CONTENT" ? "#000" : isDark ? "#000" : "#FBFAF8",
+      }}
     >
       {isSearching ? (
         <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
@@ -300,7 +311,8 @@ export default function HomeScreen() {
                 <ContentFeedList
                   posts={posts}
                   height={feedHeight}
-                  contentTopInset={overlayInset}
+                  contentTopInset={contentCardTopInset}
+                  controlsTopInset={contentControlsTopInset}
                   refreshing={feed.isRefetching && !feed.isFetchingNextPage}
                   onRefresh={onRefresh}
                   onEndReached={() => {
@@ -316,11 +328,16 @@ export default function HomeScreen() {
                   onDeletePost={deletePost}
                   onOpenSharePost={setSharePostId}
                   onOpenPostOptions={setOptionsPostId}
+                  consumeFirstScroll={!snapsCollapsed}
+                  onConsumeFirstScroll={() => setSnapsCollapsed(true)}
+                  reopenSnapsOnTopPull={snapsCollapsed}
+                  onReopenSnaps={() => setSnapsCollapsed(false)}
                 />
               ) : (
                 <ReviewFeed
                   posts={posts}
-                  contentTopInset={overlayInset}
+                  contentTopInset={topBarInset}
+                  header={<SnapsTray hideDivider />}
                   refreshing={feed.isRefetching && !feed.isFetchingNextPage}
                   onRefresh={onRefresh}
                   onEndReached={() => {
@@ -341,57 +358,9 @@ export default function HomeScreen() {
 
           <View
             pointerEvents="box-none"
-            className="absolute left-0 right-0 top-0 z-20"
+            className="absolute left-0 right-0 z-20"
+            style={{ top: insets.top }}
           >
-            <LinearGradient
-              pointerEvents="none"
-              colors={[
-                "rgba(0,0,0,0.5)",
-                "rgba(0,0,0,0.25)",
-                "rgba(0,0,0,0.1)",
-                "transparent",
-              ]}
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: 0,
-                height: headerGradientHeight,
-              }}
-            />
-            <View style={{ marginTop: insets.top }}>
-            <View className={snapsCollapsed ? "h-6" : ""}>
-              {!snapsCollapsed ? <SnapsTray overlay /> : null}
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t(
-                  snapsCollapsed ? "expandSnaps" : "collapseSnaps",
-                )}
-                onPress={() => setSnapsCollapsed((current) => !current)}
-                className={`absolute items-center justify-center ${
-                  snapsCollapsed
-                    ? "inset-x-0 top-0 h-6"
-                    : "bottom-0 right-4 h-8 w-8"
-                }`}
-              >
-                {snapsCollapsed ? (
-                  <CaretDownIcon
-                    size={22}
-                    color="#FFF"
-                    weight="bold"
-                    style={iconShadow}
-                  />
-                ) : (
-                  <CaretUpIcon
-                    size={22}
-                    color="#FFF"
-                    weight="bold"
-                    style={iconShadow}
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
-
             <View className="h-14 flex-row items-center px-4">
               <TouchableOpacity
                 accessibilityRole="button"
@@ -425,7 +394,7 @@ export default function HomeScreen() {
                         {t(type === "CONTENT" ? "content" : "reviews")}
                       </Text>
                       {active ? (
-                        <View className="mt-1 h-0.5 rounded-full bg-white" style={iconShadow} />
+                        <View className="mt-1 h-0.5 rounded-full bg-white" />
                       ) : null}
                     </TouchableOpacity>
                   );
@@ -452,6 +421,29 @@ export default function HomeScreen() {
               </TouchableOpacity>
 
             </View>
+            <View
+              pointerEvents={activeFeed === "CONTENT" ? "box-none" : "none"}
+              style={{ display: activeFeed === "CONTENT" ? "flex" : "none" }}
+            >
+              {!snapsCollapsed ? (
+                <Animated.View
+                  entering={FadeInUp.duration(220)}
+                  exiting={FadeOutUp.duration(180)}
+                >
+                  <SnapsTray overlay />
+                </Animated.View>
+              ) : null}
+              {snapsCollapsed ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("expandSnaps")}
+                  onPress={() => setSnapsCollapsed(false)}
+                  className="h-8 w-14 self-center items-center justify-center rounded-full bg-black/30"
+                  style={iconShadow}
+                >
+                  <CaretDownIcon size={22} color="#FFF" weight="bold" />
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
           <PostOptionsBottomSheet

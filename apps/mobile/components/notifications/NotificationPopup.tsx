@@ -22,7 +22,12 @@ export default function NotificationPopup({ item, onPress, onDismiss }: Props) {
     >
       <Pressable onPress={onPress} className="flex-row items-center p-4">
         {item.actor?.avatarUrl ? (
-          <Avatar uri={item.actor.avatarUrl} size={44} />
+          <Avatar
+            uri={item.actor.avatarUrl}
+            username={item.actor.username}
+            userId={item.actor.id}
+            size={44}
+          />
         ) : (
           <View className="h-11 w-11 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
             <BellIcon size={22} color={isDark ? '#FFF' : '#FF5B35'} />

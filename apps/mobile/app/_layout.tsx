@@ -31,6 +31,7 @@ import { SaveToListsProvider } from "@/contexts/SaveToListsContext";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import PresenceConnection from "@/components/presence/PresenceConnection";
 import { PostUploadProvider } from "@/contexts/PostUploadContext";
+import { SnapIndicatorProvider } from "@/contexts/SnapIndicatorContext";
 
 // The reduced-motion override intentionally emits a warning whenever it
 // mounts. Keep genuine Reanimated errors visible without noisy dev notices.
@@ -83,19 +84,21 @@ export default function RootLayout() {
               <AppAlertProvider>
                 <QueryClientProvider client={queryClient}>
                   <AuthProvider>
-                    <ToastProvider>
-                      <PostUploadProvider>
-                        <NotificationProvider>
-                          <BottomSheetModalProvider>
-                            <AccessibilityMotionConfig />
-                            <SaveToListsProvider>
-                              <RootNavigator />
-                            </SaveToListsProvider>
-                            <PortalHost name="pinch-zoom" />
-                          </BottomSheetModalProvider>
-                        </NotificationProvider>
-                      </PostUploadProvider>
-                    </ToastProvider>
+                    <SnapIndicatorProvider>
+                      <ToastProvider>
+                        <PostUploadProvider>
+                          <NotificationProvider>
+                            <BottomSheetModalProvider>
+                              <AccessibilityMotionConfig />
+                              <SaveToListsProvider>
+                                <RootNavigator />
+                              </SaveToListsProvider>
+                              <PortalHost name="pinch-zoom" />
+                            </BottomSheetModalProvider>
+                          </NotificationProvider>
+                        </PostUploadProvider>
+                      </ToastProvider>
+                    </SnapIndicatorProvider>
                   </AuthProvider>
                 </QueryClientProvider>
               </AppAlertProvider>

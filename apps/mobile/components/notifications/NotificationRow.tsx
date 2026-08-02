@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { GestureResponderEvent, Text, TouchableOpacity, View } from 'react-native';
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ImagesSquareIcon, TagIcon } from 'phosphor-react-native';
+import ContentVideo from '@/components/posts/content/ContentVideo';
 import {
   notificationText,
   relativeNotificationTime,
@@ -44,7 +45,12 @@ export default function NotificationRow({
           <TagIcon size={24} color="#D97706" weight="fill" />
         </View>
       ) : (
-        <Avatar uri={item.actor?.avatarUrl} size={48} />
+        <Avatar
+          uri={item.actor?.avatarUrl}
+          username={item.actor?.username}
+          userId={item.actor?.id}
+          size={48}
+        />
       )}
       <View className="ml-3 flex-1">
         <Text className="text-[15px] text-black dark:text-white">
@@ -71,9 +77,20 @@ export default function NotificationRow({
           {postPreview?.imageUrl ? (
             <ProgressiveImage
               source={{ uri: postPreview.imageUrl }}
-              className="h-full w-full"
-              resizeMode="cover"
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
             />
+          ) : postPreview?.videoUrl ? (
+            <View pointerEvents="none" style={{ width: '100%', height: '100%' }}>
+              <ContentVideo
+                uri={postPreview.videoUrl}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                nativeControls={false}
+                muted
+                loop={false}
+              />
+            </View>
           ) : postPreview?.text ? (
             <View className="h-full w-full items-center justify-center bg-gray-900 px-1.5">
               <Text numberOfLines={3} className="text-center text-[8px] text-white">

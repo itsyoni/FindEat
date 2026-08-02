@@ -36,12 +36,15 @@ import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import ContentVideo from "./ContentVideo";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const CONTENT_ACTION_ICON_SIZE = 31;
 
 type Props = {
   post: Post;
   height: number;
   contentTopInset?: number;
+  controlsTopInset?: number;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onOpenComments: (postId: string) => void;
   onOpenSharePost: (postId: string) => void;
@@ -61,6 +64,7 @@ export default function ContentPost({
   post,
   height,
   contentTopInset = 0,
+  controlsTopInset = 0,
   onToggleLike,
   onOpenComments,
   onOpenSharePost,
@@ -158,6 +162,20 @@ export default function ContentPost({
   const gradientAnimatedStyle = useAnimatedStyle(() => ({
     height: gradientHeight.value,
   }));
+  const cardTopInset = useSharedValue(contentTopInset);
+  const cardTopRadius = useSharedValue(contentTopInset > 0 ? 24 : 0);
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    marginTop: cardTopInset.value,
+    borderTopLeftRadius: cardTopRadius.value,
+    borderTopRightRadius: cardTopRadius.value,
+  }));
+
+  useEffect(() => {
+    cardTopInset.set(withTiming(contentTopInset, { duration: 220 }));
+    cardTopRadius.set(
+      withTiming(contentTopInset > 0 ? 24 : 0, { duration: 220 }),
+    );
+  }, [cardTopInset, cardTopRadius, contentTopInset]);
 
   const iconShadow = {
     shadowColor: "#000",
@@ -247,7 +265,17 @@ export default function ContentPost({
     isFavorite,
   );
   return (
-    <View style={{ height }}>
+    <View style={{ height, backgroundColor: "#000" }}>
+      <Animated.View
+        style={[
+          {
+            flex: 1,
+            overflow: "hidden",
+            backgroundColor: "#080808",
+          },
+          cardAnimatedStyle,
+        ]}
+      >
         <Animated.View
           pointerEvents="none"
           style={[
@@ -327,7 +355,7 @@ export default function ContentPost({
           <View
             pointerEvents="none"
             className="absolute left-0 right-0 z-10 flex-row justify-center gap-1.5"
-            style={{ top: contentTopInset + 24 }}
+            style={{ top: controlsTopInset + 24 }}
           >
             {media.map((item, index) => (
               <View
@@ -361,7 +389,7 @@ export default function ContentPost({
 
         <TouchableOpacity
           className="absolute right-4 z-10 p-1"
-          style={{ top: contentTopInset + 16 }}
+          style={{ top: controlsTopInset + 16 }}
           activeOpacity={0.8}
           onPress={() => onOpenPostOptions(post.id)}
         >
@@ -373,9 +401,9 @@ export default function ContentPost({
           />
         </TouchableOpacity>
         <View className="absolute bottom-8 left-4 right-20">
-          <View className="mb-3 flex-row items-center justify-between gap-3">
+          <View className="mb-3 flex-row items-center justify-start gap-3">
             <TouchableOpacity
-              className="min-w-0 flex-1 flex-row items-center gap-3"
+              className="min-w-0 shrink flex-row items-center gap-3"
               activeOpacity={0.8}
               onPress={() => {
                 if (isOfficialPost && post.restaurant) {
@@ -397,11 +425,12 @@ export default function ContentPost({
               <Avatar
                 uri={displayAvatar}
                 username={displayName ?? ""}
+                userId={isRestaurantPost ? undefined : post.author?.id}
                 size={42}
                 fallbackType={isOfficialPost ? "restaurant" : "user"}
               />
 
-              <View className="min-w-0 flex-1">
+              <View className="min-w-0 shrink">
                 <View className="flex-row items-center">
                   <Text
                     numberOfLines={1}
@@ -539,12 +568,12 @@ export default function ContentPost({
         </View>
 
         <View className="absolute bottom-26 right-4 w-16 items-center gap-5">
-          <TouchableOpacity onPress={handleLike}>
+          <TouchableOpacity className="w-16 items-center" onPress={handleLike}>
             <Animated.View style={likeAnimatedStyle}>
               <HeartIcon
                 weight="fill"
                 color={post.isLiked ? "#FF3040" : "#FFFFFFCC"}
-                size={35}
+                size={CONTENT_ACTION_ICON_SIZE}
                 style={[
                   iconShadow,
                   post.isLiked && {
@@ -561,11 +590,14 @@ export default function ContentPost({
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => onOpenComments(post.id)}>
+          <TouchableOpacity
+            className="w-16 items-center"
+            onPress={() => onOpenComments(post.id)}
+          >
             <ChatCircleIcon
               weight="fill"
               color="#FFFFFFCC"
-              size={35}
+              size={CONTENT_ACTION_ICON_SIZE}
               style={iconShadow}
             />
             <Text style={textShadow} className="text-center text-lg text-white">
@@ -574,11 +606,14 @@ export default function ContentPost({
           </TouchableOpacity>
 
           {post.visibility === "PUBLIC" && (
-            <TouchableOpacity onPress={() => onOpenSharePost(post.id)}>
+            <TouchableOpacity
+              className="w-16 items-center"
+              onPress={() => onOpenSharePost(post.id)}
+            >
               <ShareFatIcon
                 weight="fill"
                 color="#FFFFFFCC"
-                size={35}
+                size={CONTENT_ACTION_ICON_SIZE}
                 style={iconShadow}
               />
               <Text style={textShadow} className="text-center text-lg text-white">
@@ -591,7 +626,7 @@ export default function ContentPost({
               wantToTry={isWantToTry}
               visited={isVisited}
               favorite={isFavorite}
-              size={35}
+              size={CONTENT_ACTION_ICON_SIZE}
               defaultColor="#FFFFFFCC"
               savedListCount={savedListCount}
               style={iconShadow}
@@ -608,6 +643,7 @@ export default function ContentPost({
             </Text>
           </TouchableOpacity>
         </View>
+      </Animated.View>
     </View>
   );
 }

@@ -1,8 +1,9 @@
-import { LANGUAGE_KEY, TOKEN_KEY } from "@/constants/storage";
+import { LANGUAGE_KEY } from "@/constants/storage";
 import { api } from "@/lib/api";
 import { applyAppLanguage } from "@/lib/appLanguage";
-import type { SignupResult, User } from "@findeat/types";
+import type { AuthSession, SignupResult, User } from "@findeat/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { isAxiosError } from "axios";
 import React, {
   createContext,
   useCallback,
@@ -11,6 +12,15 @@ import React, {
   useState,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  clearStoredSession,
+  getStoredRefreshToken,
+  getStoredSession,
+  setAuthSessionListeners,
+  storeAuthSession,
+  storeAuthTokens,
+  storeSessionUser,
+} from "@/lib/authSession";
 
 type AuthContextValue = {
   user: User | null;
@@ -45,11 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  async function establishSession(session: {
-    accessToken: string;
-    user: User;
-  }) {
-    await AsyncStorage.setItem(TOKEN_KEY, session.accessToken);
+  async function establishSession(session: AuthSession) {
+    await storeAuthSession(session);
     await syncLanguage(session.user);
 
     queryClient.clear();
@@ -59,28 +66,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const loadUser = useCallback(async () => {
+    let cachedUser: User | null = null;
     try {
-      const [savedToken, savedLanguage] = await Promise.all([
-        AsyncStorage.getItem(TOKEN_KEY),
+      const [savedSession, savedLanguage] = await Promise.all([
+        getStoredSession(),
         AsyncStorage.getItem(LANGUAGE_KEY),
       ]);
+      cachedUser = savedSession.user;
 
       if (savedLanguage === "en" || savedLanguage === "he") {
         await applyAppLanguage(savedLanguage);
       }
 
-      if (!savedToken) return;
+      if (!savedSession.accessToken && !savedSession.refreshToken) return;
+
+      if (cachedUser) {
+        setToken(savedSession.accessToken);
+        setUser(cachedUser);
+      }
+
+      if (savedSession.accessToken && !savedSession.refreshToken) {
+        const upgradedTokens = await api.auth.upgradeSession();
+        await storeAuthTokens(upgradedTokens);
+        setToken(upgradedTokens.accessToken);
+      }
 
       const user = await api.auth.me();
+      const currentSession = await getStoredSession();
 
       await syncLanguage(user);
+      await storeSessionUser(user);
 
-      setToken(savedToken);
+      setToken(currentSession.accessToken);
       setUser(user);
-    } catch {
-      await AsyncStorage.removeItem(TOKEN_KEY);
-      setToken(null);
-      setUser(null);
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 401) {
+        await clearStoredSession();
+        setToken(null);
+        setUser(null);
+      } else if (!cachedUser) {
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -112,19 +139,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function verifyEmail(email: string, code: string) {
-    const { accessToken, user } = await api.auth.verifyEmail(email, code);
-
-    await AsyncStorage.setItem(TOKEN_KEY, accessToken);
-    await syncLanguage(user);
-
-    queryClient.clear();
-
-    setToken(accessToken);
-    setUser(user);
+    const session = await api.auth.verifyEmail(email, code);
+    await establishSession(session);
   }
 
   async function logout() {
-    await AsyncStorage.removeItem(TOKEN_KEY);
+    const refreshToken = await getStoredRefreshToken();
+    try {
+      if (refreshToken) await api.auth.logout(refreshToken);
+    } catch (error) {
+      console.error("Could not revoke refresh session", error);
+    } finally {
+      await clearStoredSession();
+    }
 
     queryClient.clear();
 
@@ -136,12 +163,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const user = await api.auth.me();
 
     await syncLanguage(user);
+    await storeSessionUser(user);
 
     setUser(user);
   }
 
+  useEffect(
+    () =>
+      setAuthSessionListeners({
+        onAccessToken: setToken,
+        onSessionExpired: () => {
+          queryClient.clear();
+          setToken(null);
+          setUser(null);
+        },
+      }),
+    [queryClient],
+  );
+
   useEffect(() => {
-    void loadUser();
+    const frame = requestAnimationFrame(() => {
+      void loadUser();
+    });
+    return () => cancelAnimationFrame(frame);
   }, [loadUser]);
 
   return (

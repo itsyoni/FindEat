@@ -19,7 +19,10 @@ export type SignupResult = {
 export type AuthSession = {
   user: Profile;
   accessToken: string;
+  refreshToken: string;
 };
+
+export type AuthTokens = Pick<AuthSession, "accessToken" | "refreshToken">;
 
 export type AccountAvailabilityQuery = {
   username?: string;

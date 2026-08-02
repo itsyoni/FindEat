@@ -3,7 +3,6 @@ import type { MediaPurpose, MediaUploadTicket } from '@findeat/types';
 import { File } from 'expo-file-system';
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
 
 export type UploadProgressCallback = (progress: number) => void;
 
@@ -73,9 +72,6 @@ export async function uploadVideo(
 ) {
   const file = new File(uri);
   if (!file.exists || file.size <= 0) throw new Error("Video file is unavailable.");
-  if (file.size > MAX_VIDEO_BYTES) {
-    throw new Error("Video must be smaller than 30 MB.");
-  }
 
   const contentType = inferContentType(file, "video");
   const { data } = await apiClient.post<MediaUploadTicket>("/media/upload-url", {

@@ -1,31 +1,26 @@
 import { api } from "@/lib/api";
-import type { Profile } from "@findeat/types";
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+
+export const myProfileQueryKey = ["profile", "me"] as const;
 
 export function useMyProfile() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadProfile = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const data = await api.users.me();
-      setProfile(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadProfile();
-  }, [loadProfile]);
+  const query = useQuery({
+    queryKey: myProfileQueryKey,
+    queryFn: () => api.users.me(),
+    staleTime: 2 * 60 * 1_000,
+    gcTime: 30 * 60 * 1_000,
+    refetchOnMount: false,
+  });
+  const { refetch } = query;
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   return {
-    profile,
-    loading,
-    refresh: loadProfile,
+    profile: query.data ?? null,
+    loading: query.isPending,
+    refreshing: query.isFetching && !query.isPending,
+    refresh,
   };
 }

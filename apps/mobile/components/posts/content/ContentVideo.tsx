@@ -6,6 +6,9 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   contentFit?: "contain" | "cover" | "fill";
   autoPlay?: boolean;
+  nativeControls?: boolean;
+  muted?: boolean;
+  loop?: boolean;
 };
 
 export default function ContentVideo({
@@ -13,11 +16,15 @@ export default function ContentVideo({
   style,
   contentFit = "contain",
   autoPlay = false,
+  nativeControls = true,
+  muted = false,
+  loop = true,
 }: Props) {
   const player = useVideoPlayer(
     { uri, useCaching: true },
     (videoPlayer) => {
-      videoPlayer.loop = true;
+      videoPlayer.loop = loop;
+      videoPlayer.muted = muted;
       if (autoPlay) videoPlayer.play();
     },
   );
@@ -27,7 +34,7 @@ export default function ContentVideo({
       player={player}
       style={style}
       contentFit={contentFit}
-      nativeControls
+      nativeControls={nativeControls}
       allowsPictureInPicture={false}
       surfaceType="textureView"
     />

@@ -14,6 +14,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -152,6 +153,13 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
     [startPostUpload],
   );
   const visibleTask = tasks[tasks.length - 1];
+
+  useEffect(() => {
+    if (visibleTask?.status !== "completed") return;
+
+    const timer = setTimeout(() => dismissTask(visibleTask.id), 3_000);
+    return () => clearTimeout(timer);
+  }, [dismissTask, visibleTask?.id, visibleTask?.status]);
 
   return (
     <PostUploadContext.Provider value={value}>

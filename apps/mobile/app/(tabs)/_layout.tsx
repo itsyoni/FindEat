@@ -99,7 +99,9 @@ export default function TabLayout() {
               <Avatar
                 uri={user?.avatarUrl}
                 username={user?.username}
+                userId={user?.id}
                 size={28}
+                showSnapIndicator={false}
               />
             </View>
           ),

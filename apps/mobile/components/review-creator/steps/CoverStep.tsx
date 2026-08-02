@@ -12,6 +12,8 @@ import Avatar from "@/components/common/Avatar";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { UsersThreeIcon } from "phosphor-react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { cropPostImage } from "@/lib/cropPostImage";
+import { useToast } from "@/contexts/ToastContext";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -26,19 +28,31 @@ type Props = {
 export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft, savingDraft, onChooseParticipants }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
+  const { showToast } = useToast();
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
       ? draft.restaurant.restaurant.name
       : draft.restaurant?.name;
 
   async function pickCoverImage() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      onChange({ coverImageUri: result.assets[0].uri });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const croppedImage = await cropPostImage({
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+        aspect: "REVIEW",
+        toolbarTitle: t("cropReviewPhoto"),
+      });
+      onChange({ coverImageUri: croppedImage.uri });
+    } catch (error) {
+      console.error("review cover image crop failed", error);
+      showToast(t("imageCropErrorBody"), { kind: "error" });
     }
   }
 
@@ -137,7 +151,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
               <View className="w-full">
                 <ProgressiveImage
                   source={{ uri: draft.coverImageUri }}
-                  className="h-52 w-full"
+                  className="aspect-square w-full"
                   resizeMode="cover"
                 />
                 <View className="absolute bottom-3 right-3 rounded-full bg-black/65 px-4 py-2">

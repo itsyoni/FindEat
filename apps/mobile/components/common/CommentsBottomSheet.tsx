@@ -596,7 +596,12 @@ export default function CommentsBottomSheet({
         <TouchableOpacity
           onPress={() => router.push({ pathname: "/(users)/[id]", params: { id: item.user.id } })}
         >
-          <Avatar uri={item.user.avatarUrl} size={item.parentId ? 34 : 40} />
+          <Avatar
+            uri={item.user.avatarUrl}
+            username={item.user.username}
+            userId={item.user.id}
+            size={item.parentId ? 34 : 40}
+          />
         </TouchableOpacity>
 
         <View className="min-w-0 flex-1">

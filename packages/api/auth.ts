@@ -5,6 +5,7 @@ import type {
   LoginInput,
   SignupInput,
   SignupResult,
+  AuthTokens,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
@@ -46,6 +47,25 @@ export function createAuthApi(api: AxiosInstance) {
     async login(payload: LoginInput) {
       const { data } = await api.post<AuthSession>("/auth/login", payload);
 
+      return data;
+    },
+
+    async refresh(refreshToken: string) {
+      const { data } = await api.post<AuthTokens>("/auth/refresh", {
+        refreshToken,
+      });
+      return data;
+    },
+
+    async logout(refreshToken: string) {
+      const { data } = await api.post<{ ok: true }>("/auth/logout", {
+        refreshToken,
+      });
+      return data;
+    },
+
+    async upgradeSession() {
+      const { data } = await api.post<AuthTokens>("/auth/session/upgrade");
       return data;
     },
 

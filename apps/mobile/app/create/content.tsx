@@ -2,6 +2,7 @@ import { AppAlert as Alert } from "@/lib/appAlert";
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import { TextInput } from "@/components/common";
+import AppBottomSheet from "@/components/common/AppBottomSheet";
 import FullPageRestaurantPicker from "@/components/restaurants/FullPageRestaurantPicker";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
@@ -19,6 +20,7 @@ import {
 import { prependPostToFeedCache } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
+import { cropPostImage } from "@/lib/cropPostImage";
 import {
   clearPostDraft,
   type ContentMediaDraft,
@@ -40,16 +42,18 @@ import {
 } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { BottomSheetView } from "@gorhom/bottom-sheet";
 import {
   ArrowCounterClockwiseIcon,
   CameraIcon,
-  FilmStripIcon,
   ImagesSquareIcon,
   LightningIcon,
   LightningSlashIcon,
   LockIcon,
+  SquareIcon,
   StorefrontIcon,
   PlusIcon,
+  TrashIcon,
   UsersThreeIcon,
   XIcon,
 } from "phosphor-react-native";
@@ -69,33 +73,8 @@ import ProgressiveImage from "@/components/common/ProgressiveImage";
 import ContentVideo from "@/components/posts/content/ContentVideo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 type Step = "CAMERA" | "DETAILS" | "RESTAURANT" | "PEOPLE";
-
-const CAMERA_CAPTURE_QUALITY = 0.72;
-const TARGET_CAMERA_PIXELS = 1920 * 1080;
-
-function selectFastPictureSize(sizes: string[]) {
-  if (sizes.includes("1920x1080")) return "1920x1080";
-
-  const numericSizes = sizes
-    .map((size) => {
-      const match = /^(\d+)x(\d+)$/.exec(size);
-      if (!match) return null;
-      const width = Number(match[1]);
-      const height = Number(match[2]);
-      return { size, pixels: width * height };
-    })
-    .filter((value): value is { size: string; pixels: number } => value !== null)
-    .filter(({ pixels }) => pixels >= 1280 * 720);
-
-  return numericSizes.sort(
-    (a, b) =>
-      Math.abs(a.pixels - TARGET_CAMERA_PIXELS) -
-      Math.abs(b.pixels - TARGET_CAMERA_PIXELS),
-  )[0]?.size;
-}
 
 export default function CreateContentScreen() {
   const { restaurantId, linkedPostId: initialLinkedPostId } =
@@ -104,15 +83,21 @@ export default function CreateContentScreen() {
   const { isDark } = useAppTheme();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const userId = user?.id;
   const { showToast } = useToast();
   const { startPostUpload } = usePostUpload();
   const { width: screenWidth } = useWindowDimensions();
   const cameraRef = useRef<CameraView>(null);
-  const cameraSessionRef = useRef(0);
-  const [permission, requestPermission] = useCameraPermissions();
+  const recordingStartedAtRef = useRef(0);
+  const recordingStopRequestedRef = useRef(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>("CAMERA");
   const [media, setMedia] = useState<ContentMediaDraft[]>([]);
+  const [availableDraft, setAvailableDraft] =
+    useState<ContentPostDraft | null>(null);
   const [previewMediaIndex, setPreviewMediaIndex] = useState(0);
+  const [addPhotoOptionsOpen, setAddPhotoOptionsOpen] = useState(false);
+  const [appendingCameraPhoto, setAppendingCameraPhoto] = useState(false);
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<PostVisibility>("PUBLIC");
   const [linkedPostId, setLinkedPostId] = useState<string | undefined>(
@@ -124,16 +109,12 @@ export default function CreateContentScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
   const [flashMode, setFlashMode] = useState<FlashMode>("off");
-  const [cameraZoom, setCameraZoomState] = useState(0);
-  const [autofocus, setAutofocus] = useState<"on" | "off">("off");
-  const [focusPoint, setFocusPoint] = useState<{
-    x: number;
-    y: number;
-    id: number;
-  } | null>(null);
-  const [pictureSize, setPictureSize] = useState<string>();
+  const [captureMode, setCaptureMode] = useState<"picture" | "video">(
+    "picture",
+  );
   const [capturing, setCapturing] = useState(false);
-  const [showCaptureProgress, setShowCaptureProgress] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
   const [publishing, setPublishing] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -151,30 +132,8 @@ export default function CreateContentScreen() {
           setDraftHydrated(true);
           return;
         }
-
-        Alert.alert(t("draftFoundTitle"), t("contentDraftFoundBody"), [
-          {
-            text: t("discardDraft"),
-            style: "destructive",
-            onPress: () => {
-              void clearPostDraft(user.id, "content");
-              setDraftHydrated(true);
-            },
-          },
-          {
-            text: t("continueDraft"),
-            onPress: () => {
-              setMedia(savedDraft.media);
-              setDescription(savedDraft.description);
-              setVisibility(savedDraft.visibility);
-              setLinkedPostId(savedDraft.linkedPostId);
-              setSelectedRestaurant(savedDraft.selectedRestaurant);
-              setTaggedPeople(savedDraft.taggedPeople ?? []);
-              setStep(savedDraft.step === "CAMERA" ? "DETAILS" : savedDraft.step);
-              setDraftHydrated(true);
-            },
-          },
-        ]);
+        setAvailableDraft(savedDraft);
+        setDraftHydrated(true);
       })
       .catch((error) => {
         console.error("Could not restore content draft", error);
@@ -268,6 +227,25 @@ export default function CreateContentScreen() {
   }, [user?.id]);
 
   useEffect(() => {
+    if (!recording) return;
+
+    const updateTimer = () => {
+      const elapsed = Math.min(
+        10_000,
+        Date.now() - recordingStartedAtRef.current,
+      );
+      setRecordingElapsedMs(elapsed);
+      if (elapsed >= 10_000 && !recordingStopRequestedRef.current) {
+        recordingStopRequestedRef.current = true;
+        cameraRef.current?.stopRecording();
+      }
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 100);
+    return () => clearInterval(interval);
+  }, [recording]);
+
+  useEffect(() => {
     if (!draftHydrated || !restaurantId || selectedRestaurant) return;
     let cancelled = false;
 
@@ -285,7 +263,8 @@ export default function CreateContentScreen() {
     };
   }, [draftHydrated, restaurantId, selectedRestaurant]);
 
-  function selectPhoto(uri: string, width = 4, height = 5) {
+  const selectPhoto = useCallback((uri: string, width = 4, height = 5) => {
+    setAvailableDraft(null);
     setMedia([
       {
         id: `${Date.now()}-camera`,
@@ -296,13 +275,36 @@ export default function CreateContentScreen() {
       },
     ]);
     setStep("DETAILS");
+  }, []);
+
+  const openMediaPicker = useCallback(() => {
+    setAppendingCameraPhoto(false);
+    setCameraReady(false);
+    setStep("CAMERA");
+  }, []);
+
+  function continueDraft() {
+    if (!availableDraft) return;
+    setMedia(availableDraft.media);
+    setDescription(availableDraft.description);
+    setVisibility(availableDraft.visibility);
+    setLinkedPostId(availableDraft.linkedPostId);
+    setSelectedRestaurant(availableDraft.selectedRestaurant);
+    setTaggedPeople(availableDraft.taggedPeople ?? []);
+    setStep(
+      availableDraft.step === "CAMERA" ? "DETAILS" : availableDraft.step,
+    );
+    setAvailableDraft(null);
   }
 
-  function openCamera() {
-    cameraSessionRef.current += 1;
-    setCameraReady(false);
-    setShowCaptureProgress(false);
-    setStep("CAMERA");
+  async function discardAvailableDraft() {
+    if (!user?.id) return;
+    setAvailableDraft(null);
+    try {
+      await clearPostDraft(user.id, "content");
+    } catch (error) {
+      console.error("Could not discard content draft", error);
+    }
   }
 
   function removePreviewMedia() {
@@ -313,7 +315,7 @@ export default function CreateContentScreen() {
 
     if (remainingMedia.length === 0) {
       setPreviewMediaIndex(0);
-      openCamera();
+      openMediaPicker();
       return;
     }
 
@@ -322,114 +324,111 @@ export default function CreateContentScreen() {
     );
   }
 
-  const setCameraZoom = useCallback((value: number) => {
-    const next = Math.max(0, Math.min(0.6, value));
-    setCameraZoomState(next);
-  }, []);
-
-  const focusCamera = useCallback((x: number, y: number) => {
-    const id = Date.now();
-    setFocusPoint({ x, y, id });
-    // Expo exposes point-independent autofocus. Toggling it performs a fresh
-    // focus pass on iOS; Android continues using its native continuous focus.
-    setAutofocus("on");
-    setTimeout(() => {
-      setAutofocus("off");
-      setFocusPoint((current) => (current?.id === id ? null : current));
-    }, 850);
-  }, []);
-
-  const adjustCameraZoom = useCallback((delta: number) => {
-    setCameraZoomState((current) =>
-      Math.max(0, Math.min(0.6, current + delta)),
-    );
-  }, []);
-
-  const cameraGesture = Gesture.Simultaneous(
-    Gesture.Pinch()
-      .runOnJS(true)
-      .onChange(({ scaleChange }) => {
-        adjustCameraZoom(Math.log2(Math.max(scaleChange, 0.1)) * 0.16);
-      }),
-    Gesture.Tap()
-      .maxDuration(250)
-      .runOnJS(true)
-      .onEnd(({ x, y }) => focusCamera(x, y)),
-  );
-
-  function cycleFlashMode() {
-    setFlashMode((current) =>
-      current === "off" ? "auto" : current === "auto" ? "on" : "off",
-    );
-  }
-
-  function cycleZoom() {
-    if (cameraZoom < 0.05) setCameraZoom(0.12);
-    else if (cameraZoom < 0.2) setCameraZoom(0.28);
-    else setCameraZoom(0);
-  }
-
-  function flipCamera() {
-    cameraSessionRef.current += 1;
-    setCameraReady(false);
-    setPictureSize(undefined);
-    setCameraFacing((current) => (current === "back" ? "front" : "back"));
-    setFlashMode("off");
-    setCameraZoom(0);
-  }
-
-  const zoomLabel =
-    cameraZoom < 0.05 ? "1×" : cameraZoom < 0.2 ? "2×" : "3×";
-
-  async function handleCameraReady() {
-    const session = cameraSessionRef.current;
-
-    // Capturing is safe as soon as the native camera reports that it is ready.
-    // Picture-size discovery is only an optimization and may resolve slowly on
-    // some front-facing cameras, so it must not keep the shutter disabled.
-    setCameraReady(true);
-
-    const camera = cameraRef.current;
-    if (!camera) return;
-
-    try {
-      const sizes = await camera.getAvailablePictureSizesAsync();
-      if (session === cameraSessionRef.current) {
-        setPictureSize(selectFastPictureSize(sizes));
-      }
-    } catch (error) {
-      console.warn("Could not configure camera picture size", error);
-    }
-  }
-
-  async function takePhoto() {
+  const takeCameraPhoto = useCallback(async () => {
     if (!cameraRef.current || !cameraReady || capturing) return;
 
-    let progressTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       setCapturing(true);
-      progressTimer = setTimeout(() => setShowCaptureProgress(true), 350);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: CAMERA_CAPTURE_QUALITY,
+        quality: 0.85,
       });
-      const stableUri = user?.id
+      const croppedPhoto = await cropPostImage({
+        uri: photo.uri,
+        width: photo.width,
+        height: photo.height,
+        aspect: "CONTENT",
+        toolbarTitle: t("cropContentPhoto"),
+      });
+      const stableUri = userId
         ? await persistContentMediaUri(
-            user.id,
-            photo.uri,
+            userId,
+            croppedPhoto.uri,
             `camera-${Date.now()}`,
           )
-        : photo.uri;
-      selectPhoto(stableUri ?? photo.uri, photo.width, photo.height);
+        : croppedPhoto.uri;
+      const photoUri = stableUri ?? croppedPhoto.uri;
+      if (appendingCameraPhoto) {
+        const nextMedia = [
+          ...media,
+          {
+            id: `${Date.now()}-camera`,
+            type: "IMAGE" as const,
+            uri: photoUri,
+            width: croppedPhoto.width,
+            height: croppedPhoto.height,
+          },
+        ].slice(0, 10);
+        setAvailableDraft(null);
+        setMedia(nextMedia);
+        setPreviewMediaIndex(nextMedia.length - 1);
+        setAppendingCameraPhoto(false);
+        setStep("DETAILS");
+      } else {
+        selectPhoto(photoUri, croppedPhoto.width, croppedPhoto.height);
+      }
     } catch (error) {
-      console.error("camera capture failed", error);
+      console.error("content camera capture failed", error);
+      showToast(t("imageCropErrorBody"), { kind: "error" });
     } finally {
-      if (progressTimer) clearTimeout(progressTimer);
-      setShowCaptureProgress(false);
       setCapturing(false);
     }
-  }
+  }, [
+    appendingCameraPhoto,
+    cameraReady,
+    capturing,
+    media,
+    selectPhoto,
+    showToast,
+    t,
+    userId,
+  ]);
 
-  async function openGallery(options?: { append?: boolean }) {
+  const toggleCameraRecording = useCallback(async () => {
+    const camera = cameraRef.current;
+    if (!camera || !cameraReady) return;
+    if (recording) {
+      recordingStopRequestedRef.current = true;
+      camera.stopRecording();
+      return;
+    }
+    if (capturing) return;
+
+    try {
+      setCapturing(true);
+      setRecording(true);
+      recordingStartedAtRef.current = Date.now();
+      recordingStopRequestedRef.current = false;
+      setRecordingElapsedMs(0);
+      const video = await camera.recordAsync({ maxDuration: 10 });
+      if (!video) return;
+      const durationMs = Math.min(
+        10_000,
+        Math.max(1, Date.now() - recordingStartedAtRef.current),
+      );
+      setAvailableDraft(null);
+      setMedia([
+        {
+          id: `${Date.now()}-camera-video`,
+          type: "VIDEO",
+          uri: video.uri,
+          width: 4,
+          height: 5,
+          durationMs,
+        },
+      ]);
+      setPreviewMediaIndex(0);
+      setStep("DETAILS");
+    } catch (error) {
+      console.error("content camera recording failed", error);
+      showToast(t("videoPickerErrorBody"), { kind: "error" });
+    } finally {
+      recordingStopRequestedRef.current = false;
+      setRecording(false);
+      setCapturing(false);
+    }
+  }, [cameraReady, capturing, recording, showToast, t]);
+
+  const openGallery = useCallback(async (options?: { append?: boolean }) => {
     try {
       const existingPhotos =
         options?.append && media.every((item) => item.type === "IMAGE")
@@ -443,28 +442,56 @@ export default function CreateContentScreen() {
         selectionLimit: remaining,
         quality: 0.9,
       });
-      if (result.canceled) return;
-      const selected = result.assets.slice(0, remaining).map((asset, index) => ({
-          id: asset.assetId ?? `${Date.now()}-${index}`,
-          type: "IMAGE",
+      if (result.canceled) {
+        return;
+      }
+      const selected: ContentMediaDraft[] = [];
+      for (const [index, asset] of result.assets
+        .slice(0, remaining)
+        .entries()) {
+        const croppedAsset = await cropPostImage({
           uri: asset.uri,
           width: asset.width,
           height: asset.height,
-        }) satisfies ContentMediaDraft);
+          aspect: "CONTENT",
+          toolbarTitle: t("cropContentPhoto"),
+        });
+        selected.push({
+          id: asset.assetId ?? `${Date.now()}-${index}`,
+          type: "IMAGE",
+          uri: croppedAsset.uri,
+          width: croppedAsset.width,
+          height: croppedAsset.height,
+        });
+      }
       setMedia([...existingPhotos, ...selected].slice(0, 10));
+      setAvailableDraft(null);
+      setAppendingCameraPhoto(false);
       setPreviewMediaIndex(0);
       setStep("DETAILS");
     } catch (error) {
       console.error("content image picker failed", error);
-      Alert.alert(t("imageCropErrorTitle"), t("imageCropErrorBody"));
+      showToast(t("imageCropErrorBody"), { kind: "error" });
     }
+  }, [media, showToast, t]);
+
+  function takeAdditionalPhoto() {
+    setAddPhotoOptionsOpen(false);
+    setAppendingCameraPhoto(true);
+    setCaptureMode("picture");
+    setCameraReady(false);
+    setStep("CAMERA");
   }
 
-  async function openVideo() {
+  function chooseAdditionalPhotos() {
+    setAddPhotoOptionsOpen(false);
+    requestAnimationFrame(() => {
+      void openGallery({ append: true });
+    });
+  }
+
+  const openVideo = useCallback(async () => {
     try {
-      const permission =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) return;
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["videos"],
         allowsEditing: true,
@@ -477,7 +504,7 @@ export default function CreateContentScreen() {
       // while the API and database store whole milliseconds.
       const durationMs = Math.ceil(asset.duration ?? 0);
       if (!durationMs || durationMs > 10_000) {
-        Alert.alert(t("videoTooLongTitle"), t("videoTooLongBody"));
+        showToast(t("videoTooLongBody"), { kind: "error" });
         return;
       }
       setMedia([
@@ -490,12 +517,14 @@ export default function CreateContentScreen() {
           durationMs,
         },
       ]);
+      setAvailableDraft(null);
+      setPreviewMediaIndex(0);
       setStep("DETAILS");
     } catch (error) {
       console.error("content video picker failed", error);
-      Alert.alert(t("videoPickerErrorTitle"), t("videoPickerErrorBody"));
+      showToast(t("videoPickerErrorBody"), { kind: "error" });
     }
-  }
+  }, [showToast, t]);
 
   async function getRestaurantId() {
     if (!selectedRestaurant) return undefined;
@@ -555,8 +584,8 @@ export default function CreateContentScreen() {
                     "post",
                     reportMediaProgress(index),
                   ),
-                  width: item.width,
-                  height: item.height,
+                  width: Math.max(1, Math.round(item.width)),
+                  height: Math.max(1, Math.round(item.height)),
                 }
               : {
                   type: "VIDEO" as const,
@@ -564,8 +593,8 @@ export default function CreateContentScreen() {
                     item.uri,
                     reportMediaProgress(index),
                   ),
-                  width: item.width,
-                  height: item.height,
+                  width: Math.max(1, Math.round(item.width)),
+                  height: Math.max(1, Math.round(item.height)),
                   durationMs: item.durationMs,
                 },
           ),
@@ -673,6 +702,18 @@ export default function CreateContentScreen() {
     setVisibility(nextVisibility);
   }
 
+  function cycleFlashMode() {
+    setFlashMode((current) =>
+      current === "off" ? "auto" : current === "auto" ? "on" : "off",
+    );
+  }
+
+  function flipCamera() {
+    setCameraReady(false);
+    setCameraFacing((current) => (current === "back" ? "front" : "back"));
+    setFlashMode("off");
+  }
+
   if (!draftHydrated) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
@@ -683,226 +724,279 @@ export default function CreateContentScreen() {
   }
 
   if (step === "CAMERA") {
-    const permissionGranted = permission?.granted;
-    const canAskForCamera = permission?.canAskAgain !== false;
+    const canAskForCamera = cameraPermission?.canAskAgain !== false;
 
     return (
       <View className="flex-1 bg-black">
         <Stack.Screen options={{ headerShown: false }} />
-        {permissionGranted ? (
-          <View style={{ flex: 1 }}>
-            <GestureDetector gesture={cameraGesture}>
-              <View style={{ position: "absolute", inset: 0 }}>
-                <CameraView
-                  key={cameraFacing}
-                  ref={cameraRef}
-                  style={{ position: "absolute", inset: 0 }}
-                  facing={cameraFacing}
-                  flash={
-                    cameraFacing === "front" && flashMode === "on"
-                      ? "screen"
-                      : flashMode
-                  }
-                  zoom={cameraZoom}
-                  autofocus={autofocus}
-                  mode="picture"
-                  pictureSize={pictureSize}
-                  onCameraReady={() => void handleCameraReady()}
-                />
-                {focusPoint && (
-                  <View
-                    pointerEvents="none"
-                    className="absolute h-16 w-16 rounded-2xl border-2 border-amber-300"
-                    style={{
-                      left: focusPoint.x - 32,
-                      top: focusPoint.y - 32,
-                    }}
-                  />
-                )}
-              </View>
-            </GestureDetector>
+        {cameraPermission?.granted ? (
+          <View className="flex-1">
+            <CameraView
+              key={`${cameraFacing}-${captureMode}`}
+              ref={cameraRef}
+              style={{ position: "absolute", inset: 0 }}
+              facing={cameraFacing}
+              flash={flashMode}
+              mode={captureMode}
+              onCameraReady={() => setCameraReady(true)}
+            />
+
             <SafeAreaView
               pointerEvents="box-none"
-              style={{
-                flex: 1,
-                justifyContent: "space-between",
-                paddingHorizontal: 20,
-                paddingBottom: 32,
-              }}
+              style={{ flex: 1, justifyContent: "space-between" }}
             >
-              <View className="flex-row items-center justify-between">
-                <TouchableOpacity
-                  onPress={() => router.back()}
-                  className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
-                >
-                  <XIcon size={24} color="white" weight="bold" />
-                </TouchableOpacity>
-                <View className="flex-row items-center gap-2">
+              <View className="px-4 pt-2">
+                <View className="flex-row items-center justify-between">
                   <TouchableOpacity
+                    disabled={recording}
+                    onPress={() => {
+                      setAppendingCameraPhoto(false);
+                      if (media.length) setStep("DETAILS");
+                      else router.back();
+                    }}
+                    className={`h-11 w-11 items-center justify-center rounded-full bg-black/50 ${
+                      recording ? "opacity-40" : ""
+                    }`}
+                  >
+                    <XIcon size={23} color="#FFF" weight="bold" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    disabled={recording}
                     onPress={cycleFlashMode}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(`flash${flashMode === "off" ? "Off" : flashMode === "auto" ? "Auto" : "On"}`)}
-                    className="h-11 min-w-11 flex-row items-center justify-center rounded-full bg-black/45 px-3"
+                    className={`h-11 min-w-11 flex-row items-center justify-center rounded-full bg-black/50 px-3 ${
+                      recording ? "opacity-40" : ""
+                    }`}
                   >
                     {flashMode === "off" ? (
-                      <LightningSlashIcon size={22} color="white" weight="bold" />
+                      <LightningSlashIcon size={21} color="#FFF" weight="bold" />
                     ) : (
-                      <LightningIcon size={22} color="#F6C445" weight="fill" />
+                      <LightningIcon size={21} color="#F7D786" weight="fill" />
                     )}
-                    {flashMode === "auto" && (
+                    {flashMode === "auto" ? (
                       <Text className="ml-1 text-xs font-bold text-white">A</Text>
-                    )}
+                    ) : null}
                   </TouchableOpacity>
-                  <SaveDraftButton
-                    darkSurface
-                    disabled={!media.length}
-                    saving={savingDraft}
-                    onPress={() => void handleSaveDraft()}
-                  />
                 </View>
+
+                {availableDraft ? (
+                  <View className="mt-3 flex-row items-center self-center overflow-hidden rounded-full bg-black/65 pl-4">
+                    <TouchableOpacity onPress={continueDraft} className="py-2.5 pr-3">
+                      <Text className="text-sm font-bold text-white">
+                        {t("continueDraft")}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => void discardAvailableDraft()}
+                      className="h-10 w-10 items-center justify-center border-l border-white/15"
+                    >
+                      <XIcon size={15} color="#FFF" weight="bold" />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                {recording ? (
+                  <View className="mt-3 self-center overflow-hidden rounded-full bg-black/70 px-4 py-2">
+                    <View className="flex-row items-center justify-center">
+                      <View className="mr-2 h-2.5 w-2.5 rounded-full bg-red-500" />
+                      <Text className="font-bold tabular-nums text-white">
+                        {`0:${Math.floor(recordingElapsedMs / 1000)
+                          .toString()
+                          .padStart(2, "0")} / 0:10`}
+                      </Text>
+                    </View>
+                    <View className="mt-1.5 h-1 w-28 overflow-hidden rounded-full bg-white/25">
+                      <View
+                        className="h-full rounded-full bg-red-500"
+                        style={{
+                          width: `${Math.min(100, recordingElapsedMs / 100)}%`,
+                        }}
+                      />
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
-              <View>
-                <TouchableOpacity
-                  onPress={cycleZoom}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("cameraZoom", { value: zoomLabel })}
-                  className="mb-4 self-center rounded-full bg-black/55 px-4 py-2"
-                >
-                  <Text className="font-bold text-white">{zoomLabel}</Text>
-                </TouchableOpacity>
-                <View className="flex-row items-center justify-between px-2">
-                <View className="flex-row gap-2">
+              <View className="pb-8">
+                <View className="mb-5 flex-row justify-center gap-8">
                   <TouchableOpacity
+                    disabled={recording}
+                    onPress={() => {
+                      setCameraReady(false);
+                      setCaptureMode("picture");
+                    }}
+                    className="items-center py-2"
+                  >
+                    <Text
+                      className={`text-sm font-bold ${
+                        captureMode === "picture"
+                          ? "text-[#F7D786]"
+                          : "text-white/65"
+                      }`}
+                    >
+                      {t("photoMode")}
+                    </Text>
+                    {captureMode === "picture" ? (
+                      <View className="mt-1 h-0.5 w-6 rounded-full bg-[#F7D786]" />
+                    ) : null}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    disabled={recording}
+                    onPress={() => {
+                      setCameraReady(false);
+                      setCaptureMode("video");
+                    }}
+                    className="items-center py-2"
+                  >
+                    <Text
+                      className={`text-sm font-bold ${
+                        captureMode === "video"
+                          ? "text-[#F7D786]"
+                          : "text-white/65"
+                      }`}
+                    >
+                      {t("videoMode")}
+                    </Text>
+                    {captureMode === "video" ? (
+                      <View className="mt-1 h-0.5 w-6 rounded-full bg-[#F7D786]" />
+                    ) : null}
+                  </TouchableOpacity>
+                </View>
+
+                <View className="flex-row items-center justify-between px-7">
+                  <TouchableOpacity
+                    disabled={recording}
                     accessibilityRole="button"
-                    accessibilityLabel={t("choosePhotos")}
-                    onPress={() => void openGallery()}
-                    className="h-12 w-12 items-center justify-center rounded-2xl bg-black/50"
+                    accessibilityLabel={
+                      captureMode === "picture"
+                        ? t("choosePhotos")
+                        : t("chooseShortVideo")
+                    }
+                    onPress={() =>
+                      void (captureMode === "picture"
+                        ? openGallery()
+                        : openVideo())
+                    }
+                    className={`h-14 w-14 items-center justify-center rounded-2xl border border-white/25 bg-black/55 ${
+                      recording ? "opacity-40" : ""
+                    }`}
                   >
-                    <ImagesSquareIcon size={24} color="white" weight="fill" />
+                    <ImagesSquareIcon size={26} color="#FFF" weight="fill" />
                   </TouchableOpacity>
+
                   <TouchableOpacity
-                    onPress={() => void openVideo()}
-                    className="h-12 w-12 items-center justify-center rounded-2xl bg-black/50"
+                    disabled={!cameraReady || (capturing && !recording)}
+                    onPress={() =>
+                      void (captureMode === "picture"
+                        ? takeCameraPhoto()
+                        : toggleCameraRecording())
+                    }
+                    className={`h-20 w-20 items-center justify-center rounded-full border-4 border-white ${
+                      !cameraReady ? "opacity-50" : ""
+                    }`}
                   >
-                    <FilmStripIcon size={24} color="white" weight="fill" />
+                    {recording ? (
+                      <View className="h-10 w-10 items-center justify-center rounded-xl bg-red-500">
+                        <SquareIcon size={18} color="#FFF" weight="fill" />
+                      </View>
+                    ) : (
+                      <View
+                        className={`h-16 w-16 rounded-full ${
+                          captureMode === "video" ? "bg-red-500" : "bg-white"
+                        }`}
+                      />
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    disabled={recording}
+                    onPress={flipCamera}
+                    className="h-14 w-14 items-center justify-center rounded-full bg-black/55"
+                  >
+                    <ArrowCounterClockwiseIcon
+                      size={25}
+                      color="#FFF"
+                      weight="bold"
+                    />
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                  disabled={!cameraReady || capturing}
-                  onPress={() => void takePhoto()}
-                  className={`h-20 w-20 items-center justify-center rounded-full border-4 border-white ${
-                    !cameraReady ? "opacity-50" : ""
-                  }`}
-                >
-                  <View className="h-16 w-16 rounded-full bg-white" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={flipCamera}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("flipCamera")}
-                  className="h-14 w-14 items-center justify-center rounded-full bg-black/50"
-                >
-                  <ArrowCounterClockwiseIcon size={26} color="white" weight="bold" />
-                </TouchableOpacity>
-                </View>
+                {captureMode === "video" ? (
+                  <Text className="mt-4 text-center text-xs font-semibold text-white/75">
+                    {t("videoCaptureLimit")}
+                  </Text>
+                ) : null}
               </View>
             </SafeAreaView>
           </View>
-        ) : permission === null ? (
+        ) : cameraPermission === null ? (
           <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color="white" size="large" />
+            <ActivityIndicator color="#FFF" size="large" />
           </View>
         ) : (
-          <SafeAreaView className="flex-1 px-5 pb-4">
+          <SafeAreaView className="flex-1 px-5 pb-5">
             <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("cancel")}
-              onPress={() => router.back()}
+              onPress={() => {
+                setAppendingCameraPhoto(false);
+                if (media.length) setStep("DETAILS");
+                else router.back();
+              }}
               className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
             >
-              <XIcon size={23} color="white" weight="bold" />
+              <XIcon size={23} color="#FFF" weight="bold" />
             </TouchableOpacity>
 
-            <View className="flex-1 items-center justify-center px-3">
-              <View className="h-40 w-52 items-center justify-center overflow-hidden rounded-[36px] border border-white/10 bg-[#171717]">
-                <View
-                  className="absolute -left-6 -top-8 h-24 w-24 rounded-full"
-                  style={{ backgroundColor: "rgba(247, 215, 134, 0.15)" }}
-                />
-                <View
-                  className="absolute -bottom-10 -right-5 h-28 w-28 rounded-full"
-                  style={{ backgroundColor: "rgba(255, 107, 69, 0.15)" }}
-                />
-                <View className="h-20 w-20 items-center justify-center rounded-[26px] bg-[#F7D786] shadow-lg">
-                  <CameraIcon size={39} color="#171717" weight="fill" />
-                </View>
+            <View className="flex-1 items-center justify-center px-5">
+              <View className="h-24 w-24 items-center justify-center rounded-[28px] bg-[#F7D786]">
+                <CameraIcon size={44} color="#171717" weight="fill" />
               </View>
-
-              <View className="mt-6 rounded-full bg-white/10 px-3 py-1.5">
-                <Text className="text-xs font-bold text-[#F7D786]">
-                  {t("quickPost")}
-                </Text>
-              </View>
-              <Text className="mt-4 text-center text-[28px] font-bold leading-8 text-white">
-                {t(canAskForCamera ? "cameraPermissionTitle" : "cameraPermissionDeniedTitle")}
+              <Text className="mt-6 text-center text-2xl font-bold text-white">
+                {t(
+                  canAskForCamera
+                    ? "cameraPermissionTitle"
+                    : "cameraPermissionDeniedTitle",
+                )}
               </Text>
-              <Text className="mt-3 max-w-[330px] text-center text-[15px] leading-6 text-gray-400">
-                {t(canAskForCamera ? "cameraPermissionBody" : "cameraPermissionDeniedBody")}
+              <Text className="mt-3 text-center leading-6 text-gray-400">
+                {t(
+                  canAskForCamera
+                    ? "cameraPermissionBody"
+                    : "cameraPermissionDeniedBody",
+                )}
               </Text>
-
               <View className="mt-5 flex-row items-center rounded-2xl bg-white/5 px-4 py-3">
                 <LockIcon size={17} color="#A3A3A3" weight="fill" />
-                <Text className="ml-2 shrink text-xs leading-4 text-gray-400">
+                <Text className="ml-2 flex-1 text-xs leading-4 text-gray-400">
                   {t("cameraPrivacy")}
                 </Text>
               </View>
             </View>
 
-            <View className="gap-3">
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() =>
-                  void (canAskForCamera
-                    ? requestPermission()
-                    : Linking.openSettings())
-                }
-                className="w-full rounded-2xl bg-white py-4"
-              >
-                <Text className="text-center text-base font-bold text-black">
-                  {t(canAskForCamera ? "allowCamera" : "openSettings")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() => void openVideo()}
-                className="w-full flex-row items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4"
-              >
-                <FilmStripIcon size={21} color="#F7D786" weight="fill" />
-                <Text className="ml-2 text-center text-base font-bold text-white">
-                  {t("chooseShortVideo")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t("choosePhotos")}
-                onPress={() => void openGallery()}
-                className="w-full flex-row items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4"
-              >
-                <ImagesSquareIcon size={21} color="#F7D786" weight="fill" />
-                <Text className="ml-2 text-center text-base font-bold text-white">
-                  {t("choosePhotos")}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() =>
+                void (canAskForCamera
+                  ? requestCameraPermission()
+                  : Linking.openSettings())
+              }
+              className="rounded-2xl bg-white py-4"
+            >
+              <Text className="text-center font-bold text-black">
+                {t(canAskForCamera ? "allowCamera" : "openSettings")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                void openGallery(
+                  appendingCameraPhoto ? { append: true } : undefined,
+                )
+              }
+              className="mt-3 flex-row items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4"
+            >
+              <ImagesSquareIcon size={21} color="#F7D786" weight="fill" />
+              <Text className="ml-2 font-bold text-white">
+                {t("chooseFromGallery")}
+              </Text>
+            </TouchableOpacity>
           </SafeAreaView>
-        )}
-        {showCaptureProgress && (
-          <View className="absolute inset-0 items-center justify-center bg-black/30">
-            <ActivityIndicator color="white" size="large" />
-          </View>
         )}
       </View>
     );
@@ -961,13 +1055,13 @@ export default function CreateContentScreen() {
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center px-4 py-2">
           <TouchableOpacity
-            onPress={openCamera}
+            onPress={openMediaPicker}
             className="h-11 w-11 items-center justify-center rounded-full"
           >
             <DirectionalIcon direction="back" size={25} color={isDark ? "#FFF" : "#171717"} weight="bold" />
           </TouchableOpacity>
           <Text className="ml-2 flex-1 text-xl font-bold text-black dark:text-white">
-            {t("quickPost")}
+            {t("newPost")}
           </Text>
           <SaveDraftButton
             saving={savingDraft}
@@ -999,92 +1093,90 @@ export default function CreateContentScreen() {
           bottomOffset={28}
         >
           {media.length > 0 && (
-            <View
-              style={{
-                width: "72%",
-                aspectRatio: 4 / 5,
-                alignSelf: "center",
-              }}
-              className="my-5 overflow-hidden rounded-3xl bg-black"
-            >
-              <FlatList
-                horizontal
-                pagingEnabled
-                data={media}
-                keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={(event) =>
-                  setPreviewMediaIndex(
-                    Math.round(
-                      event.nativeEvent.contentOffset.x /
-                        (screenWidth * 0.72),
-                    ),
-                  )
-                }
-                renderItem={({ item, index }) => (
-                  <View
-                    style={{
-                      width: screenWidth * 0.72,
-                      height: "100%",
-                    }}
-                  >
-                    {item.type === "IMAGE" ? (
-                      <ProgressiveImage
-                        source={{ uri: item.uri }}
-                        className="h-full w-full"
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <ContentVideo
-                        uri={item.uri}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    )}
-                    {media.length > 1 ? (
-                      <View className="absolute right-3 top-3 rounded-full bg-black/65 px-2.5 py-1">
-                        <Text className="text-xs font-bold text-white">
-                          {index + 1}/{media.length}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                )}
-              />
-
-              <TouchableOpacity
-                onPress={removePreviewMedia}
-                className="absolute left-4 top-4 h-9 w-9 items-center justify-center rounded-full bg-black/65"
+            <View className="mb-2">
+              <View
+                style={{ width: screenWidth, aspectRatio: 4 / 5 }}
+                className="overflow-hidden bg-black"
               >
-                <XIcon size={18} color="white" weight="bold" />
-              </TouchableOpacity>
+                <FlatList
+                  horizontal
+                  pagingEnabled
+                  data={media}
+                  keyExtractor={(item) => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(event) =>
+                    setPreviewMediaIndex(
+                      Math.round(event.nativeEvent.contentOffset.x / screenWidth),
+                    )
+                  }
+                  renderItem={({ item }) => (
+                    <View style={{ width: screenWidth, height: "100%" }}>
+                      {item.type === "IMAGE" ? (
+                        <ProgressiveImage
+                          source={{ uri: item.uri }}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <ContentVideo
+                          uri={item.uri}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit="cover"
+                        />
+                      )}
+                    </View>
+                  )}
+                />
 
-              {media[0].type === "IMAGE" && media.length < 10 ? (
+                {media.length > 1 ? (
+                  <View
+                    pointerEvents="none"
+                    className="absolute right-4 top-4 rounded-full bg-black/65 px-2.5 py-1"
+                  >
+                    <Text className="text-xs font-bold text-white">
+                      {previewMediaIndex + 1}/{media.length}
+                    </Text>
+                  </View>
+                ) : null}
+
                 <TouchableOpacity
-                  onPress={() => void openGallery({ append: true })}
-                  className="absolute bottom-4 left-4 flex-row items-center rounded-full border border-white/25 px-3 py-2.5"
-                  style={{ backgroundColor: "rgba(0, 0, 0, 0.62)" }}
+                  onPress={removePreviewMedia}
+                  className="absolute left-4 top-4 h-9 w-9 items-center justify-center rounded-full bg-black/65"
                 >
-                  <PlusIcon size={17} color="white" weight="bold" />
-                  <Text className="ml-1.5 text-sm font-bold text-white">
-                    {t("addPhotos")}
+                  <TrashIcon size={18} color="white" weight="bold" />
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row items-center justify-between px-4 py-3">
+                <TouchableOpacity
+                  onPress={openMediaPicker}
+                  className="flex-row items-center rounded-full bg-gray-100 px-4 py-2.5 dark:bg-gray-900"
+                >
+                  <ArrowCounterClockwiseIcon
+                    size={17}
+                    color={isDark ? "#FFF" : "#171717"}
+                  />
+                  <Text className="ml-2 text-sm font-bold text-black dark:text-white">
+                    {t("changeMedia")}
                   </Text>
                 </TouchableOpacity>
-              ) : null}
 
-              <TouchableOpacity
-                onPress={() =>
-                  void (media[0].type === "VIDEO"
-                    ? openVideo()
-                    : openGallery())
-                }
-                className="absolute bottom-4 right-4 flex-row items-center rounded-full border border-white/25 px-4 py-2.5"
-                style={{ backgroundColor: "rgba(0, 0, 0, 0.62)" }}
-              >
-                <ArrowCounterClockwiseIcon size={17} color="white" />
-                <Text className="ml-2 text-sm font-bold text-white">
-                  {t("changeMedia")}
-                </Text>
-              </TouchableOpacity>
+                {media[0].type === "IMAGE" && media.length < 10 ? (
+                  <TouchableOpacity
+                    onPress={() => setAddPhotoOptionsOpen(true)}
+                    className="flex-row items-center rounded-full bg-gray-100 px-4 py-2.5 dark:bg-gray-900"
+                  >
+                    <PlusIcon
+                      size={17}
+                      color={isDark ? "#FFF" : "#171717"}
+                      weight="bold"
+                    />
+                    <Text className="ml-1.5 text-sm font-bold text-black dark:text-white">
+                      {t("addPhotos")}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           )}
 
@@ -1200,6 +1292,39 @@ export default function CreateContentScreen() {
           </View>
         </KeyboardAwareFormScrollView>
       </SafeAreaView>
+      <AppBottomSheet
+        open={addPhotoOptionsOpen}
+        onClose={() => setAddPhotoOptionsOpen(false)}
+        snapPoints={["32%"]}
+      >
+        <BottomSheetView className="flex-1 px-5 pb-7 pt-1">
+          <Text className="mb-4 text-center text-lg font-bold text-black dark:text-white">
+            {t("addPhotosTitle")}
+          </Text>
+          <TouchableOpacity
+            onPress={takeAdditionalPhoto}
+            className="mb-2 flex-row items-center rounded-2xl bg-gray-50 px-4 py-3.5 dark:bg-gray-900"
+          >
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-[#F7D786]">
+              <CameraIcon size={21} color="#171717" weight="fill" />
+            </View>
+            <Text className="ml-3 font-bold text-black dark:text-white">
+              {t("takeAnotherPhoto")}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={chooseAdditionalPhotos}
+            className="flex-row items-center rounded-2xl bg-gray-50 px-4 py-3.5 dark:bg-gray-900"
+          >
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-[#F7D786]">
+              <ImagesSquareIcon size={21} color="#171717" weight="fill" />
+            </View>
+            <Text className="ml-3 font-bold text-black dark:text-white">
+              {t("chooseFromGallery")}
+            </Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </AppBottomSheet>
     </View>
   );
 }

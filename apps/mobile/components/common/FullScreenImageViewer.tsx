@@ -4,21 +4,25 @@ import { Modal, Pressable, View } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SvgUri } from "react-native-svg";
+import Avatar from "./Avatar";
 
 type Props = {
   uri?: string | null;
   visible: boolean;
   onClose: () => void;
+  showDefaultAvatar?: boolean;
 };
 
 export default function FullScreenImageViewer({
   uri,
   visible,
   onClose,
+  showDefaultAvatar = false,
 }: Props) {
-  if (!uri) return null;
+  if (!uri && !showDefaultAvatar) return null;
 
-  const isSvg = uri.startsWith("data:image/svg+xml") || uri.endsWith(".svg");
+  const isSvg =
+    !!uri && (uri.startsWith("data:image/svg+xml") || uri.endsWith(".svg"));
 
   return (
     <Modal
@@ -36,7 +40,9 @@ export default function FullScreenImageViewer({
         className="flex-1 bg-black"
       >
         <View className="flex-1 items-center justify-center">
-          {isSvg ? (
+          {!uri ? (
+            <Avatar size={240} fallbackType="user" showSnapIndicator={false} />
+          ) : isSvg ? (
             <SvgUri width="100%" height="100%" uri={uri} />
           ) : (
             <ProgressiveImage

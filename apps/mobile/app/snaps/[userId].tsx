@@ -19,10 +19,13 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   ActivityIndicator,
+  Pressable,
+  StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useMarkSnapWatched } from "@/contexts/SnapIndicatorContext";
 
 const SNAP_DURATION_MS = 5000;
 
@@ -30,11 +33,13 @@ export default function SnapViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { t } = useTranslation(["snaps", "common"]);
   const queryClient = useQueryClient();
+  const markSnapWatched = useMarkSnapWatched();
   const snaps = useSnaps();
   const [progress] = useState(() => new Animated.Value(0));
   const [openedAt] = useState(() => Date.now());
   const [groupIndex, setGroupIndex] = useState<number | null>(null);
   const [snapIndex, setSnapIndex] = useState(0);
+  const [playbackRevision, setPlaybackRevision] = useState(0);
   const groups = useMemo(() => snaps.data ?? [], [snaps.data]);
   const currentGroup = groupIndex === null ? null : groups[groupIndex];
   const currentSnap = currentGroup?.snaps[snapIndex];
@@ -78,7 +83,9 @@ export default function SnapViewerScreen() {
       const previousGroup = groups[groupIndex - 1];
       setGroupIndex(groupIndex - 1);
       setSnapIndex(Math.max(previousGroup.snaps.length - 1, 0));
+      return;
     }
+    setPlaybackRevision((current) => current + 1);
   }, [currentGroup, groupIndex, groups, snapIndex]);
 
   useEffect(() => {
@@ -93,10 +100,11 @@ export default function SnapViewerScreen() {
       if (finished) advance();
     });
     return () => animation.stop();
-  }, [advance, currentSnapId, progress]);
+  }, [advance, currentSnapId, playbackRevision, progress]);
 
   useEffect(() => {
-    if (!currentSnap || currentGroup?.isOwn || currentSnap.viewedAt) return;
+    if (!currentSnap || currentSnap.viewedAt) return;
+    markSnapWatched(currentSnap.id);
     const viewedAt = new Date().toISOString();
     queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) =>
       current?.map((group) => ({
@@ -112,11 +120,18 @@ export default function SnapViewerScreen() {
             : group.hasUnseen,
       })),
     );
+    if (currentGroup?.isOwn) return;
     void api.snaps.markViewed(currentSnap.id).catch((error) => {
       console.error("Could not mark snap viewed", error);
       void queryClient.invalidateQueries({ queryKey: snapsQueryKey });
     });
-  }, [currentGroup?.isOwn, currentGroup?.user.id, currentSnap, queryClient]);
+  }, [
+    currentGroup?.isOwn,
+    currentGroup?.user.id,
+    currentSnap,
+    markSnapWatched,
+    queryClient,
+  ]);
 
   function removeCurrentSnap() {
     if (!currentSnap) return;
@@ -172,17 +187,17 @@ export default function SnapViewerScreen() {
       : t("snaps:hoursAgo", { count: Math.floor(ageMinutes / 60) });
 
   return (
-    <View className="flex-1 bg-black">
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar hidden />
       <Image
         source={{ uri: currentSnap.imageUrl }}
         contentFit="cover"
-        style={{ position: "absolute", inset: 0 }}
+        style={StyleSheet.absoluteFill}
       />
-      <View className="absolute inset-0 bg-black/15" />
+      <View style={[StyleSheet.absoluteFill, styles.scrim]} />
 
-      <SafeAreaView edges={["top", "bottom"]} className="flex-1">
+      <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
         <View className="flex-row gap-1.5 px-3 pt-1">
           {currentGroup.snaps.map((snap, index) => (
             <View
@@ -242,16 +257,18 @@ export default function SnapViewerScreen() {
           </TouchableOpacity>
         </View>
 
-        <View className="flex-1 flex-row">
-          <TouchableOpacity
-            activeOpacity={1}
+        <View style={styles.tapRow}>
+          <Pressable
             onPress={goBack}
-            className="h-full w-[35%]"
+            style={styles.previousTapZone}
+            accessibilityRole="button"
+            accessibilityLabel="Previous snap"
           />
-          <TouchableOpacity
-            activeOpacity={1}
+          <Pressable
             onPress={advance}
-            className="h-full flex-1"
+            style={styles.nextTapZone}
+            accessibilityRole="button"
+            accessibilityLabel="Next snap"
           />
         </View>
 
@@ -282,3 +299,28 @@ export default function SnapViewerScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  scrim: {
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+  },
+  safeArea: {
+    flex: 1,
+  },
+  tapRow: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  previousTapZone: {
+    width: "35%",
+    height: "100%",
+  },
+  nextTapZone: {
+    flex: 1,
+    height: "100%",
+  },
+});

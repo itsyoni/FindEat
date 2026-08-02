@@ -1,5 +1,6 @@
 import { Post, PostType } from "@findeat/types/post";
-import { Pressable, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
 import Text from "../common/AppText";
 import {
   ImagesSquareIcon,
@@ -21,7 +22,16 @@ type Props = {
 
 function getPostImage(post: Post) {
   if (post.type === "REVIEW") {
-    return post.reviewPost?.coverImageUrl ?? null;
+    const review = post.reviewPost;
+    return (
+      review?.coverImageUrl ??
+      review?.items?.find((item) => item.primaryMedia?.imageUrl)?.primaryMedia
+        ?.imageUrl ??
+      review?.items?.find((item) => item.imageUrl)?.imageUrl ??
+      review?.items?.find((item) => item.menuItem?.imageUrl)?.menuItem
+        ?.imageUrl ??
+      null
+    );
   }
 
   return (
@@ -32,10 +42,54 @@ function getPostImage(post: Post) {
 }
 
 function getPostThumbnail(post: Post) {
-  return post.type === "REVIEW"
-    ? post.reviewPost?.coverThumbnailUrl
-    : (post.contentPost?.media?.find((item) => item.type === "IMAGE")
-        ?.thumbnailUrl ?? post.contentPost?.thumbnailUrl);
+  if (post.type === "REVIEW") {
+    const review = post.reviewPost;
+    return (
+      review?.coverThumbnailUrl ??
+      review?.items?.find((item) => item.primaryMedia?.thumbnailUrl)
+        ?.primaryMedia?.thumbnailUrl ??
+      review?.items?.find((item) => item.thumbnailUrl)?.thumbnailUrl ??
+      review?.items?.find((item) => item.menuItem?.thumbnailUrl)?.menuItem
+        ?.thumbnailUrl ??
+      null
+    );
+  }
+
+  return (
+    post.contentPost?.media?.find((item) => item.type === "IMAGE")
+      ?.thumbnailUrl ??
+    post.contentPost?.thumbnailUrl ??
+    null
+  );
+}
+
+function getPostVideo(post: Post) {
+  if (post.type !== "CONTENT") return null;
+
+  return (
+    post.contentPost?.media?.find((item) => item.type === "VIDEO")?.videoUrl ??
+    post.contentPost?.videoUrl ??
+    null
+  );
+}
+
+function ProfileVideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer({ uri, useCaching: true }, (videoPlayer) => {
+    videoPlayer.loop = false;
+    videoPlayer.muted = true;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      contentFit="cover"
+      nativeControls={false}
+      allowsPictureInPicture={false}
+      surfaceType="textureView"
+    />
+  );
 }
 
 function getPostText(post: Post) {
@@ -46,7 +100,13 @@ function getPostText(post: Post) {
   return post.contentPost?.description ?? null;
 }
 
-export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost, loading = false }: Props) {
+export default function ProfilePostGrid({
+  posts,
+  type,
+  onPressPost,
+  onCreatePost,
+  loading = false,
+}: Props) {
   const { t } = useTranslation("profile");
   const { isDark } = useAppTheme();
 
@@ -111,9 +171,9 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
       {posts.map((post) => {
         const imageUrl = getPostImage(post);
         const thumbnailUrl = getPostThumbnail(post);
+        const videoUrl = getPostVideo(post);
         const text = getPostText(post);
         const contentMedia = post.contentPost?.media ?? [];
-        const isVideo = contentMedia[0]?.type === "VIDEO" || !!post.contentPost?.videoUrl;
 
         return (
           <Pressable
@@ -127,7 +187,7 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
                 <ProgressiveImage
                   source={{ uri: imageUrl }}
                   thumbnailUrl={thumbnailUrl}
-                  className="h-full w-full"
+                  style={{ width: "100%", height: "100%" }}
                   contentFit="cover"
                 />
 
@@ -144,18 +204,21 @@ export default function ProfilePostGrid({ posts, type, onPressPost, onCreatePost
                   </>
                 )}
               </>
+            ) : videoUrl ? (
+              <>
+                <ProfileVideoPreview uri={videoUrl} />
+                <View className="absolute inset-0 items-center justify-center bg-black/15">
+                  <PlayCircleIcon size={34} color="#FFF" weight="fill" />
+                </View>
+              </>
             ) : (
               <View className="h-full w-full items-center justify-center bg-gray-900 px-2">
-                {isVideo ? (
-                  <PlayCircleIcon size={34} color="#FFF" weight="fill" />
-                ) : (
-                  <Text
-                    className="text-center text-xs text-white"
-                    numberOfLines={3}
-                  >
-                    {text}
-                  </Text>
-                )}
+                <Text
+                  className="text-center text-xs text-white"
+                  numberOfLines={3}
+                >
+                  {text}
+                </Text>
               </View>
             )}
             {contentMedia.length > 1 ? (

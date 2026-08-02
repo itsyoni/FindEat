@@ -8,7 +8,7 @@ import {
 import ReviewPost from "./ReviewPost";
 import ReviewFeedEmptyState from "./ReviewFeedEmptyState";
 import { Skeleton, SkeletonPulse } from "@/components/common";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type ReactElement } from "react";
 import { prefetchUpcomingPosts } from "@/lib/imagePrefetch";
 
 type Props = {
@@ -18,6 +18,7 @@ type Props = {
   onEndReached?: () => void;
   loadingMore?: boolean;
   contentTopInset?: number;
+  header?: ReactElement;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onOpenComments: (postId: string) => void;
   onOpenSharePost: (postId: string) => void;
@@ -40,6 +41,7 @@ export default function ReviewFeed({
   onEndReached,
   loadingMore = false,
   contentTopInset = 0,
+  header,
   onToggleLike,
   onOpenComments,
   onToggleWantToTry,
@@ -48,6 +50,7 @@ export default function ReviewFeed({
   loading = false,
   initialIndex = 0,
 }: Props) {
+  const topSpacing = contentTopInset + (header ? 0 : 12);
   const listRef = useRef<FlatList<Post>>(null);
   const postsRef = useRef(posts);
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function ReviewFeed({
   );
   if (loading) {
     return (
-      <SkeletonPulse style={{ flex: 1, paddingTop: contentTopInset + 12 }}>
+      <SkeletonPulse style={{ flex: 1, paddingTop: topSpacing }}>
         <View className="mb-4 bg-white dark:bg-black">
           <View className="flex-row items-center gap-3 px-4 py-3">
             <Skeleton width={44} height={44} circle />
@@ -111,8 +114,9 @@ export default function ReviewFeed({
       }}
       contentContainerStyle={{
         flexGrow: 1,
-        paddingTop: contentTopInset + 12,
+        paddingTop: topSpacing,
       }}
+      ListHeaderComponent={header}
       ListEmptyComponent={
         <View style={{ flex: 1, minHeight: 520 }}>
           <ReviewFeedEmptyState />

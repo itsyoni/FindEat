@@ -1,6 +1,11 @@
 import { Post } from "@findeat/types/post";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, View, type ViewToken } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FlatList,
+  PanResponder,
+  View,
+  type ViewToken,
+} from "react-native";
 import ContentPost from "./ContentPost";
 import EmptyPostsState from "../EmptyPostsState";
 import { Skeleton, SkeletonPulse } from "@/components/common";
@@ -10,6 +15,7 @@ type Props = {
   posts: Post[];
   height: number;
   contentTopInset?: number;
+  controlsTopInset?: number;
   refreshing: boolean;
   onRefresh: () => void;
   onEndReached?: () => void;
@@ -24,16 +30,22 @@ type Props = {
     restaurantId: string,
     isWantToTry: boolean,
   ) => void;
+  consumeFirstScroll?: boolean;
+  onConsumeFirstScroll?: () => void;
+  reopenSnapsOnTopPull?: boolean;
+  onReopenSnaps?: () => void;
   initialIndex?: number;
   loading?: boolean;
 };
 
 const contentViewabilityConfig = { itemVisiblePercentThreshold: 60 };
+const refreshPullThreshold = 64;
 
 export default function ContentFeed({
   posts,
   height,
   contentTopInset = 0,
+  controlsTopInset = 0,
   refreshing,
   onRefresh,
   onEndReached,
@@ -44,9 +56,56 @@ export default function ContentFeed({
   initialIndex = 0,
   onOpenSharePost,
   onOpenPostOptions,
+  consumeFirstScroll = false,
+  onConsumeFirstScroll,
+  reopenSnapsOnTopPull = false,
+  onReopenSnaps,
   loading = false,
 }: Props) {
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
+  const [visiblePostIndex, setVisiblePostIndex] = useState(initialIndex);
+  const [pullStartedAtTop, setPullStartedAtTop] = useState(false);
+  const firstScrollPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, gesture) =>
+          Math.abs(gesture.dy) > Math.abs(gesture.dx) &&
+          ((consumeFirstScroll && gesture.dy < -12) ||
+            (consumeFirstScroll &&
+              pullStartedAtTop &&
+              gesture.dy > 12) ||
+            (reopenSnapsOnTopPull && pullStartedAtTop && gesture.dy > 12)),
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dy < -12) onConsumeFirstScroll?.();
+          if (
+            gesture.dy >= refreshPullThreshold &&
+            consumeFirstScroll &&
+            pullStartedAtTop &&
+            !refreshing
+          ) {
+            onRefresh();
+          }
+          if (gesture.dy > 12 && reopenSnapsOnTopPull && pullStartedAtTop) {
+            onReopenSnaps?.();
+          }
+        },
+        onPanResponderTerminate: (_, gesture) => {
+          if (gesture.dy < -12) onConsumeFirstScroll?.();
+          if (gesture.dy > 12 && reopenSnapsOnTopPull && pullStartedAtTop) {
+            onReopenSnaps?.();
+          }
+        },
+      }),
+    [
+      consumeFirstScroll,
+      onConsumeFirstScroll,
+      onRefresh,
+      onReopenSnaps,
+      pullStartedAtTop,
+      refreshing,
+      reopenSnapsOnTopPull,
+    ],
+  );
   const postsRef = useRef(posts);
   useEffect(() => {
     postsRef.current = posts;
@@ -57,6 +116,7 @@ export default function ContentFeed({
         (item) => item.isViewable && typeof item.index === "number",
       )?.index;
       if (typeof index === "number") {
+        setVisiblePostIndex(index);
         prefetchUpcomingPosts(postsRef.current, index);
       }
     },
@@ -89,48 +149,60 @@ export default function ContentFeed({
     );
   }
 
+  const preventTopOverscroll = reopenSnapsOnTopPull && visiblePostIndex === 0;
+
   return (
-    <FlatList
-      data={posts}
-      keyExtractor={(item) => item.id}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      onEndReached={onEndReached}
-      onEndReachedThreshold={0.6}
-      initialNumToRender={2}
-      maxToRenderPerBatch={2}
-      windowSize={3}
-      removeClippedSubviews
-      onViewableItemsChanged={onViewableItemsChanged}
-      viewabilityConfig={contentViewabilityConfig}
-      pagingEnabled
-      scrollEnabled={!isPinchingMedia}
-      showsVerticalScrollIndicator={false}
-      decelerationRate="fast"
-      initialScrollIndex={initialIndex}
-      contentContainerStyle={{
-        flexGrow: 1,
-      }}
-      ListEmptyComponent={<EmptyPostsState type="CONTENT" />}
-      getItemLayout={(_, index) => ({
-        length: height,
-        offset: height * index,
-        index,
-      })}
-      renderItem={({ item }) => (
-        <ContentPost
-          post={item}
-          height={height}
-          contentTopInset={contentTopInset}
-          onToggleLike={onToggleLike}
-          onOpenComments={onOpenComments}
-          onToggleWantToTry={onToggleWantToTry}
-          onOpenSharePost={onOpenSharePost}
-          onOpenPostOptions={onOpenPostOptions}
-          onPinchStart={() => setIsPinchingMedia(true)}
-          onPinchEnd={() => setIsPinchingMedia(false)}
-        />
-      )}
-    />
+    <View
+      style={{ flex: 1 }}
+      onTouchStart={() => setPullStartedAtTop(visiblePostIndex === 0)}
+      {...firstScrollPanResponder.panHandlers}
+    >
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.6}
+        initialNumToRender={2}
+        maxToRenderPerBatch={2}
+        windowSize={3}
+        removeClippedSubviews
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={contentViewabilityConfig}
+        pagingEnabled
+        scrollEnabled={!consumeFirstScroll && !isPinchingMedia}
+        bounces={!preventTopOverscroll}
+        alwaysBounceVertical={!preventTopOverscroll}
+        overScrollMode={preventTopOverscroll ? "never" : "auto"}
+        showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
+        initialScrollIndex={initialIndex}
+        contentContainerStyle={{
+          flexGrow: 1,
+        }}
+        ListEmptyComponent={<EmptyPostsState type="CONTENT" />}
+        getItemLayout={(_, index) => ({
+          length: height,
+          offset: height * index,
+          index,
+        })}
+        renderItem={({ item }) => (
+          <ContentPost
+            post={item}
+            height={height}
+            contentTopInset={contentTopInset}
+            controlsTopInset={controlsTopInset}
+            onToggleLike={onToggleLike}
+            onOpenComments={onOpenComments}
+            onToggleWantToTry={onToggleWantToTry}
+            onOpenSharePost={onOpenSharePost}
+            onOpenPostOptions={onOpenPostOptions}
+            onPinchStart={() => setIsPinchingMedia(true)}
+            onPinchEnd={() => setIsPinchingMedia(false)}
+          />
+        )}
+      />
+    </View>
   );
 }

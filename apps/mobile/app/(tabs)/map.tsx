@@ -318,6 +318,7 @@ export default function MapScreen() {
           handledRestaurantIdRef.current = requestedRestaurant.id;
           temporaryRestaurantIdRef.current = requestedRestaurant.id;
           setSelectedRestaurant(requestedRestaurant);
+          router.setParams({ restaurantId: undefined });
           if (
             typeof requestedRestaurant.latitude === "number" &&
             typeof requestedRestaurant.longitude === "number"
@@ -375,6 +376,7 @@ export default function MapScreen() {
         setSelectedRestaurant(requestedRestaurant);
         setIsSearching(false);
         setViewMode("MAP");
+        router.setParams({ restaurantId: undefined });
 
         if (
           typeof requestedRestaurant.latitude === "number" &&
@@ -498,15 +500,22 @@ export default function MapScreen() {
 
       return () => {
         active = false;
-        dismissRestaurantPreview();
       };
     }, [
-      dismissRestaurantPreview,
       filtersHydrated,
       listId,
       loadRestaurants,
       loadUserLocation,
     ]),
+  );
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        dismissRestaurantPreview();
+      },
+      [dismissRestaurantPreview],
+    ),
   );
 
   function selectRestaurant(restaurant: Restaurant) {

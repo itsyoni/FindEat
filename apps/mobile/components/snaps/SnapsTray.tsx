@@ -2,22 +2,30 @@ import Avatar from "@/components/common/Avatar";
 import Text from "@/components/common/AppText";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSnaps } from "@/hooks/useSnaps";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { PlusIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
+import { useSnapIndicatorLookup } from "@/contexts/SnapIndicatorContext";
 
 type Props = {
   overlay?: boolean;
+  hideDivider?: boolean;
 };
 
-export default function SnapsTray({ overlay = false }: Props) {
+export default function SnapsTray({
+  overlay = false,
+  hideDivider = false,
+}: Props) {
   const { t } = useTranslation("snaps");
   const { user } = useAuth();
   const snaps = useSnaps(!!user);
+  const snapIndicatorFor = useSnapIndicatorLookup();
   const groups = snaps.data ?? [];
   const ownGroup = groups.find((group) => group.isOwn);
+  const ownSnapIndicator = ownGroup
+    ? snapIndicatorFor({ userId: ownGroup.user.id })
+    : null;
   const otherGroups = groups.filter((group) => !group.isOwn);
 
   function openGroup(userId: string) {
@@ -27,8 +35,18 @@ export default function SnapsTray({ overlay = false }: Props) {
     });
   }
 
+  function openSnapCamera() {
+    router.push("/create/snap");
+  }
+
   return (
-    <View className={overlay ? "pb-1 pt-1" : "border-b border-gray-100 pb-3 pt-1 dark:border-gray-900"}>
+    <View
+      className={`pb-1 pt-1 ${
+        !overlay && !hideDivider
+          ? "border-b border-gray-100 dark:border-gray-900"
+          : ""
+      }`}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -39,20 +57,41 @@ export default function SnapsTray({ overlay = false }: Props) {
             accessibilityRole="button"
             accessibilityLabel={t(ownGroup ? "viewYourSnaps" : "addSnap")}
             onPress={() =>
-              ownGroup ? openGroup(ownGroup.user.id) : router.push("/create/snap")
+              ownGroup ? openGroup(ownGroup.user.id) : openSnapCamera()
             }
           >
-            <View className="rounded-full border-2 border-gray-300 p-[3px] dark:border-gray-700">
-              <Avatar
-                uri={user?.avatarUrl}
-                username={user?.username}
-                size={58}
-              />
-            </View>
+            {ownGroup ? (
+              <View
+                className={`rounded-full p-[3px] ${
+                  ownSnapIndicator === "viewed"
+                    ? "bg-gray-400 dark:bg-gray-600"
+                    : "bg-brand"
+                }`}
+                style={{ overflow: "hidden" }}
+              >
+                <View className="rounded-full bg-white p-[2px] dark:bg-black">
+                  <Avatar
+                    uri={user?.avatarUrl}
+                    username={user?.username}
+                    size={56}
+                    showSnapIndicator={false}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View className="rounded-full border-2 border-gray-300 p-[3px] dark:border-gray-700">
+                <Avatar
+                  uri={user?.avatarUrl}
+                  username={user?.username}
+                  size={58}
+                  showSnapIndicator={false}
+                />
+              </View>
+            )}
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={t("addSnap")}
-              onPress={() => router.push("/create/snap")}
+              onPress={openSnapCamera}
               className="absolute -bottom-1 -right-1 h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand dark:border-black"
             >
               <PlusIcon size={16} color="#FFF" weight="bold" />
@@ -85,25 +124,27 @@ export default function SnapsTray({ overlay = false }: Props) {
             onPress={() => openGroup(group.user.id)}
             className="w-[70px] items-center"
           >
-            {group.hasUnseen ? (
-              <LinearGradient
-                colors={["#F59E0B", "#EF4444", "#A855F7"]}
-                className="rounded-full p-[3px]"
+            {snapIndicatorFor({ userId: group.user.id }) === "unseen" ? (
+              <View
+                className="rounded-full bg-brand p-[3px]"
+                style={{ overflow: "hidden" }}
               >
                 <View className="rounded-full bg-white p-[2px] dark:bg-black">
                   <Avatar
                     uri={group.user.avatarUrl}
                     username={group.user.username}
                     size={56}
+                    showSnapIndicator={false}
                   />
                 </View>
-              </LinearGradient>
+              </View>
             ) : (
               <View className="rounded-full border-2 border-gray-300 p-[3px] dark:border-gray-700">
                 <Avatar
                   uri={group.user.avatarUrl}
                   username={group.user.username}
                   size={58}
+                  showSnapIndicator={false}
                 />
               </View>
             )}

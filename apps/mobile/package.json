@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "1.9.5",
+  "version": "1.9.18",
   "scripts": {
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
@@ -58,6 +58,7 @@
     "expo-location": "~56.0.20",
     "expo-notifications": "~56.0.20",
     "expo-router": "~56.2.14",
+    "expo-secure-store": "~56.0.4",
     "expo-splash-screen": "~56.0.12",
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.6",

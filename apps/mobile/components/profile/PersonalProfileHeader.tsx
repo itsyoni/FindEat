@@ -14,7 +14,6 @@ import {
   PencilSimpleIcon,
 } from "phosphor-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
 import { Skeleton, SkeletonPulse } from "../common";
 import ParallaxProfileCover from "./ParallaxProfileCover";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -22,6 +21,8 @@ import CreatorLevelBadge from "./CreatorLevelBadge";
 import ProfileTagBadge from "./ProfileTagBadge";
 import { getProfileCompletion } from "@/lib/profileCompletion";
 import { DirectionalForwardIcon } from "@/components/common/icons/DirectionalIcon";
+import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
+import { useRef, useState } from "react";
 
 type Props = {
   profile?: Profile | null;
@@ -33,7 +34,27 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
   const { t } = useTranslation(["common", "profile"]);
   const { isDark } = useAppTheme();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarLongPressRef = useRef(false);
+  const snapIndicator = useSnapIndicator({
+    userId: profile?.id,
+    username: profile?.username,
+    avatarUrl: profile?.avatarUrl,
+  });
+  const hasSnap = snapIndicator !== null;
   const completion = profile ? getProfileCompletion(profile) : null;
+
+  function openSnap() {
+    if (!profile || !hasSnap || avatarLongPressRef.current) return;
+    router.push({
+      pathname: "/snaps/[userId]",
+      params: { userId: profile.id },
+    });
+  }
+
+  function openAvatarPicture() {
+    avatarLongPressRef.current = true;
+    setAvatarOpen(true);
+  }
 
   if (loading || !profile) {
     return (
@@ -86,14 +107,41 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
         style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
       >
         <TouchableOpacity
-          activeOpacity={profile.avatarUrl ? 0.8 : 1}
-          disabled={!profile.avatarUrl}
-          accessibilityRole={profile.avatarUrl ? "imagebutton" : undefined}
-          accessibilityLabel={profile.avatarUrl ? "Open profile picture" : undefined}
-          onPress={() => setAvatarOpen(true)}
-          className="-mt-12 rounded-full bg-white p-1.5 dark:bg-black"
+          activeOpacity={1}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={
+            hasSnap
+              ? "View snap"
+              : profile.avatarUrl
+                ? "Long press to view profile picture"
+                : undefined
+          }
+          onPressIn={() => {
+            avatarLongPressRef.current = false;
+          }}
+          onPress={openSnap}
+          onLongPress={openAvatarPicture}
+          delayLongPress={280}
+          className={
+            snapIndicator === "unseen"
+              ? "-mt-12 rounded-full bg-brand p-1"
+              : snapIndicator === "viewed"
+                ? "-mt-12 rounded-full bg-gray-400 p-1 dark:bg-gray-600"
+              : "-mt-12 rounded-full bg-white p-1.5 dark:bg-black"
+          }
         >
-          <Avatar uri={profile.avatarUrl} username={profile.username} size={100} />
+          <View
+            className={
+              hasSnap ? "rounded-full bg-white p-0.5 dark:bg-black" : ""
+            }
+          >
+            <Avatar
+              uri={profile.avatarUrl}
+              username={profile.username}
+              size={100}
+              showSnapIndicator={false}
+            />
+          </View>
         </TouchableOpacity>
 
         <View className="mt-2 flex-row items-center justify-center gap-2 px-5">
@@ -221,6 +269,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
         uri={profile.avatarUrl}
         visible={avatarOpen}
         onClose={() => setAvatarOpen(false)}
+        showDefaultAvatar
       />
     </View>
   );

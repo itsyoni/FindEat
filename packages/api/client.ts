@@ -1,8 +1,16 @@
-import axios from "axios";
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 type GetToken = () => string | null | Promise<string | null>;
+type RefreshAccessToken = () => Promise<string | null>;
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _findeatAuthRetry?: boolean;
+};
 
-export function createApiClient(baseURL: string, getToken?: GetToken) {
+export function createApiClient(
+  baseURL: string,
+  getToken?: GetToken,
+  refreshAccessToken?: RefreshAccessToken,
+) {
   const api = axios.create({ baseURL });
 
   const originalGet = api.get.bind(api);
@@ -37,6 +45,25 @@ export function createApiClient(baseURL: string, getToken?: GetToken) {
     }
 
     return config;
+  });
+
+  api.interceptors.response.use(undefined, async (error: AxiosError) => {
+    const config = error.config as RetryableRequestConfig | undefined;
+    if (
+      error.response?.status !== 401 ||
+      !config ||
+      config._findeatAuthRetry ||
+      !refreshAccessToken
+    ) {
+      throw error;
+    }
+
+    config._findeatAuthRetry = true;
+    const accessToken = await refreshAccessToken();
+    if (!accessToken) throw error;
+
+    config.headers.Authorization = `Bearer ${accessToken}`;
+    return api.request(config);
   });
 
   return api;

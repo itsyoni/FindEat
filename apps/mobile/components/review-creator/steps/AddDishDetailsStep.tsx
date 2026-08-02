@@ -14,6 +14,8 @@ import PriceInput from "../components/PriceInput";
 import RatingPicker from "../components/RatingPicker";
 import { useTranslation } from "react-i18next";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
+import { cropPostImage } from "@/lib/cropPostImage";
+import { useToast } from "@/contexts/ToastContext";
 
 type Props = {
   selectedDish: Dish | null;
@@ -35,6 +37,7 @@ export default function AddDishDetailsStep({
   savingDraft,
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
+  const { showToast } = useToast();
   const isFromMenu = !!selectedDish;
 
   const [dishName, setDishName] = useState(
@@ -64,13 +67,24 @@ export default function AddDishDetailsStep({
   }, [dishName, imageUri, onDraftChange, price, rating, text]);
 
   async function pickImage() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const croppedImage = await cropPostImage({
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+        aspect: "REVIEW",
+        toolbarTitle: t("cropDishPhoto"),
+      });
+      setImageUri(croppedImage.uri);
+    } catch (error) {
+      console.error("review dish image crop failed", error);
+      showToast(t("imageCropErrorBody"), { kind: "error" });
     }
   }
 
@@ -139,7 +153,7 @@ export default function AddDishDetailsStep({
                   <View className="w-full">
                     <ProgressiveImage
                       source={{ uri: imageUri }}
-                      className="h-64 w-full"
+                      className="aspect-square w-full"
                       resizeMode="cover"
                     />
                     <View className="absolute bottom-3 right-3 rounded-full bg-black/65 px-4 py-2">

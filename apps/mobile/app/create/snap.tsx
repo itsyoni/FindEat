@@ -12,17 +12,16 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
 import {
-  CameraIcon,
-  ImagesSquareIcon,
   MapPinIcon,
   PaperPlaneTiltIcon,
 } from "phosphor-react-native";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
@@ -39,11 +38,16 @@ export default function CreateSnapScreen() {
   const [choosingRestaurant, setChoosingRestaurant] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const publishStartedRef = useRef(false);
+  const cameraOpenedRef = useRef(false);
 
-  async function takePhoto() {
+  const takePhoto = useCallback(async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t("snaps:cameraPermissionTitle"), t("snaps:cameraPermissionBody"));
+      Alert.alert(
+        t("snaps:cameraPermissionTitle"),
+        t("snaps:cameraPermissionBody"),
+        [{ text: t("common:ok"), onPress: () => router.back() }],
+      );
       return;
     }
 
@@ -52,18 +56,18 @@ export default function CreateSnapScreen() {
       quality: 0.9,
       allowsEditing: false,
     });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
-  }
+    if (result.canceled) {
+      router.back();
+      return;
+    }
+    setImageUri(result.assets[0].uri);
+  }, [t]);
 
-  async function choosePhoto() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.9,
-      allowsEditing: false,
-      selectionLimit: 1,
-    });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
-  }
+  useEffect(() => {
+    if (cameraOpenedRef.current) return;
+    cameraOpenedRef.current = true;
+    void takePhoto();
+  }, [takePhoto]);
 
   function publish() {
     if (!imageUri || publishing || publishStartedRef.current) return;
@@ -105,7 +109,7 @@ export default function CreateSnapScreen() {
           caption: pendingCaption,
           restaurantId,
         });
-        void queryClient.invalidateQueries({ queryKey: snapsQueryKey });
+        await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
         return { type: "snap", userId: createdSnap.user.id };
       },
     });
@@ -134,19 +138,19 @@ export default function CreateSnapScreen() {
       : restaurant?.name;
 
   return (
-    <View className="flex-1 bg-black">
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       {imageUri ? (
         <>
           <Image
             source={{ uri: imageUri }}
             contentFit="cover"
-            style={{ position: "absolute", inset: 0 }}
+            style={StyleSheet.absoluteFill}
           />
-          <View className="absolute inset-0 bg-black/20" />
-          <SafeAreaView edges={["top"]} className="flex-row items-center px-4">
+          <View style={[StyleSheet.absoluteFill, styles.previewScrim]} />
+          <SafeAreaView edges={["top"]} style={styles.previewHeader}>
             <TouchableOpacity
-              onPress={() => setImageUri(null)}
+              onPress={() => router.back()}
               className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
             >
               <DirectionalIcon
@@ -163,11 +167,11 @@ export default function CreateSnapScreen() {
 
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            className="mt-auto"
+            style={styles.previewKeyboardArea}
           >
             <SafeAreaView
               edges={["bottom"]}
-              className="gap-3 bg-black/55 px-4 pb-3 pt-4"
+              style={styles.previewComposer}
             >
               <TextInput
                 value={caption}
@@ -220,66 +224,37 @@ export default function CreateSnapScreen() {
           </KeyboardAvoidingView>
         </>
       ) : (
-        <SafeAreaView edges={["top", "bottom"]} className="flex-1 px-5">
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="h-11 w-11 items-center justify-center"
-            >
-              <DirectionalIcon
-                direction="back"
-                size={25}
-                color="#FFF"
-                weight="bold"
-              />
-            </TouchableOpacity>
-            <Text className="ml-2 text-xl font-bold text-white">
-              {t("snaps:newSnap")}
-            </Text>
-          </View>
-
-          <View className="flex-1 justify-center pb-16">
-            <Text className="text-center text-3xl font-bold text-white">
-              {t("snaps:captureMoment")}
-            </Text>
-            <Text className="mx-8 mt-3 text-center text-base leading-6 text-gray-400">
-              {t("snaps:expiresHint")}
-            </Text>
-            <TouchableOpacity
-              onPress={() => void takePhoto()}
-              className="mt-9 flex-row items-center rounded-3xl bg-white p-5"
-            >
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-black">
-                <CameraIcon size={29} color="#FFF" weight="fill" />
-              </View>
-              <View className="ml-4 flex-1">
-                <Text className="text-lg font-bold text-black">
-                  {t("snaps:takePhoto")}
-                </Text>
-                <Text className="mt-1 text-sm text-gray-500">
-                  {t("snaps:takePhotoHint")}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => void choosePhoto()}
-              className="mt-3 flex-row items-center rounded-3xl border border-white/15 bg-white/10 p-5"
-            >
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-white/10">
-                <ImagesSquareIcon size={29} color="#F7D786" weight="fill" />
-              </View>
-              <View className="ml-4 flex-1">
-                <Text className="text-lg font-bold text-white">
-                  {t("snaps:choosePhoto")}
-                </Text>
-                <Text className="mt-1 text-sm text-gray-400">
-                  {t("snaps:choosePhotoHint")}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
+        <ActivityIndicator style={styles.cameraLoader} color="#FFF" size="large" />
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  previewScrim: {
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+  },
+  previewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  previewKeyboardArea: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  previewComposer: {
+    gap: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  cameraLoader: {
+    flex: 1,
+  },
+});

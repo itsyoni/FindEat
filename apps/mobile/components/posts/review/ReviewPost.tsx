@@ -367,6 +367,7 @@ export default function ReviewPost({
             <Avatar
               uri={displayAvatar}
               username={displayName ?? "User"}
+              userId={isRestaurantPost ? undefined : post.author?.id}
               size={42}
               fallbackType={isRestaurantPost ? "restaurant" : "user"}
             />

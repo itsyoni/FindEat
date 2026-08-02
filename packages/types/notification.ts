@@ -45,6 +45,7 @@ export type AppNotification = {
   postId?: string | null;
   postPreview?: {
     imageUrl?: string | null;
+    videoUrl?: string | null;
     text?: string | null;
     type?: PostType;
     rating?: number | null;

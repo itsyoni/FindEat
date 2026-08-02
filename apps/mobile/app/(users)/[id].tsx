@@ -11,6 +11,8 @@ import ProfileActionsBottomSheet from "@/components/profile/ProfileActionsBottom
 import ParallaxProfileCover from "@/components/profile/ParallaxProfileCover";
 import ReportBottomSheet from "@/components/moderation/ReportBottomSheet";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { snapsQueryKey } from "@/hooks/useSnaps";
+import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { PostType } from "@findeat/types/post";
@@ -28,7 +30,7 @@ import {
   ProhibitIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
@@ -52,6 +54,7 @@ export default function UserProfileScreen() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarLongPressRef = useRef(false);
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -61,6 +64,13 @@ export default function UserProfileScreen() {
     setProfile: setUser,
     loading,
   } = useUserProfile(id as string);
+
+  const snapIndicator = useSnapIndicator({
+    userId: user?.id,
+    username: user?.username,
+    avatarUrl: user?.avatarUrl,
+  });
+  const hasSnap = snapIndicator !== null;
 
   const posts = useMemo(
     () => filterPostsByType(user?.posts, activeFeed),
@@ -91,9 +101,27 @@ export default function UserProfileScreen() {
             }
           : currentUser,
       );
+
+      void queryClient.invalidateQueries({ queryKey: snapsQueryKey });
     } catch (error) {
       console.error(error);
     }
+  }
+
+  function openAvatarOrSnap() {
+    if (!user) return;
+    if (avatarLongPressRef.current) return;
+    if (hasSnap) {
+      router.push({
+        pathname: "/snaps/[userId]",
+        params: { userId: user.id },
+      });
+    }
+  }
+
+  function openAvatarPicture() {
+    avatarLongPressRef.current = true;
+    setAvatarOpen(true);
   }
 
   async function startChat() {
@@ -289,23 +317,44 @@ export default function UserProfileScreen() {
         >
           <View className="-mt-12 items-center px-5">
             <TouchableOpacity
-              activeOpacity={user.avatarUrl ? 0.8 : 1}
-              disabled={!user.avatarUrl}
-              accessibilityRole={user.avatarUrl ? "imagebutton" : undefined}
+              activeOpacity={1}
+              accessibilityRole="imagebutton"
               accessibilityLabel={
-                user.avatarUrl ? "Open profile picture" : undefined
+                hasSnap
+                  ? "View snap"
+                  : user.avatarUrl
+                    ? "Long press to view profile picture"
+                  : undefined
               }
-              onPress={() => setAvatarOpen(true)}
-              className="rounded-full bg-white p-1.5 dark:bg-black"
+              onPressIn={() => {
+                avatarLongPressRef.current = false;
+              }}
+              onPress={openAvatarOrSnap}
+              onLongPress={openAvatarPicture}
+              delayLongPress={280}
+              className={
+                snapIndicator === "unseen"
+                  ? "rounded-full bg-brand p-1"
+                  : snapIndicator === "viewed"
+                    ? "rounded-full bg-gray-400 p-1 dark:bg-gray-600"
+                  : "rounded-full bg-white p-1.5 dark:bg-black"
+              }
             >
-              <Avatar
-                uri={user.avatarUrl}
-                username={user.username}
-                size={100}
-              />
+              <View
+                className={
+                  hasSnap ? "rounded-full bg-white p-0.5 dark:bg-black" : ""
+                }
+              >
+                <Avatar
+                  uri={user.avatarUrl}
+                  username={user.username}
+                  size={100}
+                  showSnapIndicator={false}
+                />
+              </View>
             </TouchableOpacity>
           </View>
-          <View className="items-center px-5">
+          <View className="items-center px-5 pb-5">
             <View className="mt-2 flex-row items-center justify-center gap-2 px-5">
               <Text className="shrink text-2xl font-bold text-black dark:text-white">
                 {user.displayName || user.username}
@@ -478,6 +527,7 @@ export default function UserProfileScreen() {
         uri={user.avatarUrl}
         visible={avatarOpen}
         onClose={() => setAvatarOpen(false)}
+        showDefaultAvatar
       />
     </View>
   );

@@ -17,11 +17,16 @@ import { createProfileTagsApi } from "./profile-tags";
 import { createSnapsApi } from "./snaps";
 
 type GetToken = () => string | null | Promise<string | null>;
+type RefreshAccessToken = () => Promise<string | null>;
 
 export { createApiClient };
 
-export function createApi(baseURL: string, getToken?: GetToken) {
-  const client = createApiClient(baseURL, getToken);
+export function createApi(
+  baseURL: string,
+  getToken?: GetToken,
+  refreshAccessToken?: RefreshAccessToken,
+) {
+  const client = createApiClient(baseURL, getToken, refreshAccessToken);
 
   return createApiFromClient(client);
 }
