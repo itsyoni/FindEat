@@ -52,7 +52,7 @@ export default function SnapsTray({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 14, gap: 14 }}
       >
-        <View className="w-[70px] items-center">
+        <View className="w-17.5 items-center">
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t(ownGroup ? "viewYourSnaps" : "addSnap")}
@@ -62,14 +62,14 @@ export default function SnapsTray({
           >
             {ownGroup ? (
               <View
-                className={`rounded-full p-[3px] ${
+                className={`rounded-full p-0.75 ${
                   ownSnapIndicator === "viewed"
                     ? "bg-gray-400 dark:bg-gray-600"
                     : "bg-brand"
                 }`}
                 style={{ overflow: "hidden" }}
               >
-                <View className="rounded-full bg-white p-[2px] dark:bg-black">
+                <View className="rounded-full bg-white p-0.5 dark:bg-black">
                   <Avatar
                     uri={user?.avatarUrl}
                     username={user?.username}
@@ -79,7 +79,7 @@ export default function SnapsTray({
                 </View>
               </View>
             ) : (
-              <View className="rounded-full border-2 border-gray-300 p-[3px] dark:border-gray-700">
+              <View className="rounded-full border-2 border-gray-300 p-0.75 dark:border-gray-700">
                 <Avatar
                   uri={user?.avatarUrl}
                   username={user?.username}
@@ -122,14 +122,14 @@ export default function SnapsTray({
               username: group.user.username,
             })}
             onPress={() => openGroup(group.user.id)}
-            className="w-[70px] items-center"
+            className="w-17.5 items-center"
           >
             {snapIndicatorFor({ userId: group.user.id }) === "unseen" ? (
               <View
-                className="rounded-full bg-brand p-[3px]"
+                className="rounded-full bg-brand p-0.75"
                 style={{ overflow: "hidden" }}
               >
-                <View className="rounded-full bg-white p-[2px] dark:bg-black">
+                <View className="rounded-full bg-white p-0.5 dark:bg-black">
                   <Avatar
                     uri={group.user.avatarUrl}
                     username={group.user.username}
@@ -139,7 +139,7 @@ export default function SnapsTray({
                 </View>
               </View>
             ) : (
-              <View className="rounded-full border-2 border-gray-300 p-[3px] dark:border-gray-700">
+              <View className="rounded-full border-2 border-gray-300 p-0.75 dark:border-gray-700">
                 <Avatar
                   uri={group.user.avatarUrl}
                   username={group.user.username}

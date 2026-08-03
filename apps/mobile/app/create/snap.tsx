@@ -11,10 +11,7 @@ import { usePostUpload } from "@/contexts/PostUploadContext";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
-import {
-  MapPinIcon,
-  PaperPlaneTiltIcon,
-} from "phosphor-react-native";
+import { MapPinIcon, PaperPlaneTiltIcon } from "phosphor-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -169,10 +166,7 @@ export default function CreateSnapScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={styles.previewKeyboardArea}
           >
-            <SafeAreaView
-              edges={["bottom"]}
-              style={styles.previewComposer}
-            >
+            <SafeAreaView edges={["bottom"]} style={styles.previewComposer}>
               <TextInput
                 value={caption}
                 onChangeText={setCaption}
@@ -198,21 +192,28 @@ export default function CreateSnapScreen() {
                   className="min-w-0 flex-1 flex-row items-center rounded-2xl bg-white/15 px-4 py-3.5"
                 >
                   <MapPinIcon size={20} color="#F7D786" weight="fill" />
-                  <Text numberOfLines={1} className="ml-2 min-w-0 flex-1 font-bold text-white">
+                  <Text
+                    numberOfLines={1}
+                    className="ml-2 min-w-0 flex-1 font-bold text-white"
+                  >
                     {restaurantName ?? t("snaps:tagRestaurant")}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   disabled={publishing}
                   onPress={() => void publish()}
-                  className="h-[52px] min-w-28 flex-row items-center justify-center rounded-2xl bg-white px-5"
+                  className="h-13 min-w-28 flex-row items-center justify-center rounded-2xl bg-white px-5"
                   style={{ opacity: publishing ? 0.65 : 1 }}
                 >
                   {publishing ? (
                     <ActivityIndicator color="#111" />
                   ) : (
                     <>
-                      <PaperPlaneTiltIcon size={20} color="#111" weight="fill" />
+                      <PaperPlaneTiltIcon
+                        size={20}
+                        color="#111"
+                        weight="fill"
+                      />
                       <Text className="ml-2 font-bold text-black">
                         {t("snaps:share")}
                       </Text>
@@ -224,7 +225,11 @@ export default function CreateSnapScreen() {
           </KeyboardAvoidingView>
         </>
       ) : (
-        <ActivityIndicator style={styles.cameraLoader} color="#FFF" size="large" />
+        <ActivityIndicator
+          style={styles.cameraLoader}
+          color="#FFF"
+          size="large"
+        />
       )}
     </View>
   );
