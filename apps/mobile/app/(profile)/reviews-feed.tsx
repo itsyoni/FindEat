@@ -8,11 +8,13 @@ import SharePostBottomSheet from "@/components/chats/share/SharePostBottomSheet"
 import { useCallback, useMemo, useState } from "react";
 
 import ReviewFeed from "@/components/posts/review/ReviewFeed";
+import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
+import { TouchableOpacity, View } from "react-native";
 
 export default function ProfileReviewsFeedScreen() {
   const queryClient = useQueryClient();
@@ -74,28 +76,32 @@ export default function ProfileReviewsFeedScreen() {
 
   if (loading || !profile) {
     return (
-      <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
-        <ReviewFeed posts={[]} loading refreshing={false} onRefresh={refresh} onToggleLike={toggleLike} onOpenComments={openComments} onToggleWantToTry={toggleWantToTry} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+        <ProfileReviewBackButton />
+        <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+          <ReviewFeed posts={[]} loading contentTopInset={56} refreshing={false} onRefresh={refresh} onToggleLike={toggleLike} onOpenComments={openComments} onToggleWantToTry={toggleWantToTry} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
-    >
-      <ReviewFeed
-        posts={posts}
-        initialIndex={initialIndex}
-        refreshing={false}
-        onRefresh={refresh}
-        onToggleLike={toggleLike}
-        onOpenComments={openComments}
-        onToggleWantToTry={toggleWantToTry}
-        onOpenSharePost={setSharePostId}
-        onOpenPostOptions={setOptionsPostId}
-      />
+    <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+      <ProfileReviewBackButton />
+      <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+        <ReviewFeed
+          posts={posts}
+          initialIndex={initialIndex}
+          contentTopInset={56}
+          refreshing={false}
+          onRefresh={refresh}
+          onToggleLike={toggleLike}
+          onOpenComments={openComments}
+          onToggleWantToTry={toggleWantToTry}
+          onOpenSharePost={setSharePostId}
+          onOpenPostOptions={setOptionsPostId}
+        />
+      </SafeAreaView>
 
       <PostOptionsBottomSheet
         postId={optionsPostId}
@@ -114,6 +120,25 @@ export default function ProfileReviewsFeedScreen() {
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}
       />
+    </View>
+  );
+}
+
+function ProfileReviewBackButton() {
+  return (
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 50 }}
+    >
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={() => router.back()}
+        className="ml-4 mt-2 h-11 w-11 items-center justify-center rounded-full bg-black/50"
+      >
+        <DirectionalIcon direction="back" size={24} color="white" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

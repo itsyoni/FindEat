@@ -388,7 +388,7 @@ export default function ContentPost({
         />
 
         <TouchableOpacity
-          className="absolute right-4 z-10 p-1"
+          className="absolute right-4 z-10 h-11 w-16 items-center justify-center"
           style={{ top: controlsTopInset + 16 }}
           activeOpacity={0.8}
           onPress={() => onOpenPostOptions(post.id)}

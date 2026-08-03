@@ -101,7 +101,12 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
           );
         })
         .catch((error) => {
-          console.error("Background post upload failed", error);
+          // A raw console.error triggers Expo's development overlay and can
+          // point at whichever provider is currently rendering. The failed
+          // task already has a visible retry state, so log a concise warning.
+          console.warn("Background post upload failed", {
+            message: getErrorMessage(error, "Could not upload this post."),
+          });
           updateTask(id, {
             status: "failed",
             error: getErrorMessage(error, "Could not upload this post."),

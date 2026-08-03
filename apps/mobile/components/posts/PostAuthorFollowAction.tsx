@@ -14,10 +14,6 @@ type Props = {
   onMedia?: boolean;
 };
 
-function followsAuthor(relationship?: UserRelationship | null) {
-  return relationship === "FOLLOWING" || relationship === "FRIENDS";
-}
-
 export default function PostAuthorFollowAction({
   post,
   onMedia = false,
@@ -48,13 +44,13 @@ export default function PostAuthorFollowAction({
     return null;
   }
 
-  if (followsAuthor(relationship)) {
+  if (relationship === "FRIENDS" || relationship === "FOLLOWING") {
     return (
       <Text
         weight="medium"
         className={onMedia ? "text-sm text-white/80" : "text-sm text-gray-500"}
       >
-        {t("following")}
+        {t(relationship === "FRIENDS" ? "friends" : "following")}
       </Text>
     );
   }

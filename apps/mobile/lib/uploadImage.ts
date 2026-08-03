@@ -1,5 +1,7 @@
 import { apiClient } from '@/lib/api';
 import type { MediaPurpose, MediaUploadTicket } from '@findeat/types';
+import { getErrorMessage } from '@findeat/utils';
+import { isAxiosError } from 'axios';
 import { File } from 'expo-file-system';
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -31,24 +33,61 @@ function inferContentType(file: File, kind: "image" | "video") {
   return 'image/jpeg';
 }
 
+function uploadMetadata(file: File, kind: "image" | "video", purpose: MediaPurpose) {
+  const size = Math.trunc(Number(file.size));
+  if (!Number.isSafeInteger(size) || size <= 0) {
+    throw new Error(
+      kind === "image"
+        ? "Image file is unavailable."
+        : "Video file is unavailable.",
+    );
+  }
+
+  const fileName = typeof file.name === "string" ? file.name.trim() : "";
+  return {
+    contentType: inferContentType(file, kind),
+    size,
+    ...(fileName ? { fileName } : {}),
+    purpose,
+  };
+}
+
+async function createUploadTicket(
+  file: File,
+  kind: "image" | "video",
+  purpose: MediaPurpose,
+) {
+  try {
+    const { data } = await apiClient.post<MediaUploadTicket>(
+      "/media/upload-url",
+      uploadMetadata(file, kind, purpose),
+    );
+    return data;
+  } catch (error) {
+    const detail = getErrorMessage(error, "The server rejected the media upload.");
+    const endpoint = isAxiosError(error) ? error.config?.url : undefined;
+    console.warn("Could not prepare media upload", {
+      endpoint,
+      status: isAxiosError(error) ? error.response?.status : undefined,
+      detail,
+    });
+    throw new Error(detail);
+  }
+}
+
 export async function uploadImage(
   uri: string,
   purpose: MediaPurpose = 'other',
   onProgress?: UploadProgressCallback,
 ) {
   const file = new File(uri);
-  if (!file.exists || file.size <= 0) throw new Error('Image file is unavailable.');
-  if (file.size > MAX_IMAGE_BYTES) {
+  const metadata = uploadMetadata(file, "image", purpose);
+  if (!file.exists) throw new Error('Image file is unavailable.');
+  if (metadata.size > MAX_IMAGE_BYTES) {
     throw new Error('Image must be smaller than 20 MB.');
   }
 
-  const contentType = inferContentType(file, "image");
-  const { data } = await apiClient.post<MediaUploadTicket>('/media/upload-url', {
-    contentType,
-    size: file.size,
-    fileName: file.name,
-    purpose,
-  });
+  const data = await createUploadTicket(file, "image", purpose);
 
   const task = file.createUploadTask(data.uploadUrl, {
     httpMethod: 'PUT',
@@ -71,15 +110,9 @@ export async function uploadVideo(
   onProgress?: UploadProgressCallback,
 ) {
   const file = new File(uri);
-  if (!file.exists || file.size <= 0) throw new Error("Video file is unavailable.");
+  if (!file.exists) throw new Error("Video file is unavailable.");
 
-  const contentType = inferContentType(file, "video");
-  const { data } = await apiClient.post<MediaUploadTicket>("/media/upload-url", {
-    contentType,
-    size: file.size,
-    fileName: file.name,
-    purpose: "post",
-  });
+  const data = await createUploadTicket(file, "video", "post");
   const task = file.createUploadTask(data.uploadUrl, {
     httpMethod: "PUT",
     headers: data.headers,

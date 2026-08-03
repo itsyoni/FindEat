@@ -23,10 +23,14 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Text, TouchableOpacity, View } from "react-native";
 import Animated, {
+  Easing,
   FadeIn,
   FadeInUp,
   FadeOut,
   FadeOutUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import {
   SafeAreaView,
@@ -63,19 +67,25 @@ export default function HomeScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const reviewHeaderHidden = useSharedValue(0);
 
   const feedsEnabled = !!user && !authLoading;
   const contentFeed = useFeed("CONTENT", feedsEnabled);
   const reviewFeed = useFeed("REVIEW", feedsEnabled);
   const feed = activeFeed === "CONTENT" ? contentFeed : reviewFeed;
-  const posts = useMemo(
-    () => feed.data?.pages.flatMap((page) => page.items) ?? [],
-    [feed.data],
+  const contentPosts = useMemo(
+    () => contentFeed.data?.pages.flatMap((page) => page.items) ?? [],
+    [contentFeed.data],
+  );
+  const reviewPosts = useMemo(
+    () => reviewFeed.data?.pages.flatMap((page) => page.items) ?? [],
+    [reviewFeed.data],
   );
 
-  async function onRefresh() {
+  async function onRefresh(type: PostType) {
+    const targetFeed = type === "CONTENT" ? contentFeed : reviewFeed;
     queryClient.setQueryData<InfiniteData<FeedPage>>(
-      feedQueryKey(activeFeed),
+      feedQueryKey(type),
       (current) =>
         current
           ? {
@@ -85,7 +95,7 @@ export default function HomeScreen() {
           : current,
     );
 
-    await feed.refetch();
+    await targetFeed.refetch();
     await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
   }
 
@@ -269,6 +279,31 @@ export default function HomeScreen() {
   const topBarInset = insets.top + 56;
   const contentCardTopInset = snapsCollapsed ? 0 : insets.top + 150;
   const contentControlsTopInset = snapsCollapsed ? topBarInset : 0;
+  const reviewHeaderAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - reviewHeaderHidden.value,
+    transform: [
+      {
+        translateY:
+          -reviewHeaderHidden.value * (insets.top + 64),
+      },
+    ],
+  }));
+  const setReviewHeaderVisible = useCallback(
+    (visible: boolean) => {
+      reviewHeaderHidden.set(
+        withTiming(visible ? 0 : 1, {
+          duration: visible ? 240 : 210,
+          easing: Easing.out(Easing.cubic),
+        }),
+      );
+    },
+    [reviewHeaderHidden],
+  );
+
+  function selectFeed(type: PostType) {
+    setReviewHeaderVisible(true);
+    setActiveFeed(type);
+  }
 
   return (
     <View
@@ -306,22 +341,41 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
             onLayout={(e) => setFeedHeight(e.nativeEvent.layout.height)}
           >
-            {feedHeight > 0 &&
-              (activeFeed === "CONTENT" ? (
+            {feedHeight > 0 ? (
+              <>
+                <View
+                  pointerEvents={activeFeed === "CONTENT" ? "auto" : "none"}
+                  accessibilityElementsHidden={activeFeed !== "CONTENT"}
+                  importantForAccessibility={
+                    activeFeed === "CONTENT" ? "auto" : "no-hide-descendants"
+                  }
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    opacity: activeFeed === "CONTENT" ? 1 : 0,
+                    zIndex: activeFeed === "CONTENT" ? 1 : 0,
+                  }}
+                >
                 <ContentFeedList
-                  posts={posts}
+                  posts={contentPosts}
                   height={feedHeight}
                   contentTopInset={contentCardTopInset}
                   controlsTopInset={contentControlsTopInset}
-                  refreshing={feed.isRefetching && !feed.isFetchingNextPage}
-                  onRefresh={onRefresh}
+                  refreshing={
+                    contentFeed.isRefetching &&
+                    !contentFeed.isFetchingNextPage
+                  }
+                  onRefresh={() => onRefresh("CONTENT")}
                   onEndReached={() => {
-                    if (feed.hasNextPage && !feed.isFetchingNextPage) {
-                      void feed.fetchNextPage();
+                    if (
+                      contentFeed.hasNextPage &&
+                      !contentFeed.isFetchingNextPage
+                    ) {
+                      void contentFeed.fetchNextPage();
                     }
                   }}
-                  loadingMore={feed.isFetchingNextPage}
-                  loading={pageLoading}
+                  loadingMore={contentFeed.isFetchingNextPage}
+                  loading={authLoading || contentFeed.isPending}
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
                   onToggleWantToTry={toggleWantToTry}
@@ -333,33 +387,58 @@ export default function HomeScreen() {
                   reopenSnapsOnTopPull={snapsCollapsed}
                   onReopenSnaps={() => setSnapsCollapsed(false)}
                 />
-              ) : (
+                </View>
+                <View
+                  pointerEvents={activeFeed === "REVIEW" ? "auto" : "none"}
+                  accessibilityElementsHidden={activeFeed !== "REVIEW"}
+                  importantForAccessibility={
+                    activeFeed === "REVIEW" ? "auto" : "no-hide-descendants"
+                  }
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    opacity: activeFeed === "REVIEW" ? 1 : 0,
+                    zIndex: activeFeed === "REVIEW" ? 1 : 0,
+                  }}
+                >
                 <ReviewFeed
-                  posts={posts}
+                  posts={reviewPosts}
                   contentTopInset={topBarInset}
                   header={<SnapsTray hideDivider />}
-                  refreshing={feed.isRefetching && !feed.isFetchingNextPage}
-                  onRefresh={onRefresh}
+                  onHeaderVisibilityChange={
+                    activeFeed === "REVIEW"
+                      ? setReviewHeaderVisible
+                      : undefined
+                  }
+                  refreshing={
+                    reviewFeed.isRefetching && !reviewFeed.isFetchingNextPage
+                  }
+                  onRefresh={() => onRefresh("REVIEW")}
                   onEndReached={() => {
-                    if (feed.hasNextPage && !feed.isFetchingNextPage) {
-                      void feed.fetchNextPage();
+                    if (
+                      reviewFeed.hasNextPage &&
+                      !reviewFeed.isFetchingNextPage
+                    ) {
+                      void reviewFeed.fetchNextPage();
                     }
                   }}
-                  loadingMore={feed.isFetchingNextPage}
-                  loading={pageLoading}
+                  loadingMore={reviewFeed.isFetchingNextPage}
+                  loading={authLoading || reviewFeed.isPending}
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
                   onToggleWantToTry={toggleWantToTry}
                   onOpenSharePost={setSharePostId}
                   onOpenPostOptions={setOptionsPostId}
                 />
-              ))}
+                </View>
+              </>
+            ) : null}
           </View>
 
-          <View
+          <Animated.View
             pointerEvents="box-none"
             className="absolute left-0 right-0 z-20"
-            style={{ top: insets.top }}
+            style={[{ top: insets.top }, reviewHeaderAnimatedStyle]}
           >
             <View className="h-14 flex-row items-center px-4">
               <TouchableOpacity
@@ -382,7 +461,8 @@ export default function HomeScreen() {
                   return (
                     <TouchableOpacity
                       key={type}
-                      onPress={() => setActiveFeed(type)}
+                      onPressIn={() => selectFeed(type)}
+                      onPress={() => selectFeed(type)}
                       className="py-3"
                     >
                       <Text
@@ -438,14 +518,21 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("expandSnaps")}
                   onPress={() => setSnapsCollapsed(false)}
-                  className="h-8 w-14 self-center items-center justify-center rounded-full bg-black/30"
+                  className="h-9 flex-row items-center justify-center gap-1.5 self-center rounded-full border border-white/5 bg-black/10 px-3.5"
                   style={iconShadow}
                 >
-                  <CaretDownIcon size={22} color="#FFF" weight="bold" />
+                  <Text className="text-xs font-medium text-white/60">
+                    {t("expandSnaps")}
+                  </Text>
+                  <CaretDownIcon
+                    size={18}
+                    color="rgba(255,255,255,0.6)"
+                    weight="regular"
+                  />
                 </TouchableOpacity>
               ) : null}
             </View>
-          </View>
+          </Animated.View>
           <PostOptionsBottomSheet
             postId={optionsPostId}
             onClose={() => setOptionsPostId(null)}

@@ -2,6 +2,8 @@ import { Post } from "@findeat/types/post";
 import {
   ActivityIndicator,
   FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   View,
   type ViewToken,
 } from "react-native";
@@ -19,6 +21,7 @@ type Props = {
   loadingMore?: boolean;
   contentTopInset?: number;
   header?: ReactElement;
+  onHeaderVisibilityChange?: (visible: boolean) => void;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onOpenComments: (postId: string) => void;
   onOpenSharePost: (postId: string) => void;
@@ -42,6 +45,7 @@ export default function ReviewFeed({
   loadingMore = false,
   contentTopInset = 0,
   header,
+  onHeaderVisibilityChange,
   onToggleLike,
   onOpenComments,
   onToggleWantToTry,
@@ -53,6 +57,55 @@ export default function ReviewFeed({
   const topSpacing = contentTopInset + (header ? 0 : 12);
   const listRef = useRef<FlatList<Post>>(null);
   const postsRef = useRef(posts);
+  const lastScrollOffsetRef = useRef(0);
+  const scrollDirectionRef = useRef<"UP" | "DOWN" | null>(null);
+  const scrollDistanceRef = useRef(0);
+  const headerVisibleRef = useRef(true);
+
+  useEffect(() => {
+    if (onHeaderVisibilityChange) return;
+    headerVisibleRef.current = true;
+    scrollDirectionRef.current = null;
+    scrollDistanceRef.current = 0;
+  }, [onHeaderVisibilityChange]);
+
+  const setHeaderVisible = useCallback(
+    (visible: boolean) => {
+      if (headerVisibleRef.current === visible) return;
+      headerVisibleRef.current = visible;
+      onHeaderVisibilityChange?.(visible);
+    },
+    [onHeaderVisibilityChange],
+  );
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offset = Math.max(0, event.nativeEvent.contentOffset.y);
+      const delta = offset - lastScrollOffsetRef.current;
+      lastScrollOffsetRef.current = offset;
+
+      if (offset <= 8) {
+        scrollDirectionRef.current = null;
+        scrollDistanceRef.current = 0;
+        setHeaderVisible(true);
+        return;
+      }
+      if (Math.abs(delta) < 0.5) return;
+
+      const direction = delta > 0 ? "DOWN" : "UP";
+      if (scrollDirectionRef.current !== direction) {
+        scrollDirectionRef.current = direction;
+        scrollDistanceRef.current = 0;
+      }
+      scrollDistanceRef.current += Math.abs(delta);
+
+      if (scrollDistanceRef.current >= 24) {
+        setHeaderVisible(direction === "UP");
+        scrollDistanceRef.current = 0;
+      }
+    },
+    [setHeaderVisible],
+  );
   useEffect(() => {
     postsRef.current = posts;
   }, [posts]);
@@ -102,6 +155,8 @@ export default function ReviewFeed({
       removeClippedSubviews
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={feedViewabilityConfig}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
       initialScrollIndex={initialIndex > 0 ? initialIndex : undefined}
       onScrollToIndexFailed={({ index, averageItemLength }) => {
         listRef.current?.scrollToOffset({
@@ -117,6 +172,7 @@ export default function ReviewFeed({
         paddingTop: topSpacing,
       }}
       ListHeaderComponent={header}
+      ListHeaderComponentStyle={header ? { marginBottom: 12 } : undefined}
       ListEmptyComponent={
         <View style={{ flex: 1, minHeight: 520 }}>
           <ReviewFeedEmptyState />

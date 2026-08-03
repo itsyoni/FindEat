@@ -3,12 +3,14 @@ import { CommentsBottomSheet } from "@/components/common";
 import PostOptionsBottomSheet from "@/components/chats/PostOptionsBottomSheet";
 import SharePostBottomSheet from "@/components/chats/share/SharePostBottomSheet";
 import ReviewFeed from "@/components/posts/review/ReviewFeed";
+import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { api } from "@/lib/api";
 import { Post } from "@findeat/types/post";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { SafeAreaView } from "react-native-safe-area-context";
+import { TouchableOpacity, View } from "react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
@@ -205,28 +207,32 @@ export default function UserReviewsFeedScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
-        <ReviewFeed posts={[]} loading refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+        <UserReviewBackButton />
+        <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+          <ReviewFeed posts={[]} loading contentTopInset={56} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
-    >
-      <ReviewFeed
-        posts={posts}
-        initialIndex={initialIndex}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        onToggleLike={toggleLike}
-        onOpenComments={setSelectedPostId}
-        onToggleWantToTry={toggleWantToTry}
-        onOpenSharePost={setSharePostId}
-        onOpenPostOptions={setOptionsPostId}
-      />
+    <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+      <UserReviewBackButton />
+      <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+        <ReviewFeed
+          posts={posts}
+          initialIndex={initialIndex}
+          contentTopInset={56}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          onToggleLike={toggleLike}
+          onOpenComments={setSelectedPostId}
+          onToggleWantToTry={toggleWantToTry}
+          onOpenSharePost={setSharePostId}
+          onOpenPostOptions={setOptionsPostId}
+        />
+      </SafeAreaView>
 
       <PostOptionsBottomSheet
         postId={optionsPostId}
@@ -248,6 +254,25 @@ export default function UserReviewsFeedScreen() {
         onClose={() => setSelectedPostId(null)}
         onCommentAdded={handleCommentAdded}
       />
+    </View>
+  );
+}
+
+function UserReviewBackButton() {
+  return (
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 50 }}
+    >
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={() => router.back()}
+        className="ml-4 mt-2 h-11 w-11 items-center justify-center rounded-full bg-black/50"
+      >
+        <DirectionalIcon direction="back" size={24} color="white" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

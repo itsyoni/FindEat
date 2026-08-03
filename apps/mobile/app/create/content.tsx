@@ -65,6 +65,8 @@ import {
   AppState,
   FlatList,
   Linking,
+  type NativeSyntheticEvent,
+  type NativeTouchEvent,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -75,6 +77,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
 type Step = "CAMERA" | "DETAILS" | "RESTAURANT" | "PEOPLE";
+type CameraZoomPreset = "0.5" | "1" | "2" | "5" | "CUSTOM";
+
+const CAMERA_ZOOM_VALUES: Record<Exclude<CameraZoomPreset, "CUSTOM">, number> = {
+  "0.5": 0,
+  "1": 0,
+  "2": 0.16,
+  "5": 0.48,
+};
 
 export default function CreateContentScreen() {
   const { restaurantId, linkedPostId: initialLinkedPostId } =
@@ -90,6 +100,16 @@ export default function CreateContentScreen() {
   const cameraRef = useRef<CameraView>(null);
   const recordingStartedAtRef = useRef(0);
   const recordingStopRequestedRef = useRef(false);
+  const cameraZoomRef = useRef(0);
+  const pinchStartZoomRef = useRef(0);
+  const pinchStartDistanceRef = useRef(0);
+  const cameraTouchStartRef = useRef<{
+    x: number;
+    y: number;
+    startedAt: number;
+  } | null>(null);
+  const cameraPinchingRef = useRef(false);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>("CAMERA");
   const [media, setMedia] = useState<ContentMediaDraft[]>([]);
@@ -109,6 +129,20 @@ export default function CreateContentScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
   const [flashMode, setFlashMode] = useState<FlashMode>("off");
+  const [cameraZoom, setCameraZoom] = useState(0);
+  const [cameraZoomPreset, setCameraZoomPreset] =
+    useState<CameraZoomPreset>("1");
+  const [cameraAutofocus, setCameraAutofocus] = useState<"on" | "off">("off");
+  const [focusPoint, setFocusPoint] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [availableCameraLenses, setAvailableCameraLenses] = useState<string[]>(
+    [],
+  );
+  const [selectedCameraLens, setSelectedCameraLens] = useState(
+    "builtInWideAngleCamera",
+  );
   const [captureMode, setCaptureMode] = useState<"picture" | "video">(
     "picture",
   );
@@ -244,6 +278,13 @@ export default function CreateContentScreen() {
     const interval = setInterval(updateTimer, 100);
     return () => clearInterval(interval);
   }, [recording]);
+
+  useEffect(
+    () => () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!draftHydrated || !restaurantId || selectedRestaurant) return;
@@ -708,10 +749,118 @@ export default function CreateContentScreen() {
     );
   }
 
+  const setCameraZoomValue = useCallback(
+    (value: number, preset: CameraZoomPreset = "CUSTOM") => {
+      const nextZoom = Math.max(0, Math.min(0.6, value));
+      cameraZoomRef.current = nextZoom;
+      setCameraZoom(nextZoom);
+      setCameraZoomPreset(preset);
+    },
+    [],
+  );
+
+  const focusCamera = useCallback((x: number, y: number) => {
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    setFocusPoint({ x, y });
+    setCameraAutofocus("on");
+    focusTimerRef.current = setTimeout(() => {
+      setCameraAutofocus("off");
+      setFocusPoint(null);
+      focusTimerRef.current = null;
+    }, 900);
+  }, []);
+
+  function touchDistance(touches: NativeTouchEvent["touches"]) {
+    if (touches.length < 2) return 0;
+    const [first, second] = touches;
+    return Math.hypot(
+      second.locationX - first.locationX,
+      second.locationY - first.locationY,
+    );
+  }
+
+  function handleCameraTouchStart(
+    event: NativeSyntheticEvent<NativeTouchEvent>,
+  ) {
+    const { touches } = event.nativeEvent;
+    if (touches.length >= 2) {
+      cameraPinchingRef.current = true;
+      pinchStartDistanceRef.current = touchDistance(touches);
+      pinchStartZoomRef.current = cameraZoomRef.current;
+      cameraTouchStartRef.current = null;
+      return;
+    }
+
+    const touch = touches[0];
+    if (!touch) return;
+    cameraPinchingRef.current = false;
+    cameraTouchStartRef.current = {
+      x: touch.locationX,
+      y: touch.locationY,
+      startedAt: Date.now(),
+    };
+  }
+
+  function handleCameraTouchMove(
+    event: NativeSyntheticEvent<NativeTouchEvent>,
+  ) {
+    const { touches } = event.nativeEvent;
+    if (touches.length < 2) return;
+
+    if (!cameraPinchingRef.current) {
+      cameraPinchingRef.current = true;
+      pinchStartDistanceRef.current = touchDistance(touches);
+      pinchStartZoomRef.current = cameraZoomRef.current;
+    }
+
+    const startDistance = pinchStartDistanceRef.current;
+    if (startDistance <= 0) return;
+    const scale = touchDistance(touches) / startDistance;
+    setCameraZoomValue(
+      pinchStartZoomRef.current + Math.log2(Math.max(scale, 0.1)) * 0.2,
+    );
+  }
+
+  function handleCameraTouchEnd(
+    event: NativeSyntheticEvent<NativeTouchEvent>,
+  ) {
+    if (cameraPinchingRef.current) {
+      if (event.nativeEvent.touches.length === 0) {
+        cameraPinchingRef.current = false;
+        pinchStartDistanceRef.current = 0;
+      }
+      return;
+    }
+
+    const started = cameraTouchStartRef.current;
+    const ended = event.nativeEvent.changedTouches[0];
+    cameraTouchStartRef.current = null;
+    if (!started || !ended || Date.now() - started.startedAt > 300) return;
+    if (Math.hypot(ended.locationX - started.x, ended.locationY - started.y) > 12) {
+      return;
+    }
+    focusCamera(ended.locationX, ended.locationY);
+  }
+
+  const ultraWideLens = availableCameraLenses.find((lens) =>
+    lens.toLowerCase().includes("ultrawide"),
+  );
+  function selectCameraZoom(preset: Exclude<CameraZoomPreset, "CUSTOM">) {
+    if (preset === "0.5" && ultraWideLens) {
+      setSelectedCameraLens(ultraWideLens);
+    } else {
+      setSelectedCameraLens("builtInWideAngleCamera");
+    }
+    setCameraZoomValue(CAMERA_ZOOM_VALUES[preset], preset);
+  }
+
   function flipCamera() {
     setCameraReady(false);
     setCameraFacing((current) => (current === "back" ? "front" : "back"));
     setFlashMode("off");
+    setSelectedCameraLens("builtInWideAngleCamera");
+    setCameraZoomValue(0, "1");
+    setAvailableCameraLenses([]);
   }
 
   if (!draftHydrated) {
@@ -731,15 +880,54 @@ export default function CreateContentScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         {cameraPermission?.granted ? (
           <View className="flex-1">
-            <CameraView
-              key={`${cameraFacing}-${captureMode}`}
-              ref={cameraRef}
+            <View
               style={{ position: "absolute", inset: 0 }}
-              facing={cameraFacing}
-              flash={flashMode}
-              mode={captureMode}
-              onCameraReady={() => setCameraReady(true)}
-            />
+              onTouchStart={handleCameraTouchStart}
+              onTouchMove={handleCameraTouchMove}
+              onTouchEnd={handleCameraTouchEnd}
+              onTouchCancel={() => {
+                cameraPinchingRef.current = false;
+                cameraTouchStartRef.current = null;
+                pinchStartDistanceRef.current = 0;
+              }}
+            >
+              <CameraView
+                key={`${cameraFacing}-${captureMode}`}
+                ref={cameraRef}
+                style={{ position: "absolute", inset: 0 }}
+                facing={cameraFacing}
+                flash={flashMode}
+                mode={captureMode}
+                zoom={cameraZoom}
+                autofocus={cameraAutofocus}
+                selectedLens={
+                  cameraFacing === "back" ? selectedCameraLens : undefined
+                }
+                onAvailableLensesChanged={({ lenses }) =>
+                  setAvailableCameraLenses(lenses)
+                }
+                onCameraReady={() => setCameraReady(true)}
+              />
+              {focusPoint ? (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    left: focusPoint.x - 29,
+                    top: focusPoint.y - 29,
+                    width: 58,
+                    height: 58,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: "#F7D786",
+                    shadowColor: "#000",
+                    shadowOpacity: 0.35,
+                    shadowRadius: 5,
+                    shadowOffset: { width: 0, height: 2 },
+                  }}
+                />
+              ) : null}
+            </View>
 
             <SafeAreaView
               pointerEvents="box-none"
@@ -817,6 +1005,40 @@ export default function CreateContentScreen() {
               </View>
 
               <View className="pb-8">
+                {cameraFacing === "back" ? (
+                  <View className="mb-3 flex-row justify-center gap-2">
+                    {(["0.5", "1", "2", "5"] as const)
+                      .filter((preset) => preset !== "0.5" || !!ultraWideLens)
+                      .map((preset) => {
+                        const active = cameraZoomPreset === preset;
+                        const label = `${preset}×`;
+                        return (
+                          <TouchableOpacity
+                            key={preset}
+                            disabled={recording}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("cameraZoom", {
+                              value: label,
+                            })}
+                            onPress={() => selectCameraZoom(preset)}
+                            className={`h-10 min-w-10 items-center justify-center rounded-full px-2.5 ${
+                              active
+                                ? "bg-white"
+                                : "border border-white/20 bg-black/55"
+                            } ${recording ? "opacity-40" : ""}`}
+                          >
+                            <Text
+                              className={`text-xs font-bold ${
+                                active ? "text-black" : "text-white"
+                              }`}
+                            >
+                              {label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                ) : null}
                 <View className="mb-5 flex-row justify-center gap-8">
                   <TouchableOpacity
                     disabled={recording}
@@ -1055,7 +1277,8 @@ export default function CreateContentScreen() {
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center px-4 py-2">
           <TouchableOpacity
-            onPress={openMediaPicker}
+            disabled={savingDraft}
+            onPress={() => void handleSaveDraft()}
             className="h-11 w-11 items-center justify-center rounded-full"
           >
             <DirectionalIcon direction="back" size={25} color={isDark ? "#FFF" : "#171717"} weight="bold" />
