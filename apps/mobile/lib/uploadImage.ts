@@ -101,8 +101,14 @@ export async function uploadImage(
   if (response.status < 200 || response.status >= 300) {
     throw new Error('Could not upload image. Please try again.');
   }
+  const publicUrl = [data.imageUrl, data.mediaUrl].find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+  if (!publicUrl) {
+    throw new Error("The media server did not return an image URL.");
+  }
   onProgress?.(1);
-  return data.imageUrl;
+  return publicUrl;
 }
 
 export async function uploadVideo(

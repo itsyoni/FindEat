@@ -19,6 +19,8 @@
     "COMMENT_LIKE": "{{name}} and {{count}} more liked your comment"
   },
   "types": {
+    "FRIEND_POST": "{{name}} shared a new post",
+    "POST_TAG": "{{name}} tagged you in a post",
     "POST_LIKE": "{{name}} liked your post",
     "POST_COMMENT": "{{name}} commented on your post",
     "COMMENT_REPLY": "{{name}} replied to your comment",

@@ -89,7 +89,7 @@ export default function ReviewContributionEditor({
     imageUris.length > 0 ||
     existingMedia.length > 0;
   const canSave = hasContribution && (!customDish || dishName.trim().length > 0);
-  const iconColor = isDark ? "#FFFFFF" : "#111827";
+  const iconColor = isDark ? "#FAF9F6" : "#111827";
 
   return (
     <ThemedSafeAreaView edges={["top", "bottom"]}>
@@ -193,7 +193,7 @@ export default function ReviewContributionEditor({
                     onPress={() => onRemoveExistingMedia(media.id)}
                     className="absolute right-1 top-1 h-7 w-7 items-center justify-center rounded-full bg-black/70"
                   >
-                    <XIcon size={14} color="#FFFFFF" weight="bold" />
+                    <XIcon size={14} color="#FAF9F6" weight="bold" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -213,7 +213,7 @@ export default function ReviewContributionEditor({
                   }
                   className="absolute right-1 top-1 h-7 w-7 items-center justify-center rounded-full bg-black/70"
                 >
-                  <XIcon size={14} color="#FFFFFF" weight="bold" />
+                  <XIcon size={14} color="#FAF9F6" weight="bold" />
                 </TouchableOpacity>
               </View>
             ))}

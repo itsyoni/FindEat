@@ -20,7 +20,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
-import { HeartIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
@@ -58,12 +57,26 @@ export default function RestaurantScreen() {
     const paginatedPosts =
       sectionPosts.data?.pages.flatMap((page) => page.items) ?? [];
 
-    if (paginatedPosts.length > 0 || activeTab !== "REVIEWS") {
+    if (paginatedPosts.length > 0) {
       return paginatedPosts;
     }
 
-    return restaurant?.posts.filter((post) => post.type === "REVIEW") ?? [];
-  }, [activeTab, restaurant?.posts, sectionPosts.data]);
+    return (
+      restaurant?.posts.filter((post) => {
+        if (activeTab === "REVIEWS") return post.type === "REVIEW";
+        if (activeTab === "OFFICIAL") {
+          return (
+            post.type === "CONTENT" &&
+            post.authorRestaurantId === restaurant.id
+          );
+        }
+        if (activeTab === "COMMUNITY") {
+          return post.type === "CONTENT" && !post.authorRestaurantId;
+        }
+        return false;
+      }) ?? []
+    );
+  }, [activeTab, restaurant, sectionPosts.data]);
 
   async function toggleFollow() {
     if (!restaurant) return;
@@ -147,12 +160,12 @@ export default function RestaurantScreen() {
   if (loading) {
     return (
       <ScrollView
-        style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FFF" }}
-        contentContainerStyle={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
+        contentContainerStyle={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       >
         <RestaurantHeader restaurant={null} loading scrollY={scrollY} onToggleFollow={() => undefined} onOpenOptions={() => undefined} />
         <SkeletonPulse>
-          <View className="flex-row gap-3 bg-surface px-5 pb-5 pt-2 dark:bg-black">
+          <View className="flex-row gap-3 bg-surface px-5 pb-5 dark:bg-black">
             {[0, 1, 2].map((item) => <Skeleton key={item} width="31%" height={62} radius={12} />)}
           </View>
         </SkeletonPulse>
@@ -194,8 +207,8 @@ export default function RestaurantScreen() {
   return (
     <>
       <Animated.ScrollView
-        style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FFF" }}
-        contentContainerStyle={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
+        contentContainerStyle={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
       >
@@ -206,18 +219,18 @@ export default function RestaurantScreen() {
         onOpenOptions={() => setOptionsOpen(true)}
       />
 
-      <View className="bg-surface px-5 pb-5 pt-2 dark:bg-black">
-        <View className="flex-row gap-3">
+      <View className="bg-surface px-5 pb-5 dark:bg-black">
+        <View>
           <TouchableOpacity
             onPress={openSavedPlaceManager}
-            className={`flex-1 flex-row items-center justify-center rounded-xl px-4 py-3 ${isPlaceSaved || savedListCount > 0 ? "bg-amber-500" : "bg-gray-100 dark:bg-gray-800"}`}
+            className={`w-full flex-row items-center justify-center rounded-xl px-4 py-3 ${isPlaceSaved || savedListCount > 0 ? "bg-amber-500" : "bg-gray-100 dark:bg-gray-800"}`}
           >
             <PlaceStatusBookmark
               wantToTry={!!placeStatus?.wantToTry}
               visited={!!placeStatus?.visited}
               favorite={!!placeStatus?.favorite}
               size={22}
-              defaultColor={isPlaceSaved || savedListCount > 0 ? "white" : "#6B7280"}
+              defaultColor={isPlaceSaved || savedListCount > 0 ? "#FAF9F6" : "#6B7280"}
               savedListCount={savedListCount}
             />
             <Text
@@ -229,40 +242,7 @@ export default function RestaurantScreen() {
                 : t(`restaurants:${statusLabel}`)}
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={openSavedPlaceManager}
-            disabled={!placeStatus?.visited}
-            className={`w-20 items-center justify-center rounded-xl px-2 py-3 ${
-              placeStatus?.favorite
-                ? "bg-red-500"
-                : placeStatus?.visited
-                  ? "bg-gray-100 dark:bg-gray-800"
-                  : "bg-gray-100 opacity-40 dark:bg-gray-800"
-            }`}
-          >
-            <HeartIcon
-              size={19}
-              color={placeStatus?.favorite ? "white" : "#6B7280"}
-              weight={placeStatus?.favorite ? "fill" : "regular"}
-            />
-            <Text
-              numberOfLines={1}
-              className={`mt-1 text-center text-xs font-bold ${
-                placeStatus?.favorite
-                  ? "text-white"
-                  : "text-black dark:text-white"
-              }`}
-            >
-              {t("restaurants:favorite")}
-            </Text>
-          </TouchableOpacity>
         </View>
-        {!placeStatus?.visited && (
-          <Text className="mt-2 text-center text-xs text-gray-500">
-            {t("restaurants:favoriteAfterVisit")}
-          </Text>
-        )}
       </View>
 
       <RestaurantCompatibilitySummary compatibility={restaurant.compatibility} />
@@ -280,7 +260,7 @@ export default function RestaurantScreen() {
 
       <View
         className="px-6 pb-10"
-        style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       >
         {activeTab !== "MENU" && (
           <RestaurantPostsSection

@@ -19,7 +19,7 @@ export default function SettingsScreen() {
   const { isDark } = useAppTheme();
   const { logout } = useAuth();
   const [hasNewProfileTags, setHasNewProfileTags] = useState(false);
-  const color = isDark ? '#FFF' : '#111';
+  const color = isDark ? '#FAF9F6' : '#111';
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#FBFAF8' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0B0B0A' : '#FBFAF8' }}>
       <SettingsHeader title={t('settings:title')} />
       <ScrollView>
         <SettingsSection title={t('settings:yourAccount')}>

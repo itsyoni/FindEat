@@ -88,11 +88,11 @@ export default function ProfileScreen() {
 
   return (
     <Animated.ScrollView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FFF" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
         paddingBottom: 110,
-        backgroundColor: isDark ? "#000" : "#FFF",
+        backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
       }}
       scrollEventThrottle={16}
       onScroll={scrollHandler}

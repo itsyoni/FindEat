@@ -213,7 +213,7 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
           value={value.showPronouns}
           onValueChange={(nextValue) => update("showPronouns", nextValue)}
           trackColor={{ false: isDark ? "#374151" : "#D1D5DB", true: "#F6C445" }}
-          thumbColor="#FFFFFF"
+          thumbColor="#FAF9F6"
         />
       </View>
 
@@ -268,7 +268,7 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
           <SafeAreaProvider style={{ flex: 1 }}>
             <SafeAreaView
               edges={["top", "bottom"]}
-              style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+              style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
             >
               <View className="flex-1 bg-canvas px-5 dark:bg-black">
               <View className="flex-row items-center justify-between py-3">

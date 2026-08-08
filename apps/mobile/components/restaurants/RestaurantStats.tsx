@@ -17,7 +17,7 @@ export default function RestaurantStats({
 }: Props) {
   const { t } = useTranslation('restaurants');
   const { isDark } = useAppTheme();
-  const valueColor = isDark ? '#FFF' : '#111';
+  const valueColor = isDark ? '#FAF9F6' : '#111';
   const roundedRating = averageRating?.toFixed(1);
   const formattedRating = roundedRating === '10.0' ? '10' : roundedRating;
 

@@ -3,18 +3,27 @@ import * as FileSystem from "expo-file-system/legacy";
 import type {
   CreateReviewDraft,
   CreateReviewStep,
-  Dish,
   PostVisibility,
   ReviewDishFormDraft,
   ReviewInviteeDraft,
+  SelectedReviewDish,
   SelectedRestaurant,
 } from "@findeat/types";
 
 export type ContentPostDraft = {
-  step: "CAMERA" | "DETAILS" | "RESTAURANT" | "PEOPLE";
+  step:
+    | "CAMERA"
+    | "EDIT_MEDIA"
+    | "DETAILS"
+    | "RESTAURANT"
+    | "PEOPLE"
+    | "READY"
+    | "REVIEW";
   imageUri?: string;
   media: ContentMediaDraft[];
-  description: string;
+  caption: string;
+  /** @deprecated Read-only compatibility with drafts saved before 1.9.84. */
+  description?: string;
   visibility: PostVisibility;
   linkedPostId?: string;
   selectedRestaurant: SelectedRestaurant | null;
@@ -34,8 +43,9 @@ export type ContentMediaDraft = {
 export type ReviewPostDraft = {
   step: CreateReviewStep;
   draft: CreateReviewDraft;
-  selectedMenuDish: Dish | null;
+  selectedMenuDish: SelectedReviewDish | null;
   pendingDish: ReviewDishFormDraft | null;
+  editingDishId?: string | null;
   updatedAt: string;
 };
 
@@ -88,7 +98,12 @@ async function keepDraftImage(
     (hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0,
     0,
   );
-  const destination = `${directory}${name}-${uriHash}.${extension}`;
+  const safeName =
+    name
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "media";
+  const destination = `${directory}${safeName}-${uriHash}.${extension}`;
   const existing = await FileSystem.getInfoAsync(destination);
   if (existing.exists) return destination;
   await FileSystem.copyAsync({ from: uri, to: destination });
@@ -113,6 +128,7 @@ export async function loadContentPostDraft(userId: string) {
   const stored = await AsyncStorage.getItem(storageKey(userId, "content"));
   if (!stored) return null;
   const parsed = JSON.parse(stored) as ContentPostDraft;
+  const caption = parsed.caption ?? parsed.description ?? "";
   const legacyMedia: ContentMediaDraft[] = parsed.imageUri
     ? [
         {
@@ -137,7 +153,13 @@ export async function loadContentPostDraft(userId: string) {
     await clearPostDraft(userId, "content");
     return null;
   }
-  return { ...parsed, imageUri: existingMedia[0].uri, media: existingMedia };
+  return {
+    ...parsed,
+    caption,
+    description: undefined,
+    imageUri: existingMedia[0].uri,
+    media: existingMedia,
+  };
 }
 
 export async function saveContentPostDraft(

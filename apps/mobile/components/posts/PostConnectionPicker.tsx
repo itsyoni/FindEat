@@ -66,7 +66,7 @@ export default function PostConnectionPicker({
               : post.contentPost?.imageUrl;
             const text = isReview
               ? post.reviewPost?.summary
-              : post.contentPost?.description;
+              : post.contentPost?.caption;
             const rating = post.reviewPost?.overallRating;
 
             return (

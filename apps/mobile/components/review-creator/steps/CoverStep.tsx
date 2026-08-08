@@ -1,7 +1,6 @@
 import Text from "@/components/common/AppText";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { CreateReviewDraft } from "@findeat/types/review";
-import * as ImagePicker from "expo-image-picker";
 import { TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ThemedSafeAreaView, TextInput } from "@/components/common";
@@ -12,7 +11,7 @@ import Avatar from "@/components/common/Avatar";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { UsersThreeIcon } from "phosphor-react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { cropPostImage } from "@/lib/cropPostImage";
+import { pickReviewImage } from "@/lib/reviewImagePicker";
 import { useToast } from "@/contexts/ToastContext";
 
 type Props = {
@@ -20,12 +19,14 @@ type Props = {
   onChange: (update: Partial<CreateReviewDraft>) => void;
   onBack: () => void;
   onNext: () => void;
-  onSaveDraft: () => void;
+  onSaveDraft?: () => void;
   savingDraft?: boolean;
-  onChooseParticipants: () => void;
+  onChooseParticipants?: () => void;
+  derivedCover?: boolean;
+  compactLinkedFlow?: boolean;
 };
 
-export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft, savingDraft, onChooseParticipants }: Props) {
+export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft, savingDraft, onChooseParticipants, derivedCover = false, compactLinkedFlow = false }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
@@ -36,19 +37,12 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
 
   async function pickCoverImage() {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        quality: 0.8,
-      });
-      if (result.canceled) return;
-      const asset = result.assets[0];
-      const croppedImage = await cropPostImage({
-        uri: asset.uri,
-        width: asset.width,
-        height: asset.height,
-        aspect: "REVIEW",
-        toolbarTitle: t("cropReviewPhoto"),
-      });
+      const croppedImage = await pickReviewImage(
+        "gallery",
+        "cover",
+        t("cropReviewPhoto"),
+      );
+      if (!croppedImage) return;
       onChange({ coverImageUri: croppedImage.uri });
     } catch (error) {
       console.error("review cover image crop failed", error);
@@ -73,7 +67,9 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
             </Text>
           </TouchableOpacity>
           <View className="flex-row items-center gap-2">
-            <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
+            {onSaveDraft ? (
+              <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
+            ) : null}
             <Text className="text-sm font-semibold text-gray-400">
               {t("create:stepOf", { current: 2, total: 4 })}
             </Text>
@@ -90,7 +86,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
           {t("reviewEverythingOptional")}
         </Text>
 
-        <TouchableOpacity
+        {onChooseParticipants ? <TouchableOpacity
           onPress={onChooseParticipants}
           className="mt-7 flex-row items-center rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
         >
@@ -129,9 +125,9 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
               weight="bold"
             />
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> : null}
 
-        <View className="mt-7">
+        {!compactLinkedFlow ? <View className="mt-7">
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="text-lg font-bold text-black dark:text-white">
               {t("placePhoto")}
@@ -144,19 +140,20 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
             {t("placePhotoHint")}
           </Text>
           <TouchableOpacity
+            disabled={derivedCover}
             className="items-center justify-center overflow-hidden rounded-3xl border border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
             onPress={pickCoverImage}
           >
-            {draft.coverImageUri ? (
+            {draft.coverImageUri || draft.coverImageUrl ? (
               <View className="w-full">
                 <ProgressiveImage
-                  source={{ uri: draft.coverImageUri }}
+                  source={{ uri: draft.coverImageUri ?? draft.coverImageUrl }}
                   className="aspect-square w-full"
                   resizeMode="cover"
                 />
                 <View className="absolute bottom-3 right-3 rounded-full bg-black/65 px-4 py-2">
                   <Text className="text-sm font-bold text-white">
-                    {t("changePhoto")}
+                    {derivedCover ? t("coverFromPost") : t("changePhoto")}
                   </Text>
                 </View>
               </View>
@@ -172,9 +169,9 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
               </View>
             )}
           </TouchableOpacity>
-        </View>
+        </View> : null}
 
-        <View className="mt-7 rounded-3xl bg-gray-50 p-5 dark:bg-gray-900">
+        <View className="mt-8 border-t border-gray-200 pt-7 dark:border-gray-800">
           <View className="mb-5 flex-row items-center justify-between">
             <Text className="text-lg font-bold text-black dark:text-white">
               {t("overallExperience")}
@@ -189,7 +186,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
             onChange={(overallRating) => onChange({ overallRating })}
           />
 
-          <Text className="mb-3 mt-7 font-bold text-black dark:text-white">
+          <Text className="mb-3 mt-8 font-bold text-black dark:text-white">
             {t("reviewNote")}
           </Text>
           <TextInput
@@ -202,14 +199,14 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
           />
         </View>
 
-        <View className="mt-8 rounded-3xl bg-gray-50 p-4 dark:bg-gray-900">
+        <View className="mt-8 border-t border-gray-200 pt-7 dark:border-gray-800">
           <Text className="mb-1 text-lg font-bold text-black dark:text-white">
             {t("moreDetail")}
           </Text>
           <Text className="mb-6 text-sm text-gray-500">
             {t("moreDetailHint")}
           </Text>
-          <View className="gap-7">
+          <View className="gap-8">
             <RatingPicker
               label={t("atmosphere")}
               value={draft.atmosphereRating}

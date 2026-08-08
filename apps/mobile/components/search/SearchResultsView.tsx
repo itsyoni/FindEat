@@ -14,6 +14,7 @@ import Text from "../common/AppText";
 
 type Props<T> = {
   data?: T[];
+  idleData?: T[];
   searchRequest?: (query: string) => Promise<T[]>;
   onCancel: () => void;
   onSelect: (item: T) => void;
@@ -26,6 +27,7 @@ type Props<T> = {
 
 export default function SearchResultsView<T>({
   data,
+  idleData = [],
   searchRequest,
   onCancel,
   onSelect,
@@ -75,7 +77,11 @@ export default function SearchResultsView<T>({
     return data.filter((item) => searchFn(query, item));
   }, [query, data, searchFn, isRemoteSearch]);
 
-  const results = isRemoteSearch ? remoteResults : localResults;
+  const results = query.trim()
+    ? isRemoteSearch
+      ? remoteResults
+      : localResults
+    : idleData;
 
   return (
     <>

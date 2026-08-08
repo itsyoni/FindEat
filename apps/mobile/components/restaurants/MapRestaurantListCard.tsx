@@ -77,7 +77,7 @@ export default function MapRestaurantListCard({
       onPress={onOpen}
       className="mx-4 mb-4 rounded-[26px] border border-black/5 bg-white dark:border-white/10 dark:bg-[#111113]"
       style={{
-        shadowColor: "#000",
+        shadowColor: "#0B0B0A",
         shadowOffset: { width: 0, height: 5 },
         shadowOpacity: isDark ? 0.22 : 0.08,
         shadowRadius: 14,
@@ -194,7 +194,7 @@ export default function MapRestaurantListCard({
         >
           <MapTrifoldIcon
             size={16}
-            color={isDark ? "#000" : "#FFF"}
+            color={isDark ? "#0B0B0A" : "#FAF9F6"}
             weight="fill"
           />
           <Text className="ml-1.5 text-xs font-bold text-white dark:text-black">

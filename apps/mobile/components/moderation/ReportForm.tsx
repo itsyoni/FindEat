@@ -142,7 +142,7 @@ export default function ReportForm({
           style={{ opacity: !reason || submitting ? 0.45 : 1 }}
         >
           {submitting ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color="#FAF9F6" />
           ) : (
             <Text className="font-bold text-white">{t("submitReport")}</Text>
           )}

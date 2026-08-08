@@ -15,8 +15,14 @@ export type Snap = {
   createdAt: string;
   expiresAt: string;
   viewedAt?: string | null;
+  viewsCount?: number;
   user: UserSummary;
   restaurant?: SnapRestaurant | null;
+};
+
+export type SnapViewer = {
+  viewedAt: string;
+  user: UserSummary;
 };
 
 export type SnapGroup = {

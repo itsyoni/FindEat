@@ -61,7 +61,7 @@ export default function CollaborativeDishPicker({
           dish.description?.toLocaleLowerCase().includes(value),
       );
   }, [excludedMenuItemIds, query, restaurant?.menus]);
-  const iconColor = isDark ? "#FFFFFF" : "#111827";
+  const iconColor = isDark ? "#FAF9F6" : "#111827";
 
   return (
     <ThemedSafeAreaView edges={["top", "bottom"]}>

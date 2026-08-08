@@ -3,6 +3,7 @@ import type { UserRelationship } from "./profile";
 import type { UserSummary } from "./user";
 
 export type PostType = "CONTENT" | "REVIEW";
+export type FeedScope = "FOLLOWING" | "EXPLORE";
 export type PostVisibility = "PUBLIC" | "FRIENDS" | "PRIVATE";
 
 export type ReviewRecommendedFor =
@@ -16,8 +17,8 @@ export type ReviewRecommendedFor =
 export type ContentPost = {
   postId: string;
   title?: string | null;
-  description?: string | null;
-  descriptionEditedAt?: string | null;
+  caption?: string | null;
+  captionEditedAt?: string | null;
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
@@ -142,12 +143,14 @@ export type LinkedPost = {
   createdAt: string;
   contentPost?: Pick<
     ContentPost,
-    "imageUrl" | "videoUrl" | "description"
+    "imageUrl" | "videoUrl" | "caption"
   > | null;
-  reviewPost?: Pick<
-    ReviewPost,
-    "coverImageUrl" | "summary" | "overallRating"
-  > | null;
+  reviewPost?: (
+    Pick<ReviewPost, "coverImageUrl" | "summary" | "overallRating"> & {
+      previewImageUrl?: string | null;
+      previewImageUrls?: string[];
+    }
+  ) | null;
 };
 
 type PostAuthorRestaurant = {

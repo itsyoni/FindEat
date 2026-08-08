@@ -71,7 +71,7 @@ export default function SearchChatMessagesScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-row items-center px-3 py-2">
         <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center">
-          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FFF" : "#171717"} />
+          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FAF9F6" : "#171717"} />
         </TouchableOpacity>
         <View className="ml-1 min-h-12 flex-1 flex-row items-center rounded-2xl bg-white px-3 dark:bg-[#171719]">
           <MagnifyingGlassIcon size={20} color="#9CA3AF" />

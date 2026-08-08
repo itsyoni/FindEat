@@ -35,8 +35,13 @@ export default function SearchBar({
   const input = (
     <TextInput
       editable={editable}
-      className="h-full border-0 bg-soft dark:bg-gray-900"
+      className="h-14 border-0 bg-soft dark:bg-gray-900"
       style={{
+        height: 56,
+        paddingTop: 0,
+        paddingBottom: 0,
+        includeFontPadding: false,
+        textAlignVertical: "center",
         textAlign: isRtl ? "right" : "left",
         writingDirection: isRtl ? "rtl" : "ltr",
       }}
@@ -50,11 +55,17 @@ export default function SearchBar({
   );
 
   return (
-    <View className="flex-row items-center gap-3 p-5 h-24">
-      <View className="flex-1">
+    <View className="h-24 flex-row items-center gap-3 p-5">
+      <View className="h-14 flex-1">
         {!editable ? (
-          <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
-            <View pointerEvents="none">{input}</View>
+          <TouchableOpacity
+            className="h-14"
+            activeOpacity={0.8}
+            onPress={onPress}
+          >
+            <View className="h-14" pointerEvents="none">
+              {input}
+            </View>
           </TouchableOpacity>
         ) : (
           input

@@ -7,7 +7,7 @@ import {
   ChatCircleIcon,
   HeartIcon,
   ShareFatIcon,
-  DotsThreeOutlineIcon,
+  DotsThreeIcon,
 } from "phosphor-react-native";
 import {
   FlatList,
@@ -37,6 +37,8 @@ import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import ContentVideo from "./ContentVideo";
 import { useEffect, useState } from "react";
+import { useAppTheme } from "@/contexts/ThemeContext";
+import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
 
 const CONTENT_ACTION_ICON_SIZE = 31;
 
@@ -45,6 +47,7 @@ type Props = {
   height: number;
   contentTopInset?: number;
   controlsTopInset?: number;
+  isActive?: boolean;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onOpenComments: (postId: string) => void;
   onOpenSharePost: (postId: string) => void;
@@ -64,7 +67,7 @@ export default function ContentPost({
   post,
   height,
   contentTopInset = 0,
-  controlsTopInset = 0,
+  isActive = true,
   onToggleLike,
   onOpenComments,
   onOpenSharePost,
@@ -75,6 +78,7 @@ export default function ContentPost({
   const { t } = useTranslation("restaurants");
   const { t: tCommon, i18n } = useTranslation("common");
   const { width } = useWindowDimensions();
+  const { isDark } = useAppTheme();
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const {
     openManageSavedPlace,
@@ -92,6 +96,21 @@ export default function ContentPost({
   const savedListCount = post.restaurant
     ? (savedListCounts[post.restaurant.id] ?? post.restaurantSavedListCount ?? 0)
     : 0;
+
+  function openAuthorProfile() {
+    if (isOfficialPost && post.restaurant) {
+      router.push({
+        pathname: "/restaurants/[id]",
+        params: { id: post.restaurant.id },
+      });
+      return;
+    }
+    if (!post.author?.id) return;
+    router.push({
+      pathname: "/(users)/[id]",
+      params: { id: post.author.id },
+    });
+  }
   const content = post.contentPost;
   const isRestaurantPost = !!post.authorRestaurantId && !!post.authorRestaurant;
   const isOfficialPost = isRestaurantPost && !!post.restaurant;
@@ -133,8 +152,13 @@ export default function ContentPost({
               },
             ]
           : [];
-  const description = content?.description;
-  const descriptionIsRtl = isRtlText(description, isRtl);
+  const caption = content?.caption;
+  const videoMedia = media.find(
+    (item) => item.type === "VIDEO" && !!item.videoUrl,
+  );
+  const singleImageMedia =
+    !videoMedia && media.length === 1 && media[0].imageUrl ? media[0] : null;
+  const captionIsRtl = isRtlText(caption, isRtl);
 
   const heartOverlayScale = useSharedValue(0);
   const heartOverlayOpacity = useSharedValue(0);
@@ -178,7 +202,7 @@ export default function ContentPost({
   }, [cardTopInset, cardTopRadius, contentTopInset]);
 
   const iconShadow = {
-    shadowColor: "#000",
+    shadowColor: "#0B0B0A",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 4,
@@ -186,7 +210,7 @@ export default function ContentPost({
   };
 
   const textShadow = {
-    textShadowColor: "#000",
+    textShadowColor: "#0B0B0A",
     textShadowOffset: {
       width: 0,
       height: 2,
@@ -265,7 +289,9 @@ export default function ContentPost({
     isFavorite,
   );
   return (
-    <View style={{ height, backgroundColor: "#000" }}>
+    <View
+      style={{ height, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
+    >
       <Animated.View
         style={[
           {
@@ -297,7 +323,47 @@ export default function ContentPost({
             style={iconShadow}
           />
         </Animated.View>
-        {media.length ? (
+        {videoMedia?.videoUrl ? (
+          <View
+            style={{
+              position: "absolute",
+              inset: 0,
+              width,
+              height,
+              backgroundColor: "#080808",
+            }}
+          >
+            <ContentVideo
+              uri={videoMedia.videoUrl}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="contain"
+              autoPlay={isActive}
+              nativeControls={false}
+              tapToToggle
+              showProgress
+            />
+          </View>
+        ) : singleImageMedia?.imageUrl ? (
+          <View
+            style={{
+              position: "absolute",
+              inset: 0,
+              width,
+              height,
+              backgroundColor: "#080808",
+            }}
+          >
+            <PinchZoomImage
+              uri={singleImageMedia.imageUrl}
+              thumbnailUrl={singleImageMedia.thumbnailUrl}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="cover"
+              onDoubleTap={handleDoubleTapLike}
+              onPinchStart={onPinchStart}
+              onPinchEnd={onPinchEnd}
+            />
+          </View>
+        ) : media.length ? (
           <FlatList
             style={{ position: "absolute", inset: 0 }}
             horizontal
@@ -312,13 +378,7 @@ export default function ContentPost({
             }
             renderItem={({ item }) => (
               <View style={{ width, height, backgroundColor: "#080808" }}>
-                {item.type === "VIDEO" && item.videoUrl ? (
-                  <ContentVideo
-                    uri={item.videoUrl}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit="contain"
-                  />
-                ) : item.imageUrl ? (
+                {item.imageUrl ? (
                   <PinchZoomImage
                     uri={item.imageUrl}
                     thumbnailUrl={item.thumbnailUrl}
@@ -341,12 +401,12 @@ export default function ContentPost({
                   alignSelf: "stretch",
                   width: "100%",
                   textAlign: "auto",
-                  writingDirection: descriptionIsRtl ? "rtl" : "ltr",
+                  writingDirection: captionIsRtl ? "rtl" : "ltr",
                 },
               ]}
               className="px-8 text-2xl font-bold text-white"
             >
-              {description}
+              {caption}
             </Text>
           </View>
         )}
@@ -355,7 +415,7 @@ export default function ContentPost({
           <View
             pointerEvents="none"
             className="absolute left-0 right-0 z-10 flex-row justify-center gap-1.5"
-            style={{ top: controlsTopInset + 24 }}
+            style={{ bottom: 8 }}
           >
             {media.map((item, index) => (
               <View
@@ -387,75 +447,55 @@ export default function ContentPost({
           ]}
         />
 
-        <TouchableOpacity
-          className="absolute right-4 z-10 h-11 w-16 items-center justify-center"
-          style={{ top: controlsTopInset + 16 }}
-          activeOpacity={0.8}
-          onPress={() => onOpenPostOptions(post.id)}
-        >
-          <DotsThreeOutlineIcon
-            size={30}
-            color="white"
-            weight="fill"
-            style={iconShadow}
-          />
-        </TouchableOpacity>
-        <View className="absolute bottom-8 left-4 right-20">
+        <View className="absolute bottom-8 left-4 right-24">
           <View className="mb-3 flex-row items-center justify-start gap-3">
-            <TouchableOpacity
-              className="min-w-0 shrink flex-row items-center gap-3"
-              activeOpacity={0.8}
-              onPress={() => {
-                if (isOfficialPost && post.restaurant) {
-                  router.push({
-                    pathname: "/restaurants/[id]",
-                    params: { id: post.restaurant.id },
-                  });
-                  return;
-                }
+            <View className="min-w-0 shrink flex-row items-center gap-3">
+              {isRestaurantPost ? (
+                <TouchableOpacity activeOpacity={0.8} onPress={openAuthorProfile}>
+                  <Avatar
+                    uri={displayAvatar}
+                    username={displayName ?? ""}
+                    size={42}
+                    fallbackType="restaurant"
+                  />
+                </TouchableOpacity>
+              ) : (
+                <SnapAvatarButton
+                  avatarUrl={displayAvatar}
+                  username={displayName}
+                  userId={post.author?.id}
+                  size={42}
+                  onPressWithoutSnap={openAuthorProfile}
+                />
+              )}
+              <TouchableOpacity activeOpacity={0.8} onPress={openAuthorProfile}>
+                <View className="min-w-0 shrink">
+                  <View className="flex-row items-center">
+                    <Text
+                      numberOfLines={1}
+                      className="shrink font-bold text-white"
+                    >
+                      {isOfficialPost ? displayName : `@${displayName}`}
+                    </Text>
+                    {isOfficialPost ? <RestaurantBadge /> : null}
+                    {!isOfficialPost && post.visibility !== "PUBLIC" ? (
+                      <View className="ml-1.5">
+                        <PostVisibilityIcon
+                          visibility={post.visibility}
+                          color="#FFFFFFCC"
+                        />
+                      </View>
+                    ) : null}
+                  </View>
 
-                if (!post.author?.id) return;
-
-                router.push({
-                  pathname: "/(users)/[id]",
-                  params: { id: post.author.id },
-                });
-              }}
-            >
-              <Avatar
-                uri={displayAvatar}
-                username={displayName ?? ""}
-                userId={isRestaurantPost ? undefined : post.author?.id}
-                size={42}
-                fallbackType={isOfficialPost ? "restaurant" : "user"}
-              />
-
-              <View className="min-w-0 shrink">
-                <View className="flex-row items-center">
-                  <Text
-                    numberOfLines={1}
-                    className="shrink font-bold text-white"
-                  >
-                    {isOfficialPost ? displayName : `@${displayName}`}
-                  </Text>
-                  {isOfficialPost ? <RestaurantBadge /> : null}
-                  {!isOfficialPost && post.visibility !== "PUBLIC" ? (
-                    <View className="ml-1.5">
-                      <PostVisibilityIcon
-                        visibility={post.visibility}
-                        color="#FFFFFFCC"
-                      />
-                    </View>
-                  ) : null}
+                  {isOfficialPost && (
+                    <Text className="mt-1 text-xs font-semibold text-[#F7D786]">
+                      Official restaurant
+                    </Text>
+                  )}
                 </View>
-
-                {isOfficialPost && (
-                  <Text className="mt-1 text-xs font-semibold text-[#F7D786]">
-                    Official restaurant
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
             <PostAuthorFollowAction post={post} onMedia />
           </View>
 
@@ -530,23 +570,23 @@ export default function ContentPost({
           )}
 
           <View>
-            {!!description && (
+            {!!caption && (
               <>
                 <ExpandablePostCaption
-                  key={`${post.id}-${description}`}
-                  text={description}
-                  isRtl={descriptionIsRtl}
+                  key={`${post.id}-${caption}`}
+                  text={caption}
+                  isRtl={captionIsRtl}
                   tone="overlay"
                   onExpansionChange={handleCaptionExpansion}
                 />
-                {!!content?.descriptionEditedAt && (
+                {!!content?.captionEditedAt && (
                   <Text
                     className="mt-0.5 text-xs text-white/70"
                     style={{
                       alignSelf: "stretch",
                       width: "100%",
                       textAlign: "auto",
-                      writingDirection: descriptionIsRtl ? "rtl" : "ltr",
+                      writingDirection: captionIsRtl ? "rtl" : "ltr",
                     }}
                   >
                     {tCommon("edited")}
@@ -558,16 +598,19 @@ export default function ContentPost({
               sourceType="CONTENT"
               linkedPosts={post.linkedPosts}
               tone="overlay"
+              fallbackImageUrl={
+                media[0]?.thumbnailUrl ?? media[0]?.imageUrl ?? null
+              }
             />
             <PostDate
               createdAt={post.createdAt}
               tone="overlay"
-              hasContentAbove={!!description || !!post.linkedPosts?.length}
+              hasContentAbove={!!caption || !!post.linkedPosts?.length}
             />
           </View>
         </View>
 
-        <View className="absolute bottom-26 right-4 w-16 items-center gap-5">
+        <View className="absolute bottom-8 right-4 w-16 items-center gap-5">
           <TouchableOpacity className="w-16 items-center" onPress={handleLike}>
             <Animated.View style={likeAnimatedStyle}>
               <HeartIcon
@@ -641,6 +684,20 @@ export default function ContentPost({
                 ? tCommon("inList")
                 : t(bookmarkLabelKey)}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="w-16 items-center justify-center"
+            activeOpacity={0.8}
+            onPress={() => onOpenPostOptions(post.id)}
+            accessibilityRole="button"
+            accessibilityLabel={tCommon("postOptions")}
+          >
+            <DotsThreeIcon
+              size={CONTENT_ACTION_ICON_SIZE}
+              color="#FFFFFFCC"
+              weight="bold"
+              style={iconShadow}
+            />
           </TouchableOpacity>
         </View>
       </Animated.View>

@@ -1,4 +1,9 @@
-import type { CreateSnapInput, Snap, SnapGroup } from "@findeat/types";
+import type {
+  CreateSnapInput,
+  Snap,
+  SnapGroup,
+  SnapViewer,
+} from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
 export function createSnapsApi(api: AxiosInstance) {
@@ -17,6 +22,11 @@ export function createSnapsApi(api: AxiosInstance) {
       const { data } = await api.post<{ viewedAt: string | null }>(
         `/snaps/${id}/view`,
       );
+      return data;
+    },
+
+    async viewers(id: string) {
+      const { data } = await api.get<SnapViewer[]>(`/snaps/${id}/viewers`);
       return data;
     },
 

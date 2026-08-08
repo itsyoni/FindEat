@@ -26,7 +26,7 @@ export default function WhatsNewScreen() {
   const [preferenceError, setPreferenceError] = useState('');
   const popupsEnabled =
     pendingPopupPreference ?? (user?.showWhatsNewPopups !== false);
-  const background = isDark ? '#000' : '#FBFAF8';
+  const background = isDark ? '#0B0B0A' : '#FBFAF8';
   const { rowStyle, textStyle } = useSettingsDirection();
   const recordedIds = useRef(new Set<string>());
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken<ProductUpdate>[] }) => {
@@ -90,7 +90,7 @@ export default function WhatsNewScreen() {
             disabled={savingPreference}
             onValueChange={(enabled) => void changePopupPreference(enabled)}
             trackColor={{ false: isDark ? '#374151' : '#D1D5DB', true: '#F4B942' }}
-            thumbColor="#FFF"
+            thumbColor="#FAF9F6"
           />
         </View>
         {preferenceError ? (

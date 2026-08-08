@@ -204,7 +204,7 @@ export default function FullPageRestaurantPicker({
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <View className="flex-row items-center px-4 py-2">
         <TouchableOpacity
@@ -214,7 +214,7 @@ export default function FullPageRestaurantPicker({
           <DirectionalIcon
             direction="back"
             size={25}
-            color={isDark ? "#FFF" : "#171717"}
+            color={isDark ? "#FAF9F6" : "#171717"}
             weight="bold"
           />
         </TouchableOpacity>

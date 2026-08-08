@@ -17,9 +17,15 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { loadChatDrafts, type ChatDraft } from "@/lib/chatDrafts";
+import {
+  clearChatDraft,
+  loadChatDrafts,
+  type ChatDraft,
+} from "@/lib/chatDrafts";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { useToast } from "@/contexts/ToastContext";
+import { addRecentSearch, getRecentSearches } from "@/lib/recentSearches";
+import type { RecentSearchItem } from "@findeat/types";
 
 function sortChats(chats: Chat[], drafts: Record<string, ChatDraft>) {
   return [...chats].sort((left, right) => {
@@ -41,6 +47,7 @@ export default function ChatsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ChatDraft>>({});
   const [optionsChat, setOptionsChat] = useState<Chat | null>(null);
   const [updatingPin, setUpdatingPin] = useState(false);
@@ -56,7 +63,14 @@ export default function ChatsScreen() {
           : Promise.resolve<Record<string, ChatDraft>>({}),
       ]);
       setDrafts(nextDrafts);
-      setChats(sortChats(nextChats, nextDrafts));
+      setChats(
+        sortChats(
+          nextChats.filter(
+            (chat) => !!chat.lastMessageAt || !!chat.lastMessage?.trim(),
+          ),
+          nextDrafts,
+        ),
+      );
       setArchivedCount(nextArchivedCount);
     } catch (error) {
       console.error("Failed to load chats", error);
@@ -80,7 +94,11 @@ export default function ChatsScreen() {
     }
   }
 
-  function handleSearchSelect(item: SearchResultItem) {
+  async function handleSearchSelect(item: SearchResultItem) {
+    if (userId) {
+      const updated = await addRecentSearch(userId, item);
+      setRecentSearches(updated);
+    }
     setIsSearching(false);
 
     if (item.type === "USER") {
@@ -158,6 +176,48 @@ export default function ChatsScreen() {
     }
   }
 
+  function confirmDeleteChat(chat: Chat) {
+    setOptionsChat(null);
+    Alert.alert(
+      t("chat:deleteChatTitle"),
+      t("chat:deleteChatDescription"),
+      [
+        { text: t("chat:cancel"), style: "cancel" },
+        {
+          text: t("chat:deleteChat"),
+          style: "destructive",
+          onPress: () => void deleteChat(chat),
+        },
+      ],
+      { cancelable: true },
+    );
+  }
+
+  async function deleteChat(chat: Chat) {
+    if (updatingPin) return;
+    const previousChats = chats;
+    const previousDrafts = drafts;
+    setUpdatingPin(true);
+    setChats((current) => current.filter((item) => item.id !== chat.id));
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[chat.id];
+      return next;
+    });
+    try {
+      await api.chats.deleteForMe(chat.id);
+      if (userId) await clearChatDraft(userId, chat.id);
+      showToast(t("chat:chatDeleted"));
+    } catch (error) {
+      console.error("Failed to delete chat", error);
+      setChats(previousChats);
+      setDrafts(previousDrafts);
+      showToast(t("chat:deleteChatError"), { kind: "error" });
+    } finally {
+      setUpdatingPin(false);
+    }
+  }
+
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: isDark ? "#080808" : "#FBFAF8" }}
@@ -171,9 +231,10 @@ export default function ChatsScreen() {
           className="flex-1"
         >
           <SearchResultsView
+            idleData={recentSearches}
             searchRequest={searchChatTargets}
             onCancel={() => setIsSearching(false)}
-            onSelect={handleSearchSelect}
+            onSelect={(item) => void handleSearchSelect(item)}
             keyExtractor={(item) => `${item.type}-${item.id}`}
             renderItem={(item) => <SearchResultRow item={item} />}
           />
@@ -188,13 +249,17 @@ export default function ChatsScreen() {
           <SearchBar
             editable={false}
             placeholder={t("search")}
-            onPress={() => { if (!loading) setIsSearching(true); }}
+            onPress={() => {
+              if (loading) return;
+              setIsSearching(true);
+              if (userId) void getRecentSearches(userId).then(setRecentSearches);
+            }}
             rightAccessory={
               <TouchableOpacity
                 className="h-full aspect-square items-center justify-center rounded-2xl bg-brand"
                 onPress={() => router.push("/chats/create-group")}
               >
-                <PlusIcon size={23} color="#FFF" weight="bold" />
+                <PlusIcon size={23} color="#FAF9F6" weight="bold" />
               </TouchableOpacity>
             }
           />
@@ -233,6 +298,7 @@ export default function ChatsScreen() {
         }}
         onTogglePin={(chat) => void togglePinned(chat)}
         onToggleArchive={(chat) => void archiveChat(chat)}
+        onDelete={confirmDeleteChat}
       />
     </SafeAreaView>
   );

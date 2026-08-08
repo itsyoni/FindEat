@@ -5,14 +5,28 @@ import { snapsQueryKey } from "@/hooks/useSnaps";
 import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { uploadImage } from "@/lib/uploadImage";
-import type { SelectedRestaurant } from "@findeat/types";
+import type { SelectedRestaurant, SnapGroup } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePostUpload } from "@/contexts/PostUploadContext";
 import { Image } from "expo-image";
+import {
+  CameraView,
+  type CameraType,
+  type FlashMode,
+  useCameraPermissions,
+} from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
-import { MapPinIcon, PaperPlaneTiltIcon } from "phosphor-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowsClockwiseIcon,
+  ImagesIcon,
+  LightningIcon,
+  LightningSlashIcon,
+  MapPinIcon,
+  PaperPlaneTiltIcon,
+  XIcon,
+} from "phosphor-react-native";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -29,42 +43,57 @@ export default function CreateSnapScreen() {
   const { t } = useTranslation(["snaps", "common"]);
   const queryClient = useQueryClient();
   const { startPostUpload } = usePostUpload();
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
+  const [flash, setFlash] = useState<FlashMode>("off");
+  const [cameraReady, setCameraReady] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [caption, setCaption] = useState("");
   const [restaurant, setRestaurant] = useState<SelectedRestaurant | null>(null);
   const [choosingRestaurant, setChoosingRestaurant] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const publishStartedRef = useRef(false);
-  const cameraOpenedRef = useRef(false);
 
-  const takePhoto = useCallback(async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+  useEffect(() => {
+    if (cameraPermission && !cameraPermission.granted && cameraPermission.canAskAgain) {
+      void requestCameraPermission();
+    }
+  }, [cameraPermission, requestCameraPermission]);
+
+  async function takePhoto() {
+    if (!cameraRef.current || !cameraReady || capturing) return;
+    setCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      if (photo?.uri) setImageUri(photo.uri);
+    } catch {
+      Alert.alert(t("common:error"), t("snaps:captureError"));
+    } finally {
+      setCapturing(false);
+    }
+  }
+
+  async function choosePhoto() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        t("snaps:cameraPermissionTitle"),
-        t("snaps:cameraPermissionBody"),
-        [{ text: t("common:ok"), onPress: () => router.back() }],
+        t("snaps:photosPermissionTitle"),
+        t("snaps:photosPermissionBody"),
       );
       return;
     }
-
-    const result = await ImagePicker.launchCameraAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.9,
       allowsEditing: false,
+      selectionLimit: 1,
     });
-    if (result.canceled) {
-      router.back();
-      return;
+    if (!result.canceled && result.assets[0]?.uri) {
+      setImageUri(result.assets[0].uri);
     }
-    setImageUri(result.assets[0].uri);
-  }, [t]);
-
-  useEffect(() => {
-    if (cameraOpenedRef.current) return;
-    cameraOpenedRef.current = true;
-    void takePhoto();
-  }, [takePhoto]);
+  }
 
   function publish() {
     if (!imageUri || publishing || publishStartedRef.current) return;
@@ -105,6 +134,28 @@ export default function CreateSnapScreen() {
           imageUrl,
           caption: pendingCaption,
           restaurantId,
+        });
+        queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) => {
+          if (!current) return current;
+          const ownGroup = current.find(
+            (group) => group.isOwn || group.user.id === createdSnap.user.id,
+          );
+          if (!ownGroup) {
+            return [
+              {
+                user: createdSnap.user,
+                snaps: [createdSnap],
+                isOwn: true,
+                hasUnseen: false,
+              },
+              ...current,
+            ];
+          }
+          return current.map((group) =>
+            group === ownGroup
+              ? { ...group, snaps: [...group.snaps, createdSnap] }
+              : group,
+          );
         });
         await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
         return { type: "snap", userId: createdSnap.user.id };
@@ -147,13 +198,13 @@ export default function CreateSnapScreen() {
           <View style={[StyleSheet.absoluteFill, styles.previewScrim]} />
           <SafeAreaView edges={["top"]} style={styles.previewHeader}>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => setImageUri(null)}
               className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
             >
               <DirectionalIcon
                 direction="back"
                 size={24}
-                color="#FFF"
+                color="#FAF9F6"
                 weight="bold"
               />
             </TouchableOpacity>
@@ -181,7 +232,7 @@ export default function CreateSnapScreen() {
                   backgroundColor: "rgba(255,255,255,0.14)",
                   paddingHorizontal: 16,
                   paddingVertical: 13,
-                  color: "#FFF",
+                  color: "#FAF9F6",
                   fontSize: 16,
                   textAlign: "auto",
                 }}
@@ -224,12 +275,91 @@ export default function CreateSnapScreen() {
             </SafeAreaView>
           </KeyboardAvoidingView>
         </>
+      ) : !cameraPermission ? (
+        <ActivityIndicator style={styles.cameraLoader} color="#FAF9F6" size="large" />
+      ) : !cameraPermission.granted ? (
+        <SafeAreaView style={styles.permissionState}>
+          <Text className="text-center text-lg font-bold text-white">
+            {t("snaps:cameraPermissionTitle")}
+          </Text>
+          <Text className="mt-2 text-center text-white/70">
+            {t("snaps:cameraPermissionBody")}
+          </Text>
+          {cameraPermission.canAskAgain ? (
+            <TouchableOpacity
+              onPress={() => void requestCameraPermission()}
+              className="mt-5 rounded-full bg-white px-6 py-3"
+            >
+              <Text className="font-bold text-black">{t("snaps:allowCamera")}</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity onPress={() => router.back()} className="mt-5 px-6 py-3">
+            <Text className="font-bold text-white">{t("common:close")}</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
       ) : (
-        <ActivityIndicator
-          style={styles.cameraLoader}
-          color="#FFF"
-          size="large"
-        />
+        <View style={styles.cameraStage}>
+          <CameraView
+            ref={cameraRef}
+            active={!imageUri}
+            facing={cameraFacing}
+            flash={flash}
+            mode="picture"
+            onCameraReady={() => setCameraReady(true)}
+            style={StyleSheet.absoluteFill}
+          />
+          <SafeAreaView edges={["top", "bottom"]} style={styles.cameraControls}>
+            <View className="flex-row items-center justify-between px-5">
+              <TouchableOpacity
+                accessibilityLabel={t("common:close")}
+                onPress={() => router.back()}
+                className="h-11 w-11 items-center justify-center"
+              >
+                <XIcon size={29} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+              <Text className="text-lg font-bold text-white">{t("snaps:newSnap")}</Text>
+              <TouchableOpacity
+                accessibilityLabel={t("snaps:toggleFlash")}
+                onPress={() => setFlash((current) => (current === "off" ? "on" : "off"))}
+                className="h-11 w-11 items-center justify-center"
+              >
+                {flash === "off" ? (
+                  <LightningSlashIcon size={26} color="#FAF9F6" weight="bold" />
+                ) : (
+                  <LightningIcon size={26} color="#FAF9F6" weight="fill" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row items-center justify-between px-8 pb-5">
+              <TouchableOpacity
+                accessibilityLabel={t("snaps:choosePhoto")}
+                onPress={() => void choosePhoto()}
+                className="h-12 w-12 items-center justify-center"
+              >
+                <ImagesIcon size={30} color="#FAF9F6" weight="fill" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityLabel={t("snaps:takePhoto")}
+                disabled={!cameraReady || capturing}
+                onPress={() => void takePhoto()}
+                className="h-20 w-20 items-center justify-center rounded-full border-4 border-white"
+                style={{ opacity: cameraReady && !capturing ? 1 : 0.55 }}
+              >
+                <View className="h-16 w-16 rounded-full bg-white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityLabel={t("snaps:flipCamera")}
+                onPress={() =>
+                  setCameraFacing((current) => (current === "back" ? "front" : "back"))
+                }
+                className="h-12 w-12 items-center justify-center"
+              >
+                <ArrowsClockwiseIcon size={30} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
       )}
     </View>
   );
@@ -238,7 +368,7 @@ export default function CreateSnapScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#0B0B0A",
   },
   previewScrim: {
     backgroundColor: "rgba(0, 0, 0, 0.2)",
@@ -261,5 +391,20 @@ const styles = StyleSheet.create({
   },
   cameraLoader: {
     flex: 1,
+  },
+  cameraStage: {
+    flex: 1,
+    overflow: "hidden",
+  },
+  cameraControls: {
+    flex: 1,
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  permissionState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
   },
 });

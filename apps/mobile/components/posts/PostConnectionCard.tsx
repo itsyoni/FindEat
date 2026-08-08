@@ -9,8 +9,9 @@ import {
   NotePencilIcon,
   PlayIcon,
   SparkleIcon,
+  StarIcon,
 } from "phosphor-react-native";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
@@ -25,12 +26,57 @@ type Props = {
   sourceType: PostType;
   linkedPosts?: LinkedPost[];
   tone?: "surface" | "overlay";
+  fallbackImageUrl?: string | null;
 };
+
+function ConnectedPreviewImage({
+  candidates,
+  className,
+  blurRadius,
+  fallback,
+}: {
+  candidates: (string | null | undefined)[];
+  className: string;
+  blurRadius?: number;
+  fallback?: ReactNode;
+}) {
+  const imageUrls = candidates
+    .map((candidate) => candidate?.trim())
+    .filter(
+      (candidate, index, values): candidate is string =>
+        Boolean(candidate) && values.indexOf(candidate) === index,
+    );
+  const candidateKey = imageUrls.join("|");
+  const [failedCandidate, setFailedCandidate] = useState({
+    key: candidateKey,
+    index: 0,
+  });
+  const candidateIndex =
+    failedCandidate.key === candidateKey ? failedCandidate.index : 0;
+
+  const imageUrl = imageUrls[candidateIndex];
+  if (!imageUrl) return fallback ?? null;
+
+  return (
+    <ProgressiveImage
+      key={imageUrl}
+      source={{ uri: imageUrl }}
+      className={className}
+      style={{ width: "100%", height: "100%" }}
+      resizeMode="cover"
+      blurRadius={blurRadius}
+      onError={() =>
+        setFailedCandidate({ key: candidateKey, index: candidateIndex + 1 })
+      }
+    />
+  );
+}
 
 export default function PostConnectionCard({
   sourceType,
   linkedPosts = [],
   tone = "surface",
+  fallbackImageUrl,
 }: Props) {
   const { t } = useTranslation("common");
   const { isDark } = useAppTheme();
@@ -65,11 +111,16 @@ export default function PostConnectionCard({
   if (!target) return null;
 
   const opensReview = target.type === "REVIEW";
-  const teaserImage = opensReview
-    ? target.reviewPost?.coverImageUrl
-    : target.contentPost?.imageUrl;
+  const teaserImages = opensReview
+    ? [
+        ...(target.reviewPost?.previewImageUrls ?? []),
+        target.reviewPost?.previewImageUrl,
+        target.reviewPost?.coverImageUrl,
+        fallbackImageUrl,
+      ]
+    : [target.contentPost?.imageUrl];
   const overlay = tone === "overlay";
-  const foreground = overlay ? "#FFFFFF" : isDark ? "#FFFFFF" : "#171717";
+  const foreground = overlay ? "#FAF9F6" : isDark ? "#FAF9F6" : "#171717";
   const muted = overlay ? "#FFFFFFB8" : isDark ? "#A3A3A3" : "#706C66";
   const containerClass = overlay
     ? "border-[#F7D786]/45 bg-black/55"
@@ -81,9 +132,14 @@ export default function PostConnectionCard({
 
   function renderConnectedPost(post: LinkedPost, index?: number) {
     const review = post.type === "REVIEW";
-    const imageUrl = review
-      ? post.reviewPost?.coverImageUrl
-      : post.contentPost?.imageUrl;
+    const imageCandidates = review
+      ? [
+          ...(post.reviewPost?.previewImageUrls ?? []),
+          post.reviewPost?.previewImageUrl,
+          post.reviewPost?.coverImageUrl,
+          fallbackImageUrl,
+        ]
+      : [post.contentPost?.imageUrl];
 
     return (
       <TouchableOpacity
@@ -95,20 +151,20 @@ export default function PostConnectionCard({
         <View
           className={`${targets.length > 1 ? "h-24 w-28" : "h-14 w-14"} items-center justify-center overflow-hidden rounded-xl bg-black/10 dark:bg-white/10`}
         >
-          {imageUrl ? (
-            <ProgressiveImage
-              source={{ uri: imageUrl }}
-              className="h-full w-full"
-              resizeMode="cover"
-            />
-          ) : review ? (
-            <NotePencilIcon size={24} color={foreground} weight="fill" />
-          ) : (
-            <PlayIcon size={24} color={foreground} weight="fill" />
-          )}
+          <ConnectedPreviewImage
+            candidates={imageCandidates}
+            className="h-full w-full"
+            fallback={
+              review ? (
+                <NotePencilIcon size={24} color={foreground} weight="fill" />
+              ) : (
+                <PlayIcon size={24} color={foreground} weight="fill" />
+              )
+            }
+          />
           {!review && post.contentPost?.videoUrl ? (
             <View className="absolute inset-0 items-center justify-center bg-black/30">
-              <PlayIcon size={19} color="white" weight="fill" />
+              <PlayIcon size={19} color="#FAF9F6" weight="fill" />
             </View>
           ) : null}
         </View>
@@ -149,6 +205,69 @@ export default function PostConnectionCard({
     );
   }
 
+  if (overlay && sourceType === "CONTENT" && opensReview) {
+    const rating = target.reviewPost?.overallRating;
+    const summary = target.reviewPost?.summary?.trim();
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.84}
+        accessibilityRole="button"
+        accessibilityLabel={t("readConnectedReview")}
+        onPress={() => openPost(target.id)}
+        className="mt-3 flex-row items-center rounded-2xl border border-white/15 bg-black/55 p-2.5"
+      >
+        <View className="h-16 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/10">
+          <ConnectedPreviewImage
+            candidates={teaserImages}
+            className="h-full w-full"
+            fallback={
+              <NotePencilIcon size={25} color="#FFFFFFCC" weight="fill" />
+            }
+          />
+
+          {rating != null ? (
+            <View className="absolute bottom-1 left-1 right-1 flex-row items-center justify-center rounded-full bg-black/75 px-1.5 py-0.5">
+              <StarIcon size={10} color="#F7D786" weight="fill" />
+              <Text className="ml-0.5 text-[10px] font-bold text-white">
+                {rating}/10
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View className="ml-3 min-w-0 flex-1">
+          <Text className="text-[10px] font-bold uppercase tracking-widest text-[#F7D786]">
+            {t("writtenReview")}
+          </Text>
+          <Text numberOfLines={1} className="mt-0.5 font-bold text-white">
+            {t("readConnectedReview")}
+          </Text>
+          <Text numberOfLines={2} className="mt-1 text-xs leading-4 text-white/70">
+            {summary || t("sameExperience")}
+          </Text>
+        </View>
+
+        {targets.length > 1 ? (
+          <View className="ml-2 rounded-full bg-white/10 px-2 py-1">
+            <Text className="text-xs font-bold text-white">
+              +{targets.length - 1}
+            </Text>
+          </View>
+        ) : null}
+
+        <View className="ml-2 h-8 w-8 items-center justify-center rounded-full bg-white/10">
+          <DirectionalIcon
+            direction="forward"
+            size={17}
+            color="#FFFFFFCC"
+            weight="bold"
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View
       className={`mt-3 overflow-hidden rounded-2xl border ${containerClass}`}
@@ -162,14 +281,11 @@ export default function PostConnectionCard({
       >
         <View className="relative h-12 w-12">
           <View className="absolute bottom-0 right-0 h-10 w-10 rotate-6 overflow-hidden rounded-xl bg-black/15 dark:bg-white/10">
-            {teaserImage ? (
-              <ProgressiveImage
-                source={{ uri: teaserImage }}
-                blurRadius={1.5}
-                className="h-full w-full opacity-75"
-                resizeMode="cover"
-              />
-            ) : null}
+            <ConnectedPreviewImage
+              candidates={teaserImages}
+              blurRadius={1.5}
+              className="h-full w-full opacity-75"
+            />
           </View>
           <View className="absolute left-0 top-0 h-9 w-9 items-center justify-center rounded-xl bg-[#F7D786] shadow-sm">
             <SparkleIcon size={19} color="#171717" weight="fill" />

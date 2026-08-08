@@ -143,8 +143,8 @@ function CommentFooter({
       {...footerProps}
       bottomInset={0}
       style={{
-        backgroundColor: isDark ? "#111827" : "white",
-        shadowColor: "#000",
+        backgroundColor: isDark ? "#111827" : "#FAF9F6",
+        shadowColor: "#0B0B0A",
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -155,7 +155,7 @@ function CommentFooter({
         <View
           className="border-t border-gray-200 bg-white px-4 pt-3 dark:border-gray-700 dark:bg-gray-900"
           style={{
-            backgroundColor: isDark ? "#111827" : "white",
+            backgroundColor: isDark ? "#111827" : "#FAF9F6",
             paddingBottom: bottomInset,
           }}
         >
@@ -772,7 +772,7 @@ export default function CommentsBottomSheet({
                 >
                   <DotsThreeIcon
                     size={22}
-                    color={isDark ? "#FFFFFF" : "#111827"}
+                    color={isDark ? "#FAF9F6" : "#111827"}
                     weight="bold"
                   />
                 </TouchableOpacity>
@@ -1196,7 +1196,7 @@ export default function CommentsBottomSheet({
                 <View className="h-11 w-11 items-center justify-center rounded-full bg-white dark:bg-gray-700">
                   <NotePencilIcon
                     size={21}
-                    color={isDark ? "#FFFFFF" : "#111827"}
+                    color={isDark ? "#FAF9F6" : "#111827"}
                     weight="bold"
                   />
                 </View>

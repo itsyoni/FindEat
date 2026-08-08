@@ -1,44 +1,79 @@
 import Text from "@/components/common/AppText";
 import { CreateReviewDraft } from "@findeat/types/review";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ThemedSafeAreaView } from "@/components/common";
 import DishCard from "../components/DishCard";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 import type { PostVisibility } from "@findeat/types";
-import PostConnectionPicker from "@/components/posts/PostConnectionPicker";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
 import { useTranslation } from "react-i18next";
 import Avatar from "@/components/common/Avatar";
 import { UsersThreeIcon } from "phosphor-react-native";
+import ContentVideo from "@/components/posts/content/ContentVideo";
+import { useState } from "react";
+import type { LinkedContentPreview } from "../ReviewCreator";
 
 type Props = {
   draft: CreateReviewDraft;
+  overallRating?: number;
   loading: boolean;
   onBack: () => void;
   onPublish: () => void;
   onVisibilityChange: (visibility: PostVisibility) => void;
-  onLinkedPostChange: (postId?: string) => void;
-  onSaveDraft: () => void;
+  onSaveDraft?: () => void;
   savingDraft?: boolean;
+  linkedContentPreview?: LinkedContentPreview;
+  showVisibilitySelector?: boolean;
 };
 
 export default function PreviewStep({
   draft,
+  overallRating,
   loading,
   onBack,
   onPublish,
   onVisibilityChange,
-  onLinkedPostChange,
   onSaveDraft,
   savingDraft,
+  linkedContentPreview,
+  showVisibilitySelector = true,
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
+  const { width: screenWidth } = useWindowDimensions();
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const previewWidth = screenWidth - 48;
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
       ? draft.restaurant.restaurant.name
       : draft.restaurant?.name;
+  const reviewMedia = [
+    ...(draft.coverImageUri || draft.coverImageUrl
+      ? [
+          {
+            id: "review-cover",
+            type: "IMAGE" as const,
+            uri: (draft.coverImageUri ?? draft.coverImageUrl)!,
+          },
+        ]
+      : []),
+    ...draft.items.flatMap((item) => {
+      const uri = item.imageUri ?? item.fallbackImageUrl;
+      return uri
+        ? [{ id: `dish-${item.id}`, type: "IMAGE" as const, uri }]
+        : [];
+    }),
+  ];
+  const previewMedia = linkedContentPreview?.media.length
+    ? linkedContentPreview.media
+    : reviewMedia;
 
   return (
     <ThemedSafeAreaView>
@@ -56,7 +91,9 @@ export default function PreviewStep({
             </Text>
           </TouchableOpacity>
           <View className="flex-row items-center gap-2">
-            <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
+            {onSaveDraft ? (
+              <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
+            ) : null}
             <Text className="text-sm font-semibold text-gray-400">
               {t("create:stepOf", { current: 4, total: 4 })}
             </Text>
@@ -78,18 +115,89 @@ export default function PreviewStep({
           </View>
         )}
 
-        {draft.coverImageUri && (
-          <ProgressiveImage
-            source={{ uri: draft.coverImageUri }}
-            className="mt-6 h-80 w-full rounded-3xl bg-gray-100"
-            resizeMode="cover"
-          />
-        )}
+        {linkedContentPreview ? (
+          <Text className="mt-6 text-lg font-bold text-black dark:text-white">
+            {t("create:postPreview")}
+          </Text>
+        ) : null}
+
+        {previewMedia.length > 0 ? (
+          <View
+            className="mt-4 overflow-hidden rounded-3xl bg-black"
+            style={{ width: previewWidth, aspectRatio: 4 / 5 }}
+          >
+            <FlatList
+              horizontal
+              pagingEnabled
+              nestedScrollEnabled
+              directionalLockEnabled
+              data={previewMedia}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              getItemLayout={(_, index) => ({
+                length: previewWidth,
+                offset: previewWidth * index,
+                index,
+              })}
+              onMomentumScrollEnd={(event) =>
+                setMediaIndex(
+                  Math.round(
+                    event.nativeEvent.contentOffset.x / previewWidth,
+                  ),
+                )
+              }
+              renderItem={({ item }) => (
+                <View style={{ width: previewWidth, height: "100%" }}>
+                  {item.type === "VIDEO" ? (
+                    <ContentVideo
+                      uri={item.uri}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      autoPlay
+                      tapToToggle
+                      showProgress
+                    />
+                  ) : (
+                    <ProgressiveImage
+                      source={{ uri: item.uri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                    />
+                  )}
+                </View>
+              )}
+            />
+            {previewMedia.length > 1 ? (
+              <View
+                pointerEvents="none"
+                className="absolute right-3 top-3 rounded-full bg-black/65 px-2.5 py-1"
+              >
+                <Text className="text-xs font-bold text-white">
+                  {mediaIndex + 1}/{previewMedia.length}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {linkedContentPreview?.caption.trim() ? (
+          <Text className="mt-3 text-base leading-6 text-black dark:text-white">
+            {linkedContentPreview.caption.trim()}
+          </Text>
+        ) : null}
+
+        {linkedContentPreview ? (
+          <View className="mb-1 mt-7 border-t border-gray-200 pt-7 dark:border-gray-800">
+            <Text className="text-xl font-bold text-black dark:text-white">
+              {t("create:fullReviewDetails")}
+            </Text>
+          </View>
+        ) : null}
 
         <View className="mt-6 rounded-3xl bg-gray-50 p-5 dark:bg-gray-900">
-          {!!draft.overallRating && (
+          {!!overallRating && (
             <Text className="text-xl font-bold text-black dark:text-white">
-              ⭐ {draft.overallRating}/10
+              ⭐ {overallRating}/10
             </Text>
           )}
 
@@ -172,21 +280,12 @@ export default function PreviewStep({
           </View>
         )}
 
-        <PostVisibilitySelector
-          value={draft.visibility}
-          onChange={onVisibilityChange}
-        />
-
-        <PostConnectionPicker
-          restaurantId={
-            draft.restaurant?.source === "FINDEAT"
-              ? draft.restaurant.restaurant.id
-              : undefined
-          }
-          candidateType="CONTENT"
-          selectedPostId={draft.linkedPostId}
-          onSelect={onLinkedPostChange}
-        />
+        {showVisibilitySelector ? (
+          <PostVisibilitySelector
+            value={draft.visibility}
+            onChange={onVisibilityChange}
+          />
+        ) : null}
 
         <TouchableOpacity
           className={`mt-8 rounded-2xl py-4 ${

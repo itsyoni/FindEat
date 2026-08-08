@@ -13,7 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import React, { useEffect, useRef, useState } from "react";
-import { Platform, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext";
@@ -23,6 +23,38 @@ const relationshipNotificationTypes = new Set<AppNotification["type"]>([
   "FOLLOW_BACK",
   "FRIEND",
 ]);
+
+const LEGACY_BACKGROUND_NOTIFICATION_TEST = "BACKGROUND_NOTIFICATION_TEST";
+
+function isLegacyBackgroundNotification(
+  request: Notifications.NotificationRequest,
+) {
+  return request.content.data?.type === LEGACY_BACKGROUND_NOTIFICATION_TEST;
+}
+
+async function removeLegacyBackgroundNotifications() {
+  const [scheduled, presented] = await Promise.all([
+    Notifications.getAllScheduledNotificationsAsync(),
+    Notifications.getPresentedNotificationsAsync(),
+  ]);
+
+  await Promise.all([
+    ...scheduled
+      .filter(isLegacyBackgroundNotification)
+      .map((request) =>
+        Notifications.cancelScheduledNotificationAsync(request.identifier),
+      ),
+    ...presented
+      .filter((notification) =>
+        isLegacyBackgroundNotification(notification.request),
+      )
+      .map((notification) =>
+        Notifications.dismissNotificationAsync(
+          notification.request.identifier,
+        ),
+      ),
+  ]);
+}
 
 type CachedPushToken = {
   token: string;
@@ -87,10 +119,33 @@ Notifications.setNotificationHandler({
     shouldPlaySound: false,
     shouldSetBadge: true,
     shouldShowBanner: false,
-    shouldShowList: true,
+    shouldShowList: false,
     priority: Notifications.AndroidNotificationPriority.HIGH,
   }),
 });
+
+async function hydrateNotificationActor(item: AppNotification) {
+  if (item.actor?.avatarThumbnailUrl || item.actor?.avatarUrl || !item.actorId) {
+    return item;
+  }
+
+  try {
+    const actor = await api.users.get(item.actorId);
+    return {
+      ...item,
+      actor: {
+        ...item.actor,
+        id: actor.id,
+        username: actor.username,
+        displayName: actor.displayName,
+        avatarUrl: actor.avatarUrl,
+        avatarThumbnailUrl: actor.avatarThumbnailUrl,
+      },
+    };
+  } catch {
+    return item;
+  }
+}
 
 function openPushData(data?: Record<string, unknown>) {
   if (!data) return;
@@ -140,6 +195,13 @@ export function NotificationProvider({
   }, [pathname]);
 
   useEffect(() => {
+    if (Platform.OS === "web") return;
+    void removeLegacyBackgroundNotifications().catch((error) =>
+      console.warn("Could not clear the retired notification test", error),
+    );
+  }, []);
+
+  useEffect(() => {
     notificationsScreenOpen.current = pathname.startsWith("/notifications");
 
     if (notificationsScreenOpen.current) {
@@ -152,11 +214,23 @@ export function NotificationProvider({
     if (!user || !token) return;
     const socket = io(`${API_URL}/notifications`, { auth: { token } });
 
-    socket.on("notification", (item: AppNotification) => {
-      // Chat unread state belongs in the chats UI, not the activity feed or its
-      // in-app popup. This also protects clients connected to an older backend.
+    socket.on("notification", async (incoming: AppNotification) => {
+      const item = await hydrateNotificationActor(incoming);
+      // Message events are intentionally not merged into the activity feed,
+      // but they still need an independent in-app popup. This keeps foreground
+      // chat alerts working even if the external push provider is unavailable.
       if (item.type === "MESSAGE") {
-        setPopup(null);
+        if (
+          item.conversationId &&
+          pathnameRef.current === `/chats/${item.conversationId}`
+        ) {
+          setPopup(null);
+          return;
+        }
+
+        setPopup(item);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => setPopup(null), 4500);
         return;
       }
 
@@ -224,6 +298,7 @@ export function NotificationProvider({
     async function registerPushToken(
       attempt = 0,
       forceRefresh = false,
+      forceBackendSync = false,
     ): Promise<void> {
       if (registrationInFlight || cancelled) return;
       registrationInFlight = true;
@@ -236,7 +311,6 @@ export function NotificationProvider({
             importance: Notifications.AndroidImportance.MAX,
             lockscreenVisibility:
               Notifications.AndroidNotificationVisibility.PUBLIC,
-            sound: "default",
             enableVibrate: true,
             vibrationPattern: [0, 250, 180, 250],
             enableLights: true,
@@ -262,15 +336,19 @@ export function NotificationProvider({
           ? null
           : readCachedPushToken(await AsyncStorage.getItem(cacheKey));
         let pushToken: string;
+
         try {
-          pushToken = (
-            await Notifications.getExpoPushTokenAsync({ projectId })
-          ).data;
+          pushToken = (await Notifications.getExpoPushTokenAsync({ projectId }))
+            .data;
         } catch (error) {
+          console.error("❌ Failed to get Expo Push Token:", error);
           // A temporary Expo/network failure must not prevent an already known
           // device from being re-associated with the currently signed-in user.
           // Keep retrying below so a rotated token replaces this fallback.
-          if (cached?.token && cached.token !== lastRegisteredToken) {
+          if (
+            cached?.token &&
+            (forceBackendSync || cached.token !== lastRegisteredToken)
+          ) {
             await api.notifications.registerPushToken({
               token: cached.token,
               platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
@@ -281,7 +359,7 @@ export function NotificationProvider({
           throw error;
         }
         if (cancelled) return;
-        if (pushToken !== lastRegisteredToken) {
+        if (forceBackendSync || pushToken !== lastRegisteredToken) {
           await api.notifications.registerPushToken({
             token: pushToken,
             platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
@@ -301,7 +379,12 @@ export function NotificationProvider({
         if (attempt < 3) {
           const delays = [2_000, 5_000, 15_000];
           retryTimer = setTimeout(
-            () => void registerPushToken(attempt + 1, forceRefresh),
+            () =>
+              void registerPushToken(
+                attempt + 1,
+                forceRefresh,
+                forceBackendSync,
+              ),
             delays[attempt],
           );
           return;
@@ -322,7 +405,7 @@ export function NotificationProvider({
         openPushData(response.notification.request.content.data);
       });
     const receivedSubscription = Notifications.addNotificationReceivedListener(
-      (notification) => {
+      async (notification) => {
         const content = notification.request.content;
         const data = content.data ?? {};
         const conversationId = stringPushValue(data.conversationId);
@@ -334,10 +417,14 @@ export function NotificationProvider({
 
         const senderName =
           stringPushValue(data.senderName) || content.title || "New message";
-        const senderAvatarUrl = stringPushValue(data.senderAvatarUrl);
-        setPopup({
+        const actorId = stringPushValue(data.actorId);
+        const senderAvatarUrl =
+          stringPushValue(data.senderAvatarUrl) ||
+          stringPushValue(data.actorAvatarUrl);
+        const item = await hydrateNotificationActor({
           id: notification.request.identifier,
           recipientId: userId,
+          actorId,
           type: "MESSAGE",
           title: senderName,
           body: content.body,
@@ -351,15 +438,32 @@ export function NotificationProvider({
           },
           createdAt: new Date().toISOString(),
         });
+        setPopup(item);
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => setPopup(null), 4500);
       },
     );
     const pushTokenSubscription = Notifications.addPushTokenListener(() => {
       void AsyncStorage.removeItem(cacheKey).then(() => {
-        retryTimer = setTimeout(() => void registerPushToken(0, true), 250);
+        retryTimer = setTimeout(
+          () => void registerPushToken(0, true, true),
+          250,
+        );
       });
     });
+    let previousAppState = AppState.currentState;
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      (nextAppState) => {
+        const returnedToForeground =
+          nextAppState === "active" && previousAppState !== "active";
+        previousAppState = nextAppState;
+
+        if (returnedToForeground) {
+          void registerPushToken(0, false, true);
+        }
+      },
+    );
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) openPushData(response.notification.request.content.data);
     });
@@ -370,6 +474,7 @@ export function NotificationProvider({
       responseSubscription.remove();
       receivedSubscription.remove();
       pushTokenSubscription.remove();
+      appStateSubscription.remove();
     };
   }, [userId]);
 

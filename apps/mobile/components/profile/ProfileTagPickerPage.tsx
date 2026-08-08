@@ -130,12 +130,12 @@ export default function ProfileTagPickerPage({
       <SafeAreaProvider style={{ flex: 1 }}>
         <SafeAreaView
           edges={["top", "bottom"]}
-          style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+          style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
         >
           <View className="flex-1 bg-canvas px-5 dark:bg-black">
           <View className="flex-row items-center justify-between py-3">
             <TouchableOpacity onPress={onClose} className="h-11 w-11 items-center justify-center rounded-full">
-              <DirectionalBackIcon size={25} color={isDark ? "#FFF" : "#171717"} />
+              <DirectionalBackIcon size={25} color={isDark ? "#FAF9F6" : "#171717"} />
             </TouchableOpacity>
             <View className="flex-1 px-3">
               <Text className="text-center text-lg font-bold text-black dark:text-white">

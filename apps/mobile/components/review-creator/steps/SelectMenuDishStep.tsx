@@ -17,7 +17,7 @@ type Props = {
   onBack: () => void;
   onSelect: (dish: Dish) => void;
   onAddCustom: () => void;
-  onSaveDraft: () => void;
+  onSaveDraft?: () => void;
   savingDraft?: boolean;
 };
 
@@ -90,7 +90,9 @@ export default function SelectMenuDishStep({
               {t("common:back")}
             </Text>
           </TouchableOpacity>
-          <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
+          {onSaveDraft ? (
+            <SaveDraftButton onPress={onSaveDraft} saving={savingDraft} />
+          ) : null}
         </View>
 
         <Text className="mt-6 text-3xl font-bold text-black dark:text-white">

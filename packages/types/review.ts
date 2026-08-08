@@ -1,6 +1,12 @@
 import type { SelectedRestaurant } from "./restaurant";
 import type { PostVisibility } from "./post";
 import type { UserSummary } from "./user";
+import type { Dish } from "./menu";
+
+export type SelectedReviewDish = Pick<
+  Dish,
+  "id" | "name" | "price" | "imageUrl"
+>;
 
 export type CreateReviewStep =
   | "RESTAURANT"
@@ -20,8 +26,8 @@ export type ReviewDishDraft = {
   customPrice?: number;
   fallbackImageUrl?: string | null;
   imageUri?: string;
-  rating: number;
-  text: string;
+  rating?: number;
+  text?: string;
   order: number;
 };
 
@@ -46,6 +52,7 @@ export type CreateReviewDraft = {
   restaurant: SelectedRestaurant | null;
   linkedPostId?: string;
   coverImageUri?: string;
+  coverImageUrl?: string;
   summary: string;
   overallRating?: number;
   atmosphereRating?: number;

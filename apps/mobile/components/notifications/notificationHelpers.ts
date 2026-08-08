@@ -4,6 +4,9 @@ import type { TFunction } from 'i18next';
 
 export function notificationText(item: AppNotification, t: TFunction) {
   const name = item.actor?.displayName || item.actor?.username || t('someone');
+  if (item.type === 'MESSAGE' && item.body) {
+    return `${item.title || name}: ${item.body}`;
+  }
   if (
     (item.type === 'POST_LIKE' || item.type === 'COMMENT_LIKE') &&
     (item.aggregationCount ?? 1) > 1

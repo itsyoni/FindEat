@@ -14,7 +14,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 export default function TabLayout() {
   const { user } = useAuth();
   const { isDark } = useAppTheme();
-  const iconColor = isDark ? "#FFF" : "#171717";
+  const iconColor = isDark ? "#FAF9F6" : "#171717";
 
   return (
     <Tabs
@@ -23,7 +23,7 @@ export default function TabLayout() {
         tabBarHideOnKeyboard: true,
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: isDark ? "#000" : "#FFF",
+          backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
           borderTopColor: isDark ? "#1F2937" : "#E8E6E1",
         },
       }}

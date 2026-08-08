@@ -667,7 +667,7 @@ export default function MapScreen() {
   return (
     <SafeAreaView
       edges={["top"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       {isSearching ? (
         <Animated.View
@@ -708,7 +708,7 @@ export default function MapScreen() {
               >
                 <FunnelIcon
                   size={21}
-                  color="#FFF"
+                  color="#FAF9F6"
                   weight="fill"
                 />
                 {activeFilterCount > 0 ? (
@@ -796,7 +796,7 @@ export default function MapScreen() {
                           }}
                           className="h-12 w-12 items-center justify-center rounded-full border-[3px] border-white bg-[#212121]"
                           style={{
-                            shadowColor: "#000",
+                            shadowColor: "#0B0B0A",
                             shadowOpacity: 0.24,
                             shadowRadius: 4,
                             shadowOffset: { width: 0, height: 2 },
@@ -847,9 +847,9 @@ export default function MapScreen() {
                           borderRadius: isSelected ? 26 : 24,
                           borderWidth: isSelected ? 4 : 3,
                           borderColor: markerColor,
-                          backgroundColor: isDark ? "#111827" : "#FFFFFF",
+                          backgroundColor: isDark ? "#111827" : "#FAF9F6",
                           padding: 3,
-                          shadowColor: "#000",
+                          shadowColor: "#0B0B0A",
                           shadowOpacity: 0.22,
                           shadowRadius: 4,
                           shadowOffset: { width: 0, height: 2 },
@@ -877,9 +877,9 @@ export default function MapScreen() {
                             }}
                           >
                             {isFavorite ? (
-                              <HeartIcon size={19} color="#FFF" weight="fill" />
+                              <HeartIcon size={19} color="#FAF9F6" weight="fill" />
                             ) : (
-                              <CheckIcon size={20} color="#FFF" weight="bold" />
+                              <CheckIcon size={20} color="#FAF9F6" weight="bold" />
                             )}
                           </View>
                         )}
@@ -897,7 +897,7 @@ export default function MapScreen() {
                   enablePanDownToClose
                   onClose={dismissRestaurantPreview}
                   backgroundStyle={{
-                    backgroundColor: isDark ? "#111827" : "#FFF",
+                    backgroundColor: isDark ? "#111827" : "#FAF9F6",
                     borderRadius: 28,
                     overflow: "hidden",
                   }}
@@ -1005,7 +1005,7 @@ export default function MapScreen() {
               >
                 <CrosshairIcon
                   size={22}
-                  color={isDark ? "#FFF" : "#111"}
+                  color={isDark ? "#FAF9F6" : "#111"}
                   weight="fill"
                 />
               </TouchableOpacity>
@@ -1112,7 +1112,7 @@ export default function MapScreen() {
                 }`}
               >
                 {mapFilter === filter && (
-                  <CheckIcon size={14} color={isDark ? "#000" : "#FFF"} weight="bold" />
+                  <CheckIcon size={14} color={isDark ? "#0B0B0A" : "#FAF9F6"} weight="bold" />
                 )}
                 <Text className={`font-bold ${mapFilter === filter ? "ml-1.5 text-white dark:text-black" : "text-black dark:text-white"}`}>
                   {t(`map:filter${filter}`)}
@@ -1140,7 +1140,7 @@ export default function MapScreen() {
                 </Text>
               </View>
               {selectedListId === null ? (
-                <CheckIcon size={18} color={isDark ? "#FFF" : "#111"} weight="bold" />
+                <CheckIcon size={18} color={isDark ? "#FAF9F6" : "#111"} weight="bold" />
               ) : null}
             </TouchableOpacity>
             {placeLists.map((list) => {
@@ -1170,7 +1170,7 @@ export default function MapScreen() {
                   {selected ? (
                     <CheckIcon
                       size={18}
-                      color={isDark ? "#FFF" : "#111"}
+                      color={isDark ? "#FAF9F6" : "#111"}
                       weight="bold"
                     />
                   ) : null}
@@ -1223,7 +1223,7 @@ export default function MapScreen() {
                   }`}
                 >
                   {option.value && (
-                    <CheckIcon size={14} color="#FFF" weight="bold" />
+                    <CheckIcon size={14} color="#FAF9F6" weight="bold" />
                   )}
                 </View>
               </TouchableOpacity>
@@ -1260,7 +1260,7 @@ export default function MapScreen() {
                 <Text className="font-semibold text-black dark:text-white">
                   {t(`map:sort${sort}`)}
                 </Text>
-                {mapSort === sort && <CheckIcon size={18} color={isDark ? "#FFF" : "#111"} weight="bold" />}
+                {mapSort === sort && <CheckIcon size={18} color={isDark ? "#FAF9F6" : "#111"} weight="bold" />}
               </TouchableOpacity>
             ))}
           </View>

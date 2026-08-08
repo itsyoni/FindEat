@@ -97,7 +97,7 @@ function getPostText(post: Post) {
     return post.reviewPost?.summary ?? null;
   }
 
-  return post.contentPost?.description ?? null;
+  return post.contentPost?.caption ?? null;
 }
 
 export default function ProfilePostGrid({
@@ -116,7 +116,7 @@ export default function ProfilePostGrid({
         style={{
           flexDirection: "row",
           flexWrap: "wrap",
-          backgroundColor: isDark ? "#000" : "#FFF",
+          backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
         }}
       >
         {Array.from({ length: 9 }, (_, index) => (
@@ -135,10 +135,10 @@ export default function ProfilePostGrid({
     return (
       <View
         className="min-h-80 items-center justify-center px-10 pb-16 pt-14"
-        style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       >
         <View className="h-20 w-20 items-center justify-center rounded-full border-2 border-gray-200 dark:border-gray-700">
-          <Icon size={36} color={isDark ? "#FFF" : "#111"} />
+          <Icon size={36} color={isDark ? "#FAF9F6" : "#111"} />
         </View>
         <Text weight="bold" className="mt-5 text-xl text-black dark:text-white">
           {isReview ? t("noReviewsTitle") : t("noContentTitle")}
@@ -166,7 +166,7 @@ export default function ProfilePostGrid({
   return (
     <View
       className="flex-row flex-wrap"
-      style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+      style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
     >
       {posts.map((post) => {
         const imageUrl = getPostImage(post);
@@ -208,7 +208,7 @@ export default function ProfilePostGrid({
               <>
                 <ProfileVideoPreview uri={videoUrl} />
                 <View className="absolute inset-0 items-center justify-center bg-black/15">
-                  <PlayCircleIcon size={34} color="#FFF" weight="fill" />
+                  <PlayCircleIcon size={34} color="#FAF9F6" weight="fill" />
                 </View>
               </>
             ) : (
@@ -223,7 +223,7 @@ export default function ProfilePostGrid({
             )}
             {contentMedia.length > 1 ? (
               <View className="absolute right-2 top-2 rounded-full bg-black/65 p-1.5">
-                <ImagesSquareIcon size={15} color="#FFF" weight="fill" />
+                <ImagesSquareIcon size={15} color="#FAF9F6" weight="fill" />
               </View>
             ) : null}
           </Pressable>

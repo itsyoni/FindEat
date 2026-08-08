@@ -116,7 +116,7 @@ export default function ReviewParticipantsStep({
     onChange([...selected, toInvitee(item)]);
   }
 
-  const iconColor = isDark ? "#FFFFFF" : "#111827";
+  const iconColor = isDark ? "#FAF9F6" : "#111827";
 
   return (
     <ThemedSafeAreaView edges={["top", "bottom"]}>
@@ -186,9 +186,9 @@ export default function ReviewParticipantsStep({
                     }`}
                   >
                     {participant.locked ? (
-                      <CheckCircleIcon size={12} color="#FFFFFF" weight="fill" />
+                      <CheckCircleIcon size={12} color="#FAF9F6" weight="fill" />
                     ) : (
-                      <XIcon size={11} color="#FFFFFF" weight="bold" />
+                      <XIcon size={11} color="#FAF9F6" weight="bold" />
                     )}
                   </View>
                 </View>
@@ -272,7 +272,9 @@ export default function ReviewParticipantsStep({
                 </View>
                 <CheckCircleIcon
                   size={26}
-                  color={isSelected ? "#E0B84F" : "#D1D5DB"}
+                  color={
+                    isSelected ? "#E0B84F" : isDark ? "#4B5563" : "#D1D5DB"
+                  }
                   weight={isSelected ? "fill" : "regular"}
                 />
               </TouchableOpacity>

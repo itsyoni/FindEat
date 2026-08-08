@@ -31,7 +31,7 @@ export default function EditPostScreen() {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [post, setPost] = useState<Post | null>(null);
-  const [description, setDescription] = useState("");
+  const [caption, setCaption] = useState("");
   const [summary, setSummary] = useState("");
   const [itemTexts, setItemTexts] = useState<Record<string, string>>({});
   const [removedItemIds, setRemovedItemIds] = useState<string[]>([]);
@@ -51,7 +51,7 @@ export default function EditPostScreen() {
         }
 
         setPost(nextPost);
-        setDescription(nextPost.contentPost?.description ?? "");
+        setCaption(nextPost.contentPost?.caption ?? "");
         setSummary(nextPost.reviewPost?.summary ?? "");
         setItemTexts(
           Object.fromEntries(
@@ -80,7 +80,7 @@ export default function EditPostScreen() {
     if (!post) return false;
 
     if (post.type === "CONTENT") {
-      return description !== (post.contentPost?.description ?? "");
+      return caption !== (post.contentPost?.caption ?? "");
     }
 
     return (
@@ -90,7 +90,7 @@ export default function EditPostScreen() {
         (item) => itemTexts[item.id] !== (item.text ?? ""),
       )
     );
-  }, [description, itemTexts, post, removedItemIds.length, summary]);
+  }, [caption, itemTexts, post, removedItemIds.length, summary]);
 
   async function saveChanges() {
     if (!post || saving || !isDirty) return;
@@ -99,7 +99,7 @@ export default function EditPostScreen() {
       setSaving(true);
       const updatedPost =
         post.type === "CONTENT"
-          ? await api.posts.updateContent(post.id, { description })
+          ? await api.posts.updateContent(post.id, { caption })
           : await api.posts.updateReview(post.id, {
               summary,
               items: (post.reviewPost?.items ?? [])
@@ -127,7 +127,7 @@ export default function EditPostScreen() {
 
   if (loading || !post) {
     return (
-      <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+      <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
         <Stack.Screen options={{ headerShown: false }} />
         <SkeletonPulse>
           <View className="flex-row items-center border-b border-line px-4 py-3 dark:border-gray-800"><Skeleton width={44} height={44} circle /><Skeleton width="40%" height={20} radius={8} style={{ marginHorizontal: "auto" }} /><View className="w-11" /></View>
@@ -152,7 +152,7 @@ export default function EditPostScreen() {
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ flex: 1 }}>
@@ -164,7 +164,7 @@ export default function EditPostScreen() {
             <DirectionalIcon
               direction="back"
               size={25}
-              color={isDark ? "#FFF" : "#171717"}
+              color={isDark ? "#FAF9F6" : "#171717"}
               weight="bold"
             />
           </TouchableOpacity>
@@ -209,8 +209,8 @@ export default function EditPostScreen() {
                 {t("caption")}
               </Text>
               <TextInput
-                value={description}
-                onChangeText={setDescription}
+                value={caption}
+                onChangeText={setCaption}
                 multiline
                 placeholder={t("caption")}
                 className="bg-white dark:bg-gray-900"

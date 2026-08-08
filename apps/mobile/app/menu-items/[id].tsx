@@ -167,7 +167,7 @@ export default function MenuItemScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-canvas px-6 dark:bg-black">
         <View className="h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
-          <ForkKnifeIcon size={28} color={isDark ? "#FFF" : "#111"} />
+          <ForkKnifeIcon size={28} color={isDark ? "#FAF9F6" : "#111"} />
         </View>
         <Text className="mt-4 text-xl font-bold text-black dark:text-white">
           {t("dishNotFound")}
@@ -187,14 +187,14 @@ export default function MenuItemScreen() {
   return (
     <View
       className="flex-1"
-      style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+      style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
-          backgroundColor: isDark ? "#000" : "#FFF",
+          backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
         }}
       >
         {dish.imageUrl ? (
@@ -427,7 +427,7 @@ export default function MenuItemScreen() {
             <DirectionalIcon
               direction="back"
               size={24}
-              color="white"
+              color="#FAF9F6"
               weight="bold"
             />
           </TouchableOpacity>

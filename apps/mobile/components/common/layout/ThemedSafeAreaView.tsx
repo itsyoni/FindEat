@@ -12,7 +12,7 @@ export default function ThemedSafeAreaView({ style, ...props }: Props) {
     <SafeAreaView
       {...props}
       style={[
-        { flex: 1, backgroundColor: isDark ? "#000" : lightPalette.canvas },
+        { flex: 1, backgroundColor: isDark ? "#0B0B0A" : lightPalette.canvas },
         style,
       ]}
     />

@@ -47,6 +47,7 @@ import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import { prefetchImageUrls } from "@/lib/imagePrefetch";
+import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
 
 type Props = {
   post: Post;
@@ -108,7 +109,7 @@ function ReviewPaginationDot({
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
-      isDark ? ["#4B5563", "#FFFFFF"] : ["#D1D5DB", "#111111"],
+      isDark ? ["#4B5563", "#FAF9F6"] : ["#D1D5DB", "#111111"],
     ),
   }));
 
@@ -363,15 +364,24 @@ export default function ReviewPost({
     <View className="mb-6 bg-white pb-6 dark:bg-black">
       <View className="mb-3 flex-row items-center justify-between px-4">
         <View className="flex-1 flex-row items-center gap-3">
-          <TouchableOpacity activeOpacity={0.8} onPress={openAuthorProfile}>
-            <Avatar
-              uri={displayAvatar}
-              username={displayName ?? "User"}
-              userId={isRestaurantPost ? undefined : post.author?.id}
+          {isRestaurantPost ? (
+            <TouchableOpacity activeOpacity={0.8} onPress={openAuthorProfile}>
+              <Avatar
+                uri={displayAvatar}
+                username={displayName ?? "User"}
+                size={42}
+                fallbackType="restaurant"
+              />
+            </TouchableOpacity>
+          ) : (
+            <SnapAvatarButton
+              avatarUrl={displayAvatar}
+              username={displayName}
+              userId={post.author?.id}
               size={42}
-              fallbackType={isRestaurantPost ? "restaurant" : "user"}
+              onPressWithoutSnap={openAuthorProfile}
             />
-          </TouchableOpacity>
+          )}
 
           <View className="flex-1">
             <TouchableOpacity
@@ -444,7 +454,7 @@ export default function ReviewPost({
             color="#FF3040"
             weight="fill"
             style={{
-              shadowColor: "#000",
+              shadowColor: "#0B0B0A",
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.35,
               shadowRadius: 4,

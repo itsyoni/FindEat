@@ -14,7 +14,7 @@ export default function ReviewFeedEmptyState() {
       <View className="h-24 w-24 items-center justify-center rounded-full border-2 border-ink dark:border-white">
         <StarIcon
           size={43}
-          color={isDark ? "#FFF" : "#171717"}
+          color={isDark ? "#FAF9F6" : "#171717"}
           weight="regular"
         />
       </View>

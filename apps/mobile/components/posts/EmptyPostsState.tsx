@@ -29,7 +29,7 @@ export default function EmptyPostsState({ type }: Props) {
         <View className="h-16 w-16 items-center justify-center rounded-full bg-white dark:bg-gray-800">
           <Icon
             size={32}
-            color={isReview ? "#FF5B35" : isDark ? "#FFF" : "#171717"}
+            color={isReview ? "#FF5B35" : isDark ? "#FAF9F6" : "#171717"}
             weight="fill"
           />
         </View>
@@ -51,7 +51,7 @@ export default function EmptyPostsState({ type }: Props) {
       >
         <PlusIcon
           size={19}
-          color={isReview ? "#FFF" : isDark ? "#171717" : "#FFF"}
+          color={isReview ? "#FAF9F6" : isDark ? "#171717" : "#FAF9F6"}
           weight="bold"
         />
         <Text

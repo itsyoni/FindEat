@@ -94,14 +94,14 @@ export default function RestaurantPostFeedScreen() {
       <DirectionalIcon
         direction="back"
         size={24}
-        color={isReviewFeed && !isDark ? "#171717" : "white"}
+        color={isReviewFeed && !isDark ? "#171717" : "#FAF9F6"}
         weight="bold"
       />
     </TouchableOpacity>
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <View style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView
         edges={["top"]}

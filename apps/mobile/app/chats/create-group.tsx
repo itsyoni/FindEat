@@ -136,7 +136,7 @@ export default function CreateGroupScreen() {
     }
   }
 
-  const iconColor = isDark ? "#FFFFFF" : "#111827";
+  const iconColor = isDark ? "#FAF9F6" : "#111827";
   const showingSearch = query.trim().length > 0;
   const visibleFriends = showingSearch ? results : suggestedFriends;
 
@@ -194,7 +194,7 @@ export default function CreateGroupScreen() {
                           <View className="absolute -bottom-1 -right-1 h-5 w-5 items-center justify-center rounded-full bg-black dark:bg-white">
                             <CheckIcon
                               size={12}
-                              color={isDark ? "#000" : "#FFF"}
+                              color={isDark ? "#0B0B0A" : "#FAF9F6"}
                               weight="bold"
                             />
                           </View>
@@ -377,7 +377,7 @@ export default function CreateGroupScreen() {
                 }`}
               >
                 {creating ? (
-                  <ActivityIndicator color={isDark ? "#000" : "#FFF"} />
+                  <ActivityIndicator color={isDark ? "#0B0B0A" : "#FAF9F6"} />
                 ) : (
                   <Text
                     className={`font-bold ${

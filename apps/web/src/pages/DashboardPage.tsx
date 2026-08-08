@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellIcon } from "@phosphor-icons/react/dist/csr/Bell";
 import { ChartLineUpIcon } from "@phosphor-icons/react/dist/csr/ChartLineUp";
 import { ChatCircleDotsIcon } from "@phosphor-icons/react/dist/csr/ChatCircleDots";
@@ -9,6 +9,8 @@ import { StarIcon } from "@phosphor-icons/react/dist/csr/Star";
 import { StorefrontIcon } from "@phosphor-icons/react/dist/csr/Storefront";
 import { HeadsetIcon } from "@phosphor-icons/react/dist/csr/Headset";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
+import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
+import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import type {
   AdminUser,
   AppNotification,
@@ -66,6 +68,120 @@ function normalizeRestaurantSetup(restaurant: ManagedRestaurant) {
     missingSetupFields,
     setupComplete: missingSetupFields.length === 0,
   };
+}
+
+function RestaurantSwitcher({
+  restaurant,
+  restaurants,
+  onSelect,
+}: {
+  restaurant: ManagedRestaurant;
+  restaurants: ManagedRestaurant[];
+  onSelect: (restaurantId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const switchable = restaurants.length > 1;
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOnOutsidePress(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("mousedown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  function restaurantSubtitle(item: ManagedRestaurant) {
+    if (item.accessRole === "ADMIN") return "Admin access";
+    return item.city || (item.status === "CLAIMED" ? "Claimed restaurant" : "Restaurant");
+  }
+
+  return (
+    <div className="restaurant-switcher" ref={rootRef}>
+      <button
+        type="button"
+        className={`restaurant-chip ${switchable ? "switchable" : ""} ${open ? "open" : ""}`}
+        aria-haspopup={switchable ? "listbox" : undefined}
+        aria-expanded={switchable ? open : undefined}
+        onClick={() => switchable && setOpen((current) => !current)}
+      >
+        {restaurant.logoUrl ? (
+          <img src={restaurant.logoUrl} alt="" />
+        ) : (
+          <span>{restaurant.name.charAt(0).toUpperCase()}</span>
+        )}
+        <div>
+          <strong>{restaurant.name}</strong>
+          <small>
+            {switchable
+              ? `${restaurants.length} restaurants`
+              : restaurantSubtitle(restaurant)}
+          </small>
+        </div>
+        {switchable ? (
+          <CaretDownIcon
+            className="restaurant-switcher-caret"
+            size={17}
+            weight="bold"
+            aria-hidden="true"
+          />
+        ) : null}
+      </button>
+
+      {open ? (
+        <div className="restaurant-switcher-menu" role="listbox" aria-label="Select restaurant">
+          <div className="restaurant-switcher-heading">
+            <strong>Switch restaurant</strong>
+            <small>{restaurants.length} profiles</small>
+          </div>
+          <div className="restaurant-switcher-options">
+            {restaurants.map((item) => {
+              const selected = item.id === restaurant.id;
+              return (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={selected ? "selected" : ""}
+                  key={item.id}
+                  onClick={() => {
+                    onSelect(item.id);
+                    setOpen(false);
+                  }}
+                >
+                  {item.logoUrl ? (
+                    <img src={item.logoUrl} alt="" />
+                  ) : (
+                    <span>{item.name.charAt(0).toUpperCase()}</span>
+                  )}
+                  <div>
+                    <strong>{item.name}</strong>
+                    <small>{restaurantSubtitle(item)}</small>
+                  </div>
+                  {selected ? (
+                    <i aria-hidden="true">
+                      <CheckIcon size={15} weight="bold" />
+                    </i>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function DashboardPage({ onLogout }: { onLogout: () => void }) {
@@ -244,14 +360,10 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       ).map(normalizeRestaurantSetup);
       setRestaurants(nextRestaurants);
       if (nextRestaurants.length) {
-        const incompleteRestaurant = nextRestaurants.find(
-          (item) => !item.setupComplete,
-        );
         const nextRestaurantId =
-          (isAdminAccount ? null : incompleteRestaurant?.id) ??
-          (nextRestaurants.some((item) => item.id === selectedRestaurantId)
+          nextRestaurants.some((item) => item.id === selectedRestaurantId)
             ? selectedRestaurantId!
-            : nextRestaurants[0].id);
+            : nextRestaurants[0].id;
         if (nextRestaurantId !== selectedRestaurantId) {
           setSelectedRestaurantId(nextRestaurantId);
           localStorage.setItem("findeat-selected-restaurant", nextRestaurantId);
@@ -432,30 +544,6 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         </div>
       </div>
     );
-  if (!restaurant.setupComplete && !isAdmin)
-    return (
-      <div className="restaurant-setup-shell">
-        <div className="restaurant-setup-topbar">
-          <div className="brand">
-            <div className="brand-mark">F</div>
-            <div>
-              <strong>FindEat</strong>
-              <small>Business setup</small>
-            </div>
-          </div>
-          <button className="secondary" onClick={onLogout}>
-            Sign out
-          </button>
-        </div>
-        <ProfilePage
-          key={restaurant.id}
-          restaurant={restaurant}
-          onSaved={load}
-          setupMode
-        />
-      </div>
-    );
-
   return (
     <div className="dashboard">
       <aside>
@@ -466,41 +554,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <small>Business</small>
           </div>
         </div>
-        <label
-          className={`restaurant-chip ${restaurants.length > 1 ? "switchable" : ""}`}
-        >
-          {restaurant.logoUrl ? (
-            <img src={restaurant.logoUrl} alt="" />
-          ) : (
-            <span>{restaurant.name.charAt(0)}</span>
-          )}
-          <div>
-            <strong>{restaurant.name}</strong>
-            <small>
-              {restaurant.accessRole === "ADMIN"
-                ? `${restaurants.length} restaurants · admin access`
-                : restaurants.length > 1
-                ? `${restaurants.length} restaurants · switch`
-                : restaurant.city || "Restaurant"}
-            </small>
-          </div>
-          {restaurants.length > 1 && (
-            <>
-              <b>⌄</b>
-              <select
-                aria-label="Select restaurant"
-                value={restaurant.id}
-                onChange={(event) => selectRestaurant(event.target.value)}
-              >
-                {restaurants.map((item) => (
-                  <option value={item.id} key={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-        </label>
+        <RestaurantSwitcher
+          restaurant={restaurant}
+          restaurants={restaurants}
+          onSelect={selectRestaurant}
+        />
         <nav>
           <AppLink
             to={businessPaths.overview}
@@ -652,7 +710,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             className="dashboard-page-slot"
             hidden={section !== "dashboard"}
           >
-            <AnalyticsPage menus={menus} reviews={reviews} />
+            <AnalyticsPage
+              restaurantId={restaurant.id}
+              menus={menus}
+              reviews={reviews}
+            />
           </div>
         )}
         {(section === "menu" || visitedSections.has("menu")) && (

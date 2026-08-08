@@ -3,6 +3,8 @@ import type { UserRelationship } from './profile';
 import type { PostType } from './post';
 
 export type NotificationType =
+  | 'FRIEND_POST'
+  | 'POST_TAG'
   | 'POST_LIKE'
   | 'POST_COMMENT'
   | 'COMMENT_LIKE'

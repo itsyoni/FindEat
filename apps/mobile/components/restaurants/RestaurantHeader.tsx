@@ -34,7 +34,7 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
   if (loading || !restaurant) {
     return (
       <SkeletonPulse>
-        <View style={{ backgroundColor: isDark ? '#000' : '#FFF' }}>
+        <View style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}>
           <View className="relative">
             <Skeleton height={240} radius={0} />
             <SafeAreaView edges={["top"]} style={{ position: 'absolute', left: 0, right: 0, top: 0 }}>
@@ -42,8 +42,8 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
             </SafeAreaView>
           </View>
           <View
-            className="-mt-7 items-center rounded-t-[30px] pb-5"
-            style={{ backgroundColor: isDark ? '#000' : '#FFF' }}
+            className="-mt-7 items-center rounded-t-[30px] pb-3"
+            style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}
           >
             <Skeleton width={116} height={116} circle style={{ marginTop: -56 }} />
             <Skeleton width="54%" height={23} radius={9} style={{ marginTop: 12 }} />
@@ -66,24 +66,24 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
     ? ratings.reduce((total, rating) => total + rating, 0) / ratings.length
     : null;
   return (
-    <View style={{ backgroundColor: isDark ? '#000' : '#FFF' }}>
+    <View style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}>
       <View className="relative">
         <ParallaxProfileCover uri={restaurant.coverUrl} scrollY={scrollY} />
         <SafeAreaView edges={["top"]} pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0 }}>
           <View className="flex-row items-center justify-between px-4 pt-2">
             <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center rounded-full bg-black/45">
-              <DirectionalIcon direction="back" variant="arrow" size={24} color="white" />
+              <DirectionalIcon direction="back" variant="arrow" size={24} color="#FAF9F6" />
             </TouchableOpacity>
             <TouchableOpacity onPress={onOpenOptions} className="h-11 w-11 items-center justify-center rounded-full bg-black/45">
-              <DotsThreeIcon size={25} color="white" weight="bold" />
+              <DotsThreeIcon size={25} color="#FAF9F6" weight="bold" />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
 
       <View
-        className="-mt-7 items-center rounded-t-[30px] pb-5"
-        style={{ backgroundColor: isDark ? '#000' : '#FFF' }}
+        className="-mt-7 items-center rounded-t-[30px] pb-3"
+        style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}
       >
         <TouchableOpacity
           activeOpacity={restaurant.logoUrl ? 0.8 : 1}
@@ -125,20 +125,16 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
           reviewsCount={reviewPosts.length}
           followersCount={restaurant.followersCount}
         />
-        {restaurant.status === 'CLAIMED' ? (
-          <View className="mt-5 w-full flex-row gap-3 px-5">
-            <RestaurantFollowButton className="flex-1" isFollowing={restaurant.isFollowing} onPress={onToggleFollow} />
-            <TouchableOpacity
-              className="flex-1 flex-row items-center justify-center rounded-xl bg-gray-100 py-3 dark:bg-gray-800"
-              onPress={() => router.push({ pathname: '/chats/[id]', params: { id: 'new-restaurant', type: 'RESTAURANT', restaurantId: restaurant.id, title: restaurant.name, imageUrl: restaurant.logoUrl ?? '' } })}
-            >
-              <ChatCircleIcon size={20} color="#6B7280" />
-              <Text className="ml-2 font-bold text-black dark:text-white">{t('message')}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <RestaurantFollowButton isFollowing={restaurant.isFollowing} onPress={onToggleFollow} />
-        )}
+        <View className="mt-5 w-full flex-row gap-3 px-5">
+          <RestaurantFollowButton className="flex-1" isFollowing={restaurant.isFollowing} onPress={onToggleFollow} />
+          <TouchableOpacity
+            className="flex-1 flex-row items-center justify-center rounded-xl bg-gray-100 py-3 dark:bg-gray-800"
+            onPress={() => router.push({ pathname: '/chats/[id]', params: { id: 'new-restaurant', type: 'RESTAURANT', restaurantId: restaurant.id, title: restaurant.name, imageUrl: restaurant.logoUrl ?? '' } })}
+          >
+            <ChatCircleIcon size={20} color="#6B7280" />
+            <Text className="ml-2 font-bold text-black dark:text-white">{t('message')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <FullScreenImageViewer
         uri={restaurant.logoUrl}

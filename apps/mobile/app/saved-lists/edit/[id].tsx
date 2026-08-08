@@ -136,11 +136,11 @@ export default function EditSavedListScreen() {
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <View className="h-14 flex-row items-center px-4">
         <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center">
-          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FFF" : "#171717"} />
+          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FAF9F6" : "#171717"} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
           {t("editList")}
@@ -184,7 +184,7 @@ export default function EditSavedListScreen() {
             )}
             {coverPreview ? (
               <View className="absolute bottom-3 left-3 flex-row items-center rounded-full bg-black/60 px-3 py-2">
-                <CameraIcon size={16} color="#FFF" weight="fill" />
+                <CameraIcon size={16} color="#FAF9F6" weight="fill" />
                 <Text className="ml-1.5 text-xs font-bold text-white">{t("changeCover")}</Text>
               </View>
             ) : null}
@@ -318,7 +318,7 @@ export default function EditSavedListScreen() {
                 value={allowInvites}
                 onValueChange={setAllowInvites}
                 trackColor={{ false: "#A09D97", true: "#F59E0B" }}
-                thumbColor="#FFF"
+                thumbColor="#FAF9F6"
               />
             </View>
           ) : null}

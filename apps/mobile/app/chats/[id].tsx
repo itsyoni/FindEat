@@ -24,7 +24,6 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  Platform,
   Pressable,
   TouchableOpacity,
   View,
@@ -1077,9 +1076,7 @@ export default function ChatScreen() {
     if (viewers.length === 0) return null;
 
     if (!isGroupChat) {
-      return t("seenWithTime", {
-        time: formatMessageTime(viewers[viewers.length - 1].readAt),
-      });
+      return t("seen");
     }
 
     const expectedViewerCount =
@@ -1172,7 +1169,7 @@ export default function ChatScreen() {
           header: () => (
             <SafeAreaView
               edges={["top"]}
-              style={{ backgroundColor: isDark ? "#0F0F10" : "white" }}
+              style={{ backgroundColor: isDark ? "#0F0F10" : "#FAF9F6" }}
             >
               <View className="h-16 flex-row items-center border-b border-gray-100 bg-white px-2 dark:border-gray-900 dark:bg-[#0F0F10]">
                 <Pressable
@@ -1183,7 +1180,7 @@ export default function ChatScreen() {
                   <DirectionalIcon
                     direction="back"
                     size={28}
-                    color={isDark ? "white" : "black"}
+                    color={isDark ? "#FAF9F6" : "#0B0B0A"}
                     weight="bold"
                   />
                 </Pressable>
@@ -1230,8 +1227,8 @@ export default function ChatScreen() {
       >
         <KeyboardAvoidingView
           className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={110}
+          behavior="padding"
+          automaticOffset
         >
           {(loading || !isThreadReady) && <ChatSkeleton />}
           {!loading && <>
@@ -1348,11 +1345,22 @@ export default function ChatScreen() {
                     {isGroupMessageFromOther && (
                       <View className="mr-2 w-8 justify-end">
                         {shouldShowAvatar ? (
-                          <Avatar
-                            uri={item.sender.avatarUrl}
-                            username={item.sender.username}
-                            size={32}
-                          />
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open @${item.sender.username}'s profile`}
+                            onPress={() =>
+                              router.push({
+                                pathname: "/(users)/[id]",
+                                params: { id: item.senderId },
+                              })
+                            }
+                          >
+                            <Avatar
+                              uri={item.sender.avatarUrl}
+                              username={item.sender.username}
+                              size={32}
+                            />
+                          </TouchableOpacity>
                         ) : null}
                       </View>
                     )}
@@ -1411,7 +1419,7 @@ export default function ChatScreen() {
                                 item.post.reviewPost?.coverImageUrl;
 
                               const description =
-                                item.post.contentPost?.description ??
+                                item.post.contentPost?.caption ??
                                 item.post.reviewPost?.summary;
 
                               return (
@@ -1615,14 +1623,14 @@ export default function ChatScreen() {
               disabled={!canSubmitComposer || sending}
             >
               {sending ? (
-                <ActivityIndicator color={isDark ? "white" : "#111"} />
+                <ActivityIndicator color={isDark ? "#FAF9F6" : "#111"} />
               ) : (
                 editingMessage ? (
-                  <CheckIcon size={21} color={canSubmitComposer ? "#FFF" : "#9CA3AF"} weight="bold" />
+                  <CheckIcon size={21} color={canSubmitComposer ? "#FAF9F6" : "#9CA3AF"} weight="bold" />
                 ) : (
                   <PaperPlaneTiltIcon
                     size={21}
-                    color={canSubmitComposer ? "#FFF" : "#9CA3AF"}
+                    color={canSubmitComposer ? "#FAF9F6" : "#9CA3AF"}
                     weight="fill"
                   />
                 )

@@ -24,7 +24,7 @@ function postImage(post: Post) {
 function postCaption(post: Post) {
   return post.type === "REVIEW"
     ? post.reviewPost?.summary
-    : post.contentPost?.description;
+    : post.contentPost?.caption;
 }
 
 function SavedPostsSkeleton() {
@@ -145,7 +145,7 @@ export default function SavedPostsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <SettingsHeader title={t("savedPosts")} />
       {savedPosts.isLoading ? (
         <SavedPostsSkeleton />

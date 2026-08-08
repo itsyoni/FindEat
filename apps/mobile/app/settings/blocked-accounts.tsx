@@ -55,7 +55,7 @@ export default function BlockedAccountsScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <SettingsHeader title={t("blockedAccounts")} />
       {loading ? <SkeletonList count={7} /> : users.length === 0 ? (
@@ -63,7 +63,7 @@ export default function BlockedAccountsScreen() {
           <View className="h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
             <ProhibitIcon
               size={34}
-              color={isDark ? "#FFF" : "#171717"}
+              color={isDark ? "#FAF9F6" : "#171717"}
               weight="bold"
             />
           </View>

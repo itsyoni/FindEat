@@ -23,7 +23,7 @@ export default function PrivacySettingsScreen() {
   const [privateAccount, setPrivateAccount] = useState(user?.isPrivate ?? false);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
-  const color = isDark ? "#FFF" : "#111";
+  const color = isDark ? "#FAF9F6" : "#111";
   const { rowStyle, textStyle } = useSettingsDirection();
 
   useFocusEffect(
@@ -85,7 +85,7 @@ export default function PrivacySettingsScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <SettingsHeader title={t("privacy")} />
       <SettingsSection title={t("accountPrivacy")}>

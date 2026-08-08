@@ -10,6 +10,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { AppState } from "react-native";
 
 export type SnapIndicatorStatus = "unseen" | "viewed";
 
@@ -22,6 +23,7 @@ type SnapIndicators = {
 type SnapIndicatorContextValue = {
   indicators: SnapIndicators;
   markSnapWatched: (snapId: string) => void;
+  isSnapWatched: (snapId: string) => boolean;
 };
 
 type WatchedSnapState = {
@@ -104,6 +106,16 @@ export function SnapIndicatorProvider({ children }: { children: ReactNode }) {
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId) return;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void snaps.refetch();
+      }
+    });
+    return () => subscription.remove();
+  }, [snaps.refetch, userId]);
+
   const markSnapWatched = useCallback(
     (snapId: string) => {
       if (!userId) return;
@@ -149,9 +161,14 @@ export function SnapIndicatorProvider({ children }: { children: ReactNode }) {
     };
   }, [snaps.data, watchedIds]);
 
+  const isSnapWatched = useCallback(
+    (snapId: string) => watchedIds.has(snapId),
+    [watchedIds],
+  );
+
   const value = useMemo(
-    () => ({ indicators, markSnapWatched }),
-    [indicators, markSnapWatched],
+    () => ({ indicators, markSnapWatched, isSnapWatched }),
+    [indicators, isSnapWatched, markSnapWatched],
   );
 
   return (
@@ -184,6 +201,11 @@ export function useHasActiveSnap(options: Parameters<typeof useSnapIndicator>[0]
 export function useMarkSnapWatched() {
   const context = useContext(SnapIndicatorContext);
   return context?.markSnapWatched ?? (() => undefined);
+}
+
+export function useIsSnapWatched() {
+  const context = useContext(SnapIndicatorContext);
+  return context?.isSnapWatched ?? (() => false);
 }
 
 export function useSnapIndicatorLookup() {

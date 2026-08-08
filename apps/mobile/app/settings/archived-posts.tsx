@@ -23,7 +23,7 @@ function archivedPostImage(post: Post) {
 function archivedPostCaption(post: Post) {
   return post.type === "REVIEW"
     ? post.reviewPost?.summary
-    : post.contentPost?.description;
+    : post.contentPost?.caption;
 }
 
 function ArchiveSkeleton() {
@@ -78,7 +78,7 @@ export default function ArchivedPostsScreen() {
   const posts = archive.data ?? [];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <SettingsHeader title={t("archivedPosts")} />
       {archive.isLoading ? (
         <ArchiveSkeleton />
@@ -92,7 +92,7 @@ export default function ArchivedPostsScreen() {
       ) : posts.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8 pb-20">
           <View className="h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
-            <ArchiveIcon size={36} color={isDark ? "#FFF" : "#171717"} weight="fill" />
+            <ArchiveIcon size={36} color={isDark ? "#FAF9F6" : "#171717"} weight="fill" />
           </View>
           <Text weight="bold" className="mt-5 text-xl text-black dark:text-white">{t("archiveEmpty")}</Text>
           <Text className="mt-2 text-center leading-5 text-gray-500" style={textStyle}>{t("archiveEmptySubtitle")}</Text>
@@ -134,9 +134,9 @@ export default function ArchivedPostsScreen() {
                     style={rowStyle}
                   >
                     {isRestoring ? (
-                      <ActivityIndicator size="small" color={isDark ? "#000" : "#FFF"} />
+                      <ActivityIndicator size="small" color={isDark ? "#0B0B0A" : "#FAF9F6"} />
                     ) : (
-                      <ArrowCounterClockwiseIcon size={16} color={isDark ? "#000" : "#FFF"} weight="bold" />
+                      <ArrowCounterClockwiseIcon size={16} color={isDark ? "#0B0B0A" : "#FAF9F6"} weight="bold" />
                     )}
                     <Text weight="bold" className="text-sm text-white dark:text-black" style={{ marginStart: 7 }}>
                       {t(isRestoring ? "restoringPost" : "restorePost")}

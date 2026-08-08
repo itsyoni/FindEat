@@ -56,7 +56,7 @@ export default function CreatorLevelsScreen() {
     : 1;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <SettingsHeader title={t("settings:creatorLevels")} />
       {loading ? (
         <SkeletonPulse>
@@ -161,7 +161,7 @@ export default function CreatorLevelsScreen() {
                       }`}
                     >
                       {reached ? (
-                        <CheckIcon size={19} color="#FFF" weight="bold" />
+                        <CheckIcon size={19} color="#FAF9F6" weight="bold" />
                       ) : (
                         <LockKeyIcon size={17} color="#9CA3AF" weight="fill" />
                       )}

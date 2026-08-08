@@ -78,7 +78,7 @@ export default function TextInput({
             flex: 1,
             paddingVertical: 16,
             fontSize: Math.round(16 * textScale),
-            color: isDark ? "#FFF" : "#171717",
+            color: isDark ? "#FAF9F6" : "#171717",
             fontFamily: boldText ? "CabinetMedium" : "CabinetRegular",
             writingDirection: isRtl ? "rtl" : "ltr",
             minHeight: isMultiline ? 120 : undefined,

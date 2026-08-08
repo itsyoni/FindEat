@@ -16,9 +16,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 export default function AddGroupMembersScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { isDark } = useAppTheme();
+  const foreground = isDark ? "#FAF9F6" : "#111827";
 
   const [selectedUsers, setSelectedUsers] = useState<SearchResultItem[]>([]);
   const [existingMemberIds, setExistingMemberIds] = useState<string[]>([]);
@@ -97,21 +100,23 @@ export default function AddGroupMembersScreen() {
         options={{
           title: "",
           headerBackVisible: false,
+          headerStyle: { backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" },
+          headerShadowVisible: false,
           headerLeft: () => (
             <Pressable
               className="flex-row items-center pr-3"
               onPress={() => router.back()}
             >
-              <DirectionalIcon direction="back" size={24} color="black" />
-              <Text className="text-lg text-black">Back</Text>
+              <DirectionalIcon direction="back" size={24} color={foreground} />
+              <Text className="text-lg text-black dark:text-white">Back</Text>
             </Pressable>
           ),
         }}
       />
 
       <ThemedSafeAreaView>
-        <View className="border-b border-gray-100 px-5 pb-4">
-          <Text className="text-3xl font-bold text-black">Add members</Text>
+        <View className="border-b border-gray-100 px-5 pb-4 dark:border-gray-900">
+          <Text className="text-3xl font-bold text-black dark:text-white">Add members</Text>
 
           {!!selectedUsers.length && (
             <View className="mt-4 flex-row flex-wrap gap-2">
@@ -132,17 +137,19 @@ export default function AddGroupMembersScreen() {
 
           <TouchableOpacity
             className={`mt-4 flex-row items-center justify-center rounded-2xl py-4 ${
-              selectedUsers.length > 0 ? "bg-black" : "bg-gray-300"
+              selectedUsers.length > 0
+                ? "bg-black dark:bg-white"
+                : "bg-gray-300 dark:bg-gray-800"
             }`}
             onPress={addMembers}
             disabled={selectedUsers.length === 0 || adding}
           >
             {adding ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color={isDark ? "#0B0B0A" : "#FAF9F6"} />
             ) : (
               <>
-                <UserPlusIcon size={20} color="white" weight="bold" />
-                <Text className="ml-2 font-bold text-white">
+                <UserPlusIcon size={20} color={isDark ? "#0B0B0A" : "#FAF9F6"} weight="bold" />
+                <Text className="ml-2 font-bold text-white dark:text-black">
                   Add {selectedUsers.length || ""} members
                 </Text>
               </>
@@ -159,7 +166,11 @@ export default function AddGroupMembersScreen() {
           keyExtractor={(item) => item.id}
           renderItem={(item) => (
             <View
-              className={selectedUserIds.has(item.id) ? "bg-yellow-50" : ""}
+              className={
+                selectedUserIds.has(item.id)
+                  ? "bg-yellow-50 dark:bg-amber-950/30"
+                  : ""
+              }
             >
               <SearchResultRow item={item} />
             </View>

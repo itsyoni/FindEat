@@ -6,6 +6,7 @@ import type {
   Profile,
   UserRelationship,
   UserSearchResult,
+  FollowSuggestion,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
@@ -33,6 +34,13 @@ export function createUsersApi(api: AxiosInstance) {
     async suggestedFriends() {
       const { data } = await api.get<UserSearchResult[]>(
         "/users/friends/suggested",
+      );
+      return data;
+    },
+
+    async followSuggestions() {
+      const { data } = await api.get<FollowSuggestion[]>(
+        "/users/follow-suggestions",
       );
       return data;
     },

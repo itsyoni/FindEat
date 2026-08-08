@@ -35,7 +35,7 @@ export type ModerationReport = {
     id: string;
     type: PostType;
     authorId?: string | null;
-    contentPost?: { description?: string | null; imageUrl?: string | null } | null;
+    contentPost?: { caption?: string | null; imageUrl?: string | null } | null;
     reviewPost?: { summary?: string | null; coverImageUrl?: string | null } | null;
   } | null;
   comment?: {

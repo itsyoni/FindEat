@@ -7,6 +7,7 @@ import { PlusIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSnapIndicatorLookup } from "@/contexts/SnapIndicatorContext";
+import { useAppTheme } from "@/contexts/ThemeContext";
 
 type Props = {
   overlay?: boolean;
@@ -19,6 +20,7 @@ export default function SnapsTray({
 }: Props) {
   const { t } = useTranslation("snaps");
   const { user } = useAuth();
+  const { isDark } = useAppTheme();
   const snaps = useSnaps(!!user);
   const snapIndicatorFor = useSnapIndicatorLookup();
   const groups = snaps.data ?? [];
@@ -26,7 +28,22 @@ export default function SnapsTray({
   const ownSnapIndicator = ownGroup
     ? snapIndicatorFor({ userId: ownGroup.user.id })
     : null;
-  const otherGroups = groups.filter((group) => !group.isOwn);
+  const otherGroups = groups
+    .filter((group) => !group.isOwn)
+    .sort((first, second) => {
+      const firstUnseen =
+        snapIndicatorFor({ userId: first.user.id }) === "unseen";
+      const secondUnseen =
+        snapIndicatorFor({ userId: second.user.id }) === "unseen";
+      if (firstUnseen !== secondUnseen) return firstUnseen ? -1 : 1;
+      const firstLatest = new Date(
+        first.snaps[first.snaps.length - 1]?.createdAt ?? 0,
+      ).getTime();
+      const secondLatest = new Date(
+        second.snaps[second.snaps.length - 1]?.createdAt ?? 0,
+      ).getTime();
+      return secondLatest - firstLatest;
+    });
 
   function openGroup(userId: string) {
     router.push({
@@ -94,16 +111,19 @@ export default function SnapsTray({
               onPress={openSnapCamera}
               className="absolute -bottom-1 -right-1 h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand dark:border-black"
             >
-              <PlusIcon size={16} color="#FFF" weight="bold" />
+              <PlusIcon size={16} color="#FAF9F6" weight="bold" />
             </TouchableOpacity>
           </TouchableOpacity>
           <Text
             numberOfLines={1}
-            className={`mt-2 text-center text-xs ${overlay ? "font-bold text-white" : "text-gray-700 dark:text-gray-300"}`}
+            className={`mt-2 text-center text-xs ${overlay ? "font-bold" : "text-gray-700 dark:text-gray-300"}`}
             style={
               overlay
                 ? {
-                    textShadowColor: "rgba(0,0,0,0.9)",
+                    color: isDark ? "#FAF9F6" : "#171717",
+                    textShadowColor: isDark
+                      ? "rgba(0,0,0,0.9)"
+                      : "rgba(255,255,255,0.9)",
                     textShadowOffset: { width: 0, height: 1 },
                     textShadowRadius: 4,
                   }
@@ -150,11 +170,14 @@ export default function SnapsTray({
             )}
             <Text
               numberOfLines={1}
-              className={`mt-2 w-full text-center text-xs ${overlay ? "font-bold text-white" : "text-gray-700 dark:text-gray-300"}`}
+              className={`mt-2 w-full text-center text-xs ${overlay ? "font-bold" : "text-gray-700 dark:text-gray-300"}`}
               style={
                 overlay
                   ? {
-                      textShadowColor: "rgba(0,0,0,0.9)",
+                      color: isDark ? "#FAF9F6" : "#171717",
+                      textShadowColor: isDark
+                        ? "rgba(0,0,0,0.9)"
+                        : "rgba(255,255,255,0.9)",
                       textShadowOffset: { width: 0, height: 1 },
                       textShadowRadius: 4,
                     }

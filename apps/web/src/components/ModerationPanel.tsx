@@ -142,7 +142,7 @@ export function ModerationPanel() {
         <div className="moderation-list">
           {reports.map((report) => {
             const previewImage = report.post?.contentPost?.imageUrl ?? report.post?.reviewPost?.coverImageUrl;
-            const previewText = report.comment?.content ?? report.post?.contentPost?.description ?? report.post?.reviewPost?.summary ?? report.restaurant?.name;
+            const previewText = report.comment?.content ?? report.post?.contentPost?.caption ?? report.post?.reviewPost?.summary ?? report.restaurant?.name;
             return (
               <article className="moderation-card" key={report.id}>
                 <div className="moderation-card-head">

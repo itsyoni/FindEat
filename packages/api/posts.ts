@@ -2,11 +2,19 @@ import type {
   Comment,
   CommentContext,
   FeedPage,
+  FeedScope,
   Post,
   PostType,
   PostVisibility,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
+
+function canonicalMediaDimension(value: number, fallback: number) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0
+    ? Math.max(1, Math.round(numericValue))
+    : fallback;
+}
 
 export function createPostsApi(api: AxiosInstance) {
   const commentsCache = new Map<
@@ -17,7 +25,7 @@ export function createPostsApi(api: AxiosInstance) {
 
   return {
     async createContent(payload: {
-      description: string;
+      caption: string;
       imageUrl?: string;
       restaurantId?: string;
       visibility?: PostVisibility;
@@ -32,8 +40,45 @@ export function createPostsApi(api: AxiosInstance) {
         durationMs?: number;
       }>;
     }) {
-      const { data } = await api.post<Post>("/posts/content", payload);
-
+      const canonicalPayload = {
+        ...payload,
+        media: payload.media?.map((item) => ({
+          type: String(item.type).trim().toUpperCase(),
+          ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
+          ...(item.videoUrl ? { videoUrl: item.videoUrl } : {}),
+          width: canonicalMediaDimension(item.width, 4),
+          height: canonicalMediaDimension(item.height, 5),
+          ...(item.durationMs == null
+            ? {}
+            : { durationMs: Math.ceil(item.durationMs) }),
+        })),
+      };
+      for (const [index, item] of (canonicalPayload.media ?? []).entries()) {
+        let invalidField: string | null = null;
+        if (item.type !== "IMAGE" && item.type !== "VIDEO") invalidField = "type";
+        else if (!Number.isSafeInteger(item.width) || item.width < 1) invalidField = "width";
+        else if (!Number.isSafeInteger(item.height) || item.height < 1) invalidField = "height";
+        else if (item.type === "IMAGE" && !item.imageUrl) invalidField = "image URL";
+        else if (item.type === "VIDEO" && !item.videoUrl) invalidField = "video URL";
+        else if (
+          item.type === "VIDEO" &&
+          (!Number.isSafeInteger(item.durationMs) ||
+            (item.durationMs ?? 0) < 1 ||
+            (item.durationMs ?? 0) > 10_000)
+        ) {
+          invalidField = "duration";
+        }
+        if (invalidField) {
+          throw new Error(
+            `Could not prepare media item ${index + 1}: invalid ${invalidField}.`,
+          );
+        }
+      }
+      const { data } = await api.post<Post>(
+        "/posts/content",
+        canonicalPayload,
+        { headers: { "Content-Type": "application/json" } },
+      );
       return data;
     },
 
@@ -54,8 +99,8 @@ export function createPostsApi(api: AxiosInstance) {
         customDishName?: string | null;
         customPrice?: number | null;
         imageUrl?: string | null;
-        rating: number;
-        text: string;
+        rating?: number;
+        text?: string;
         order: number;
       }>;
     }) {
@@ -92,7 +137,7 @@ export function createPostsApi(api: AxiosInstance) {
     async createRestaurantPost(
       restaurantId: string,
       payload: {
-        description: string;
+        caption: string;
         imageUrl?: string;
       },
     ) {
@@ -107,6 +152,7 @@ export function createPostsApi(api: AxiosInstance) {
     async feed(
       type?: PostType,
       options?: {
+        scope?: FeedScope;
         cursor?: string;
         limit?: number;
         latitude?: number;
@@ -117,6 +163,7 @@ export function createPostsApi(api: AxiosInstance) {
       const { data } = await api.get<FeedPage>("/posts/feed", {
         params: {
           ...(type ? { type } : {}),
+          ...(options?.scope ? { scope: options.scope } : {}),
           ...(options?.cursor ? { cursor: options.cursor } : {}),
           ...(options?.limit ? { limit: options.limit } : {}),
           ...(options?.latitude !== undefined ? { latitude: options.latitude } : {}),
@@ -249,7 +296,7 @@ export function createPostsApi(api: AxiosInstance) {
       return data;
     },
 
-    async updateContent(id: string, payload: { description: string }) {
+    async updateContent(id: string, payload: { caption: string }) {
       const { data } = await api.patch<Post>(`/posts/${id}/content`, payload);
       return data;
     },

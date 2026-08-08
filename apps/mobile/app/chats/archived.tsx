@@ -6,7 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
-import { loadChatDrafts, type ChatDraft } from "@/lib/chatDrafts";
+import {
+  clearChatDraft,
+  loadChatDrafts,
+  type ChatDraft,
+} from "@/lib/chatDrafts";
+import { AppAlert as Alert } from "@/lib/appAlert";
 import type { Chat } from "@findeat/types";
 import { router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -85,6 +90,48 @@ export default function ArchivedChatsScreen() {
     }
   }
 
+  function confirmDeleteChat(chat: Chat) {
+    setOptionsChat(null);
+    Alert.alert(
+      t("deleteChatTitle"),
+      t("deleteChatDescription"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("deleteChat"),
+          style: "destructive",
+          onPress: () => void deleteChat(chat),
+        },
+      ],
+      { cancelable: true },
+    );
+  }
+
+  async function deleteChat(chat: Chat) {
+    if (updating) return;
+    const previousChats = chats;
+    const previousDrafts = drafts;
+    setUpdating(true);
+    setChats((current) => current.filter((item) => item.id !== chat.id));
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[chat.id];
+      return next;
+    });
+    try {
+      await api.chats.deleteForMe(chat.id);
+      if (userId) await clearChatDraft(userId, chat.id);
+      showToast(t("chatDeleted"));
+    } catch (error) {
+      console.error("Failed to delete chat", error);
+      setChats(previousChats);
+      setDrafts(previousDrafts);
+      showToast(t("deleteChatError"), { kind: "error" });
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
@@ -93,7 +140,7 @@ export default function ArchivedChatsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="h-14 flex-row items-center px-4">
         <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center">
-          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FFF" : "#171717"} />
+          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FAF9F6" : "#171717"} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
           {t("archivedChats")}
@@ -120,6 +167,7 @@ export default function ArchivedChatsScreen() {
         }}
         onTogglePin={() => undefined}
         onToggleArchive={(chat) => void unarchive(chat)}
+        onDelete={confirmDeleteChat}
       />
     </SafeAreaView>
   );

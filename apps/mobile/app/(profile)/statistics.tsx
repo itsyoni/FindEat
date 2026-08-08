@@ -28,7 +28,7 @@ export default function ProfileStatisticsScreen() {
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <View className="h-14 flex-row items-center px-4">
@@ -42,7 +42,7 @@ export default function ProfileStatisticsScreen() {
             direction="back"
             variant="arrow"
             size={24}
-            color={isDark ? "#FFF" : "#171717"}
+            color={isDark ? "#FAF9F6" : "#171717"}
           />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">

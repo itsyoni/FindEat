@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { FeedPage, Post, PostType } from "@findeat/types";
+import type { FeedPage, FeedScope, Post, PostType } from "@findeat/types";
 import type { UserRestaurant } from "@findeat/types";
 import {
   InfiniteData,
@@ -10,6 +10,28 @@ import {
 const feedPageSize = 10;
 
 export const feedQueryKey = (type: PostType) => ["feed", type] as const;
+
+export const homeFeedQueryKey = (scope: FeedScope) =>
+  ["feed", "home", scope] as const;
+
+export function useHomeFeed(scope: FeedScope, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: homeFeedQueryKey(scope),
+    queryFn: ({ pageParam }) =>
+      api.posts.feed("CONTENT", {
+        scope,
+        cursor: pageParam,
+        limit: feedPageSize,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled,
+    staleTime: 2 * 60 * 1_000,
+    gcTime: 30 * 60 * 1_000,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+  });
+}
 
 export function useFeed(type: PostType, enabled = true) {
   return useInfiniteQuery({
@@ -150,6 +172,34 @@ export function prependPostToFeedCache(
       };
     },
   );
+
+  if (post.type === "CONTENT") {
+    queryClient.setQueryData<InfiniteData<FeedPage>>(
+      homeFeedQueryKey("FOLLOWING"),
+      (current) => {
+        if (!current) {
+          return {
+            pages: [{ items: [post], nextCursor: null }],
+            pageParams: [undefined],
+          };
+        }
+        const [firstPage, ...remainingPages] = current.pages;
+        return {
+          ...current,
+          pages: [
+            {
+              ...firstPage,
+              items: [
+                post,
+                ...firstPage.items.filter((item) => item.id !== post.id),
+              ],
+            },
+            ...remainingPages,
+          ],
+        };
+      },
+    );
+  }
 }
 
 export function removePostFromAppCache(

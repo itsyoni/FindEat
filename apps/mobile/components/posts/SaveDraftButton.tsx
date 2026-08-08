@@ -20,7 +20,7 @@ export default function SaveDraftButton({
   const { t } = useTranslation("create");
   const { isDark } = useAppTheme();
   const inactive = disabled || saving;
-  const foreground = darkSurface || isDark ? "#FFF" : "#171717";
+  const foreground = darkSurface || isDark ? "#FAF9F6" : "#171717";
 
   return (
     <TouchableOpacity

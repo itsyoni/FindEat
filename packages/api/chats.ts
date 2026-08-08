@@ -34,6 +34,14 @@ export function createChatsApi(api: AxiosInstance) {
       return data;
     },
 
+    async deleteForMe(id: string) {
+      const { data } = await api.delete<{
+        conversationId: string;
+        deletedForMe: true;
+      }>(`/chats/${id}`);
+      return data;
+    },
+
     async findRestaurantConversation(restaurantId: string) {
       const { data } = await api.get<Chat[]>("/chats");
       return (

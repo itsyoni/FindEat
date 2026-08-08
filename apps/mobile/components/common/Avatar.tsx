@@ -34,37 +34,52 @@ export default function Avatar({
     height: size,
     borderRadius: size / 2,
   };
+  const ringWidth = Math.max(2, Math.min(3, size * 0.06));
+  const ringGap = Math.max(1.5, Math.min(2.5, size * 0.045));
+  const mediaInset = snapIndicator ? ringWidth + ringGap : 0;
+  const mediaSize = size - mediaInset * 2;
+  const mediaStyle = {
+    width: mediaSize,
+    height: mediaSize,
+    borderRadius: mediaSize / 2,
+  };
   const isSvg =
     !!uri && (uri.startsWith("data:image/svg+xml") || uri.endsWith(".svg"));
 
   return (
-    <View style={[circleStyle, style]}>
-      {!uri ? (
-        <View
-          style={circleStyle}
-          className="items-center justify-center bg-gray-200 dark:bg-gray-800"
-        >
-          {fallbackType === "restaurant" ? (
-            <StorefrontIcon size={size * 0.5} color="#3B82F6" weight="fill" />
-          ) : (
-            <UserIcon size={size * 0.55} color="#9CA3AF" weight="fill" />
-          )}
-        </View>
-      ) : (
-      <View
-        style={{ ...circleStyle, overflow: "hidden" }}
-      >
-        {isSvg ? (
-          <SvgUri width={size} height={size} uri={uri} />
+    <View
+      style={[circleStyle, { alignItems: "center", justifyContent: "center" }, style]}
+    >
+      <View style={{ ...mediaStyle, overflow: "hidden" }}>
+        {!uri ? (
+          <View
+            style={mediaStyle}
+            className="items-center justify-center bg-gray-200 dark:bg-gray-800"
+          >
+            {fallbackType === "restaurant" ? (
+              <StorefrontIcon
+                size={mediaSize * 0.5}
+                color="#3B82F6"
+                weight="fill"
+              />
+            ) : (
+              <UserIcon
+                size={mediaSize * 0.55}
+                color="#9CA3AF"
+                weight="fill"
+              />
+            )}
+          </View>
+        ) : isSvg ? (
+          <SvgUri width={mediaSize} height={mediaSize} uri={uri} />
         ) : (
           <ProgressiveImage
             source={{ uri }}
             transition={160}
-            style={circleStyle}
+            style={mediaStyle}
           />
         )}
       </View>
-      )}
       {snapIndicator ? (
         <View
           pointerEvents="none"
@@ -75,7 +90,7 @@ export default function Avatar({
             bottom: 0,
             left: 0,
             borderRadius: size / 2,
-            borderWidth: Math.max(2, Math.min(3, size * 0.06)),
+            borderWidth: ringWidth,
             borderColor:
               snapIndicator === "unseen" ? "#FF5B35" : "#9CA3AF",
           }}

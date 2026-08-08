@@ -11,7 +11,6 @@ import { Keyboard, TouchableOpacity, View } from "react-native";
 import { ZodError } from "zod";
 import { TextInput } from "../common";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import AuthFormHeader from "./AuthFormHeader";
 
 type Props = {
   onSignup: () => void;
@@ -93,8 +92,6 @@ export default function LoginForm({ onSignup, onForgotPassword, onVerificationRe
 
   return (
     <View>
-      <AuthFormHeader title={t("welcomeBack")} subtitle={t("loginSubtitle")} />
-
       <View className="gap-4">
         <TextInput
           useBottomSheetInput

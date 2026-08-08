@@ -27,7 +27,7 @@ export default function TextSizeSettingsScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <SettingsHeader title={t("textSize")} />
       <View className="px-5 pb-5 pt-4">

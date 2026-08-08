@@ -2,24 +2,21 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import {
   RESTAURANT_CATEGORY_OPTIONS,
+  RESTAURANT_FOOD_CERTIFICATION_OPTIONS,
   type ManagedRestaurant,
   type RestaurantOpeningHours,
 } from "@findeat/types";
 import { request, uploadImage } from "../lib/api";
-import {
-  OpeningHoursEditor,
-  normalizeOpeningHours,
-} from "../components/OpeningHoursEditor";
+import { OpeningHoursEditor } from "../components/OpeningHoursEditor";
+import { normalizeOpeningHours } from "../components/openingHours";
 import { ImageCropDialog } from "../components/ImageCropDialog";
 
 export function ProfilePage({
   restaurant,
   onSaved,
-  setupMode = false,
 }: {
   restaurant: ManagedRestaurant;
   onSaved: () => Promise<void>;
-  setupMode?: boolean;
 }) {
   const [form, setForm] = useState({
     name: restaurant.name,
@@ -29,6 +26,9 @@ export function ProfilePage({
     bio: restaurant.bio || "",
   });
   const [categoryNames, setCategoryNames] = useState(restaurant.categories || []);
+  const [foodCertifications, setFoodCertifications] = useState(
+    restaurant.foodCertifications || [],
+  );
   const [openingHours, setOpeningHours] = useState<RestaurantOpeningHours | null>(() =>
     restaurant.openingHours
       ? normalizeOpeningHours(restaurant.openingHours)
@@ -47,10 +47,6 @@ export function ProfilePage({
   const [proposedAddress, setProposedAddress] = useState("");
   const [addressReason, setAddressReason] = useState("");
   const [requestingAddress, setRequestingAddress] = useState(false);
-  const requiredSetupFields = restaurant.missingSetupFields.filter(
-    (field) => field !== "city" && field !== "phone",
-  );
-
   function selectImage(file: File | undefined, type: "logo" | "cover") {
     if (!file) return;
     setCropRequest({ file, type });
@@ -70,25 +66,52 @@ export function ProfilePage({
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!logoPreview || !coverPreview || categoryNames.length === 0) {
-      setStatus("Add a logo, cover photo, and at least one category.");
-      return;
-    }
     setStatus(logoFile || coverFile ? "Uploading photos…" : "Saving…");
     try {
       const [logoUrl, coverUrl] = await Promise.all([
         logoFile ? uploadImage(logoFile, 'restaurant') : Promise.resolve(undefined),
         coverFile ? uploadImage(coverFile, 'restaurant') : Promise.resolve(undefined),
       ]);
+      const originalForm = {
+        name: restaurant.name,
+        phone: restaurant.phone || "",
+        website: restaurant.website || "",
+        instagram: restaurant.instagram || "",
+        bio: restaurant.bio || "",
+      };
+      const changedFields = Object.fromEntries(
+        Object.entries(form).filter(
+          ([field, value]) =>
+            value !== originalForm[field as keyof typeof originalForm],
+        ),
+      );
+      const categoriesChanged =
+        JSON.stringify(categoryNames) !== JSON.stringify(restaurant.categories || []);
+      const foodCertificationsChanged =
+        JSON.stringify(foodCertifications) !==
+        JSON.stringify(restaurant.foodCertifications || []);
+      const originalOpeningHours = restaurant.openingHours
+        ? normalizeOpeningHours(restaurant.openingHours)
+        : null;
+      const openingHoursChanged =
+        JSON.stringify(openingHours) !== JSON.stringify(originalOpeningHours);
+      const body = {
+        ...changedFields,
+        ...(categoriesChanged ? { categoryNames } : {}),
+        ...(foodCertificationsChanged ? { foodCertifications } : {}),
+        ...(openingHoursChanged ? { openingHours } : {}),
+        ...(logoUrl ? { logoUrl } : {}),
+        ...(coverUrl ? { coverUrl } : {}),
+      };
+
+      if (Object.keys(body).length === 0) {
+        setStatus("No changes to save");
+        return;
+      }
+
       await request(`/restaurants/me/${restaurant.id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          ...form,
-          categoryNames,
-          openingHours,
-          ...(logoUrl ? { logoUrl } : {}),
-          ...(coverUrl ? { coverUrl } : {}),
-        }),
+        body: JSON.stringify(body),
       });
       setLogoFile(null);
       setCoverFile(null);
@@ -130,21 +153,12 @@ export function ProfilePage({
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            {setupMode ? "REQUIRED AFTER APPROVAL" : "PUBLIC INFORMATION"}
+            PUBLIC INFORMATION
           </p>
-          <h2>
-            {setupMode ? `Finish setting up ${restaurant.name}` : "Restaurant profile"}
-          </h2>
+          <h2>Restaurant profile</h2>
           <p className="muted">
-            {setupMode
-              ? "Your claim was approved. Complete the restaurant information before opening the management dashboard."
-              : "Keep the information customers use to find and contact you accurate."}
+            Add or update only the information you want customers to see.
           </p>
-          {setupMode && requiredSetupFields.length > 0 && (
-            <p className="setup-missing">
-              Still needed: {requiredSetupFields.join(", ")}.
-            </p>
-          )}
         </div>
       </div>
       <form className="profile-form card" onSubmit={save}>
@@ -200,7 +214,6 @@ export function ProfilePage({
           <input
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
-            required
           />
         </label>
         <label className="full">
@@ -210,12 +223,11 @@ export function ProfilePage({
             onChange={(event) => setForm({ ...form, bio: event.target.value })}
             placeholder="Tell customers what makes this place special"
             rows={4}
-            required
           />
         </label>
         <fieldset className="restaurant-categories full">
           <legend>Restaurant categories</legend>
-          <p className="muted">Choose every category that describes this place.</p>
+          <p className="muted">Choose any categories you want to show.</p>
           <div className="restaurant-category-options">
             {RESTAURANT_CATEGORY_OPTIONS.map((category) => {
               const selected = categoryNames.includes(category);
@@ -234,6 +246,37 @@ export function ProfilePage({
                   }
                 >
                   {category}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+        <fieldset className="restaurant-certifications full">
+          <legend>Restaurant-wide certification</legend>
+          <p className="muted">
+            Select only certifications that apply to the entire restaurant.
+            Vegan, vegetarian, and allergen information stays on individual dishes.
+          </p>
+          <div className="restaurant-certification-options">
+            {RESTAURANT_FOOD_CERTIFICATION_OPTIONS.map((certification) => {
+              const selected = foodCertifications.includes(certification);
+              return (
+                <button
+                  key={certification}
+                  type="button"
+                  className={selected ? "selected" : ""}
+                  aria-pressed={selected}
+                  onClick={() =>
+                    setFoodCertifications((current) =>
+                      selected
+                        ? current.filter((item) => item !== certification)
+                        : [...current, certification],
+                    )
+                  }
+                >
+                  {certification === "KOSHER"
+                    ? "Kosher certified"
+                    : "Halal certified"}
                 </button>
               );
             })}
@@ -318,39 +361,41 @@ export function ProfilePage({
             </div>
           )}
         </section>
-        <label>
-          Phone <span className="muted">(optional)</span>
-          <input
-            value={form.phone}
-            onChange={(event) =>
-              setForm({ ...form, phone: event.target.value })
-            }
-          />
-        </label>
-        <label>
-          Website
-          <input
-            value={form.website}
-            onChange={(event) =>
-              setForm({ ...form, website: event.target.value })
-            }
-          />
-        </label>
-        <label>
-          Instagram
-          <input
-            value={form.instagram}
-            onChange={(event) =>
-              setForm({ ...form, instagram: event.target.value })
-            }
-          />
-        </label>
+        <div className="restaurant-contact-fields full">
+          <label>
+            Phone <span className="muted">(optional)</span>
+            <input
+              value={form.phone}
+              onChange={(event) =>
+                setForm({ ...form, phone: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Website <span className="muted">(optional)</span>
+            <input
+              value={form.website}
+              onChange={(event) =>
+                setForm({ ...form, website: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Instagram <span className="muted">(optional)</span>
+            <input
+              value={form.instagram}
+              onChange={(event) =>
+                setForm({ ...form, instagram: event.target.value })
+              }
+            />
+          </label>
+        </div>
         <div className="form-footer">
           <span className={status === "Saved" ? "success" : "muted"}>
             {status}
           </span>
           <button className="primary">
-            {setupMode ? "Complete setup" : "Save changes"}
+            Save changes
           </button>
         </div>
       </form>

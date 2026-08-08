@@ -1,6 +1,6 @@
 export const lightPalette = {
   canvas: "#FBFAF8",
-  surface: "#FFFFFF",
+  surface: "#FAF9F6",
   soft: "#F6F5F2",
   line: "#E8E6E1",
   ink: "#171717",

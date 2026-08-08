@@ -76,42 +76,11 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
   const canDismissBackdrop = request?.options?.cancelable === true;
   const horizontalActions = buttons.length === 2;
   const tone = request?.options?.tone ?? "default";
-  const alertBackgroundColor =
-    tone === "success"
-      ? isDark
-        ? "#10231A"
-        : "#F0FDF4"
-      : tone === "warning"
-        ? isDark
-          ? "#2A1216"
-          : "#FFF1F2"
-        : isDark
-          ? "#171717"
-          : "#FBFAF8";
-  const alertBorderColor =
-    tone === "success"
-      ? isDark
-        ? "#166534"
-        : "#BBF7D0"
-      : tone === "warning"
-        ? isDark
-          ? "#991B1B"
-          : "#FECDD3"
-        : isDark
-          ? "rgba(255,255,255,0.1)"
-          : "rgba(0,0,0,0.05)";
-  const titleColor =
-    tone === "success"
-      ? isDark
-        ? "#BBF7D0"
-        : "#166534"
-      : tone === "warning"
-        ? isDark
-          ? "#FECDD3"
-          : "#B91C1C"
-        : isDark
-          ? "#FFFFFF"
-          : "#171717";
+  const alertBackgroundColor = isDark ? "#171717" : "#FAF9F6";
+  const alertBorderColor = isDark
+    ? "rgba(255,255,255,0.1)"
+    : "rgba(0,0,0,0.08)";
+  const titleColor = isDark ? "#FAF9F6" : "#171717";
 
   return (
     <>
@@ -129,14 +98,14 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
         }}
       >
         <Pressable
-          className="flex-1 items-center justify-center bg-black/60 px-6"
+          className="flex-1 items-center justify-center bg-black/50 px-6"
           onPress={() => {
             if (canDismissBackdrop) close(cancelButton);
           }}
         >
           <Pressable
             accessibilityViewIsModal
-            className="w-full max-w-md overflow-hidden rounded-[28px] border p-5 shadow-2xl"
+            className="w-full max-w-md overflow-hidden rounded-3xl border p-5 shadow-2xl"
             onPress={(event) => event.stopPropagation()}
             style={{
               direction: isRtl ? "rtl" : "ltr",
@@ -183,23 +152,23 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                       ? "#292929"
                       : "#EEEAE4"
                     : tone === "success"
-                      ? "#15803D"
+                      ? "#16A34A"
                       : tone === "warning"
                         ? "#DC2626"
                         : isDark
-                          ? "#F4B942"
+                          ? "#FAF9F6"
                           : "#171717";
                 const textColor = destructive
-                  ? "#FFFFFF"
+                  ? "#FAF9F6"
                   : cancel
                     ? isDark
-                      ? "#FFFFFF"
+                      ? "#FAF9F6"
                       : "#171717"
                     : tone === "success" || tone === "warning"
-                      ? "#FFFFFF"
+                      ? "#FAF9F6"
                       : isDark
                         ? "#171717"
-                        : "#FFFFFF";
+                        : "#FAF9F6";
 
                 return (
                   <Pressable

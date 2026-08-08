@@ -15,7 +15,7 @@ export default function PriceInput({ label, value, onChange, error }: Props) {
       <Text className="mb-3 font-bold text-black dark:text-white">{label}</Text>
 
       <TextInput
-        className={`rounded-2xl border px-4 py-4 text-base text-black dark:text-white ${
+        className={`rounded-2xl border bg-white px-4 py-4 text-base text-black dark:bg-black dark:text-white ${
           error
             ? "border-red-500 dark:border-red-500"
             : "border-gray-200 dark:border-gray-700"

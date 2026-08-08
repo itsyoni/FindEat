@@ -66,7 +66,7 @@ export default function FullScreenImageViewer({
               onPress={onClose}
               className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
             >
-              <XIcon size={25} color="white" weight="bold" />
+              <XIcon size={25} color="#FAF9F6" weight="bold" />
             </Pressable>
           </View>
         </SafeAreaView>

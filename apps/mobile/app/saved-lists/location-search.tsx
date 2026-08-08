@@ -77,10 +77,10 @@ export default function ListLocationSearchScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <View className="h-14 flex-row items-center px-4">
         <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center">
-          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FFF" : "#171717"} />
+          <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FAF9F6" : "#171717"} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
           {t("chooseListLocation")}

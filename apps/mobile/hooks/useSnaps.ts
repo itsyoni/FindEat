@@ -11,6 +11,8 @@ export function useSnaps(enabled = true) {
     queryFn: () => api.snaps.feed(),
     enabled,
     staleTime: 30_000,
+    refetchInterval: enabled ? 60_000 : false,
+    refetchIntervalInBackground: false,
   });
 
   useEffect(() => {

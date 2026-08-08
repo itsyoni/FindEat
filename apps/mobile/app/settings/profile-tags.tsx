@@ -71,7 +71,7 @@ export default function ProfileTagsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <SettingsHeader title={t("settings:profileTagCollection")} />
       {loading ? (
         <SkeletonPulse>

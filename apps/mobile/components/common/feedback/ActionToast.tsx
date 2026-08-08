@@ -47,7 +47,7 @@ export default function ActionToast({ message, kind, actionLabel, onAction }: Pr
           paddingHorizontal: 16,
           paddingVertical: 13,
           backgroundColor: isDark ? "#222222" : "#171717",
-          shadowColor: "#000",
+          shadowColor: "#0B0B0A",
           shadowOpacity: 0.2,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 6 },
@@ -56,7 +56,7 @@ export default function ActionToast({ message, kind, actionLabel, onAction }: Pr
       >
         <Icon size={23} color={color} weight="fill" />
         <Text
-          style={{ marginLeft: 11, flex: 1, color: "#FFFFFF", fontSize: 15 }}
+          style={{ marginLeft: 11, flex: 1, color: "#FAF9F6", fontSize: 15 }}
           numberOfLines={3}
         >
           {message}

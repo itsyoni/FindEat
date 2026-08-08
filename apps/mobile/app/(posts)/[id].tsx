@@ -271,7 +271,7 @@ export default function PostScreen() {
             onPress={() => router.back()}
             className="ml-4 mt-2 h-11 w-11 items-center justify-center rounded-full bg-black/50"
           >
-            <DirectionalIcon direction="back" size={24} color="white" weight="bold" />
+            <DirectionalIcon direction="back" size={24} color="#FAF9F6" weight="bold" />
           </TouchableOpacity>
         </SafeAreaView>
 

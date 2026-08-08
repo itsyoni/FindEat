@@ -51,6 +51,7 @@ export type RestaurantAddressChangeRequest = {
 export type RestaurantPostPreview = {
   id: string;
   type: "CONTENT" | "REVIEW";
+  authorRestaurantId?: string | null;
   description?: string | null;
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
@@ -89,6 +90,7 @@ export type ManagedRestaurant = {
   bio?: string | null;
   openingHours?: RestaurantOpeningHours | null;
   categories: string[];
+  foodCertifications?: string[];
   setupComplete: boolean;
   missingSetupFields: string[];
   pendingAddressChangeRequest?: RestaurantAddressChangeRequest | null;
@@ -120,6 +122,11 @@ export const RESTAURANT_CATEGORY_OPTIONS = [
   "Greek",
   "Vegan",
   "Other",
+] as const;
+
+export const RESTAURANT_FOOD_CERTIFICATION_OPTIONS = [
+  "KOSHER",
+  "HALAL",
 ] as const;
 
 export type RestaurantPostSection = "OFFICIAL" | "COMMUNITY" | "REVIEWS";
@@ -157,6 +164,7 @@ export type Restaurant = {
   website?: string | null;
   instagram?: string | null;
   openingHours?: RestaurantOpeningHours | null;
+  foodCertifications?: string[];
 
   status?: RestaurantStatus;
   source?: RestaurantSource;

@@ -5,8 +5,10 @@
 @import "nativewind/theme";
 
 @theme {
+  --color-black: #0b0b0a;
+  --color-white: #faf9f6;
   --color-canvas: #fbfaf8;
-  --color-surface: #ffffff;
+  --color-surface: #faf9f6;
   --color-soft: #f6f5f2;
   --color-line: #e8e6e1;
   --color-ink: #171717;

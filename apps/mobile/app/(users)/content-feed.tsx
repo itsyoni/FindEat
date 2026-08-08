@@ -237,7 +237,7 @@ export default function UserContentFeedScreen() {
           className="ml-4 mt-2 h-11 w-11 items-center justify-center rounded-full bg-black/50"
           onPress={() => router.back()}
         >
-          <DirectionalIcon direction="back" size={24} color="white" />
+          <DirectionalIcon direction="back" size={24} color="#FAF9F6" />
         </TouchableOpacity>
       </SafeAreaView>
 

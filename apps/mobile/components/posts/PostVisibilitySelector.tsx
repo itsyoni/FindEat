@@ -48,7 +48,7 @@ export default function PostVisibilitySelector({ value, onChange }: Props) {
               <Icon
                 size={20}
                 weight={selected ? "fill" : "regular"}
-                color={selected ? (isDark ? "#FFF" : "#111") : "#9CA3AF"}
+                color={selected ? (isDark ? "#FAF9F6" : "#111") : "#9CA3AF"}
               />
               <Text
                 className={`mt-1 text-xs font-bold ${

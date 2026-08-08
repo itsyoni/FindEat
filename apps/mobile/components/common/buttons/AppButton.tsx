@@ -45,13 +45,13 @@ export default function AppButton({
   const isDisabled = disabled || loading;
   const textColor =
     variant === "danger"
-      ? "white"
+      ? "#FAF9F6"
       : variant === "primary"
         ? isDark
-          ? "black"
-          : "white"
+          ? "#0B0B0A"
+          : "#FAF9F6"
         : isDark
-          ? "white"
+          ? "#FAF9F6"
           : "#171717";
 
   return (

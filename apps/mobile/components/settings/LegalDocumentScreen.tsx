@@ -53,10 +53,10 @@ export default function LegalDocumentScreen({
 }: LegalDocumentScreenProps) {
   const { isDark } = useAppTheme();
   const colors = {
-    background: isDark ? "#000" : "#FBFAF8",
-    surface: isDark ? "#111" : "#FFF",
+    background: isDark ? "#0B0B0A" : "#FBFAF8",
+    surface: isDark ? "#111" : "#FAF9F6",
     border: isDark ? "#282828" : "#E7E1D8",
-    text: isDark ? "#FFF" : "#171717",
+    text: isDark ? "#FAF9F6" : "#171717",
     muted: isDark ? "#D1D5DB" : "#4B5563",
   };
 

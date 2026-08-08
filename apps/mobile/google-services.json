@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "625345812900",
+    "project_id": "findeat-10830",
+    "storage_bucket": "findeat-10830.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:625345812900:android:13feaa4ddd37efc1f54931",
+        "android_client_info": {
+          "package_name": "com.itsyoni.findeat.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHIElDm74olE2hw5f47gAcVZAWb_QvXHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

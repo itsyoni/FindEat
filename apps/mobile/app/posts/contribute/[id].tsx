@@ -328,7 +328,7 @@ export default function ContributeToReviewScreen() {
     );
   }
 
-  const iconColor = isDark ? "#FFFFFF" : "#111827";
+  const iconColor = isDark ? "#FAF9F6" : "#111827";
   const participants = (post?.reviewParticipants ?? []).filter(
     (participant) => participant.status === "JOINED",
   );

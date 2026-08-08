@@ -257,9 +257,9 @@ export default function LoadingScreen({
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const background =
     backgroundColor === "bg-black"
-      ? "#000"
+      ? "#0B0B0A"
       : isDark
-        ? "#000"
+        ? "#0B0B0A"
         : lightPalette.canvas;
 
   const skeleton = (

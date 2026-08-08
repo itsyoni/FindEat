@@ -58,12 +58,12 @@ export default function PlaceListCard({ list, onPress }: Props) {
         )}
         {list.eventType ? (
           <View className="absolute left-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/55">
-            <CalendarBlankIcon size={17} color="#FFF" weight="fill" />
+            <CalendarBlankIcon size={17} color="#FAF9F6" weight="fill" />
           </View>
         ) : null}
         {list.memberCount > 1 ? (
           <View className="absolute bottom-2 right-2 flex-row items-center rounded-full bg-black/60 px-2 py-1">
-            <UsersThreeIcon size={13} color="#FFF" weight="fill" />
+            <UsersThreeIcon size={13} color="#FAF9F6" weight="fill" />
             <Text className="ml-1 text-xs font-bold text-white">
               {list.memberCount}
             </Text>

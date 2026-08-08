@@ -21,4 +21,10 @@ export type UserSearchResult = {
   relationship?: UserRelationship;
 };
 
+export type FollowSuggestion = UserSearchResult & {
+  creatorScore: number;
+  followersCount: number;
+  postsCount: number;
+};
+
 export type RecentSearchItem = SearchResultItem;

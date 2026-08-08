@@ -59,9 +59,10 @@ export default function PinchZoomImage({
   const overlayActive = useSharedValue(0);
 
   const pinch = Gesture.Pinch()
-    // The callback is a UI-thread gesture handler; it does not run during render.
+    // Wait until a real two-finger pinch activates. `onBegin` also runs for a
+    // normal finger-down on Android, which would incorrectly cover the post UI.
     // eslint-disable-next-line react-hooks/refs
-    .onBegin(() => {
+    .onStart(() => {
       const measurement = measure(imageRef);
       if (!measurement) return;
 
@@ -86,6 +87,8 @@ export default function PinchZoomImage({
         (height.value / 2 - event.focalY) * (nextScale - 1);
     })
     .onFinalize(() => {
+      if (!overlayActive.value) return;
+
       if (onPinchEnd) runOnJS(onPinchEnd)();
       scale.value = withSpring(1, resetSpring, (finished) => {
         if (finished) overlayActive.value = 0;
@@ -185,11 +188,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: "#000000",
+    backgroundColor: "#0B0B0A",
   },
   overlayImage: {
     position: "absolute",
-    shadowColor: "#000000",
+    shadowColor: "#0B0B0A",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 18,

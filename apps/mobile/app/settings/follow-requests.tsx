@@ -40,12 +40,12 @@ export default function FollowRequestsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <SettingsHeader title={t("followRequests")} />
       {loading ? <SkeletonList count={7} /> : requests.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8 pb-20">
           <View className="h-20 w-20 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
-            <UserPlusIcon size={35} color={isDark ? "#FFF" : "#171717"} weight="fill" />
+            <UserPlusIcon size={35} color={isDark ? "#FAF9F6" : "#171717"} weight="fill" />
           </View>
           <Text weight="bold" className="mt-5 text-xl text-black dark:text-white">{t("noFollowRequests")}</Text>
           <Text className="mt-2 text-center text-gray-500" style={textStyle}>{t("noFollowRequestsSubtitle")}</Text>

@@ -124,19 +124,18 @@ export default function UserProfileScreen() {
     setAvatarOpen(true);
   }
 
-  async function startChat() {
+  function startChat() {
     if (!user) return;
-
-    try {
-      const chat = await api.chats.startDirectConversation(user.id);
-
-      router.push({
-        pathname: "/chats/[id]",
-        params: { id: chat.id },
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    router.push({
+      pathname: "/chats/[id]",
+      params: {
+        id: "new-direct",
+        type: "DIRECT",
+        targetUserId: user.id,
+        title: user.displayName?.trim() || user.username,
+        imageUrl: user.avatarUrl ?? "",
+      },
+    });
   }
 
   function confirmBlock() {
@@ -175,11 +174,11 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <ScrollView
-        style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: 40,
-          backgroundColor: isDark ? "#000" : "#FFF",
+          backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
         }}
       >
         <SkeletonPulse>
@@ -271,13 +270,13 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FFF" }}>
+    <View style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}>
       <Animated.ScrollView
-        style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: 40,
-          backgroundColor: isDark ? "#000" : "#FFF",
+          backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
         }}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
@@ -299,13 +298,13 @@ export default function UserProfileScreen() {
                 className="h-11 w-11 items-center justify-center rounded-full bg-black/30"
                 onPress={() => router.back()}
               >
-                <DirectionalIcon direction="back" size={24} color="white" />
+                <DirectionalIcon direction="back" size={24} color="#FAF9F6" />
               </TouchableOpacity>
               <TouchableOpacity
                 className="h-11 w-11 items-center justify-center rounded-full bg-black/30"
                 onPress={() => setOptionsOpen(true)}
               >
-                <DotsThreeIcon size={25} color="white" weight="bold" />
+                <DotsThreeIcon size={25} color="#FAF9F6" weight="bold" />
               </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -313,7 +312,7 @@ export default function UserProfileScreen() {
 
         <View
           className="-mt-7 rounded-t-[30px]"
-          style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+          style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         >
           <View className="-mt-12 items-center px-5">
             <TouchableOpacity
@@ -443,7 +442,7 @@ export default function UserProfileScreen() {
                   <View className="flex-row items-center justify-center">
                     <ChatCircleIcon
                       size={18}
-                      color={isDark ? "#FFFFFF" : "#171717"}
+                      color={isDark ? "#FAF9F6" : "#171717"}
                       weight="bold"
                     />
 
@@ -461,7 +460,7 @@ export default function UserProfileScreen() {
               <View className="h-16 w-16 items-center justify-center rounded-full border-2 border-black dark:border-white">
                 <LockKeyIcon
                   size={29}
-                  color={isDark ? "#FFF" : "#171717"}
+                  color={isDark ? "#FAF9F6" : "#171717"}
                   weight="fill"
                 />
               </View>

@@ -90,7 +90,7 @@ export default function SavedListDetailScreen() {
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <View className="h-14 flex-row items-center px-4">
         <TouchableOpacity
@@ -104,7 +104,7 @@ export default function SavedListDetailScreen() {
             direction="back"
             variant="arrow"
             size={24}
-            color={isDark ? "#FFF" : "#171717"}
+            color={isDark ? "#FAF9F6" : "#171717"}
           />
         </TouchableOpacity>
         <Text
@@ -121,7 +121,7 @@ export default function SavedListDetailScreen() {
           onPress={() => setOptionsOpen(true)}
           className="h-11 w-11 items-center justify-center"
         >
-          <DotsThreeIcon size={26} color={isDark ? "#FFF" : "#171717"} weight="bold" />
+          <DotsThreeIcon size={26} color={isDark ? "#FAF9F6" : "#171717"} weight="bold" />
         </TouchableOpacity>
       </View>
 
@@ -227,7 +227,7 @@ export default function SavedListDetailScreen() {
                   >
                     <MapTrifoldIcon
                       size={20}
-                      color={isDark ? "#111" : "#FFF"}
+                      color={isDark ? "#111" : "#FAF9F6"}
                       weight="fill"
                     />
                     <Text className="ml-2 font-bold text-white dark:text-black">
@@ -275,7 +275,7 @@ export default function SavedListDetailScreen() {
                     }}
                     className="mt-3 flex-row items-center justify-center rounded-2xl bg-amber-500 px-4 py-3.5"
                   >
-                    <PlusIcon size={20} color="#FFF" weight="bold" />
+                    <PlusIcon size={20} color="#FAF9F6" weight="bold" />
                     <Text className="ml-2 font-bold text-white">
                       {list.eventLocationLatitude == null ? t("chooseLocationToAddPlaces") : t("addPlaces")}
                     </Text>

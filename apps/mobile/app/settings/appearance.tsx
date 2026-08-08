@@ -10,10 +10,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function AppearanceSettingsScreen() {
   const { t, i18n } = useTranslation('settings');
   const { isDark, preference } = useAppTheme();
-  const color = isDark ? '#FFF' : '#111';
+  const color = isDark ? '#FAF9F6' : '#111';
   const themeLabel = preference === 'dark' ? t('darkTheme') : preference === 'light' ? t('lightTheme') : t('systemTheme');
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#FBFAF8' }}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0B0B0A' : '#FBFAF8' }}>
     <SettingsHeader title={t('appearanceLanguage')} />
     <SettingsSection title={t('preferences')}>
       <SettingsRow icon={<TranslateIcon size={22} color={color} />} title={t('language')} value={i18n.language.startsWith('he') ? t('hebrew') : t('english')} onPress={() => router.push('/settings/language')} />

@@ -30,6 +30,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { router } from "expo-router";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -242,6 +243,11 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
     if (!restaurantId || saving) return;
     try {
       setSaving(true);
+      const savedRestaurantId = restaurantId;
+      const offerReview =
+        selectedStatus === "VISITED" &&
+        initialStatus !== "VISITED" &&
+        initialStatus !== "FAVORITE";
       const status = await api.restaurants.setSaveStatus(
         restaurantId,
         selectedStatus,
@@ -261,6 +267,21 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
       }));
       showToast(t("savedPlaceUpdated"));
       close();
+      if (offerReview) {
+        requestAnimationFrame(() => {
+          Alert.alert(t("visitedReviewPromptTitle"), t("visitedReviewPromptBody"), [
+            { text: t("notNow"), style: "cancel" },
+            {
+              text: t("createReview"),
+              onPress: () =>
+                router.push({
+                  pathname: "/create/review",
+                  params: { restaurantId: savedRestaurantId },
+                }),
+            },
+          ]);
+        });
+      }
     } catch {
       if (
         selectedStatus === "WANT_TO_TRY" &&
@@ -276,7 +297,7 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
     } finally {
       setSaving(false);
     }
-  }, [close, commitStatus, restaurantId, savedFromPostId, saving, selectedIds, selectedStatus, showToast, t]);
+  }, [close, commitStatus, initialStatus, restaurantId, savedFromPostId, saving, selectedIds, selectedStatus, showToast, t]);
 
   const removeSavedPlace = useCallback(
     (removeFromLists: boolean) => {
@@ -413,7 +434,7 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
                       </Text>
                     </View>
                     <View className={`h-7 w-7 items-center justify-center rounded-full border ${selected ? "border-violet-500 bg-violet-500" : "border-gray-300 dark:border-gray-600"}`}>
-                      {selected ? <CheckIcon size={15} color="white" weight="bold" /> : null}
+                      {selected ? <CheckIcon size={15} color="#FAF9F6" weight="bold" /> : null}
                     </View>
                   </TouchableOpacity>
                 );

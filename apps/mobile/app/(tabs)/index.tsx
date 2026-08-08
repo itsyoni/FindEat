@@ -1,44 +1,42 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { CommentsBottomSheet } from "@/components/common";
 import ContentFeedList from "@/components/posts/content/ContentFeed";
-import ReviewFeed from "@/components/posts/review/ReviewFeed";
 import SearchResultRow from "@/components/search/SearchResultRow";
 import SearchResultsView from "@/components/search/SearchResultsView";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  feedQueryKey,
+  homeFeedQueryKey,
   updatePostInFeedCache,
   updateRestaurantStatusInFeedCache,
-  useFeed,
+  useHomeFeed,
 } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import { getFreshDeviceLocation } from "@/lib/currentLocation";
 import { searchGlobal } from "@/services/search";
-import { PostType } from "@findeat/types/post";
+import type { FeedScope } from "@findeat/types/post";
 import { SearchResultItem } from "@findeat/types/search";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
-import type { FeedPage } from "@findeat/types";
+import type { FeedPage, RecentSearchItem } from "@findeat/types";
 import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Text, TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
-  FadeInUp,
   FadeOut,
-  FadeOutUp,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import PostOptionsBottomSheet from "@/components/chats/PostOptionsBottomSheet";
 import SharePostBottomSheet from "@/components/chats/share/SharePostBottomSheet";
-import { useAppTheme } from "@/contexts/ThemeContext";
 import { useNotificationUnreadCount } from "@/hooks/useNotifications";
 import {
   BellIcon,
@@ -47,18 +45,28 @@ import {
 } from "phosphor-react-native";
 import SnapsTray from "@/components/snaps/SnapsTray";
 import { snapsQueryKey } from "@/hooks/useSnaps";
+import { addRecentSearch, getRecentSearches } from "@/lib/recentSearches";
+import { useAppTheme } from "@/contexts/ThemeContext";
+import FollowingSuggestions from "@/components/feed/FollowingSuggestions";
+
+const homeGestureThreshold = 12;
+const homeRefreshThreshold = 64;
+const closeSnapsAction = 1;
+const refreshFeedAction = 3;
+const snapsTrayHeight = 104;
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation("common");
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
-  const { isDark } = useAppTheme();
   const unread = useNotificationUnreadCount(!!user && !authLoading);
   const insets = useSafeAreaInsets();
+  const { isDark } = useAppTheme();
 
-  const [activeFeed, setActiveFeed] = useState<PostType>("CONTENT");
+  const [activeFeed, setActiveFeed] = useState<FeedScope>("EXPLORE");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
   const [snapsCollapsed, setSnapsCollapsed] = useState(false);
   const [feedHeight, setFeedHeight] = useState(0);
   const [sharePostId, setSharePostId] = useState<string | null>(null);
@@ -67,37 +75,51 @@ export default function HomeScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const reviewHeaderHidden = useSharedValue(0);
-
+  const followingScrollOffset = useSharedValue(0);
+  const exploreScrollOffset = useSharedValue(0);
+  const gestureStartedAtTop = useSharedValue(true);
+  const gestureStartX = useSharedValue(0);
+  const gestureStartY = useSharedValue(0);
+  const gestureAction = useSharedValue(0);
+  const snapsProgress = useSharedValue(1);
   const feedsEnabled = !!user && !authLoading;
-  const contentFeed = useFeed("CONTENT", feedsEnabled);
-  const reviewFeed = useFeed("REVIEW", feedsEnabled);
-  const feed = activeFeed === "CONTENT" ? contentFeed : reviewFeed;
-  const contentPosts = useMemo(
-    () => contentFeed.data?.pages.flatMap((page) => page.items) ?? [],
-    [contentFeed.data],
+  const followingFeed = useHomeFeed("FOLLOWING", feedsEnabled);
+  const exploreFeed = useHomeFeed("EXPLORE", feedsEnabled);
+  const feed = activeFeed === "FOLLOWING" ? followingFeed : exploreFeed;
+  const followingPosts = useMemo(
+    () => followingFeed.data?.pages.flatMap((page) => page.items) ?? [],
+    [followingFeed.data],
   );
-  const reviewPosts = useMemo(
-    () => reviewFeed.data?.pages.flatMap((page) => page.items) ?? [],
-    [reviewFeed.data],
+  const explorePosts = useMemo(
+    () =>
+      (exploreFeed.data?.pages.flatMap((page) => page.items) ?? []).filter(
+        (post) =>
+          post.authorId !== user?.id &&
+          post.authorRelationship !== "FOLLOWING" &&
+          post.authorRelationship !== "FRIENDS",
+      ),
+    [exploreFeed.data, user?.id],
   );
 
-  async function onRefresh(type: PostType) {
-    const targetFeed = type === "CONTENT" ? contentFeed : reviewFeed;
-    queryClient.setQueryData<InfiniteData<FeedPage>>(
-      feedQueryKey(type),
-      (current) =>
-        current
-          ? {
-              pages: current.pages.slice(0, 1),
-              pageParams: current.pageParams.slice(0, 1),
-            }
-          : current,
-    );
+  const onRefresh = useCallback(
+    async (scope: FeedScope) => {
+      queryClient.setQueryData<InfiniteData<FeedPage>>(
+        homeFeedQueryKey(scope),
+        (current) =>
+          current
+            ? {
+                pages: current.pages.slice(0, 1),
+                pageParams: current.pageParams.slice(0, 1),
+              }
+            : current,
+      );
 
-    await targetFeed.refetch();
-    await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
-  }
+      if (scope === "FOLLOWING") await followingFeed.refetch();
+      else await exploreFeed.refetch();
+      await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
+    },
+    [exploreFeed, followingFeed, queryClient],
+  );
 
   async function toggleLike(postId: string, isLiked: boolean) {
     updatePostInFeedCache(queryClient, (post) =>
@@ -205,6 +227,10 @@ export default function HomeScreen() {
   }
 
   async function handleSearchSelect(item: SearchResultItem) {
+    if (user?.id) {
+      const updated = await addRecentSearch(user.id, item);
+      setRecentSearches(updated);
+    }
     setIsSearching(false);
 
     if (item.type === "USER") {
@@ -250,6 +276,9 @@ export default function HomeScreen() {
   function openSearch() {
     if (pageLoading) return;
     setIsSearching(true);
+    if (user?.id) {
+      void getRecentSearches(user.id).then(setRecentSearches);
+    }
     void getFreshDeviceLocation()
       .then((location) => {
         if (!location) return;
@@ -265,52 +294,131 @@ export default function HomeScreen() {
 
   const pageLoading = authLoading || feed.isPending;
   const iconShadow = {
-    shadowColor: "#000",
+    shadowColor: isDark ? "#0B0B0A" : "#FAF9F6",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 4,
     elevation: 6,
   };
   const titleShadow = {
-    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowColor: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   };
   const topBarInset = insets.top + 56;
   const contentCardTopInset = snapsCollapsed ? 0 : insets.top + 150;
   const contentControlsTopInset = snapsCollapsed ? topBarInset : 0;
-  const reviewHeaderAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: 1 - reviewHeaderHidden.value,
-    transform: [
-      {
-        translateY:
-          -reviewHeaderHidden.value * (insets.top + 64),
-      },
-    ],
-  }));
-  const setReviewHeaderVisible = useCallback(
-    (visible: boolean) => {
-      reviewHeaderHidden.set(
-        withTiming(visible ? 0 : 1, {
-          duration: visible ? 240 : 210,
-          easing: Easing.out(Easing.cubic),
-        }),
-      );
-    },
-    [reviewHeaderHidden],
-  );
+  const activeFeedRefreshing =
+    activeFeed === "FOLLOWING"
+      ? followingFeed.isRefetching
+      : exploreFeed.isRefetching;
+  const closeSnaps = useCallback(() => setSnapsCollapsed(true), []);
+  const openSnaps = useCallback(() => setSnapsCollapsed(false), []);
+  const refreshActiveFeed = useCallback(() => {
+    void onRefresh(activeFeed);
+  }, [activeFeed, onRefresh]);
 
-  function selectFeed(type: PostType) {
-    setReviewHeaderVisible(true);
-    setActiveFeed(type);
+  useEffect(() => {
+    snapsProgress.set(
+      withTiming(snapsCollapsed ? 0 : 1, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      }),
+    );
+  }, [snapsCollapsed, snapsProgress]);
+
+  const snapsTrayAnimatedStyle = useAnimatedStyle(() => ({
+    height: snapsTrayHeight * snapsProgress.value,
+    overflow: "hidden",
+  }));
+
+  const homeFeedGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .manualActivation(true)
+        .maxPointers(1)
+        .onTouchesDown((event) => {
+          const touch = event.allTouches[0] ?? event.changedTouches[0];
+          if (!touch) return;
+          gestureStartX.set(touch.absoluteX);
+          gestureStartY.set(touch.absoluteY);
+          gestureAction.set(0);
+          const offset =
+            activeFeed === "FOLLOWING"
+              ? followingScrollOffset.get()
+              : exploreScrollOffset.get();
+          gestureStartedAtTop.set(offset <= 2);
+        })
+        .onTouchesMove((event, manager) => {
+          const touch = event.allTouches[0] ?? event.changedTouches[0];
+          if (!touch) return;
+          const distanceX = touch.absoluteX - gestureStartX.get();
+          const distanceY = touch.absoluteY - gestureStartY.get();
+          if (
+            Math.abs(distanceY) < homeGestureThreshold &&
+            Math.abs(distanceX) < homeGestureThreshold
+          ) {
+            return;
+          }
+          if (Math.abs(distanceY) <= Math.abs(distanceX)) {
+            manager.fail();
+            return;
+          }
+          if (!snapsCollapsed && distanceY < 0) {
+            gestureAction.set(closeSnapsAction);
+            manager.activate();
+            return;
+          }
+          if (gestureStartedAtTop.get() && distanceY > 0) {
+            if (snapsCollapsed) {
+              manager.fail();
+              return;
+            }
+            gestureAction.set(refreshFeedAction);
+            manager.activate();
+            return;
+          }
+          manager.fail();
+        })
+        .onEnd((event) => {
+          const action = gestureAction.get();
+          if (
+            action === closeSnapsAction &&
+            event.translationY <= -homeGestureThreshold
+          ) {
+            runOnJS(closeSnaps)();
+          } else if (
+            action === refreshFeedAction &&
+            event.translationY >= homeRefreshThreshold &&
+            !activeFeedRefreshing
+          ) {
+            runOnJS(refreshActiveFeed)();
+          }
+        })
+        .onFinalize(() => gestureAction.set(0)),
+    [
+      activeFeed,
+      activeFeedRefreshing,
+      closeSnaps,
+      exploreScrollOffset,
+      followingScrollOffset,
+      gestureAction,
+      gestureStartedAtTop,
+      gestureStartX,
+      gestureStartY,
+      refreshActiveFeed,
+      snapsCollapsed,
+    ],
+  );
+  function selectFeed(scope: FeedScope) {
+    setActiveFeed(scope);
   }
 
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor:
-          activeFeed === "CONTENT" ? "#000" : isDark ? "#000" : "#FBFAF8",
+        backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
       }}
     >
       {isSearching ? (
@@ -322,6 +430,7 @@ export default function HomeScreen() {
             className="flex-1"
           >
             <SearchResultsView
+              idleData={recentSearches}
               searchRequest={searchRequest}
               onCancel={() => setIsSearching(false)}
               onSelect={(item) => void handleSearchSelect(item)}
@@ -337,108 +446,122 @@ export default function HomeScreen() {
           exiting={FadeOut.duration(120)}
           className="flex-1"
         >
-          <View
-            style={{ flex: 1 }}
-            onLayout={(e) => setFeedHeight(e.nativeEvent.layout.height)}
-          >
-            {feedHeight > 0 ? (
-              <>
+          <GestureDetector gesture={homeFeedGesture}>
+            <View
+              style={{ flex: 1 }}
+              onLayout={(e) => setFeedHeight(e.nativeEvent.layout.height)}
+            >
+              {feedHeight > 0 ? (
+                <>
                 <View
-                  pointerEvents={activeFeed === "CONTENT" ? "auto" : "none"}
-                  accessibilityElementsHidden={activeFeed !== "CONTENT"}
+                  pointerEvents={activeFeed === "FOLLOWING" ? "auto" : "none"}
+                  accessibilityElementsHidden={activeFeed !== "FOLLOWING"}
                   importantForAccessibility={
-                    activeFeed === "CONTENT" ? "auto" : "no-hide-descendants"
+                    activeFeed === "FOLLOWING" ? "auto" : "no-hide-descendants"
                   }
                   style={{
                     position: "absolute",
                     inset: 0,
-                    opacity: activeFeed === "CONTENT" ? 1 : 0,
-                    zIndex: activeFeed === "CONTENT" ? 1 : 0,
+                    opacity: activeFeed === "FOLLOWING" ? 1 : 0,
+                    zIndex: activeFeed === "FOLLOWING" ? 1 : 0,
                   }}
                 >
                 <ContentFeedList
-                  posts={contentPosts}
+                  active={activeFeed === "FOLLOWING"}
+                  posts={followingPosts}
                   height={feedHeight}
                   contentTopInset={contentCardTopInset}
                   controlsTopInset={contentControlsTopInset}
                   refreshing={
-                    contentFeed.isRefetching &&
-                    !contentFeed.isFetchingNextPage
+                    followingFeed.isRefetching &&
+                    !followingFeed.isFetchingNextPage
                   }
-                  onRefresh={() => onRefresh("CONTENT")}
+                  onRefresh={() => onRefresh("FOLLOWING")}
                   onEndReached={() => {
                     if (
-                      contentFeed.hasNextPage &&
-                      !contentFeed.isFetchingNextPage
+                      followingFeed.hasNextPage &&
+                      !followingFeed.isFetchingNextPage
                     ) {
-                      void contentFeed.fetchNextPage();
+                      void followingFeed.fetchNextPage();
                     }
                   }}
-                  loadingMore={contentFeed.isFetchingNextPage}
-                  loading={authLoading || contentFeed.isPending}
+                  loadingMore={followingFeed.isFetchingNextPage}
+                  loading={authLoading || followingFeed.isPending}
+                  emptyComponent={
+                    <FollowingSuggestions topInset={contentCardTopInset} />
+                  }
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
                   onToggleWantToTry={toggleWantToTry}
                   onDeletePost={deletePost}
                   onOpenSharePost={setSharePostId}
                   onOpenPostOptions={setOptionsPostId}
-                  consumeFirstScroll={!snapsCollapsed}
-                  onConsumeFirstScroll={() => setSnapsCollapsed(true)}
-                  reopenSnapsOnTopPull={snapsCollapsed}
-                  onReopenSnaps={() => setSnapsCollapsed(false)}
+                  preventTopOverscroll={snapsCollapsed}
+                  feedScrollEnabled={snapsCollapsed}
+                  nativeRefreshEnabled={false}
+                  onPullDownAtTop={openSnaps}
+                  onScrollOffsetChange={(offset) => {
+                    followingScrollOffset.set(offset);
+                  }}
                 />
                 </View>
                 <View
-                  pointerEvents={activeFeed === "REVIEW" ? "auto" : "none"}
-                  accessibilityElementsHidden={activeFeed !== "REVIEW"}
+                  pointerEvents={activeFeed === "EXPLORE" ? "auto" : "none"}
+                  accessibilityElementsHidden={activeFeed !== "EXPLORE"}
                   importantForAccessibility={
-                    activeFeed === "REVIEW" ? "auto" : "no-hide-descendants"
+                    activeFeed === "EXPLORE" ? "auto" : "no-hide-descendants"
                   }
                   style={{
                     position: "absolute",
                     inset: 0,
-                    opacity: activeFeed === "REVIEW" ? 1 : 0,
-                    zIndex: activeFeed === "REVIEW" ? 1 : 0,
+                    opacity: activeFeed === "EXPLORE" ? 1 : 0,
+                    zIndex: activeFeed === "EXPLORE" ? 1 : 0,
                   }}
                 >
-                <ReviewFeed
-                  posts={reviewPosts}
-                  contentTopInset={topBarInset}
-                  header={<SnapsTray hideDivider />}
-                  onHeaderVisibilityChange={
-                    activeFeed === "REVIEW"
-                      ? setReviewHeaderVisible
-                      : undefined
-                  }
+                <ContentFeedList
+                  active={activeFeed === "EXPLORE"}
+                  posts={explorePosts}
+                  height={feedHeight}
+                  contentTopInset={contentCardTopInset}
+                  controlsTopInset={contentControlsTopInset}
                   refreshing={
-                    reviewFeed.isRefetching && !reviewFeed.isFetchingNextPage
+                    exploreFeed.isRefetching && !exploreFeed.isFetchingNextPage
                   }
-                  onRefresh={() => onRefresh("REVIEW")}
+                  onRefresh={() => onRefresh("EXPLORE")}
                   onEndReached={() => {
                     if (
-                      reviewFeed.hasNextPage &&
-                      !reviewFeed.isFetchingNextPage
+                      exploreFeed.hasNextPage &&
+                      !exploreFeed.isFetchingNextPage
                     ) {
-                      void reviewFeed.fetchNextPage();
+                      void exploreFeed.fetchNextPage();
                     }
                   }}
-                  loadingMore={reviewFeed.isFetchingNextPage}
-                  loading={authLoading || reviewFeed.isPending}
+                  loadingMore={exploreFeed.isFetchingNextPage}
+                  loading={authLoading || exploreFeed.isPending}
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
                   onToggleWantToTry={toggleWantToTry}
+                  onDeletePost={deletePost}
                   onOpenSharePost={setSharePostId}
                   onOpenPostOptions={setOptionsPostId}
+                  preventTopOverscroll={snapsCollapsed}
+                  feedScrollEnabled={snapsCollapsed}
+                  nativeRefreshEnabled={false}
+                  onPullDownAtTop={openSnaps}
+                  onScrollOffsetChange={(offset) => {
+                    exploreScrollOffset.set(offset);
+                  }}
                 />
                 </View>
-              </>
-            ) : null}
-          </View>
+                </>
+              ) : null}
+            </View>
+          </GestureDetector>
 
           <Animated.View
             pointerEvents="box-none"
             className="absolute left-0 right-0 z-20"
-            style={[{ top: insets.top }, reviewHeaderAnimatedStyle]}
+            style={{ top: insets.top }}
           >
             <View className="h-14 flex-row items-center px-4">
               <TouchableOpacity
@@ -449,32 +572,46 @@ export default function HomeScreen() {
               >
                 <MagnifyingGlassIcon
                   size={28}
-                  color="#FFF"
+                  color={isDark ? "#FAF9F6" : "#171717"}
                   weight="bold"
                   style={iconShadow}
                 />
               </TouchableOpacity>
 
               <View className="mx-4 flex-1 flex-row justify-center gap-8">
-                {(["CONTENT", "REVIEW"] as PostType[]).map((type) => {
-                  const active = activeFeed === type;
+                {(["EXPLORE", "FOLLOWING"] as FeedScope[]).map((scope) => {
+                  const active = activeFeed === scope;
                   return (
                     <TouchableOpacity
-                      key={type}
-                      onPressIn={() => selectFeed(type)}
-                      onPress={() => selectFeed(type)}
+                      key={scope}
+                      onPressIn={() => selectFeed(scope)}
+                      onPress={() => selectFeed(scope)}
                       className="py-3"
                     >
                       <Text
-                        style={titleShadow}
-                        className={`text-base font-bold ${
-                          active ? "text-white" : "text-white/65"
-                        }`}
+                        className="text-base font-bold"
+                        style={[
+                          titleShadow,
+                          {
+                            color: active
+                              ? isDark
+                                ? "#FAF9F6"
+                                : "#171717"
+                              : isDark
+                                ? "rgba(255,255,255,0.65)"
+                                : "rgba(23,23,23,0.55)",
+                          },
+                        ]}
                       >
-                        {t(type === "CONTENT" ? "content" : "reviews")}
+                        {t(scope === "FOLLOWING" ? "following" : "explore")}
                       </Text>
                       {active ? (
-                        <View className="mt-1 h-0.5 rounded-full bg-white" />
+                        <View
+                          className="mt-1 h-0.5 rounded-full"
+                          style={{
+                            backgroundColor: isDark ? "#FAF9F6" : "#171717",
+                          }}
+                        />
                       ) : null}
                     </TouchableOpacity>
                   );
@@ -487,7 +624,12 @@ export default function HomeScreen() {
                 className="relative h-12 w-12 items-center justify-center"
                 onPress={() => router.push("/notifications")}
               >
-                <BellIcon size={27} color="#FFF" weight="fill" style={iconShadow} />
+                <BellIcon
+                  size={27}
+                  color={isDark ? "#FAF9F6" : "#171717"}
+                  weight="fill"
+                  style={iconShadow}
+                />
                 {(unread.data?.count ?? 0) > 0 ? (
                   <View
                     className="absolute right-0 top-0 h-5 min-w-5 items-center justify-center rounded-full border border-white bg-red-500 px-1"
@@ -502,31 +644,49 @@ export default function HomeScreen() {
 
             </View>
             <View
-              pointerEvents={activeFeed === "CONTENT" ? "box-none" : "none"}
-              style={{ display: activeFeed === "CONTENT" ? "flex" : "none" }}
+              pointerEvents="box-none"
             >
-              {!snapsCollapsed ? (
-                <Animated.View
-                  entering={FadeInUp.duration(220)}
-                  exiting={FadeOutUp.duration(180)}
-                >
-                  <SnapsTray overlay />
-                </Animated.View>
-              ) : null}
+              <Animated.View
+                pointerEvents={snapsCollapsed ? "none" : "auto"}
+                style={snapsTrayAnimatedStyle}
+              >
+                <SnapsTray overlay />
+              </Animated.View>
               {snapsCollapsed ? (
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t("expandSnaps")}
                   onPress={() => setSnapsCollapsed(false)}
-                  className="h-9 flex-row items-center justify-center gap-1.5 self-center rounded-full border border-white/5 bg-black/10 px-3.5"
-                  style={iconShadow}
+                  className="h-9 flex-row items-center justify-center gap-1.5 self-center rounded-full border px-3.5"
+                  style={[
+                    iconShadow,
+                    {
+                      borderColor: isDark
+                        ? "rgba(255,255,255,0.05)"
+                        : "rgba(0,0,0,0.06)",
+                      backgroundColor: isDark
+                        ? "rgba(0,0,0,0.1)"
+                        : "rgba(255,255,255,0.55)",
+                    },
+                  ]}
                 >
-                  <Text className="text-xs font-medium text-white/60">
+                  <Text
+                    className="text-xs font-medium"
+                    style={{
+                      color: isDark
+                        ? "rgba(255,255,255,0.6)"
+                        : "rgba(23,23,23,0.6)",
+                    }}
+                  >
                     {t("expandSnaps")}
                   </Text>
                   <CaretDownIcon
                     size={18}
-                    color="rgba(255,255,255,0.6)"
+                    color={
+                      isDark
+                        ? "rgba(255,255,255,0.6)"
+                        : "rgba(23,23,23,0.6)"
+                    }
                     weight="regular"
                   />
                 </TouchableOpacity>

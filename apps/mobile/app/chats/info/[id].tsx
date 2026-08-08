@@ -109,7 +109,7 @@ export default function ChatInfoScreen() {
             direction="back"
             variant="arrow"
             size={24}
-            color={isDark ? "#FFF" : "#171717"}
+            color={isDark ? "#FAF9F6" : "#171717"}
           />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
@@ -170,7 +170,7 @@ export default function ChatInfoScreen() {
               className="flex-row items-center border-b border-gray-100 px-4 py-4 dark:border-gray-800"
             >
               <View className="h-11 w-11 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-                <MagnifyingGlassIcon size={22} color={isDark ? "#FFF" : "#171717"} weight="duotone" />
+                <MagnifyingGlassIcon size={22} color={isDark ? "#FAF9F6" : "#171717"} weight="duotone" />
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-base font-bold text-black dark:text-white">

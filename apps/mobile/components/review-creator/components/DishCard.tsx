@@ -7,16 +7,22 @@ import { useTranslation } from "react-i18next";
 
 type Props = {
   item: ReviewDishDraft;
+  onPress?: () => void;
   onRemove?: () => void;
 };
 
-export default function DishCard({ item, onRemove }: Props) {
+export default function DishCard({ item, onPress, onRemove }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const name = item.menuItemName ?? item.customDishName ?? t("create:dish");
   const price = item.customPrice;
 
   return (
-    <View className="rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+    <TouchableOpacity
+      disabled={!onPress}
+      activeOpacity={0.82}
+      onPress={onPress}
+      className="rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
+    >
       {(item.imageUri || item.fallbackImageUrl) && (
         <ProgressiveImage
           source={{ uri: item.imageUri ?? item.fallbackImageUrl ?? undefined }}
@@ -36,7 +42,9 @@ export default function DishCard({ item, onRemove }: Props) {
           )}
 
           {!!item.text && (
-            <Text className="mt-3 text-gray-700">{item.text}</Text>
+            <Text className="mt-3 text-gray-700 dark:text-gray-300">
+              {item.text}
+            </Text>
           )}
         </View>
 
@@ -54,6 +62,6 @@ export default function DishCard({ item, onRemove }: Props) {
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }

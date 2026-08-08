@@ -21,7 +21,7 @@ export default function AccessibilityStatementScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <SettingsHeader title={t("accessibilityStatement")} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>

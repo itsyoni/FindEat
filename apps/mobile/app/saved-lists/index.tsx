@@ -129,7 +129,7 @@ export default function SavedListsScreen() {
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <View className="h-14 flex-row items-center px-4">
         <TouchableOpacity
@@ -143,7 +143,7 @@ export default function SavedListsScreen() {
             direction="back"
             variant="arrow"
             size={24}
-            color={isDark ? "#FFF" : "#171717"}
+            color={isDark ? "#FAF9F6" : "#171717"}
           />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
@@ -163,7 +163,7 @@ export default function SavedListsScreen() {
             onPress={() => setShowCreate((current) => !current)}
             className="h-full aspect-square items-center justify-center rounded-2xl bg-brand"
           >
-            <PlusIcon size={23} color="#FFF" weight="bold" />
+            <PlusIcon size={23} color="#FAF9F6" weight="bold" />
           </TouchableOpacity>
         }
       />
@@ -183,7 +183,7 @@ export default function SavedListsScreen() {
               flex: 1,
               minHeight: 42,
               paddingHorizontal: 10,
-              color: isDark ? "#FFF" : "#111",
+              color: isDark ? "#FAF9F6" : "#111",
               fontSize: 16,
               textAlign: "auto",
             }}
@@ -195,7 +195,7 @@ export default function SavedListsScreen() {
             style={{ opacity: !name.trim() || creating ? 0.45 : 1 }}
           >
             {creating ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color="#FAF9F6" />
             ) : (
               <Text className="font-bold text-white">{t("create")}</Text>
             )}

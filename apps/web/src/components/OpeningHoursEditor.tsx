@@ -7,6 +7,7 @@ import {
 import { ClockIcon } from "@phosphor-icons/react/dist/csr/Clock";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
+import { createEmptyOpeningHours } from "./openingHours";
 
 const dayLabels: Record<RestaurantWeekday, string> = {
   MONDAY: "Monday",
@@ -17,39 +18,6 @@ const dayLabels: Record<RestaurantWeekday, string> = {
   SATURDAY: "Saturday",
   SUNDAY: "Sunday",
 };
-
-export function createEmptyOpeningHours(): RestaurantOpeningHours {
-  const timezone =
-    Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jerusalem";
-  return {
-    timezone,
-    weekly: {
-      MONDAY: [],
-      TUESDAY: [],
-      WEDNESDAY: [],
-      THURSDAY: [],
-      FRIDAY: [],
-      SATURDAY: [],
-      SUNDAY: [],
-    },
-  };
-}
-
-export function normalizeOpeningHours(
-  value?: RestaurantOpeningHours | null,
-): RestaurantOpeningHours {
-  const empty = createEmptyOpeningHours();
-  if (!value?.weekly) return empty;
-  return {
-    timezone: value.timezone || empty.timezone,
-    weekly: Object.fromEntries(
-      RESTAURANT_WEEKDAYS.map((day) => [
-        day,
-        Array.isArray(value.weekly[day]) ? value.weekly[day] : [],
-      ]),
-    ) as RestaurantOpeningHours["weekly"],
-  };
-}
 
 export function OpeningHoursEditor({
   value,
@@ -148,25 +116,32 @@ export function OpeningHoursEditor({
               <div className="opening-hours-periods">
                 {periods.map((period, index) => (
                   <div className="opening-hours-period" key={`${day}-${index}`}>
-                    <input
-                      type="time"
-                      aria-label={`${dayLabels[day]} opening time`}
-                      value={period.open}
-                      onChange={(event) =>
-                        updatePeriod(day, index, { open: event.target.value })
-                      }
-                      required
-                    />
-                    <span>to</span>
-                    <input
-                      type="time"
-                      aria-label={`${dayLabels[day]} closing time`}
-                      value={period.close}
-                      onChange={(event) =>
-                        updatePeriod(day, index, { close: event.target.value })
-                      }
-                      required
-                    />
+                    <div className="opening-hours-time-fields">
+                      <label>
+                        Opens
+                        <input
+                          type="time"
+                          aria-label={`${dayLabels[day]} opening time`}
+                          value={period.open}
+                          onChange={(event) =>
+                            updatePeriod(day, index, { open: event.target.value })
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        Closes
+                        <input
+                          type="time"
+                          aria-label={`${dayLabels[day]} closing time`}
+                          value={period.close}
+                          onChange={(event) =>
+                            updatePeriod(day, index, { close: event.target.value })
+                          }
+                          required
+                        />
+                      </label>
+                    </div>
                     <button
                       type="button"
                       className="icon-action"

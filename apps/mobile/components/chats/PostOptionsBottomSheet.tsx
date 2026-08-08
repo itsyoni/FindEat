@@ -238,7 +238,7 @@ export default function PostOptionsBottomSheet({
                 className="flex-1 items-center rounded-2xl bg-red-500 py-4"
               >
                 {blocking ? (
-                  <ActivityIndicator color="white" />
+                  <ActivityIndicator color="#FAF9F6" />
                 ) : (
                   <Text className="font-bold text-white">
                     {t("blockUser")}
@@ -280,7 +280,7 @@ export default function PostOptionsBottomSheet({
                 className="flex-1 items-center rounded-2xl bg-red-500 py-4"
               >
                 {deleting ? (
-                  <ActivityIndicator color="white" />
+                  <ActivityIndicator color="#FAF9F6" />
                 ) : (
                   <Text className="font-bold text-white">
                     {t("deletePost")}
@@ -291,7 +291,7 @@ export default function PostOptionsBottomSheet({
           </View>
         ) : loadingPost ? (
           <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color={isDark ? "white" : "black"} />
+            <ActivityIndicator color={isDark ? "#FAF9F6" : "#0B0B0A"} />
           </View>
         ) : (
           <View className="flex-1">

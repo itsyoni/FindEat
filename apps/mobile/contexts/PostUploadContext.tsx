@@ -28,7 +28,12 @@ type PostUploadKind = "content" | "review" | "snap";
 type PostUploadStatus = "uploading" | "completed" | "failed";
 
 type PostUploadResult =
-  | { type: "post"; postId: string; afterOpen?: () => void }
+  | {
+      type: "post";
+      postId: string;
+      afterOpen?: () => void;
+      afterUpload?: () => void;
+    }
   | { type: "snap"; userId: string };
 
 type PostUploadRunner = (
@@ -96,6 +101,7 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
       )
         .then((result) => {
           updateTask(id, { status: "completed", progress: 1, result });
+          result.type === "post" && result.afterUpload?.();
           void AccessibilityInfo.announceForAccessibility(
             t("postUploadComplete"),
           );
@@ -243,7 +249,7 @@ function PostUploadBanner({
           overflow: "hidden",
           borderRadius: 19,
           backgroundColor: isDark ? "#242424" : "#171717",
-          shadowColor: "#000",
+          shadowColor: "#0B0B0A",
           shadowOpacity: 0.24,
           shadowRadius: 16,
           shadowOffset: { width: 0, height: 7 },
@@ -261,7 +267,7 @@ function PostUploadBanner({
         >
           <Icon size={25} color={color} weight="fill" />
           <View style={{ marginLeft: 11, flex: 1 }}>
-            <Text style={{ color: "#FFF", fontSize: 15, fontWeight: "800" }}>
+            <Text style={{ color: "#FAF9F6", fontSize: 15, fontWeight: "800" }}>
               {t(
                 failed
                   ? "postUploadFailed"
@@ -301,7 +307,7 @@ function PostUploadBanner({
               </Text>
             </TouchableOpacity>
           ) : (
-            <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "800" }}>
+            <Text style={{ color: "#FAF9F6", fontSize: 13, fontWeight: "800" }}>
               {Math.round(task.progress * 100)}%
             </Text>
           )}

@@ -31,7 +31,7 @@ export default function MessageActionsBottomSheet({ message, isMine, onClose, on
   const [deleting, setDeleting] = useState<'me' | 'everyone' | null>(null);
   const [starring, setStarring] = useState(false);
   const [withinEditWindow, setWithinEditWindow] = useState(false);
-  const iconColor = isDark ? '#FFF' : '#171717';
+  const iconColor = isDark ? '#FAF9F6' : '#171717';
   const canEdit =
     !!message &&
     isMine &&

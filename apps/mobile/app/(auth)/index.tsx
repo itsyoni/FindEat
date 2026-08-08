@@ -12,7 +12,6 @@ import {
   AppState,
   ImageBackground,
   Keyboard,
-  Platform,
   TextInput as NativeTextInput,
   TouchableOpacity,
   View,
@@ -29,11 +28,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { applyAppLanguage } from "@/lib/appLanguage";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { LoadingScreen } from "@/components/common";
 
 type AuthMode = "login" | "signup" | "restaurant-signup" | "verify-email" | "forgot-password";
 
 export default function AuthIndexScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const { user, isLoading: authLoading } = useAuth();
   const { isDark } = useAppTheme();
   const { t, i18n } = useTranslation("auth");
   const [step, setStep] = useState(0);
@@ -93,9 +95,8 @@ export default function AuthIndexScreen() {
   }
 
   function closeSheet() {
+    Keyboard.dismiss();
     bottomSheetRef.current?.close();
-    setSheetOpen(false);
-    setAuthMode("login");
   }
 
   function handleContinue() {
@@ -167,6 +168,10 @@ export default function AuthIndexScreen() {
     );
   }
 
+  if (authLoading || user) {
+    return <LoadingScreen variant="feed" />;
+  }
+
   return (
     <View className="flex-1 bg-black">
       <ImageBackground
@@ -192,7 +197,7 @@ export default function AuthIndexScreen() {
           >
             {step > 0 || sheetOpen ? (
               <TouchableOpacity onPress={handleBack}>
-                <DirectionalIcon direction="back" size={28} color="white" />
+                <DirectionalIcon direction="back" size={28} color="#FAF9F6" />
               </TouchableOpacity>
             ) : (
               <View style={{ width: 28 }} />
@@ -213,6 +218,42 @@ export default function AuthIndexScreen() {
 
           {!sheetOpen && (
             <>
+              <View
+                pointerEvents="box-none"
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 88,
+                  bottom: 128,
+                  zIndex: 20,
+                  flexDirection: "row",
+                }}
+              >
+                <TouchableOpacity
+                  accessible={false}
+                  activeOpacity={1}
+                  style={{ flex: 1 }}
+                  disabled={step === 0}
+                  onPress={() => {
+                    setTransitionDirection(-1);
+                    setStep((currentStep) => Math.max(0, currentStep - 1));
+                  }}
+                />
+                <TouchableOpacity
+                  accessible={false}
+                  activeOpacity={1}
+                  style={{ flex: 1 }}
+                  disabled={step === steps.length - 1}
+                  onPress={() => {
+                    setTransitionDirection(1);
+                    setStep((currentStep) =>
+                      Math.min(steps.length - 1, currentStep + 1),
+                    );
+                  }}
+                />
+              </View>
+
               <Animated.View
                 key={current.title}
                 entering={(visualTransitionDirection === 1 ? FadeInRight : FadeInLeft).duration(350)}
@@ -269,17 +310,20 @@ export default function AuthIndexScreen() {
           </SafeAreaView>
         </GestureDetector>
 
-        <BottomSheet
+        {sheetOpen ? <BottomSheet
           ref={bottomSheetRef}
           index={-1}
           enablePanDownToClose
-          keyboardBehavior={Platform.OS === "android" ? "fillParent" : "interactive"}
-          keyboardBlurBehavior="none"
+          keyboardBehavior="interactive"
+          keyboardBlurBehavior="restore"
           enableBlurKeyboardOnGesture
-          android_keyboardInputMode="adjustResize"
-          onClose={() => setSheetOpen(false)}
+          android_keyboardInputMode="adjustPan"
+          onClose={() => {
+            setSheetOpen(false);
+            setAuthMode("login");
+          }}
           backgroundStyle={{
-            backgroundColor: isDark ? "#111827" : "white",
+            backgroundColor: isDark ? "#111827" : "#FAF9F6",
             borderTopLeftRadius: 36,
             borderTopRightRadius: 36,
           }}
@@ -328,7 +372,7 @@ export default function AuthIndexScreen() {
               <ForgotPasswordForm onBack={() => setAuthMode("login")} />
             )}
           </BottomSheetScrollView>
-        </BottomSheet>
+        </BottomSheet> : null}
       </ImageBackground>
     </View>
   );

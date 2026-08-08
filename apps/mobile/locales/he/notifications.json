@@ -19,6 +19,8 @@
     "COMMENT_LIKE": "{{name}} ועוד {{count}} אהבו את התגובה שלך"
   },
   "types": {
+    "FRIEND_POST": "{{name}} שיתף/ה פוסט חדש",
+    "POST_TAG": "{{name}} תייג/ה אותך בפוסט",
     "POST_LIKE": "{{name}} אהב/ה את הפוסט שלך",
     "POST_COMMENT": "{{name}} הגיב/ה לפוסט שלך",
     "COMMENT_REPLY": "{{name}} השיב/ה לתגובה שלך",

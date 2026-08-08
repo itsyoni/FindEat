@@ -103,10 +103,10 @@ export default function RestaurantMenuSection({
     return (
       <View
         className="items-center justify-center py-16"
-        style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       >
         <View className="h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 dark:border-gray-700">
-          <BookOpenIcon size={28} color={isDark ? "#FFF" : "#111"} />
+          <BookOpenIcon size={28} color={isDark ? "#FAF9F6" : "#111"} />
         </View>
         <Text className="mt-4 text-center text-gray-500">
           {t("noMenu")}
@@ -152,7 +152,7 @@ export default function RestaurantMenuSection({
             onPress={() => setQuery("")}
             className="h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800"
           >
-            <XIcon size={14} color={isDark ? "#FFF" : "#111"} weight="bold" />
+            <XIcon size={14} color={isDark ? "#FAF9F6" : "#111"} weight="bold" />
           </TouchableOpacity>
         )}
       </View>

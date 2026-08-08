@@ -53,6 +53,9 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
 
     try {
       const selectedUser = users.find((u) => u.id === userId);
+      const recentUser = recentSearches.find(
+        (item) => item.type === "USER" && item.id === userId,
+      );
 
       if (selectedUser) {
         const updated = await addRecentSearch(user.id, {
@@ -67,11 +70,19 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
       }
 
       if (mode === "chat") {
-        const conversation = await api.chats.startDirectConversation(userId);
-
         router.push({
           pathname: "/chats/[id]",
-          params: { id: conversation.id },
+          params: {
+            id: "new-direct",
+            type: "DIRECT",
+            targetUserId: userId,
+            title:
+              selectedUser?.displayName?.trim() ||
+              selectedUser?.username ||
+              recentUser?.title ||
+              userId,
+            imageUrl: selectedUser?.avatarUrl ?? recentUser?.imageUrl ?? "",
+          },
         });
 
         return;
@@ -163,7 +174,7 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
                 }}
                 hitSlop={12}
               >
-                <XIcon size={16} color="#000" />
+                <XIcon size={16} color="#0B0B0A" />
               </TouchableOpacity>
             </TouchableOpacity>
           )}

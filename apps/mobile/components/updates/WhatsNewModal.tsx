@@ -38,7 +38,7 @@ export default function WhatsNewModal() {
 
   if (!current) return null;
   const isLast = index >= updates.length - 1;
-  const surface = isDark ? '#151515' : '#FFF';
+  const surface = isDark ? '#151515' : '#FAF9F6';
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => setUpdates([])}>
@@ -50,12 +50,12 @@ export default function WhatsNewModal() {
           ) : (
             <View className="h-40 items-center justify-center bg-amber-100 dark:bg-amber-950/40">
               <View className="h-20 w-20 items-center justify-center rounded-full bg-brand">
-                <SparkleIcon size={40} color="#FFF" weight="fill" />
+                <SparkleIcon size={40} color="#FAF9F6" weight="fill" />
               </View>
             </View>
           )}
           <TouchableOpacity onPress={() => setUpdates([])} className="absolute right-4 top-4 h-10 w-10 items-center justify-center rounded-full bg-black/55">
-            <XIcon size={20} color="#FFF" weight="bold" />
+            <XIcon size={20} color="#FAF9F6" weight="bold" />
           </TouchableOpacity>
           <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center">

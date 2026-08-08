@@ -102,7 +102,7 @@ export default function DishContributionsBottomSheet({
                             <View className="absolute right-1.5 top-1.5 h-7 w-7 items-center justify-center rounded-full bg-brand">
                               <CheckCircleIcon
                                 size={17}
-                                color="#FFFFFF"
+                                color="#FAF9F6"
                                 weight="fill"
                               />
                             </View>

@@ -7,7 +7,7 @@ type PostImage = {
 };
 
 type CropPostImageOptions = PostImage & {
-  aspect: "CONTENT" | "REVIEW";
+  aspect: "CONTENT" | "REVIEW" | "DISH";
   toolbarTitle: string;
 };
 
@@ -17,9 +17,10 @@ export async function cropPostImage({
   height,
   aspect,
   toolbarTitle,
-}: CropPostImageOptions): Promise<PostImage> {
+}: CropPostImageOptions): Promise<PostImage | null> {
   const cropWidth = 1200;
-  const cropHeight = aspect === "CONTENT" ? 1500 : 1200;
+  const cropHeight =
+    aspect === "CONTENT" ? 1500 : aspect === "DISH" ? 900 : 1200;
 
   try {
     const cropped = await ImageCropPicker.openCropper({
@@ -35,18 +36,18 @@ export async function cropPostImage({
       forceJpg: true,
     });
 
+    const normalizedPath = cropped.path.startsWith('/')
+      ? `file://${cropped.path}`
+      : cropped.path;
+
     return {
-      uri: cropped.path,
+      uri: normalizedPath,
       width: Math.max(1, Math.round(cropped.width)),
       height: Math.max(1, Math.round(cropped.height)),
     };
   } catch (error) {
     if ((error as { code?: string }).code === "E_PICKER_CANCELLED") {
-      return {
-        uri,
-        width: Math.max(1, Math.round(width)),
-        height: Math.max(1, Math.round(height)),
-      };
+      return null;
     }
     throw error;
   }

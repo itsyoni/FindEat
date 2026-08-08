@@ -66,7 +66,7 @@ function PresentedBottomSheet({
         disappearsOnIndex={-1}
         pressBehavior="close"
         style={{
-          backgroundColor: "#000",
+          backgroundColor: "#0B0B0A",
         }}
       />
     ),
@@ -90,7 +90,7 @@ function PresentedBottomSheet({
       footerComponent={footerComponent}
       stackBehavior={stackBehavior}
       backgroundStyle={{
-        backgroundColor: isDark ? "#111827" : "white",
+        backgroundColor: isDark ? "#111827" : "#FAF9F6",
         borderRadius: 28,
       }}
       handleIndicatorStyle={{

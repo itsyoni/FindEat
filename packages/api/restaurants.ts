@@ -47,6 +47,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
       website?: string | null;
       instagram?: string | null;
       openingHours?: RestaurantOpeningHours | null;
+      foodCertifications?: string[];
     }) {
       const { data } = await api.patch<Restaurant>("/restaurants/me", payload);
       return data;

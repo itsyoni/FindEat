@@ -1,13 +1,14 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploadImage";
-import { Dish } from "@findeat/types";
 import {
   CreateReviewDraft,
   CreateReviewStep,
   ReviewDishFormDraft,
+  ReviewInviteeDraft,
+  SelectedReviewDish,
 } from "@findeat/types/review";
-import type { PostVisibility } from "@findeat/types";
+import type { PostVisibility, SelectedRestaurant } from "@findeat/types";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState, View } from "react-native";
@@ -20,12 +21,14 @@ import SelectMenuDishStep from "./steps/SelectMenuDishStep";
 import ReviewParticipantsStep from "./steps/ReviewParticipantsStep";
 import {
   prependPostToFeedCache,
+  updatePostInFeedCache,
   updateRestaurantStatusInFeedCache,
 } from "@/hooks/useFeed";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/contexts/ToastContext";
+import { useAppTheme } from "@/contexts/ThemeContext";
 import {
   createCombinedUploadProgress,
   usePostUpload,
@@ -45,27 +48,93 @@ const initialDraft: CreateReviewDraft = {
   participants: [],
 };
 
+export type ReviewCreatorSnapshot = {
+  step: CreateReviewStep;
+  draft: CreateReviewDraft;
+  selectedMenuDish: SelectedReviewDish | null;
+  pendingDish: ReviewDishFormDraft | null;
+  editingDishId?: string | null;
+};
+
+export type LinkedContentPreview = {
+  media: {
+    id: string;
+    type: "IMAGE" | "VIDEO";
+    uri: string;
+  }[];
+  caption: string;
+};
+
 export default function ReviewCreator({
   initialRestaurantId,
+  initialRestaurant,
   initialLinkedPostId,
+  initialCoverImageUrl,
+  initialCoverImageUri,
+  linkedContentPublisher,
+  onLinkedFlowBack,
+  initialParticipants = [],
+  initialVisibility = "PUBLIC",
+  initialSnapshot,
+  linkedContentPreview,
 }: {
   initialRestaurantId?: string;
+  initialRestaurant?: SelectedRestaurant;
   initialLinkedPostId?: string;
+  initialCoverImageUrl?: string;
+  initialCoverImageUri?: string;
+  linkedContentPublisher?: (
+    reportProgress: (progress: number) => void,
+  ) => Promise<{ postId: string; restaurantId: string; coverImageUrl?: string }>;
+  onLinkedFlowBack?: (snapshot: ReviewCreatorSnapshot | null) => void;
+  initialParticipants?: ReviewInviteeDraft[];
+  initialVisibility?: PostVisibility;
+  initialSnapshot?: ReviewCreatorSnapshot | null;
+  linkedContentPreview?: LinkedContentPreview;
 }) {
   const queryClient = useQueryClient();
   const { refreshUser, user } = useAuth();
   const { t } = useTranslation("create");
   const { showToast } = useToast();
+  const { isDark } = useAppTheme();
   const { startPostUpload } = usePostUpload();
-  const [step, setStep] = useState<CreateReviewStep>("RESTAURANT");
-  const [draft, setDraft] = useState<CreateReviewDraft>(initialDraft);
-  const [loading, setLoading] = useState(false);
-  const [selectedMenuDish, setSelectedMenuDish] = useState<Dish | null>(null);
-  const [pendingDish, setPendingDish] = useState<ReviewDishFormDraft | null>(null);
-  const [initializingRestaurant, setInitializingRestaurant] = useState(
-    !!initialRestaurantId,
+  const embeddedFlow = !!linkedContentPublisher;
+  const [step, setStep] = useState<CreateReviewStep>(
+    initialSnapshot?.step ?? (initialRestaurant ? "COVER" : "RESTAURANT"),
   );
-  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draft, setDraft] = useState<CreateReviewDraft>(() =>
+    initialSnapshot
+      ? {
+          ...initialSnapshot.draft,
+          visibility: embeddedFlow
+            ? initialVisibility
+            : initialSnapshot.draft.visibility,
+          participants: [...initialParticipants],
+        }
+      : {
+          ...initialDraft,
+          visibility: initialVisibility,
+          restaurant: initialRestaurant ?? null,
+          linkedPostId: initialLinkedPostId,
+          coverImageUrl: initialCoverImageUrl,
+          coverImageUri: initialCoverImageUri,
+          participants: [...initialParticipants],
+        },
+  );
+  const [loading, setLoading] = useState(false);
+  const [selectedMenuDish, setSelectedMenuDish] = useState<SelectedReviewDish | null>(
+    initialSnapshot?.selectedMenuDish ?? null,
+  );
+  const [pendingDish, setPendingDish] = useState<ReviewDishFormDraft | null>(
+    initialSnapshot?.pendingDish ?? null,
+  );
+  const [editingDishId, setEditingDishId] = useState<string | null>(
+    initialSnapshot?.editingDishId ?? null,
+  );
+  const [initializingRestaurant, setInitializingRestaurant] = useState(
+    !!initialRestaurantId && !initialRestaurant,
+  );
+  const [draftHydrated, setDraftHydrated] = useState(embeddedFlow);
   const [resumedDraft, setResumedDraft] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const draftSnapshotRef = useRef<Omit<ReviewPostDraft, "updatedAt"> | null>(null);
@@ -73,6 +142,7 @@ export default function ReviewCreator({
 
   useEffect(() => {
     if (!user?.id) return;
+    if (embeddedFlow) return;
     let cancelled = false;
 
     void loadReviewPostDraft(user.id)
@@ -101,6 +171,7 @@ export default function ReviewCreator({
               });
               setSelectedMenuDish(savedDraft.selectedMenuDish ?? null);
               setPendingDish(savedDraft.pendingDish ?? null);
+              setEditingDishId(savedDraft.editingDishId ?? null);
               setStep(savedDraft.step);
               setInitializingRestaurant(false);
               setResumedDraft(true);
@@ -117,12 +188,13 @@ export default function ReviewCreator({
     return () => {
       cancelled = true;
     };
-  }, [t, user?.id]);
+  }, [embeddedFlow, t, user?.id]);
 
   useEffect(() => {
     if (
       !draftHydrated ||
       !user?.id ||
+      embeddedFlow ||
       loading ||
       publishCompletedRef.current
     ) {
@@ -147,12 +219,17 @@ export default function ReviewCreator({
         draft,
         selectedMenuDish,
         pendingDish,
+        editingDishId,
       }).catch((error) => console.error("Could not save review draft", error));
     }, 500);
     return () => clearTimeout(timer);
-  }, [draft, draftHydrated, loading, pendingDish, selectedMenuDish, step, user?.id]);
+  }, [draft, draftHydrated, editingDishId, embeddedFlow, loading, pendingDish, selectedMenuDish, step, user?.id]);
 
   useEffect(() => {
+    if (embeddedFlow) {
+      draftSnapshotRef.current = null;
+      return;
+    }
     const hasDraftContent =
       draft.restaurant !== null ||
       !!draft.coverImageUri ||
@@ -168,12 +245,12 @@ export default function ReviewCreator({
       hasDraftContent &&
       !loading &&
       !publishCompletedRef.current
-        ? { step, draft, selectedMenuDish, pendingDish }
+        ? { step, draft, selectedMenuDish, pendingDish, editingDishId }
         : null;
-  }, [draft, draftHydrated, loading, pendingDish, selectedMenuDish, step]);
+  }, [draft, draftHydrated, editingDishId, embeddedFlow, loading, pendingDish, selectedMenuDish, step]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || embeddedFlow) return;
     const subscription = AppState.addEventListener("change", (state) => {
       const snapshot = draftSnapshotRef.current;
       if (
@@ -185,10 +262,10 @@ export default function ReviewCreator({
       }
     });
     return () => subscription.remove();
-  }, [user?.id]);
+  }, [embeddedFlow, user?.id]);
 
   useEffect(() => {
-    if (!draftHydrated || !initialRestaurantId || resumedDraft) return;
+    if (!draftHydrated || initialRestaurant || !initialRestaurantId || resumedDraft) return;
     let cancelled = false;
 
     void api.restaurants
@@ -199,6 +276,7 @@ export default function ReviewCreator({
           ...current,
           restaurant: { source: "FINDEAT", restaurant },
           linkedPostId: initialLinkedPostId,
+          coverImageUrl: initialCoverImageUrl,
         }));
         setStep("COVER");
       })
@@ -213,13 +291,91 @@ export default function ReviewCreator({
     return () => {
       cancelled = true;
     };
-  }, [draftHydrated, initialLinkedPostId, initialRestaurantId, resumedDraft]);
+  }, [draftHydrated, initialCoverImageUrl, initialLinkedPostId, initialRestaurant, initialRestaurantId, resumedDraft]);
 
   function updateDraft(update: Partial<CreateReviewDraft>) {
     setDraft((current) => ({
       ...current,
       ...update,
     }));
+  }
+
+  function currentSnapshot(): ReviewCreatorSnapshot {
+    return {
+      step,
+      draft: { ...draft, participants: [...draft.participants] },
+      selectedMenuDish,
+      pendingDish,
+      editingDishId,
+    };
+  }
+
+  function hasReviewProgress() {
+    return (
+      draft.restaurant !== null ||
+      !!draft.coverImageUri ||
+      !!draft.summary.trim() ||
+      draft.items.length > 0 ||
+      draft.participants.length > 0 ||
+      draft.overallRating !== undefined ||
+      draft.atmosphereRating !== undefined ||
+      draft.serviceRating !== undefined ||
+      draft.valueRating !== undefined ||
+      !!pendingDish
+    );
+  }
+
+  function confirmExitReview() {
+    if (!hasReviewProgress()) {
+      router.back();
+      return;
+    }
+
+    Alert.alert(t("exitReviewTitle"), t("exitReviewBody"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("discardAndExit"),
+        style: "destructive",
+        onPress: () => {
+          if (user?.id) void clearPostDraft(user.id, "review");
+          router.back();
+        },
+      },
+      {
+        text: t("saveAndExit"),
+        onPress: () => void handleSaveDraft(),
+      },
+    ]);
+  }
+
+  function leaveLinkedReview() {
+    if (!onLinkedFlowBack) return;
+    const hasReviewDetails =
+      !!draft.summary.trim() ||
+      draft.items.length > 0 ||
+      draft.overallRating !== undefined ||
+      draft.atmosphereRating !== undefined ||
+      draft.serviceRating !== undefined ||
+      draft.valueRating !== undefined ||
+      !!pendingDish;
+
+    if (!hasReviewDetails) {
+      onLinkedFlowBack(null);
+      return;
+    }
+
+    Alert.alert(t("leaveReviewTitle"), t("leaveReviewBody"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("discardReviewDetails"),
+        style: "destructive",
+        onPress: () => onLinkedFlowBack(null),
+      },
+      {
+        text: t("saveReviewDetails"),
+        onPress: () => onLinkedFlowBack(currentSnapshot()),
+      },
+    ]);
   }
 
   function changeVisibility(visibility: PostVisibility) {
@@ -243,10 +399,6 @@ export default function ReviewCreator({
   }
 
   function calculateOverallRating() {
-    if (typeof draft.overallRating === "number") {
-      return draft.overallRating;
-    }
-
     const ratings = [
       draft.atmosphereRating,
       draft.serviceRating,
@@ -254,9 +406,10 @@ export default function ReviewCreator({
       ...draft.items.map((item) => item.rating),
     ].filter((rating): rating is number => typeof rating === "number");
 
-    if (ratings.length === 0) return undefined;
+    if (ratings.length === 0) return draft.overallRating;
 
-    return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+    const average = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+    return Math.round(average * 10) / 10;
   }
 
   async function getRestaurantId() {
@@ -297,28 +450,36 @@ export default function ReviewCreator({
     const pendingOverallRating = calculateOverallRating();
     const pendingUserId = user?.id;
     const uploadCount =
-      (pendingDraft.coverImageUri ? 1 : 0) +
+      (pendingDraft.coverImageUri && !linkedContentPublisher ? 1 : 0) +
       pendingDraft.items.filter((item) => !!item.imageUri).length;
 
     startPostUpload({
       kind: "review",
       run: async (reportProgress) => {
         reportProgress(0.04);
-        const restaurantId = await getRestaurantId();
+        const linkedContent = linkedContentPublisher
+          ? await linkedContentPublisher((progress) =>
+              reportProgress(0.04 + progress * 0.54),
+            )
+          : undefined;
+        const restaurantId = linkedContent?.restaurantId ?? (await getRestaurantId());
         if (!restaurantId) throw new Error(t("missingRestaurantBody"));
 
         const reportMediaProgress = createCombinedUploadProgress(
           uploadCount,
           reportProgress,
+          linkedContent ? 0.6 : 0.08,
+          0.9,
         );
         let uploadIndex = 0;
-        const coverImageUrl = pendingDraft.coverImageUri
-          ? await uploadImage(
-              pendingDraft.coverImageUri,
-              "review",
-              reportMediaProgress(uploadIndex++),
-            )
-          : undefined;
+        const coverImageUrl = linkedContent?.coverImageUrl ??
+          (pendingDraft.coverImageUri
+            ? await uploadImage(
+                pendingDraft.coverImageUri,
+                "review",
+                reportMediaProgress(uploadIndex++),
+              )
+            : pendingDraft.coverImageUrl);
 
         const uploadedItems = await Promise.all(
           pendingDraft.items.map(async (item) => {
@@ -335,7 +496,7 @@ export default function ReviewCreator({
                   ? await uploadImage(item.imageUri, "dish", progress)
                   : undefined,
               rating: item.rating,
-              text: item.text.trim(),
+              text: item.text?.trim() || undefined,
               order: item.order,
             };
           }),
@@ -351,7 +512,7 @@ export default function ReviewCreator({
           atmosphereRating: pendingDraft.atmosphereRating,
           serviceRating: pendingDraft.serviceRating,
           valueRating: pendingDraft.valueRating,
-          linkedPostId: pendingDraft.linkedPostId,
+          linkedPostId: linkedContent?.postId ?? pendingDraft.linkedPostId,
           participantIds: pendingDraft.participants.map(
             (participant) => participant.id,
           ),
@@ -370,34 +531,64 @@ export default function ReviewCreator({
           visited: true,
           wantToTry: false,
         });
+        if (linkedContent?.postId && createdPost.reviewPost) {
+          const dishPreviewImage = createdPost.reviewPost.items
+            .map(
+              (item) =>
+                item.primaryMedia?.imageUrl ||
+                item.media?.[0]?.imageUrl ||
+                item.imageUrl ||
+                item.menuItem?.imageUrl,
+            )
+            .find((imageUrl) => !!imageUrl?.trim());
+          const reviewPreviewImages = [
+            dishPreviewImage?.trim(),
+            createdPost.reviewPost.coverImageUrl?.trim(),
+            linkedContent.coverImageUrl?.trim(),
+          ].filter(
+            (imageUrl, index, candidates): imageUrl is string =>
+              Boolean(imageUrl) && candidates.indexOf(imageUrl) === index,
+          );
+          const linkedReview = {
+            id: createdPost.id,
+            type: createdPost.type,
+            visibility: createdPost.visibility,
+            authorId: createdPost.authorId,
+            restaurantId: createdPost.restaurantId,
+            createdAt: createdPost.createdAt,
+            contentPost: null,
+            reviewPost: {
+              coverImageUrl: createdPost.reviewPost.coverImageUrl,
+              summary: createdPost.reviewPost.summary,
+              overallRating: createdPost.reviewPost.overallRating,
+              previewImageUrl: reviewPreviewImages[0] ?? null,
+              previewImageUrls: reviewPreviewImages,
+            },
+          };
+          updatePostInFeedCache(queryClient, (cachedPost) =>
+            cachedPost.id === linkedContent.postId
+              ? {
+                  ...cachedPost,
+                  linkedPosts: [
+                    linkedReview,
+                    ...(cachedPost.linkedPosts ?? []).filter(
+                      (linkedPost) => linkedPost.id !== linkedReview.id,
+                    ),
+                  ],
+                }
+              : cachedPost,
+          );
+        }
         prependPostToFeedCache(queryClient, createdPost);
+        // A linked content post may already be visible in the feed from the
+        // first half of this publish flow. Refresh it now that the review and
+        // its preview media exist on the shared experience.
+        void queryClient.invalidateQueries({ queryKey: ["feed"] });
         void queryClient.invalidateQueries({ queryKey: ["restaurant-posts"] });
         void refreshUser();
         return {
           type: "post",
           postId: createdPost.id,
-          afterOpen: pendingDraft.linkedPostId
-            ? undefined
-            : () => {
-                Alert.alert(
-                  t("addContentPromptTitle"),
-                  t("addContentPromptBody"),
-                  [
-                    { text: t("done"), style: "cancel" },
-                    {
-                      text: t("addQuickPost"),
-                      onPress: () =>
-                        router.push({
-                          pathname: "/create/content",
-                          params: {
-                            restaurantId,
-                            linkedPostId: createdPost.id,
-                          },
-                        }),
-                    },
-                  ],
-                );
-              },
         };
       },
     });
@@ -414,6 +605,7 @@ export default function ReviewCreator({
         draft,
         selectedMenuDish,
         pendingDish,
+        editingDishId,
       });
       showToast(t("draftSaved"));
       router.back();
@@ -430,7 +622,9 @@ export default function ReviewCreator({
   }
 
   return (
-    <View className="flex-1 bg-canvas dark:bg-black">
+    <View
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
+    >
       {step === "RESTAURANT" && (
         <RestaurantStep
           selectedRestaurant={draft.restaurant}
@@ -439,9 +633,7 @@ export default function ReviewCreator({
             updateDraft({ restaurant, linkedPostId: undefined });
             setStep("COVER");
           }}
-          onBack={() => router.back()}
-          onSaveDraft={() => void handleSaveDraft()}
-          savingDraft={savingDraft}
+          onBack={confirmExitReview}
         />
       )}
 
@@ -450,14 +642,24 @@ export default function ReviewCreator({
           draft={draft}
           onChange={updateDraft}
           onBack={() => {
+            if (onLinkedFlowBack) {
+              leaveLinkedReview();
+              return;
+            }
+            if (initialLinkedPostId) {
+              confirmExitReview();
+              return;
+            }
             updateDraft({ restaurant: null, items: [] });
             setSelectedMenuDish(null);
             setStep("RESTAURANT");
           }}
           onNext={() => setStep("DISHES")}
-          onChooseParticipants={() => setStep("PARTICIPANTS")}
-          onSaveDraft={() => void handleSaveDraft()}
-          savingDraft={savingDraft}
+          onChooseParticipants={
+            embeddedFlow ? undefined : () => setStep("PARTICIPANTS")
+          }
+          derivedCover={!!initialCoverImageUrl || !!initialCoverImageUri}
+          compactLinkedFlow={embeddedFlow}
         />
       )}
 
@@ -472,13 +674,45 @@ export default function ReviewCreator({
       {step === "DISHES" && (
         <DishesStep
           items={draft.items}
+          pendingDish={pendingDish}
           onBack={() => setStep("COVER")}
           onAddCustomDish={() => {
+            setEditingDishId(null);
             setSelectedMenuDish(null);
-            setPendingDish(null);
+            setPendingDish({ dishName: "", text: "" });
             setStep("ADD_DISH_DETAILS");
           }}
-          onAddMenuDish={() => setStep("SELECT_MENU_DISH")}
+          onAddMenuDish={() => {
+            setEditingDishId(null);
+            setStep("SELECT_MENU_DISH");
+          }}
+          onEditDish={(item) => {
+            setEditingDishId(item.id);
+            setSelectedMenuDish(
+              item.menuItemId && item.menuItemName
+                ? {
+                    id: item.menuItemId,
+                    name: item.menuItemName,
+                    price: item.menuItemPrice,
+                    imageUrl: item.fallbackImageUrl,
+                  }
+                : null,
+            );
+            setPendingDish({
+              dishName: item.customDishName ?? item.menuItemName ?? "",
+              price: item.customPrice ?? item.menuItemPrice ?? undefined,
+              imageUri: item.imageUri,
+              rating: item.rating,
+              text: item.text ?? "",
+            });
+            setStep("ADD_DISH_DETAILS");
+          }}
+          onContinuePendingDish={() => setStep("ADD_DISH_DETAILS")}
+          onDiscardPendingDish={() => {
+            setEditingDishId(null);
+            setSelectedMenuDish(null);
+            setPendingDish(null);
+          }}
           onRemoveDish={(id) =>
             setDraft((current) => ({
               ...current,
@@ -487,9 +721,9 @@ export default function ReviewCreator({
                 .map((item, index) => ({ ...item, order: index })),
             }))
           }
-          onNext={() => setStep("PREVIEW")}
-          onSaveDraft={() => void handleSaveDraft()}
-          savingDraft={savingDraft}
+          onNext={() =>
+            setStep(pendingDish ? "ADD_DISH_DETAILS" : "PREVIEW")
+          }
         />
       )}
 
@@ -502,17 +736,21 @@ export default function ReviewCreator({
           }
           onBack={() => setStep("DISHES")}
           onSelect={(dish) => {
+            setEditingDishId(null);
             setSelectedMenuDish(dish);
-            setPendingDish(null);
+            setPendingDish({
+              dishName: dish.name,
+              price: dish.price ?? undefined,
+              text: "",
+            });
             setStep("ADD_DISH_DETAILS");
           }}
           onAddCustom={() => {
+            setEditingDishId(null);
             setSelectedMenuDish(null);
-            setPendingDish(null);
+            setPendingDish({ dishName: "", text: "" });
             setStep("ADD_DISH_DETAILS");
           }}
-          onSaveDraft={() => void handleSaveDraft()}
-          savingDraft={savingDraft}
         />
       )}
 
@@ -520,27 +758,43 @@ export default function ReviewCreator({
         <AddDishDetailsStep
           selectedDish={selectedMenuDish}
           initialDraft={pendingDish}
-          onDraftChange={setPendingDish}
-          onSaveDraft={() => void handleSaveDraft()}
-          savingDraft={savingDraft}
+          onDraftChange={(update) =>
+            setPendingDish((current) => ({
+              dishName: selectedMenuDish?.name ?? "",
+              price: selectedMenuDish?.price ?? undefined,
+              text: "",
+              ...current,
+              ...update,
+            }))
+          }
+          editing={!!editingDishId}
           onBack={() =>
-            selectedMenuDish
+            editingDishId
+              ? setStep("DISHES")
+              : selectedMenuDish
               ? setStep("SELECT_MENU_DISH")
               : setStep("DISHES")
           }
           onSave={(item) => {
             setDraft((current) => ({
               ...current,
-              items: [
-                ...current.items,
-                {
-                  ...item,
-                  id: Date.now().toString(),
-                  order: current.items.length,
-                },
-              ],
+              items: editingDishId
+                ? current.items.map((currentItem) =>
+                    currentItem.id === editingDishId
+                      ? { ...currentItem, ...item }
+                      : currentItem,
+                  )
+                : [
+                    ...current.items,
+                    {
+                      ...item,
+                      id: Date.now().toString(),
+                      order: current.items.length,
+                    },
+                  ],
             }));
 
+            setEditingDishId(null);
             setSelectedMenuDish(null);
             setPendingDish(null);
             setStep("DISHES");
@@ -551,13 +805,13 @@ export default function ReviewCreator({
       {step === "PREVIEW" && (
         <PreviewStep
           draft={draft}
+          overallRating={calculateOverallRating()}
           loading={loading}
           onBack={() => setStep("DISHES")}
           onPublish={publishReview}
           onVisibilityChange={changeVisibility}
-          onLinkedPostChange={(linkedPostId) => updateDraft({ linkedPostId })}
-          onSaveDraft={() => void handleSaveDraft()}
-          savingDraft={savingDraft}
+          linkedContentPreview={linkedContentPreview}
+          showVisibilitySelector={!embeddedFlow}
         />
       )}
     </View>

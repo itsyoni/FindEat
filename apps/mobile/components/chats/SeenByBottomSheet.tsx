@@ -18,15 +18,6 @@ type Props = {
   onClose: () => void;
 };
 
-function formatSeenTime(value: string) {
-  return new Date(value).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function SeenByBottomSheet({ open, viewers, onClose }: Props) {
   const { t } = useTranslation("chat");
 
@@ -67,7 +58,7 @@ export default function SeenByBottomSheet({ open, viewers, onClose }: Props) {
                 {item.user.displayName ?? item.user.username}
               </Text>
               <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                {t("seenAt", { time: formatSeenTime(item.readAt) })}
+                {t("seen")}
               </Text>
             </View>
             <ChecksIcon size={19} color="#10B981" weight="bold" />

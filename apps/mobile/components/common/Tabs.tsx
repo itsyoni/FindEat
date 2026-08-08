@@ -23,7 +23,7 @@ export default function Tabs<T extends string>({
   return (
     <View
       className="flex-row border-b border-line dark:border-gray-800"
-      style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+      style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;

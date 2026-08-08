@@ -12,7 +12,7 @@ import {
   NotePencilIcon,
   PlayIcon,
 } from "phosphor-react-native";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -24,6 +24,55 @@ import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Target = LinkedPost | Post;
+
+type ReviewPreviewSource = {
+  previewImageUrl?: string | null;
+  previewImageUrls?: string[];
+  coverImageUrl?: string | null;
+  items?: {
+    imageUrl?: string | null;
+    primaryMedia?: { imageUrl?: string | null } | null;
+    media?: { imageUrl?: string | null }[];
+    menuItem?: { imageUrl?: string | null } | null;
+  }[];
+};
+
+function ConnectionPreview({
+  candidates,
+  fallback,
+}: {
+  candidates: (string | null | undefined)[];
+  fallback: ReactNode;
+}) {
+  const imageUrls = candidates
+    .map((candidate) => candidate?.trim())
+    .filter(
+      (candidate, index, values): candidate is string =>
+        Boolean(candidate) && values.indexOf(candidate) === index,
+    );
+  const candidateKey = imageUrls.join("|");
+  const [failedCandidate, setFailedCandidate] = useState({
+    key: candidateKey,
+    index: 0,
+  });
+  const candidateIndex =
+    failedCandidate.key === candidateKey ? failedCandidate.index : 0;
+
+  const imageUrl = imageUrls[candidateIndex];
+  if (!imageUrl) return fallback;
+
+  return (
+    <ProgressiveImage
+      key={imageUrl}
+      source={{ uri: imageUrl }}
+      style={{ width: "100%", height: "100%" }}
+      contentFit="cover"
+      onError={() =>
+        setFailedCandidate({ key: candidateKey, index: candidateIndex + 1 })
+      }
+    />
+  );
+}
 
 export default function PostConnectionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -87,12 +136,23 @@ export default function PostConnectionsScreen() {
 
   function renderTarget(target: Target, connected: boolean) {
     const review = target.type === "REVIEW";
-    const imageUrl = review
-      ? target.reviewPost?.coverImageUrl
-      : target.contentPost?.imageUrl;
+    const reviewPost = target.reviewPost as ReviewPreviewSource | null | undefined;
+    const imageCandidates = review
+      ? [
+          ...(reviewPost?.previewImageUrls ?? []),
+          reviewPost?.previewImageUrl,
+          ...(reviewPost?.items ?? []).flatMap((item) => [
+            item.primaryMedia?.imageUrl,
+            item.media?.[0]?.imageUrl,
+            item.imageUrl,
+            item.menuItem?.imageUrl,
+          ]),
+          reviewPost?.coverImageUrl,
+        ]
+      : [target.contentPost?.imageUrl];
     const text = review
       ? target.reviewPost?.summary
-      : target.contentPost?.description;
+      : target.contentPost?.caption;
 
     return (
       <View
@@ -100,13 +160,16 @@ export default function PostConnectionsScreen() {
         className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
       >
         <View className="h-16 w-14 items-center justify-center overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
-          {imageUrl ? (
-            <ProgressiveImage source={{ uri: imageUrl }} className="h-full w-full" resizeMode="cover" />
-          ) : review ? (
-            <NotePencilIcon size={25} color="#9CA3AF" weight="fill" />
-          ) : (
-            <PlayIcon size={25} color="#9CA3AF" weight="fill" />
-          )}
+          <ConnectionPreview
+            candidates={imageCandidates}
+            fallback={
+              review ? (
+                <NotePencilIcon size={25} color="#9CA3AF" weight="fill" />
+              ) : (
+                <PlayIcon size={25} color="#9CA3AF" weight="fill" />
+              )
+            }
+          />
         </View>
         <View className="mx-3 flex-1">
           <Text className="font-bold text-black dark:text-white">
@@ -132,17 +195,17 @@ export default function PostConnectionsScreen() {
               color={
                 connected
                   ? isDark
-                    ? "#FFFFFF"
+                    ? "#FAF9F6"
                     : "#171717"
                   : isDark
                     ? "#171717"
-                    : "#FFFFFF"
+                    : "#FAF9F6"
               }
             />
           ) : connected ? (
-            <LinkBreakIcon size={18} color={isDark ? "#FFFFFF" : "#171717"} weight="bold" />
+            <LinkBreakIcon size={18} color={isDark ? "#FAF9F6" : "#171717"} weight="bold" />
           ) : (
-            <LinkSimpleIcon size={18} color={isDark ? "#171717" : "#FFFFFF"} weight="bold" />
+            <LinkSimpleIcon size={18} color={isDark ? "#171717" : "#FAF9F6"} weight="bold" />
           )}
           {changingId !== target.id ? (
             <Text
@@ -161,12 +224,12 @@ export default function PostConnectionsScreen() {
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-row items-center border-b border-gray-200 px-4 py-2 dark:border-gray-800">
         <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center">
-          <DirectionalIcon direction="back" size={24} color={isDark ? "#FFF" : "#171717"} weight="bold" />
+          <DirectionalIcon direction="back" size={24} color={isDark ? "#FAF9F6" : "#171717"} weight="bold" />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
           {t("manageConnections")}
@@ -176,7 +239,7 @@ export default function PostConnectionsScreen() {
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={isDark ? "#FFF" : "#171717"} />
+          <ActivityIndicator color={isDark ? "#FAF9F6" : "#171717"} />
         </View>
       ) : isError ? (
         <View className="flex-1 items-center justify-center px-8">

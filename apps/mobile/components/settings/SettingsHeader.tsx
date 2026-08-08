@@ -17,7 +17,7 @@ export default function SettingsHeader({ title }: { title: string }) {
       style={rowStyle}
     >
       <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('back')} onPress={() => router.back()} hitSlop={12} className="min-h-11 min-w-11 items-center justify-center p-2">
-        <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? '#FFF' : '#171717'} />
+        <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? '#FAF9F6' : '#171717'} />
       </TouchableOpacity>
       <Text
         weight="bold"

@@ -63,13 +63,13 @@ export default function PlaceStatusBookmark({
           {favorite ? (
             <HeartIcon
               size={indicatorSize}
-              color="white"
+              color="#FAF9F6"
               weight="fill"
             />
           ) : (
             <CheckIcon
               size={indicatorSize}
-              color="white"
+              color="#FAF9F6"
               weight="bold"
             />
           )}
@@ -91,7 +91,7 @@ export default function PlaceStatusBookmark({
         >
           <FolderSimpleIcon
             size={Math.max(9, Math.round(size * 0.29))}
-            color="#FFFFFF"
+            color="#FAF9F6"
             weight="fill"
           />
         </View>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#8B5CF6",
-    borderColor: "#FFFFFF",
+    borderColor: "#FAF9F6",
     borderWidth: 1.5,
   },
 });

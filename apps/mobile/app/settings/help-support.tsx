@@ -32,10 +32,10 @@ export default function HelpSupportScreen() {
   const { isRtl, rowStyle, textStyle } = useSettingsDirection();
 
   const colors = {
-    background: isDark ? '#000' : '#FBFAF8',
-    surface: isDark ? '#151515' : '#FFF',
+    background: isDark ? '#0B0B0A' : '#FBFAF8',
+    surface: isDark ? '#151515' : '#FAF9F6',
     input: isDark ? '#202020' : '#F3F0EB',
-    text: isDark ? '#FFF' : '#171717',
+    text: isDark ? '#FAF9F6' : '#171717',
     muted: isDark ? '#A3A3A3' : '#737373',
     border: isDark ? '#303030' : '#E7E1D8',
     accent: '#F4B942',

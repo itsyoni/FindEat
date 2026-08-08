@@ -13,14 +13,14 @@ export default function ThemeSettingsScreen() {
   const { t } = useTranslation('settings');
   const { isDark, preference, setPreference } = useAppTheme();
   const { rowStyle, textStyle } = useSettingsDirection();
-  const color = isDark ? '#FFF' : '#111';
+  const color = isDark ? '#FAF9F6' : '#111';
   const options: { key: ThemePreference; label: string; icon: ReactNode }[] = [
     { key: 'system', label: t('systemTheme'), icon: <DeviceMobileIcon size={23} color={color} /> },
     { key: 'light', label: t('lightTheme'), icon: <SunIcon size={23} color={color} /> },
     { key: 'dark', label: t('darkTheme'), icon: <MoonIcon size={23} color={color} /> },
   ];
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#FBFAF8' }}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0B0B0A' : '#FBFAF8' }}>
     <SettingsHeader title={t('chooseTheme')} />
     <View className="pt-3">
       {options.map((option) => (

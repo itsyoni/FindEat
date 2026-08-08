@@ -58,7 +58,7 @@ function ToggleRow({
         value={value}
         onValueChange={onChange}
         trackColor={{ false: "#BDBDBD", true: "#F4B942" }}
-        thumbColor="#FFFFFF"
+        thumbColor="#FAF9F6"
       />
     </TouchableOpacity>
   );
@@ -74,11 +74,11 @@ export default function AccessibilitySettingsScreen() {
     setBoldText,
     setReduceMotion,
   } = useAccessibilityPreferences();
-  const color = isDark ? "#FFF" : "#111";
+  const color = isDark ? "#FAF9F6" : "#111";
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}
+      style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <SettingsHeader title={t("accessibility")} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>

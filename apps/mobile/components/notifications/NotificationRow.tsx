@@ -4,7 +4,7 @@ import type { AppNotification } from '@findeat/types';
 import { useTranslation } from 'react-i18next';
 import { GestureResponderEvent, Text, TouchableOpacity, View } from 'react-native';
 import ProgressiveImage from "@/components/common/ProgressiveImage";
-import { ImagesSquareIcon, TagIcon } from 'phosphor-react-native';
+import { ImagesSquareIcon } from 'phosphor-react-native';
 import ContentVideo from '@/components/posts/content/ContentVideo';
 import {
   notificationText,
@@ -32,6 +32,7 @@ export default function NotificationRow({
 }: Props) {
   const { t, i18n } = useTranslation('notifications');
   const { isDark } = useAppTheme();
+  const fallbackType = !item.actor && item.restaurantId ? 'restaurant' : 'user';
 
   return (
     <TouchableOpacity
@@ -40,18 +41,13 @@ export default function NotificationRow({
       className="flex-row items-center px-5 py-3"
       style={{ backgroundColor: item.readAt ? 'transparent' : isDark ? '#172033' : '#F2F7FF' }}
     >
-      {item.type === 'PROFILE_TAG_UNLOCKED' ? (
-        <View className="h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950">
-          <TagIcon size={24} color="#D97706" weight="fill" />
-        </View>
-      ) : (
-        <Avatar
-          uri={item.actor?.avatarUrl}
-          username={item.actor?.username}
-          userId={item.actor?.id}
-          size={48}
-        />
-      )}
+      <Avatar
+        uri={item.actor?.avatarThumbnailUrl ?? item.actor?.avatarUrl}
+        username={item.actor?.username}
+        userId={item.actor?.id}
+        fallbackType={fallbackType}
+        size={48}
+      />
       <View className="ml-3 flex-1">
         <Text className="text-[15px] text-black dark:text-white">
           {notificationText(item, t)}

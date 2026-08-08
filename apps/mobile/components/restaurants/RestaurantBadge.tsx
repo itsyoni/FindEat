@@ -21,7 +21,7 @@ export default function RestaurantBadge({ size = 16, status, claimed }: Props) {
         backgroundColor: isClaimed ? '#3B82F6' : '#F05A3C',
       }}
     >
-      <StorefrontIcon size={size * 0.65} color="white" weight="fill" />
+      <StorefrontIcon size={size * 0.65} color="#FAF9F6" weight="fill" />
     </View>
   );
 }

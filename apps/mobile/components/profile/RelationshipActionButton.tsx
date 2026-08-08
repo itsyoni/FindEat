@@ -65,13 +65,13 @@ export default function RelationshipActionButton({
         ? isDark
           ? relationship === "FOLLOWING"
             ? "#171717"
-            : "#FFFFFF"
+            : "#FAF9F6"
           : relationship === "FOLLOWING"
-            ? "#FFFFFF"
+            ? "#FAF9F6"
             : "#171717"
         : isDark
           ? "#171717"
-          : "#FFFFFF";
+          : "#FAF9F6";
   const icon =
     relationship === "FRIENDS" ? (
       <UsersThreeIcon size={18} color={iconColor} weight="fill" />

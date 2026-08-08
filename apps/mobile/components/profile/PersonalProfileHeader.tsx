@@ -59,7 +59,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
   if (loading || !profile) {
     return (
       <SkeletonPulse>
-        <View style={{ backgroundColor: isDark ? "#000" : "#FFF" }}>
+        <View style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}>
           <View className="relative">
             <Skeleton height={240} radius={0} />
             <SafeAreaView edges={["top"]} style={{ position: "absolute", left: 0, right: 0, top: 0 }}>
@@ -68,7 +68,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
           </View>
           <View
             className="-mt-7 items-center rounded-t-[30px] pb-5"
-            style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+            style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
           >
             <Skeleton width={112} height={112} circle style={{ marginTop: -48 }} />
             <Skeleton width="46%" height={22} radius={8} style={{ marginTop: 12 }} />
@@ -83,7 +83,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
     );
   }
   return (
-    <View style={{ backgroundColor: isDark ? "#000" : "#FFF" }}>
+    <View style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}>
       <View className="relative">
         <ParallaxProfileCover uri={profile.coverUrl} scrollY={scrollY} />
         <SafeAreaView
@@ -96,7 +96,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
               onPress={() => router.push("/settings")}
               className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
             >
-              <GearSixIcon size={24} color="white" weight="bold" />
+              <GearSixIcon size={24} color="#FAF9F6" weight="bold" />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -104,7 +104,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
 
       <View
         className="-mt-7 items-center rounded-t-[30px] pb-5"
-        style={{ backgroundColor: isDark ? "#000" : "#FFF" }}
+        style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       >
         <TouchableOpacity
           activeOpacity={1}
@@ -223,7 +223,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
           >
             <PencilSimpleIcon
               size={18}
-              color={isDark ? "#FFF" : "#171717"}
+              color={isDark ? "#FAF9F6" : "#171717"}
               weight="bold"
             />
             <Text className="ml-2 text-center font-bold text-black dark:text-white">

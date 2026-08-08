@@ -41,7 +41,7 @@ export default function PermissionsSettingsScreen() {
   const [permissions, setPermissions] = useState(emptyPermissions);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<PermissionKey | null>(null);
-  const color = isDark ? "#FFF" : "#171717";
+  const color = isDark ? "#FAF9F6" : "#171717";
   const { textStyle } = useSettingsDirection();
 
   const loadPermissions = useCallback(async () => {
@@ -108,7 +108,7 @@ export default function PermissionsSettingsScreen() {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#000" : "#FBFAF8" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <SettingsHeader title={t("appPermissions")} />
       <ScrollView contentContainerStyle={{ paddingBottom: 44 }}>
         <Text className="px-5 pt-4 leading-5 text-gray-500" style={textStyle}>{t("appPermissionsIntro")}</Text>

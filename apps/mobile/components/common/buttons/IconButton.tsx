@@ -22,7 +22,7 @@ const variantClasses: Record<Variant, string> = {
 };
 
 const iconColors: Record<Variant, string> = {
-  primary: "white",
+  primary: "#FAF9F6",
   secondary: "#171717",
   outline: "#171717",
   ghost: "#171717",
@@ -38,7 +38,7 @@ export default function IconButton({
 }: Props) {
   const { isDark } = useAppTheme();
   const iconColor =
-    isDark && variant !== "primary" ? "white" : iconColors[variant];
+    isDark && variant !== "primary" ? "#FAF9F6" : iconColors[variant];
 
   return (
     <TouchableOpacity

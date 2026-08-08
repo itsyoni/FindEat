@@ -36,7 +36,7 @@ export default function ParallaxProfileCover({ uri, scrollY }: Props) {
     <View
       style={[
         styles.frame,
-        { backgroundColor: isDark ? "#000" : "#FFF" },
+        { backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" },
       ]}
     >
       {uri ? (
@@ -45,7 +45,7 @@ export default function ParallaxProfileCover({ uri, scrollY }: Props) {
           resizeMode="cover"
           style={[
             styles.cover,
-            { backgroundColor: isDark ? "#000" : "#FFF" },
+            { backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" },
             animatedStyle,
           ]}
         />
