@@ -1,12 +1,12 @@
 import Text from "@/components/common/AppText";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { updatePostInFeedCache } from "@/hooks/useFeed";
+import { homeFeedQueryKey, updatePostInFeedCache } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import type { Post, UserRelationship } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ActivityIndicator, TouchableOpacity } from "react-native";
+import { TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -68,7 +68,12 @@ export default function PostAuthorFollowAction({
 
   async function followAuthor() {
     if (submitting || !post.authorId) return;
+    const previousRelationship = relationship;
     setSubmitting(true);
+    setRelationshipOverride({
+      authorId: post.authorId,
+      relationship: "FOLLOWING",
+    });
 
     try {
       const result = await api.users.follow(post.authorId);
@@ -84,7 +89,15 @@ export default function PostAuthorFollowAction({
       void queryClient.invalidateQueries({
         queryKey: ["user-profile", post.authorId],
       });
+      void queryClient.invalidateQueries({
+        queryKey: homeFeedQueryKey("EXPLORE"),
+        refetchType: "none",
+      });
     } catch (error) {
+      setRelationshipOverride({
+        authorId: post.authorId,
+        relationship: previousRelationship,
+      });
       console.error("Could not follow feed author", error);
       showToast(tCommon("error"), { kind: "error" });
     } finally {
@@ -105,21 +118,14 @@ export default function PostAuthorFollowAction({
           : "min-w-[68px] items-center rounded-full bg-black px-3 py-1.5 dark:bg-white"
       }
     >
-      {submitting ? (
-        <ActivityIndicator
-          size="small"
-          color={onMedia ? "#111111" : undefined}
-        />
-      ) : (
-        <Text
-          weight="bold"
-          className={
-            onMedia ? "text-sm text-black" : "text-sm text-white dark:text-black"
-          }
-        >
-          {t("follow")}
-        </Text>
-      )}
+      <Text
+        weight="bold"
+        className={
+          onMedia ? "text-sm text-black" : "text-sm text-white dark:text-black"
+        }
+      >
+        {t("follow")}
+      </Text>
     </TouchableOpacity>
   );
 }

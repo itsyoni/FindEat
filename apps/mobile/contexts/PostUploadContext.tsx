@@ -98,7 +98,7 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
   );
 
   const runTask = useCallback(
-    (id: string, runner: PostUploadRunner) => {
+    (id: string, runner: PostUploadRunner, kind: PostUploadKind) => {
       void runner((progress) =>
         updateTask(id, { progress: boundedProgress(progress) }),
       )
@@ -121,22 +121,30 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
             });
           }
           void AccessibilityInfo.announceForAccessibility(
-            t("postUploadComplete"),
+            t(
+              result.type === "snap"
+                ? "snapUploadComplete"
+                : "postUploadComplete",
+            ),
           );
         })
         .catch((error) => {
           // A raw console.error triggers Expo's development overlay and can
           // point at whichever provider is currently rendering. The failed
           // task already has a visible retry state, so log a concise warning.
-          console.warn("Background post upload failed", {
-            message: getErrorMessage(error, "Could not upload this post."),
+          const fallbackMessage =
+            kind === "snap"
+              ? "Could not upload this Snap."
+              : "Could not upload this post.";
+          console.warn(`Background ${kind} upload failed`, {
+            message: getErrorMessage(error, fallbackMessage),
           });
           updateTask(id, {
             status: "failed",
-            error: getErrorMessage(error, "Could not upload this post."),
+            error: getErrorMessage(error, fallbackMessage),
           });
           void AccessibilityInfo.announceForAccessibility(
-            t("postUploadFailed"),
+            t(kind === "snap" ? "snapUploadFailed" : "postUploadFailed"),
           );
         });
     },
@@ -151,7 +159,7 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
         ...current,
         { id, kind, progress: 0.02, status: "uploading" },
       ]);
-      runTask(id, run);
+      runTask(id, run, kind);
       return id;
     },
     [runTask],
@@ -172,9 +180,11 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
         error: undefined,
         result: undefined,
       });
-      runTask(id, runner);
+      const task = tasks.find((candidate) => candidate.id === id);
+      if (!task) return;
+      runTask(id, runner, task.kind);
     },
-    [runTask, updateTask],
+    [runTask, tasks, updateTask],
   );
 
   const value = useMemo(
@@ -219,6 +229,21 @@ function PostUploadBanner({
   const completed = task.status === "completed";
   const failed = task.status === "failed";
   const color = failed ? "#EF4444" : completed ? "#22C55E" : "#F7D786";
+  const backgroundColor = isDark ? "#242422" : "#FBFAF8";
+  const primaryTextColor = isDark ? "#FAF9F6" : "#171715";
+  const secondaryTextColor = isDark ? "#B5B3AE" : "#686660";
+  const progressTrackColor = isDark ? "#FFFFFF18" : "#17171514";
+  const statusTranslationKey = failed
+    ? task.kind === "snap"
+      ? "snapUploadFailed"
+      : "postUploadFailed"
+    : completed
+      ? task.kind === "snap"
+        ? "snapUploadComplete"
+        : "postUploadComplete"
+      : task.kind === "snap"
+        ? "snapUploading"
+        : "postUploading";
   const Icon = failed
     ? WarningCircleIcon
     : completed
@@ -266,7 +291,7 @@ function PostUploadBanner({
           maxWidth: 460,
           overflow: "hidden",
           borderRadius: 19,
-          backgroundColor: isDark ? "#242424" : "#171717",
+          backgroundColor,
           shadowColor: "#0B0B0A",
           shadowOpacity: 0.24,
           shadowRadius: 16,
@@ -285,17 +310,11 @@ function PostUploadBanner({
         >
           <Icon size={25} color={color} weight="fill" />
           <View style={{ marginLeft: 11, flex: 1 }}>
-            <Text style={{ color: "#FAF9F6", fontSize: 15, fontWeight: "800" }}>
-              {t(
-                failed
-                  ? "postUploadFailed"
-                  : completed
-                    ? "postUploadComplete"
-                    : "postUploading",
-              )}
+            <Text style={{ color: primaryTextColor, fontSize: 15, fontWeight: "800" }}>
+              {t(statusTranslationKey)}
             </Text>
             <Text
-              style={{ marginTop: 2, color: "#A3A3A3", fontSize: 12 }}
+              style={{ marginTop: 2, color: secondaryTextColor, fontSize: 12 }}
               numberOfLines={1}
             >
               {failed
@@ -325,7 +344,7 @@ function PostUploadBanner({
               </Text>
             </TouchableOpacity>
           ) : (
-            <Text style={{ color: "#FAF9F6", fontSize: 13, fontWeight: "800" }}>
+            <Text style={{ color: primaryTextColor, fontSize: 13, fontWeight: "800" }}>
               {Math.round(task.progress * 100)}%
             </Text>
           )}
@@ -337,11 +356,11 @@ function PostUploadBanner({
               hitSlop={10}
               style={{ marginLeft: 4, padding: 5 }}
             >
-              <XIcon size={16} color="#A3A3A3" weight="bold" />
+              <XIcon size={16} color={secondaryTextColor} weight="bold" />
             </TouchableOpacity>
           ) : null}
         </View>
-        <View style={{ height: 4, backgroundColor: "#FFFFFF18" }}>
+        <View style={{ height: 4, backgroundColor: progressTrackColor }}>
           <View
             style={{
               width: `${Math.max(task.progress * 100, 2)}%`,

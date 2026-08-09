@@ -181,6 +181,7 @@ export default function GroupDetailsScreen() {
                 uri={chat.imageUrl}
                 username={chat.title ?? t("chat:group")}
                 size={96}
+                showSnapIndicator={false}
               />
             ) : (
               <View className="h-24 w-24 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800">
@@ -250,11 +251,12 @@ export default function GroupDetailsScreen() {
                 uri={item.user.avatarUrl}
                 username={item.user.username}
                 size={48}
+                showSnapIndicator={false}
               />
 
               <View className="ml-4 flex-1">
                 <Text className="font-bold text-black dark:text-white">
-                  @{item.user.username}
+                  {item.user.username}
                 </Text>
 
                 <Text className="mt-1 text-sm text-gray-500">

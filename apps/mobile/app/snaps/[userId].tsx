@@ -22,6 +22,7 @@ import {
   Animated,
   ActivityIndicator,
   AppState,
+  Dimensions,
   Keyboard,
   PanResponder,
   Pressable,
@@ -51,9 +52,11 @@ export default function SnapViewerScreen() {
   const [isFocused, setIsFocused] = useState(true);
   const snaps = useSnaps();
   const [progress] = useState(() => new Animated.Value(0));
+  const [dismissTranslateY] = useState(() => new Animated.Value(0));
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressRef = useRef(0);
   const pausedRef = useRef(false);
+  const dismissingRef = useRef(false);
   const heldRef = useRef(false);
   const gestureActionsRef = useRef<{
     pause: () => void;
@@ -202,6 +205,7 @@ export default function SnapViewerScreen() {
   const resumePlayback = useCallback(() => {
     if (
       !pausedRef.current ||
+      dismissingRef.current ||
       !isFocused ||
       !currentSnapId ||
       loadedSnapId !== currentSnapId
@@ -290,19 +294,62 @@ export default function SnapViewerScreen() {
       onMoveShouldSetPanResponder: (_, gesture) =>
         Math.abs(gesture.dx) > 14 || Math.abs(gesture.dy) > 14,
       onPanResponderGrant: () => gestureActionsRef.current.pause(),
+      onPanResponderMove: (_, gesture) => {
+        const vertical = Math.abs(gesture.dy) > Math.abs(gesture.dx);
+        if (vertical) {
+          dismissTranslateY.setValue(Math.max(0, gesture.dy));
+        }
+      },
       onPanResponderRelease: (_, gesture) => {
         const horizontal = Math.abs(gesture.dx) > Math.abs(gesture.dy);
         if (horizontal && gesture.dx < -60) {
+          dismissingRef.current = false;
+          dismissTranslateY.setValue(0);
           gestureActionsRef.current.nextGroup();
           return;
         }
         if (horizontal && gesture.dx > 60) {
+          dismissingRef.current = false;
+          dismissTranslateY.setValue(0);
           gestureActionsRef.current.previousGroup();
           return;
         }
+        if (
+          !horizontal &&
+          gesture.dy > 0 &&
+          (gesture.dy > 72 || gesture.vy > 0.75)
+        ) {
+          dismissingRef.current = true;
+          Animated.timing(dismissTranslateY, {
+            toValue: Dimensions.get("window").height,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(({ finished }) => {
+            if (finished) router.back();
+          });
+          return;
+        }
+        dismissingRef.current = false;
+        Animated.spring(dismissTranslateY, {
+          toValue: 0,
+          damping: 20,
+          stiffness: 240,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
         gestureActionsRef.current.resume();
       },
-      onPanResponderTerminate: () => gestureActionsRef.current.resume(),
+      onPanResponderTerminate: () => {
+        dismissingRef.current = false;
+        Animated.spring(dismissTranslateY, {
+          toValue: 0,
+          damping: 20,
+          stiffness: 240,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
+        gestureActionsRef.current.resume();
+      },
     }),
   );
 
@@ -462,8 +509,19 @@ export default function SnapViewerScreen() {
       : t("snaps:hoursAgo", { count: Math.floor(ageMinutes / 60) });
 
   return (
-    <View style={styles.screen}>
-      <Stack.Screen options={{ headerShown: false }} />
+    <Animated.View
+      style={[
+        styles.screen,
+        { transform: [{ translateY: dismissTranslateY }] },
+      ]}
+    >
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          animation: "none",
+          gestureEnabled: false,
+        }}
+      />
       <StatusBar hidden />
       <Image
         key={currentSnap.id}
@@ -542,7 +600,7 @@ export default function SnapViewerScreen() {
             />
             <View className="ml-3 min-w-0 flex-1">
               <Text numberOfLines={1} className="font-bold text-white">
-                @{currentGroup.user.username}
+                {currentGroup.user.username}
               </Text>
               <Text className="text-xs text-white/70">{ageLabel}</Text>
             </View>
@@ -711,7 +769,7 @@ export default function SnapViewerScreen() {
           resumePlayback();
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 

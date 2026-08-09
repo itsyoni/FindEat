@@ -53,23 +53,11 @@ export default function TaggedUsersBottomSheet({
                 showSnapIndicator={false}
               />
               <View className="ml-3 min-w-0 flex-1">
-                {user.displayName ? (
-                  <Text
-                    numberOfLines={1}
-                    className="font-bold text-[#171716] dark:text-[#F7F6F2]"
-                  >
-                    {user.displayName}
-                  </Text>
-                ) : null}
                 <Text
                   numberOfLines={1}
-                  className={
-                    user.displayName
-                      ? "mt-0.5 text-sm text-gray-500 dark:text-gray-400"
-                      : "font-bold text-[#171716] dark:text-[#F7F6F2]"
-                  }
+                  className="font-bold text-[#171716] dark:text-[#F7F6F2]"
                 >
-                  @{user.username}
+                  {user.username}
                 </Text>
               </View>
             </TouchableOpacity>

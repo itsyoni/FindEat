@@ -19,6 +19,8 @@
   "photosPermissionTitle": "נדרשת גישה לתמונות",
   "photosPermissionBody": "אשרו גישה לתמונות כדי לבחור סנאפ מהגלריה.",
   "allowCamera": "אישור גישה למצלמה",
+  "openSettings": "פתיחת ההגדרות",
+  "cameraPrivacy": "הגישה למצלמה משמשת רק כשבוחרים לצלם סנאפ.",
   "captureError": "לא הצלחנו לצלם את התמונה. נסו שוב.",
   "mediaError": "לא הצלחנו לטעון את הסנאפ. הקישו כדי להמשיך.",
   "activity": "פעילות",

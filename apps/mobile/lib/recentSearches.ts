@@ -12,6 +12,15 @@ export async function getRecentSearches(userId: string) {
   return data ? (JSON.parse(data) as RecentSearchItem[]) : [];
 }
 
+export async function saveRecentSearches(
+  userId: string,
+  items: RecentSearchItem[],
+) {
+  const updated = items.slice(0, MAX_RECENT_SEARCHES);
+  await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(updated));
+  return updated;
+}
+
 export async function addRecentSearch(userId: string, item: RecentSearchItem) {
   const current = await getRecentSearches(userId);
 

@@ -12,6 +12,7 @@ type Props = {
   onClose: () => void;
   children: ReactNode;
   stackBehavior?: "push" | "switch" | "replace";
+  androidKeyboardInputMode?: "adjustPan" | "adjustResize";
   footerComponent?: (
     props: BottomSheetFooterProps,
   ) => React.ReactElement | null;
@@ -24,6 +25,7 @@ export default function AppBottomSheet({
   footerComponent,
   snapPoints,
   stackBehavior,
+  androidKeyboardInputMode,
 }: Props) {
   if (!open) return null;
 
@@ -33,6 +35,7 @@ export default function AppBottomSheet({
       footerComponent={footerComponent}
       snapPoints={snapPoints}
       stackBehavior={stackBehavior}
+      androidKeyboardInputMode={androidKeyboardInputMode}
     >
       {children}
     </PresentedBottomSheet>
@@ -45,6 +48,7 @@ function PresentedBottomSheet({
   footerComponent,
   snapPoints,
   stackBehavior,
+  androidKeyboardInputMode = "adjustResize",
 }: Omit<Props, "open">) {
   const { isDark } = useAppTheme();
   const modalRef = useRef<BottomSheetModal>(null);
@@ -84,7 +88,7 @@ function PresentedBottomSheet({
       enableHandlePanningGesture
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
+      android_keyboardInputMode={androidKeyboardInputMode}
       onDismiss={onClose}
       backdropComponent={renderBackdrop}
       footerComponent={footerComponent}

@@ -36,10 +36,11 @@ import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import ContentVideo from "./ContentVideo";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
 import TaggedUsersBottomSheet from "./TaggedUsersBottomSheet";
+import PostLikesBottomSheet from "@/components/posts/PostLikesBottomSheet";
 
 const CONTENT_ACTION_ICON_SIZE = 31;
 
@@ -82,6 +83,8 @@ export default function ContentPost({
   const { isDark } = useAppTheme();
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [taggedUsersOpen, setTaggedUsersOpen] = useState(false);
+  const [likesOpen, setLikesOpen] = useState(false);
+  const likePressStartedAt = useRef(0);
   const {
     openManageSavedPlace,
     quickSavePlace,
@@ -478,7 +481,7 @@ export default function ContentPost({
                       numberOfLines={1}
                       className="shrink font-bold text-white"
                     >
-                      {isOfficialPost ? displayName : `@${displayName}`}
+                      {displayName}
                     </Text>
                     {isOfficialPost ? <RestaurantBadge /> : null}
                     {!isOfficialPost && post.visibility !== "PUBLIC" ? (
@@ -569,7 +572,7 @@ export default function ContentPost({
                     className="shrink text-xs font-bold text-white"
                   >
                     {post.taggedUsers.length === 1
-                      ? `@${post.taggedUsers[0].username}`
+                      ? post.taggedUsers[0].username
                       : tCommon("taggedPeopleCount", {
                           count: post.taggedUsers.length,
                         })}
@@ -621,7 +624,19 @@ export default function ContentPost({
         </View>
 
         <View className="absolute bottom-8 right-4 w-16 items-center gap-5">
-          <TouchableOpacity className="w-16 items-center" onPress={handleLike}>
+          <TouchableOpacity
+            className="w-16 items-center"
+            delayLongPress={350}
+            onPressIn={() => {
+              likePressStartedAt.current = Date.now();
+            }}
+            onPress={() => {
+              if (Date.now() - likePressStartedAt.current < 350) handleLike();
+            }}
+            onLongPress={
+              post.canViewLikes ? () => setLikesOpen(true) : undefined
+            }
+          >
             <Animated.View style={likeAnimatedStyle}>
               <HeartIcon
                 weight="fill"
@@ -638,14 +653,18 @@ export default function ContentPost({
               />
             </Animated.View>
 
-            <Text style={textShadow} className="text-center text-lg text-white">
-              {post.likesCount}
-            </Text>
+            {post.canViewLikes ? (
+              <Text style={textShadow} className="text-center text-lg text-white">
+                {post.likesCount}
+              </Text>
+            ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
             className="w-16 items-center"
+            disabled={post.commentsDisabled}
             onPress={() => onOpenComments(post.id)}
+            style={{ opacity: post.commentsDisabled ? 0.55 : 1 }}
           >
             <ChatCircleIcon
               weight="fill"
@@ -654,7 +673,9 @@ export default function ContentPost({
               style={iconShadow}
             />
             <Text style={textShadow} className="text-center text-lg text-white">
-              {post.commentsCount}
+              {post.commentsDisabled
+                ? tCommon("commentsOff")
+                : post.commentsCount}
             </Text>
           </TouchableOpacity>
 
@@ -715,6 +736,11 @@ export default function ContentPost({
         open={taggedUsersOpen}
         users={post.taggedUsers ?? []}
         onClose={() => setTaggedUsersOpen(false)}
+      />
+      <PostLikesBottomSheet
+        postId={post.id}
+        open={likesOpen}
+        onClose={() => setLikesOpen(false)}
       />
     </View>
   );

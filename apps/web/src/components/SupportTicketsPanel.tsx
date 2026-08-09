@@ -139,10 +139,10 @@ export function SupportTicketsPanel() {
             </div>
           ) : filtered.map((ticket) => (
             <button key={ticket.id} className={`support-ticket-row ${selectedId === ticket.id ? "selected" : ""}`} onClick={() => selectTicket(ticket)}>
-              {ticket.user?.avatarUrl ? <img src={ticket.user.avatarUrl} alt="" /> : <span className="support-avatar">{ticket.user?.displayName?.charAt(0) ?? "?"}</span>}
+              {ticket.user?.avatarUrl ? <img src={ticket.user.avatarUrl} alt="" /> : <span className="support-avatar">{ticket.user?.username?.charAt(0) ?? "?"}</span>}
               <span className="support-ticket-copy">
                 <span className="support-ticket-meta">
-                  <strong>{ticket.user?.displayName ?? "FindEat user"}</strong>
+                  <strong>{ticket.user?.username ?? "FindEat user"}</strong>
                   <time>{new Date(ticket.createdAt).toLocaleDateString()}</time>
                 </span>
                 <b>{ticket.subject}</b>
@@ -159,7 +159,7 @@ export function SupportTicketsPanel() {
                 <div>
                   <span>{categoryLabels[selected.category]}</span>
                   <h3>{selected.subject}</h3>
-                  <p>{selected.user?.displayName} · @{selected.user?.username} · {selected.user?.email}</p>
+                  <p>{selected.user?.username} · {selected.user?.email}</p>
                   {selected.restaurant && <p className="support-restaurant-context">Restaurant: <strong>{selected.restaurant.name}</strong></p>}
                 </div>
                 <span className={`support-status ${selected.status.toLowerCase()}`}>{statusLabels[selected.status]}</span>
@@ -183,7 +183,7 @@ export function SupportTicketsPanel() {
                   {saving ? "Saving…" : "Save response"}
                 </button>
               </div>
-              {selected.handledBy && <small className="support-handler">Last handled by {selected.handledBy.displayName}</small>}
+              {selected.handledBy && <small className="support-handler">Last handled by {selected.handledBy.username}</small>}
             </>
           )}
         </section>

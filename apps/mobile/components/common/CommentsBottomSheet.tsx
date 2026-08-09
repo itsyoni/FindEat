@@ -611,7 +611,7 @@ export default function CommentsBottomSheet({
               onPress={() => router.push({ pathname: "/(users)/[id]", params: { id: item.user.id } })}
             >
               <Text className="font-bold text-black dark:text-white">
-                @{item.user.username}
+                {item.user.username}
               </Text>
 
               <Text className="ml-2 text-xs text-gray-400">
@@ -729,12 +729,13 @@ export default function CommentsBottomSheet({
   return (
     <>
       <AppBottomSheet
-      open={!!postId}
-      snapPoints={["70%"]}
-      onClose={closeSheet}
-      footerComponent={renderFooter}
-    >
-      <BottomSheetFlatList
+        open={!!postId}
+        snapPoints={["70%"]}
+        onClose={closeSheet}
+        footerComponent={renderFooter}
+        androidKeyboardInputMode="adjustPan"
+      >
+        <BottomSheetFlatList
         ref={listRef}
         data={threadedComments}
         keyExtractor={(item) => item.id}
@@ -1044,7 +1045,7 @@ export default function CommentsBottomSheet({
             </View>
           )
         }
-      />
+        />
       </AppBottomSheet>
 
       <AppBottomSheet

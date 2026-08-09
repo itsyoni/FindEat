@@ -9,20 +9,29 @@ import { ForkKnifeIcon, HeartIcon, StarIcon } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DishCompatibilityChips } from "@/components/restaurants/FoodCompatibility";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { publishDishFavoriteChange } from "@/lib/dishFavorites";
+import { getMobileCompatibleImageUrl } from "@findeat/utils";
 
 export default function MenuItemScreen() {
   const { isDark } = useAppTheme();
-  const { t } = useTranslation("restaurants");
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { t, i18n } = useTranslation("restaurants");
+  const { id, source } = useLocalSearchParams<{
+    id: string;
+    source?: string;
+  }>();
+  const isRtl = i18n.dir() === "rtl";
+  const showsRestaurantConnection =
+    source === "search" || source === "favorites";
   const [dish, setDish] = useState<DishDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [favoritePending, setFavoritePending] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const displayImageUrl = getMobileCompatibleImageUrl(dish?.imageUrl);
 
   async function toggleFavorite() {
     if (!dish || favoritePending) return;
@@ -197,11 +206,12 @@ export default function MenuItemScreen() {
           backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
         }}
       >
-        {dish.imageUrl ? (
-          <ProgressiveImage
-            source={{ uri: dish.imageUrl }}
-            className="h-96 w-full bg-gray-100 dark:bg-gray-900"
+        {displayImageUrl && failedImageUrl !== displayImageUrl ? (
+          <Image
+            source={{ uri: displayImageUrl }}
+            style={{ width: "100%", height: 384 }}
             resizeMode="cover"
+            onError={() => setFailedImageUrl(displayImageUrl)}
           />
         ) : (
           <View className="h-96 w-full items-center justify-center bg-amber-50 dark:bg-gray-900">
@@ -303,6 +313,71 @@ export default function MenuItemScreen() {
             )}
           </View>
 
+          {showsRestaurantConnection && dish.restaurant ? (
+            <TouchableOpacity
+              activeOpacity={0.72}
+              onPress={() =>
+                router.push({
+                  pathname: "/restaurants/[id]",
+                  params: { id: dish.restaurant!.id },
+                })
+              }
+              className="mt-5 flex-row items-center rounded-3xl border border-line bg-soft p-4 dark:border-gray-800 dark:bg-gray-900"
+              style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+            >
+              <Avatar
+                uri={dish.restaurant.logoUrl}
+                username={dish.restaurant.name}
+                fallbackType="restaurant"
+                size={48}
+                showSnapIndicator={false}
+              />
+              <View
+                className="min-w-0 flex-1"
+                style={isRtl ? { marginRight: 12 } : { marginLeft: 12 }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={
+                    isRtl
+                      ? { textAlign: "right", writingDirection: "rtl" }
+                      : undefined
+                  }
+                  className="text-base font-bold text-black dark:text-white"
+                >
+                  {dish.restaurant.name}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={
+                    isRtl
+                      ? { textAlign: "right", writingDirection: "rtl" }
+                      : undefined
+                  }
+                  className="mt-0.5 text-sm text-gray-500 dark:text-gray-400"
+                >
+                  {dish.restaurant.city || t("viewRestaurant")}
+                </Text>
+              </View>
+              <View
+                className="flex-row items-center rounded-full bg-brand-soft px-3 py-2 dark:bg-orange-950/60"
+                style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+              >
+                <Text className="text-xs font-bold text-brand dark:text-orange-300">
+                  {t("viewRestaurant")}
+                </Text>
+                <View style={isRtl ? { marginRight: 4 } : { marginLeft: 4 }}>
+                  <DirectionalIcon
+                    direction="forward"
+                    size={15}
+                    color={isDark ? "#FDBA74" : "#FF5B35"}
+                    weight="bold"
+                  />
+                </View>
+              </View>
+            </TouchableOpacity>
+          ) : null}
+
           <DishCompatibilityChips compatibility={dish.compatibility} detailed />
 
           <View className="mt-6 flex-row items-center rounded-3xl border border-line bg-soft p-4 dark:border-gray-800 dark:bg-gray-900">
@@ -363,7 +438,7 @@ export default function MenuItemScreen() {
                   const author = review.reviewPost?.post?.author;
                   const userDishPhoto =
                     review.imageUrl && review.imageUrl !== dish.imageUrl
-                      ? review.imageUrl
+                      ? getMobileCompatibleImageUrl(review.imageUrl)
                       : null;
 
                   return (
@@ -378,7 +453,7 @@ export default function MenuItemScreen() {
                           size={34}
                         />
                         <Text className="ml-3 flex-1 text-sm font-bold text-black dark:text-white">
-                          @{author?.username ?? "user"}
+                          {author?.username ?? "user"}
                         </Text>
                         {!!review.rating && (
                           <View className="flex-row items-center rounded-full bg-white px-2.5 py-1.5 dark:bg-black">

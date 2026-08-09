@@ -347,7 +347,7 @@ export default function UserProfileScreen() {
               <ProfileDetails profile={user} />
             </View>
             <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              @{user.username}
+              {user.username}
             </Text>
             <CreatorLevelBadge score={user.creatorScore} />
             <ProfileTagBadge tag={user.selectedProfileTag} />

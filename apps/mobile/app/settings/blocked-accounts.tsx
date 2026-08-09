@@ -93,10 +93,7 @@ export default function BlockedAccountsScreen() {
                   className="font-bold text-black dark:text-white"
                   style={textStyle}
                 >
-                  {user.displayName || user.username}
-                </Text>
-                <Text numberOfLines={1} className="mt-0.5 text-sm text-gray-500" style={textStyle}>
-                  @{user.username}
+                  {user.username}
                 </Text>
               </View>
               <TouchableOpacity

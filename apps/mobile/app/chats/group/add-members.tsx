@@ -126,7 +126,7 @@ export default function AddGroupMembersScreen() {
                   className="flex-row items-center rounded-full bg-[#F7D786] px-3 py-2"
                   onPress={() => toggleUser(user)}
                 >
-                  <Avatar uri={user.imageUrl} username={user.title} size={24} />
+                  <Avatar uri={user.imageUrl} username={user.title} size={24} showSnapIndicator={false} />
                   <Text className="ml-2 font-semibold text-black">
                     {user.title}
                   </Text>

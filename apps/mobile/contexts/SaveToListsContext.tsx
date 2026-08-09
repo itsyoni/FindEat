@@ -69,7 +69,11 @@ function emptyStatus(restaurantId: string): UserRestaurant {
 }
 
 export function SaveToListsProvider({ children }: { children: ReactNode }) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
+  const isRtl = i18n.dir() === "rtl";
+  const rtlTextStyle = isRtl
+    ? ({ textAlign: "right", writingDirection: "rtl" } as const)
+    : undefined;
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -450,14 +454,20 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
                     disabled={!list.canEdit}
                     onPress={() => toggleList(list.id)}
                     className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
-                    style={{ opacity: list.canEdit ? 1 : 0.65 }}
+                    style={{
+                      opacity: list.canEdit ? 1 : 0.65,
+                      flexDirection: isRtl ? "row-reverse" : "row",
+                    }}
                   >
                     <View className="h-10 w-10 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-950/60">
                       <FolderSimpleIcon size={21} color="#8B5CF6" weight={selected ? "fill" : "regular"} />
                     </View>
-                    <View className="ml-3 min-w-0 flex-1">
-                      <Text numberOfLines={1} className="font-bold text-black dark:text-white">{list.name}</Text>
-                      <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    <View
+                      className="min-w-0 flex-1"
+                      style={isRtl ? { marginRight: 12 } : { marginLeft: 12 }}
+                    >
+                      <Text style={rtlTextStyle} numberOfLines={1} className="font-bold text-black dark:text-white">{list.name}</Text>
+                      <Text style={rtlTextStyle} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                         {list.canEdit ? t("placesCount", { count: list.itemCount }) : t("sharedListViewOnly")}
                       </Text>
                     </View>

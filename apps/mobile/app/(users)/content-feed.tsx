@@ -13,14 +13,13 @@ import {
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions, TouchableOpacity, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
 
 const { height } = Dimensions.get("window");
 
 export default function UserContentFeedScreen() {
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { userId, postId } = useLocalSearchParams<{
     userId: string;
@@ -215,7 +214,7 @@ export default function UserContentFeedScreen() {
     return (
       <View className="flex-1 bg-black">
         <SafeAreaView edges={["top"]} pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 50 }}><View className="ml-4 mt-2 h-11 w-11 rounded-full bg-black/50" /></SafeAreaView>
-        <ContentFeedList posts={[]} loading height={height} contentTopInset={insets.top} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
+        <ContentFeedList posts={[]} loading height={height} contentTopInset={0} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
       </View>
     );
   }
@@ -244,7 +243,7 @@ export default function UserContentFeedScreen() {
       <ContentFeedList
         posts={posts}
         height={height}
-        contentTopInset={insets.top}
+        contentTopInset={0}
         refreshing={refreshing}
         onRefresh={onRefresh}
         onToggleLike={toggleLike}

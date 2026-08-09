@@ -55,6 +55,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       entitlements: {
         ...config.ios?.entitlements,
         "com.apple.developer.usernotifications.communication": true,
+        "com.apple.developer.siri": true,
       },
       infoPlist: {
         ...config.ios?.infoPlist,

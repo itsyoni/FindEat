@@ -175,6 +175,17 @@ export function createUsersApi(api: AxiosInstance) {
       return data;
     },
 
+    async updatePostPrivacy(payload: {
+      hideLikeCountsByDefault?: boolean;
+      commentsDisabledByDefault?: boolean;
+    }) {
+      const { data } = await api.patch<{
+        hideLikeCountsByDefault: boolean;
+        commentsDisabledByDefault: boolean;
+      }>("/users/me/post-privacy", payload);
+      return data;
+    },
+
     async removeAvatar() {
       const { data } = await api.delete<{ id: string; avatarUrl: string }>(
         "/users/me/avatar",

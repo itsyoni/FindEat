@@ -86,9 +86,9 @@ export default function SharePostBottomSheet({
     }
 
     return {
-      title: otherUser?.displayName ?? otherUser?.username ?? t("conversation"),
+      title: otherUser?.username ?? t("conversation"),
       imageUrl: otherUser?.avatarUrl,
-      subtitle: otherUser?.username ? `@${otherUser.username}` : t("directChat"),
+      subtitle: otherUser?.username ?? t("directChat"),
     };
   }
 
@@ -205,6 +205,7 @@ export default function SharePostBottomSheet({
                     uri={presentation.imageUrl}
                     username={presentation.title}
                     size={48}
+                    showSnapIndicator={false}
                   />
 
                   <View className="ml-3 flex-1">

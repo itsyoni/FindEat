@@ -19,6 +19,8 @@
   "photosPermissionTitle": "Photo access needed",
   "photosPermissionBody": "Allow photo access to choose a snap from your gallery.",
   "allowCamera": "Allow camera",
+  "openSettings": "Open settings",
+  "cameraPrivacy": "Camera access is used only when you choose to capture a Snap.",
   "captureError": "The photo could not be captured. Please try again.",
   "mediaError": "This snap could not be loaded. Tap to continue.",
   "activity": "Activity",

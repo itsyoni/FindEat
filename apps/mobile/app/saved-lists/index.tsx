@@ -263,9 +263,7 @@ export default function SavedListsScreen() {
                       </Text>
                       <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500">
                         {t("listInvitedBy", {
-                          name:
-                            invitation.invitedBy.displayName ||
-                            invitation.invitedBy.username,
+                          name: invitation.invitedBy.username,
                         })}
                       </Text>
                     </View>

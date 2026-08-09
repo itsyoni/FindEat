@@ -31,7 +31,11 @@ type Props = {
 };
 
 export default function PersonalProfileHeader({ profile, loading = false, scrollY }: Props) {
-  const { t } = useTranslation(["common", "profile"]);
+  const { t, i18n } = useTranslation(["common", "profile"]);
+  const isRtl = i18n.dir() === "rtl";
+  const rtlTextStyle = isRtl
+    ? ({ textAlign: "right", writingDirection: "rtl" } as const)
+    : undefined;
   const { isDark } = useAppTheme();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarLongPressRef = useRef(false);
@@ -138,7 +142,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
           <ProfileDetails profile={profile} />
         </View>
         <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          @{profile.username}
+          {profile.username}
         </Text>
         <CreatorLevelBadge
           score={profile.creatorScore}
@@ -233,15 +237,19 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
             onPress={() => router.push("/(profile)/edit-profile")}
             activeOpacity={0.75}
             className="mx-5 mt-3 self-stretch flex-row items-center rounded-2xl bg-amber-50 px-4 py-3 dark:bg-amber-950/40"
+            style={isRtl ? { flexDirection: "row-reverse" } : undefined}
           >
             <View className="h-9 w-9 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-900">
               <PencilSimpleIcon size={18} color="#B45309" weight="bold" />
             </View>
-            <View className="ml-3 flex-1">
-              <Text className="font-bold text-amber-950 dark:text-amber-100">
+            <View
+              className="flex-1"
+              style={isRtl ? { marginRight: 12 } : { marginLeft: 12 }}
+            >
+              <Text style={rtlTextStyle} className="font-bold text-amber-950 dark:text-amber-100">
                 {t("profile:profileCompletion")}
               </Text>
-              <Text className="mt-0.5 text-xs text-amber-800 dark:text-amber-300">
+              <Text style={rtlTextStyle} className="mt-0.5 text-xs text-amber-800 dark:text-amber-300">
                 {t("profile:profileCompletionStatus", {
                   percentage: completion.percentage,
                   count: completion.remaining,

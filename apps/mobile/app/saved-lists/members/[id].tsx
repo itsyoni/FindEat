@@ -113,7 +113,7 @@ export default function SavedListMembersScreen() {
     Alert.alert(
       t("revokeListInvitation"),
       t("revokeListInvitationDescription", {
-        name: invitation.invitee.displayName || invitation.invitee.username,
+        name: invitation.invitee.username,
       }),
       [
         { text: t("cancel"), style: "cancel" },
@@ -144,7 +144,7 @@ export default function SavedListMembersScreen() {
   function manageMember(member: PlaceListMember) {
     if (!list || list.accessRole !== "OWNER" || member.role === "OWNER") return;
     Alert.alert(
-      member.displayName || member.username,
+      member.username,
       t("manageListMember"),
       [
         {
@@ -220,10 +220,9 @@ export default function SavedListMembersScreen() {
             <Avatar uri={item.avatarUrl} username={item.username} size={46} />
             <View className="ml-3 min-w-0 flex-1">
               <Text numberOfLines={1} className="font-bold text-black dark:text-white">
-                {item.displayName || item.username}
+                {item.username}
               </Text>
               <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500">
-                @{item.username}
               </Text>
             </View>
             <View className="rounded-full bg-amber-50 px-3 py-1.5 dark:bg-amber-950/40">
@@ -272,9 +271,8 @@ export default function SavedListMembersScreen() {
                     <Avatar uri={user.avatarUrl} username={user.username} size={40} />
                     <View className="ml-3 min-w-0 flex-1">
                       <Text numberOfLines={1} className="font-bold text-black dark:text-white">
-                        {user.displayName || user.username}
+                        {user.username}
                       </Text>
-                      <Text className="text-xs text-gray-500">@{user.username}</Text>
                     </View>
                     <TouchableOpacity
                       disabled={workingId !== null}
@@ -315,10 +313,10 @@ export default function SavedListMembersScreen() {
                       />
                       <View className="ml-3 min-w-0 flex-1">
                         <Text numberOfLines={1} className="font-bold text-black dark:text-white">
-                          {invitation.invitee.displayName || invitation.invitee.username}
+                          {invitation.invitee.username}
                         </Text>
                         <Text numberOfLines={1} className="text-xs text-gray-500">
-                          @{invitation.invitee.username} · {t("invitationPending")}
+                          {t("invitationPending")}
                         </Text>
                       </View>
                       <TouchableOpacity

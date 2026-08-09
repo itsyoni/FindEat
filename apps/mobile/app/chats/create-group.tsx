@@ -190,6 +190,7 @@ export default function CreateGroupScreen() {
                             uri={user.imageUrl}
                             username={user.title}
                             size={52}
+                            showSnapIndicator={false}
                           />
                           <View className="absolute -bottom-1 -right-1 h-5 w-5 items-center justify-center rounded-full bg-black dark:bg-white">
                             <CheckIcon
@@ -264,6 +265,7 @@ export default function CreateGroupScreen() {
                           uri={item.imageUrl}
                           username={item.title}
                           size={50}
+                          showSnapIndicator={false}
                         />
                         <View className="ml-4 flex-1">
                           <Text className="font-bold text-black dark:text-white">
@@ -352,6 +354,7 @@ export default function CreateGroupScreen() {
                       uri={user.imageUrl}
                       username={user.title}
                       size={30}
+                      showSnapIndicator={false}
                     />
                     <Text className="ml-2 text-sm font-semibold text-black dark:text-white">
                       {user.title}

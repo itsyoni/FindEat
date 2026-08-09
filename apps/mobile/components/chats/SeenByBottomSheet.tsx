@@ -49,13 +49,14 @@ export default function SeenByBottomSheet({ open, viewers, onClose }: Props) {
               uri={item.user.avatarUrl}
               username={item.user.username}
               size={44}
+              showSnapIndicator={false}
             />
             <View className="ml-3 min-w-0 flex-1">
               <Text
                 numberOfLines={1}
                 className="font-bold text-black dark:text-white"
               >
-                {item.user.displayName ?? item.user.username}
+                {item.user.username}
               </Text>
               <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                 {t("seen")}

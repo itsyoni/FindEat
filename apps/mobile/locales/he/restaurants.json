@@ -115,5 +115,9 @@
   "confirmRemoveVisitedBody": "להסיר את סטטוס הביקור מהמקום הזה?",
   "confirmRemoveVisitedFavoriteBody": "הפעולה תסיר גם את סטטוס הביקור וגם את המועדף. להמשיך?",
   "confirmRemoveFavoriteTitle": "להסיר מהמועדפים?",
-  "confirmRemoveFavoriteBody": "המקום יישאר מסומן כמקום שביקרת בו, אך לא יהיה יותר במועדפים."
+  "confirmRemoveFavoriteBody": "המקום יישאר מסומן כמקום שביקרת בו, אך לא יהיה יותר במועדפים.",
+  "viewRestaurant": "הצגת המסעדה",
+  "favorited": "במועדפים",
+  "favoriteDishes": "מנות מועדפות",
+  "favoriteDishesHint": "המנות המועדפות ששמרת מהמסעדה הזו."
 }

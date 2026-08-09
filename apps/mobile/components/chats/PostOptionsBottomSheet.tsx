@@ -15,6 +15,8 @@ import {
   LinkSimpleIcon,
   UsersThreeIcon,
   UserPlusIcon,
+  EyeSlashIcon,
+  ChatSlashIcon,
 } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,6 +25,7 @@ import {
   Platform,
   TouchableOpacity,
   View,
+  Switch,
 } from "react-native";
 import { router } from "expo-router";
 import { useToast } from "@/contexts/ToastContext";
@@ -55,6 +58,9 @@ export default function PostOptionsBottomSheet({
   const [askingToBlock, setAskingToBlock] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [requestingReviewJoin, setRequestingReviewJoin] = useState(false);
+  const [privacyUpdating, setPrivacyUpdating] = useState<
+    "likes" | "comments" | null
+  >(null);
   const [blockError, setBlockError] = useState("");
   const [post, setPost] = useState<Post | null>(null);
   const [failedPostId, setFailedPostId] = useState<string | null>(null);
@@ -107,6 +113,7 @@ export default function PostOptionsBottomSheet({
     setAskingToBlock(false);
     setBlocking(false);
     setRequestingReviewJoin(false);
+    setPrivacyUpdating(null);
     setBlockError("");
     onClose();
   }
@@ -217,6 +224,32 @@ export default function PostOptionsBottomSheet({
     }
   }
 
+  async function updatePostPrivacy(
+    setting: "likes" | "comments",
+    value: boolean,
+  ) {
+    if (!postId || privacyUpdating) return;
+    setPrivacyUpdating(setting);
+    try {
+      const updated = await api.posts.updateInteractionPrivacy(
+        postId,
+        setting === "likes"
+          ? { hideLikeCount: value }
+          : { commentsDisabled: value },
+      );
+      setPost(updated);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["feed"] }),
+        queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["post", postId] }),
+      ]);
+    } catch {
+      showToast(t("postPrivacyUpdateError"), { kind: "error" });
+    } finally {
+      setPrivacyUpdating(null);
+    }
+  }
+
   function finishReport() {
     if (activePost?.authorId && activePost.author && !activePost.canDelete) {
       setReporting(false);
@@ -248,13 +281,11 @@ export default function PostOptionsBottomSheet({
           : askingToBlock
             ? "48%"
             : activePost?.canDelete
-              ? activePost.type === "REVIEW"
-                ? Platform.OS === "android"
+              ? Platform.OS === "android"
+                ? "94%"
+                : activePost.type === "REVIEW"
                   ? "92%"
-                  : hasReviewCollaboration
-                    ? "88%"
-                    : "78%"
-                : "67%"
+                  : "84%"
               : showViewerReviewCollaborationOption
                 ? activePost?.canContribute && Platform.OS === "android"
                   ? "72%"
@@ -415,6 +446,54 @@ export default function PostOptionsBottomSheet({
                 weight="bold"
               />
             </TouchableOpacity>
+
+            <View className="mb-3 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+              <View className="flex-row items-center px-4 py-3.5">
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                  <EyeSlashIcon size={21} color={isDark ? "#D1D5DB" : "#4B5563"} weight="fill" />
+                </View>
+                <View className="ml-3 min-w-0 flex-1">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("hideLikeCount")}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {t("hideLikeCountHint")}
+                  </Text>
+                </View>
+                {privacyUpdating === "likes" ? (
+                  <ActivityIndicator color="#FF5B35" />
+                ) : (
+                  <Switch
+                    value={activePost.hideLikeCount}
+                    onValueChange={(value) => void updatePostPrivacy("likes", value)}
+                    trackColor={{ false: "#A09D97", true: "#FF5B35" }}
+                  />
+                )}
+              </View>
+              <View className="h-px bg-gray-100 dark:bg-gray-800" />
+              <View className="flex-row items-center px-4 py-3.5">
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                  <ChatSlashIcon size={21} color={isDark ? "#D1D5DB" : "#4B5563"} weight="fill" />
+                </View>
+                <View className="ml-3 min-w-0 flex-1">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("turnOffComments")}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {t("turnOffCommentsHint")}
+                  </Text>
+                </View>
+                {privacyUpdating === "comments" ? (
+                  <ActivityIndicator color="#FF5B35" />
+                ) : (
+                  <Switch
+                    value={activePost.commentsDisabled}
+                    onValueChange={(value) => void updatePostPrivacy("comments", value)}
+                    trackColor={{ false: "#A09D97", true: "#FF5B35" }}
+                  />
+                )}
+              </View>
+            </View>
 
             {activePost.type === "REVIEW" ? (
               <>

@@ -110,10 +110,7 @@ export default function FollowingSuggestions({ topInset }: Props) {
                   className="font-bold text-black dark:text-white"
                   numberOfLines={1}
                 >
-                  {item.displayName || item.username}
-                </Text>
-                <Text className="mt-0.5 text-sm text-gray-500" numberOfLines={1}>
-                  @{item.username}
+                  {item.username}
                 </Text>
               </View>
               <RelationshipActionButton

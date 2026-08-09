@@ -19,18 +19,22 @@ import * as ImagePicker from "expo-image-picker";
 import { router, Stack } from "expo-router";
 import {
   ArrowsClockwiseIcon,
+  CameraIcon,
   ImagesIcon,
   LightningIcon,
   LightningSlashIcon,
   MapPinIcon,
   PaperPlaneTiltIcon,
   XIcon,
+  LockIcon,
 } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   ActivityIndicator,
+  Linking,
+  ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -65,7 +69,10 @@ export default function CreateSnapScreen() {
     if (!cameraRef.current || !cameraReady || capturing) return;
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.9,
+        mirror: false,
+      });
       if (photo?.uri) setImageUri(photo.uri);
     } catch {
       Alert.alert(t("common:error"), t("snaps:captureError"));
@@ -293,23 +300,68 @@ export default function CreateSnapScreen() {
         <ActivityIndicator style={styles.cameraLoader} color="#FAF9F6" size="large" />
       ) : !cameraPermission.granted ? (
         <SafeAreaView style={styles.permissionState}>
-          <Text className="text-center text-lg font-bold text-white">
-            {t("snaps:cameraPermissionTitle")}
-          </Text>
-          <Text className="mt-2 text-center text-white/70">
-            {t("snaps:cameraPermissionBody")}
-          </Text>
-          {cameraPermission.canAskAgain ? (
+          <View className="px-5 pt-2">
             <TouchableOpacity
-              onPress={() => void requestCameraPermission()}
-              className="mt-5 rounded-full bg-white px-6 py-3"
+              accessibilityRole="button"
+              accessibilityLabel={t("common:cancel")}
+              onPress={() => router.back()}
+              className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
             >
-              <Text className="font-bold text-black">{t("snaps:allowCamera")}</Text>
+              <XIcon size={23} color="#FAF9F6" weight="bold" />
             </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity onPress={() => router.back()} className="mt-5 px-6 py-3">
-            <Text className="font-bold text-white">{t("common:close")}</Text>
-          </TouchableOpacity>
+          </View>
+          <ScrollView
+            className="flex-1"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.permissionContent}
+          >
+            <View className="h-20 w-20 items-center justify-center rounded-[24px] bg-[#F7D786]">
+              <CameraIcon size={38} color="#171717" weight="fill" />
+            </View>
+            <Text className="mt-6 text-center text-[26px] font-bold leading-8 text-[#FAF9F6]">
+              {t("snaps:cameraPermissionTitle")}
+            </Text>
+            <Text className="mt-3 max-w-sm text-center text-base leading-6 text-gray-400">
+              {t("snaps:cameraPermissionBody")}
+            </Text>
+            <View className="mt-6 max-w-sm flex-row items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+              <View className="h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                <LockIcon size={16} color="#D1D5DB" weight="fill" />
+              </View>
+              <Text className="ml-3 flex-1 text-sm leading-5 text-gray-300">
+                {t("snaps:cameraPrivacy")}
+              </Text>
+            </View>
+          </ScrollView>
+          <View className="px-5 pb-3 pt-2">
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() =>
+                void (cameraPermission.canAskAgain
+                  ? requestCameraPermission()
+                  : Linking.openSettings())
+              }
+              className="rounded-2xl bg-[#F7D786] py-4"
+            >
+              <Text className="text-center text-base font-bold text-[#171717]">
+                {t(
+                  cameraPermission.canAskAgain
+                    ? "snaps:allowCamera"
+                    : "snaps:openSettings",
+                )}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => void choosePhoto()}
+              className="mt-3 flex-row items-center justify-center rounded-2xl border border-white/15 py-4"
+            >
+              <ImagesIcon size={21} color="#F7D786" weight="fill" />
+              <Text className="ml-2 text-base font-bold text-[#FAF9F6]">
+                {t("snaps:choosePhoto")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </SafeAreaView>
       ) : (
         <View style={styles.cameraStage}>
@@ -317,6 +369,7 @@ export default function CreateSnapScreen() {
             ref={cameraRef}
             active={!imageUri}
             facing={cameraFacing}
+            mirror={false}
             flash={flash}
             mode="picture"
             onCameraReady={() => setCameraReady(true)}
@@ -417,8 +470,13 @@ const styles = StyleSheet.create({
   },
   permissionState: {
     flex: 1,
+    backgroundColor: "#0B0B0A",
+  },
+  permissionContent: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
+    paddingVertical: 24,
   },
 });

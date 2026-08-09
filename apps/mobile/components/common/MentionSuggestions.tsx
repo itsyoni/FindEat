@@ -77,10 +77,7 @@ export default function MentionSuggestions({ value, onChange, candidates }: Prop
           <Avatar uri={candidate.avatarUrl} username={candidate.username} size={34} />
           <View className="ml-2 min-w-0 flex-1">
             <Text numberOfLines={1} weight="bold" className="text-sm text-black dark:text-white">
-              {candidate.displayName || candidate.username}
-            </Text>
-            <Text numberOfLines={1} className="text-xs text-gray-500 dark:text-gray-400">
-              @{candidate.username}
+              {candidate.username}
             </Text>
           </View>
         </TouchableOpacity>

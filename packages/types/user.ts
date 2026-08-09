@@ -16,6 +16,8 @@ export type User = {
   language: Language;
   showActivityStatus?: boolean;
   showWhatsNewPopups?: boolean;
+  hideLikeCountsByDefault?: boolean;
+  commentsDisabledByDefault?: boolean;
   creatorScore?: number;
   selectedProfileTag?: ProfileTagKey | null;
   isPrivate?: boolean;

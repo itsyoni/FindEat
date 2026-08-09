@@ -48,7 +48,11 @@ function formatChatTime(value?: string | null) {
 
 export default function ChatRow({ chat, draft, onLongPress }: Props) {
   const { user } = useAuth();
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
+  const isRtl = i18n.dir() === "rtl";
+  const rtlTextStyle = isRtl
+    ? ({ textAlign: "right", writingDirection: "rtl" } as const)
+    : undefined;
 
   const otherUser = chat.participants.find((p) => p.userId !== user?.id)?.user;
 
@@ -90,6 +94,7 @@ export default function ChatRow({ chat, draft, onLongPress }: Props) {
     <TouchableOpacity
       activeOpacity={0.65}
       className="mx-4 flex-row items-center border-b border-line py-4 dark:border-gray-900"
+      style={isRtl ? { flexDirection: "row-reverse" } : undefined}
       onPress={() =>
         router.push({
           pathname: "/chats/[id]",
@@ -112,6 +117,7 @@ export default function ChatRow({ chat, draft, onLongPress }: Props) {
             username={title ?? t("chat")}
             size={56}
             fallbackType={isRestaurantChat ? "restaurant" : "user"}
+            showSnapIndicator={false}
           />
         )}
         {!isGroupChat && !isRestaurantChat && otherUser?.isOnline ? (
@@ -119,11 +125,21 @@ export default function ChatRow({ chat, draft, onLongPress }: Props) {
         ) : null}
       </View>
 
-      <View className="ml-4 min-w-0 flex-1">
-        <View className="flex-row items-center">
-          <View className="min-w-0 flex-1 flex-row items-center">
+      <View
+        className="min-w-0 flex-1"
+        style={isRtl ? { marginRight: 16 } : { marginLeft: 16 }}
+      >
+        <View
+          className="flex-row items-center"
+          style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+        >
+          <View
+            className="min-w-0 flex-1 flex-row items-center"
+            style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+          >
             <Text
               numberOfLines={1}
+              style={rtlTextStyle}
               className={`shrink text-base text-black dark:text-white ${hasUnread ? "font-bold" : "font-semibold"}`}
             >
             {title ?? t("chat")}
@@ -132,16 +148,21 @@ export default function ChatRow({ chat, draft, onLongPress }: Props) {
           </View>
           {lastMessageTime ? (
             <Text
-              className={`ml-3 text-xs ${hasUnread ? "font-bold text-amber-600" : "text-gray-400"}`}
+              style={isRtl ? { marginRight: 12 } : { marginLeft: 12 }}
+              className={`text-xs ${hasUnread ? "font-bold text-amber-600" : "text-gray-400"}`}
             >
               {lastMessageTime}
             </Text>
           ) : null}
         </View>
 
-        <View className="mt-1 flex-row items-center">
+        <View
+          className="mt-1 flex-row items-center"
+          style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+        >
           <Text
             numberOfLines={1}
+            style={rtlTextStyle}
             className={`min-w-0 flex-1 text-sm ${hasUnread ? "font-semibold text-black dark:text-white" : "text-gray-500 dark:text-gray-400"}`}
           >
             {draft ? (
@@ -159,12 +180,15 @@ export default function ChatRow({ chat, draft, onLongPress }: Props) {
               size={16}
               color="#D97706"
               weight="fill"
-              style={{ marginLeft: 10 }}
+              style={isRtl ? { marginRight: 10 } : { marginLeft: 10 }}
             />
           ) : null}
 
           {hasUnread ? (
-            <View className="ml-3 h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5">
+            <View
+              className="h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5"
+              style={isRtl ? { marginRight: 12 } : { marginLeft: 12 }}
+            >
               <Text className="text-[11px] font-bold text-white">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </Text>

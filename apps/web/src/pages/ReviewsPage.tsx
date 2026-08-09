@@ -16,7 +16,7 @@ export function ReviewsPage({ reviews }: { reviews: RestaurantReview[] }) {
     if (!clean) return reviews;
     return reviews.filter((review) =>
       [
-        review.author.displayName,
+        review.author.username,
         review.author.username,
         review.description,
         ...review.items.map((item) => item.name),
@@ -65,10 +65,8 @@ export function ReviewsPage({ reviews }: { reviews: RestaurantReview[] }) {
               )}
               <div>
                 <strong>
-                  {selectedReview.author.displayName ||
-                    selectedReview.author.username}
+                  {selectedReview.author.username}
                 </strong>
-                <small>@{selectedReview.author.username}</small>
               </div>
             </div>
             <div className="review-detail-rating">
@@ -212,7 +210,7 @@ export function ReviewsPage({ reviews }: { reviews: RestaurantReview[] }) {
                   key={review.id}
                   tabIndex={0}
                   role="link"
-                  aria-label={`Open review by ${review.author.displayName || review.author.username}`}
+                  aria-label={`Open review by ${review.author.username}`}
                   onClick={() => setSelectedReview(review)}
                   onKeyDown={(event) => handleRowKeyDown(event, review)}
                 >
@@ -227,9 +225,8 @@ export function ReviewsPage({ reviews }: { reviews: RestaurantReview[] }) {
                       )}
                       <div>
                         <strong>
-                          {review.author.displayName || review.author.username}
+                          {review.author.username}
                         </strong>
-                        <small>@{review.author.username}</small>
                       </div>
                     </div>
                   </td>

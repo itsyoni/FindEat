@@ -98,7 +98,7 @@ export function ModerationPanel() {
     if (!report.reportedUser) return;
     const suspended = !report.reportedUser.isSuspended;
     const verb = suspended ? "suspend" : "restore";
-    if (!window.confirm(`${verb[0]?.toUpperCase()}${verb.slice(1)} @${report.reportedUser.username}?`)) return;
+    if (!window.confirm(`${verb[0]?.toUpperCase()}${verb.slice(1)} ${report.reportedUser.username}?`)) return;
     return run(report.id, () =>
       request(`/admin/moderation/users/${report.reportedUser!.id}`, {
         method: "PATCH",

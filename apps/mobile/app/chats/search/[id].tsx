@@ -105,7 +105,7 @@ export default function SearchChatMessagesScreen() {
           ) : null
         }
         renderItem={({ item }) => {
-          const senderName = item.sentAsRestaurant?.name ?? item.sender.displayName ?? item.sender.username;
+          const senderName = item.sentAsRestaurant?.name ?? item.sender.username;
           const senderImage = item.sentAsRestaurant?.logoUrl ?? item.sender.avatarUrl;
           return (
             <TouchableOpacity
@@ -119,7 +119,7 @@ export default function SearchChatMessagesScreen() {
               className="mb-2 rounded-[20px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]"
             >
               <View className="flex-row items-center">
-                <Avatar uri={senderImage} username={senderName} size={36} fallbackType={item.sentAsRestaurant ? "restaurant" : "user"} />
+                <Avatar uri={senderImage} username={senderName} size={36} fallbackType={item.sentAsRestaurant ? "restaurant" : "user"} showSnapIndicator={false} />
                 <View className="ml-3 min-w-0 flex-1">
                   <View className="flex-row items-center">
                     <Text numberOfLines={1} className="min-w-0 flex-1 font-bold text-black dark:text-white">{senderName}</Text>

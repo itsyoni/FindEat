@@ -3,7 +3,7 @@ import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 
 export function notificationText(item: AppNotification, t: TFunction) {
-  const name = item.actor?.displayName || item.actor?.username || t('someone');
+  const name = item.actor?.username || t('someone');
   if (item.type === 'MESSAGE' && item.body) {
     return `${item.title || name}: ${item.body}`;
   }

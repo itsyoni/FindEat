@@ -6,6 +6,7 @@ import type {
   Post,
   PostType,
   PostVisibility,
+  UserSummary,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
@@ -131,6 +132,14 @@ export function createPostsApi(api: AxiosInstance) {
 
     async restore(id: string) {
       const { data } = await api.delete<Post>(`/posts/${id}/archive`);
+      return data;
+    },
+
+    async updateInteractionPrivacy(
+      id: string,
+      payload: { hideLikeCount?: boolean; commentsDisabled?: boolean },
+    ) {
+      const { data } = await api.patch<Post>(`/posts/${id}/privacy`, payload);
       return data;
     },
 
@@ -349,6 +358,16 @@ export function createPostsApi(api: AxiosInstance) {
         isLiked: boolean;
         likesCount: number;
       }>(`/posts/${id}/like`);
+      return data;
+    },
+
+    async likes(id: string, cursor?: string) {
+      const { data } = await api.get<{
+        items: UserSummary[];
+        nextCursor: string | null;
+      }>(`/posts/${id}/likes`, {
+        params: { cursor, limit: 30 },
+      });
       return data;
     },
 

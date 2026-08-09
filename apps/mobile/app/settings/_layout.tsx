@@ -1,17 +1,19 @@
 import { Stack } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { Platform } from 'react-native';
 
 export default function SettingsLayout() {
-  const { i18n } = useTranslation();
-  const isRtl = i18n.language.startsWith('he');
+  const { isDark } = useAppTheme();
 
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          direction: isRtl ? 'rtl' : 'ltr',
+          backgroundColor: isDark ? '#0B0B0A' : '#FBFAF8',
         },
+        animation: Platform.OS === 'android' ? 'none' : 'default',
+        animationMatchesGesture: Platform.OS !== 'android',
       }}
     />
   );

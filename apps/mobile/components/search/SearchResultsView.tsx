@@ -11,6 +11,7 @@ import Animated, {
   LinearTransition,
 } from "react-native-reanimated";
 import Text from "../common/AppText";
+import { useTranslation } from "react-i18next";
 
 type Props<T> = {
   data?: T[];
@@ -23,6 +24,9 @@ type Props<T> = {
   renderItem: (item: T) => ReactNode;
   placeholder?: string;
   emptyText?: string;
+  headerContent?: ReactNode;
+  initialQuery?: string;
+  onQueryChange?: (query: string) => void;
 };
 
 export default function SearchResultsView<T>({
@@ -34,10 +38,14 @@ export default function SearchResultsView<T>({
   searchFn,
   keyExtractor,
   renderItem,
-  placeholder = "Search",
-  emptyText = "No results found",
+  placeholder,
+  emptyText,
+  headerContent,
+  initialQuery = "",
+  onQueryChange,
 }: Props<T>) {
-  const [query, setQuery] = useState("");
+  const { t } = useTranslation("common");
+  const [query, setQuery] = useState(initialQuery);
   const [remoteResults, setRemoteResults] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -95,23 +103,26 @@ export default function SearchResultsView<T>({
             value={query}
             onChangeText={(text) => {
               setQuery(text);
+              onQueryChange?.(text);
               if (!text.trim()) {
                 setRemoteResults([]);
                 setLoading(false);
               }
             }}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t("search")}
             autoFocus
             rightAccessory={
               <TouchableOpacity className="px-2" onPress={onCancel}>
                 <Text className="font-semibold text-black dark:text-white">
-                  Cancel
+                  {t("cancel")}
                 </Text>
               </TouchableOpacity>
             }
           />
         </Animated.View>
       </Animated.View>
+
+      {headerContent}
 
       {loading ? (
         <SkeletonList />
@@ -123,7 +134,7 @@ export default function SearchResultsView<T>({
           ListEmptyComponent={
             query.trim() ? (
               <Text className="mt-8 text-center text-gray-500">
-                {emptyText}
+                {emptyText ?? t("noResultsFound")}
               </Text>
             ) : null
           }

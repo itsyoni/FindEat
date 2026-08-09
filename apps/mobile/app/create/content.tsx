@@ -68,6 +68,7 @@ import {
   AppState,
   FlatList,
   Linking,
+  ScrollView,
   type NativeSyntheticEvent,
   type NativeTouchEvent,
   TouchableOpacity,
@@ -457,6 +458,7 @@ export default function CreateContentScreen() {
       setCapturing(true);
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
+        mirror: false,
       });
       if (appendingCameraPhoto) {
         const nextMedia = [
@@ -1199,6 +1201,7 @@ export default function CreateContentScreen() {
                 ref={cameraRef}
                 style={{ position: "absolute", inset: 0 }}
                 facing={cameraFacing}
+                mirror={false}
                 flash={flashMode}
                 mode={captureMode}
                 zoom={cameraZoom}
@@ -1494,65 +1497,88 @@ export default function CreateContentScreen() {
             <ActivityIndicator color="#FAF9F6" size="large" />
           </View>
         ) : (
-          <SafeAreaView className="flex-1 px-5 pb-5">
-            <TouchableOpacity
-              onPress={closeCamera}
-              className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
-            >
-              <XIcon size={23} color="#FAF9F6" weight="bold" />
-            </TouchableOpacity>
+          <SafeAreaView
+            className="flex-1"
+            style={{ backgroundColor: "#0B0B0A" }}
+          >
+            <View className="px-5 pt-2">
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("cancel")}
+                onPress={closeCamera}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white/10"
+              >
+                <XIcon size={23} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+            </View>
 
-            <View className="flex-1 items-center justify-center px-5">
-              <View className="h-24 w-24 items-center justify-center rounded-[28px] bg-[#F7D786]">
-                <CameraIcon size={44} color="#171717" weight="fill" />
+            <ScrollView
+              className="flex-1"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                flexGrow: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                paddingHorizontal: 28,
+                paddingVertical: 24,
+              }}
+            >
+              <View className="h-20 w-20 items-center justify-center rounded-[24px] bg-[#F7D786]">
+                <CameraIcon size={38} color="#171717" weight="fill" />
               </View>
-              <Text className="mt-6 text-center text-2xl font-bold text-white">
+              <Text className="mt-6 text-center text-[26px] font-bold leading-8 text-[#FAF9F6]">
                 {t(
                   canAskForCamera
                     ? "cameraPermissionTitle"
                     : "cameraPermissionDeniedTitle",
                 )}
               </Text>
-              <Text className="mt-3 text-center leading-6 text-gray-400">
+              <Text className="mt-3 max-w-sm text-center text-base leading-6 text-gray-400">
                 {t(
                   canAskForCamera
                     ? "cameraPermissionBody"
                     : "cameraPermissionDeniedBody",
                 )}
               </Text>
-              <View className="mt-5 flex-row items-center rounded-2xl bg-white/5 px-4 py-3">
-                <LockIcon size={17} color="#A3A3A3" weight="fill" />
-                <Text className="ml-2 flex-1 text-xs leading-4 text-gray-400">
+              <View className="mt-6 max-w-sm flex-row items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+                <View className="h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                  <LockIcon size={16} color="#D1D5DB" weight="fill" />
+                </View>
+                <Text className="ml-3 flex-1 text-sm leading-5 text-gray-300">
                   {t("cameraPrivacy")}
                 </Text>
               </View>
-            </View>
+            </ScrollView>
 
-            <TouchableOpacity
-              onPress={() =>
-                void (canAskForCamera
-                  ? requestCameraPermission()
-                  : Linking.openSettings())
-              }
-              className="rounded-2xl bg-white py-4"
-            >
-              <Text className="text-center font-bold text-black">
-                {t(canAskForCamera ? "allowCamera" : "openSettings")}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() =>
-                void openGallery(
-                  appendingCameraPhoto ? { append: true } : undefined,
-                )
-              }
-              className="mt-3 flex-row items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-4"
-            >
-              <ImagesSquareIcon size={21} color="#F7D786" weight="fill" />
-              <Text className="ml-2 font-bold text-white">
-                {t("chooseFromGallery")}
-              </Text>
-            </TouchableOpacity>
+            <View className="px-5 pb-3 pt-2">
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() =>
+                  void (canAskForCamera
+                    ? requestCameraPermission()
+                    : Linking.openSettings())
+                }
+                className="rounded-2xl bg-[#F7D786] py-4"
+              >
+                <Text className="text-center text-base font-bold text-[#171717]">
+                  {t(canAskForCamera ? "allowCamera" : "openSettings")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() =>
+                  void openGallery(
+                    appendingCameraPhoto ? { append: true } : undefined,
+                  )
+                }
+                className="mt-3 flex-row items-center justify-center rounded-2xl border border-white/15 py-4"
+              >
+                <ImagesSquareIcon size={21} color="#F7D786" weight="fill" />
+                <Text className="ml-2 text-base font-bold text-[#FAF9F6]">
+                  {t("chooseFromGallery")}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </SafeAreaView>
         )}
       </View>

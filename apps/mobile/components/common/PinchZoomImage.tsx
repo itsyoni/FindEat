@@ -1,5 +1,7 @@
 import { Portal } from "@gorhom/portal";
 import {
+  Dimensions,
+  I18nManager,
   Platform,
   StyleProp,
   StyleSheet,
@@ -66,7 +68,11 @@ export default function PinchZoomImage({
       const measurement = measure(imageRef);
       if (!measurement) return;
 
-      originX.value = measurement.pageX;
+      originX.value = I18nManager.isRTL
+        ? Dimensions.get("window").width -
+          measurement.pageX -
+          measurement.width
+        : measurement.pageX;
       originY.value = measurement.pageY;
       width.value = measurement.width;
       height.value = measurement.height;
@@ -102,7 +108,12 @@ export default function PinchZoomImage({
     .numberOfTaps(2)
     .runOnJS(true)
     .onEnd((event, success) => {
-      if (success && onDoubleTap) onDoubleTap(event.x, event.y);
+      if (success && onDoubleTap) {
+        onDoubleTap(
+          I18nManager.isRTL ? width.get() - event.x : event.x,
+          event.y,
+        );
+      }
     });
 
   const mediaGesture = onDoubleTap
@@ -150,7 +161,13 @@ export default function PinchZoomImage({
   return (
     <>
       <GestureDetector gesture={mediaGesture}>
-        <Animated.View ref={imageRef} style={[style, sourceStyle]}>
+        <Animated.View
+          ref={imageRef}
+          onLayout={(event) => {
+            width.set(event.nativeEvent.layout.width);
+          }}
+          style={[style, sourceStyle]}
+        >
           <ProgressiveImage
             source={{ uri }}
             thumbnailUrl={thumbnailUrl}

@@ -1,5 +1,6 @@
 import type { UserRelationship } from "./profile";
 import type { GoogleRestaurantSuggestion } from "./restaurant";
+import type { DishSearchResult } from "./menu";
 
 export type SearchEntityType = "USER" | "RESTAURANT" | "DISH";
 
@@ -11,6 +12,7 @@ export type SearchResultItem = {
   imageUrl?: string | null;
   relationship?: UserRelationship;
   restaurantSuggestion?: GoogleRestaurantSuggestion;
+  dish?: DishSearchResult;
 };
 
 export type UserSearchResult = {

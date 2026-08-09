@@ -115,5 +115,9 @@
   "confirmRemoveVisitedBody": "Are you sure you want to remove the Visited status from this place?",
   "confirmRemoveVisitedFavoriteBody": "This will remove both Visited and Favorite from this place. Are you sure?",
   "confirmRemoveFavoriteTitle": "Remove from Favorites?",
-  "confirmRemoveFavoriteBody": "The place will remain Visited, but it will no longer be one of your favorites."
+  "confirmRemoveFavoriteBody": "The place will remain Visited, but it will no longer be one of your favorites.",
+  "viewRestaurant": "View restaurant",
+  "favorited": "Favorited",
+  "favoriteDishes": "Favorite dishes",
+  "favoriteDishesHint": "Your saved favorites from this restaurant."
 }

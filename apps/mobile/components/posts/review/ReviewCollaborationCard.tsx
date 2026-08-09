@@ -73,7 +73,6 @@ export default function ReviewCollaborationCard({ post }: Props) {
           <Text className="mt-1 text-sm leading-5 text-gray-500">
             {t("inviteBody", {
               name:
-                post.author?.displayName ||
                 post.author?.username ||
                 t("someone"),
             })}

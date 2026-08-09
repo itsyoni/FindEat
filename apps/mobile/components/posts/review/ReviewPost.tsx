@@ -9,7 +9,7 @@ import {
   ShareFatIcon,
   StarIcon,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   I18nManager,
@@ -43,6 +43,7 @@ import ReviewCollaborationCard from "./ReviewCollaborationCard";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import { prefetchImageUrls } from "@/lib/imagePrefetch";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
+import PostLikesBottomSheet from "@/components/posts/PostLikesBottomSheet";
 
 type Props = {
   post: Post;
@@ -151,6 +152,8 @@ export default function ReviewPost({
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
+  const [likesOpen, setLikesOpen] = useState(false);
+  const likePressStartedAt = useRef(0);
   const [selectedPerspectiveIds, setSelectedPerspectiveIds] = useState<
     Record<string, string>
   >({});
@@ -513,7 +516,7 @@ export default function ReviewPost({
               >
                 {isRestaurantPost
                   ? displayName
-                  : sharedAuthorName ?? `@${displayName}`}
+                  : sharedAuthorName ?? displayName}
               </Text>
               {isRestaurantPost ? <RestaurantBadge /> : null}
               {!isRestaurantPost && post.visibility !== "PUBLIC" ? (
@@ -626,7 +629,7 @@ export default function ReviewPost({
                         accessibilityRole="button"
                         accessibilityLabel={`View ${
                           perspective.username
-                            ? `@${perspective.username}`
+                            ? perspective.username
                             : "friend"
                         }'s dish photo`}
                         activeOpacity={0.82}
@@ -791,7 +794,16 @@ export default function ReviewPost({
         <View className="flex-row justify-between gap-5">
           <View className="flex-row items-center gap-5">
             <TouchableOpacity
-              onPress={handleLike}
+              delayLongPress={350}
+              onPressIn={() => {
+                likePressStartedAt.current = Date.now();
+              }}
+              onPress={() => {
+                if (Date.now() - likePressStartedAt.current < 350) handleLike();
+              }}
+              onLongPress={
+                post.canViewLikes ? () => setLikesOpen(true) : undefined
+              }
               className="flex-col items-center gap-1"
             >
               <Animated.View style={likeAnimatedStyle}>
@@ -802,18 +814,24 @@ export default function ReviewPost({
                 />
               </Animated.View>
 
-              <Text className="text-base text-black dark:text-white">
-                {post.likesCount}
-              </Text>
+              {post.canViewLikes ? (
+                <Text className="text-base text-black dark:text-white">
+                  {post.likesCount}
+                </Text>
+              ) : null}
             </TouchableOpacity>
 
             <TouchableOpacity
+              disabled={post.commentsDisabled}
               onPress={() => onOpenComments(post.id)}
               className="flex-col items-center gap-1"
+              style={{ opacity: post.commentsDisabled ? 0.55 : 1 }}
             >
               <ChatCircleIcon weight="regular" color={actionColor} size={28} />
               <Text className="text-base text-black dark:text-white">
-                {post.commentsCount}
+                {post.commentsDisabled
+                  ? tCommon("commentsOff")
+                  : post.commentsCount}
               </Text>
             </TouchableOpacity>
 
@@ -893,6 +911,11 @@ export default function ReviewPost({
           />
         </View>
       </View>
+      <PostLikesBottomSheet
+        postId={post.id}
+        open={likesOpen}
+        onClose={() => setLikesOpen(false)}
+      />
     </View>
   );
 }

@@ -230,16 +230,14 @@ export function MessagesPage({
                     <img src={customer.avatarUrl} alt="" />
                   ) : (
                     <span className="conversation-avatar">
-                      {(customer?.displayName || customer?.username || "?")
+                      {(customer?.username || "?")
                         .charAt(0)
                         .toUpperCase()}
                     </span>
                   )}
                   <div>
                     <strong>
-                      {customer?.displayName ||
-                        customer?.username ||
-                        "Customer"}
+                      {customer?.username || "Customer"}
                     </strong>
                     <p>{conversation.lastMessage || "New conversation"}</p>
                   </div>
@@ -275,7 +273,6 @@ export function MessagesPage({
                   ) : (
                     <span>
                       {(
-                        selectedConversation.customer?.displayName ||
                         selectedConversation.customer?.username ||
                         "?"
                       )
@@ -285,13 +282,8 @@ export function MessagesPage({
                   )}
                   <div>
                     <strong>
-                      {selectedConversation.customer?.displayName ||
-                        selectedConversation.customer?.username ||
-                        "Customer"}
+                      {selectedConversation.customer?.username || "Customer"}
                     </strong>
-                    <small>
-                      @{selectedConversation.customer?.username || "customer"}
-                    </small>
                   </div>
                 </div>
                 <span className="replying-as">
@@ -344,7 +336,7 @@ export function MessagesPage({
                 <div>
                   <textarea
                     aria-label="Message"
-                    placeholder={`Message ${selectedConversation.customer?.displayName || selectedConversation.customer?.username || "customer"}…`}
+                    placeholder={`Message ${selectedConversation.customer?.username || "customer"}…`}
                     rows={1}
                     value={content}
                     onChange={(event) => setContent(event.target.value)}

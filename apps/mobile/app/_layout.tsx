@@ -1,10 +1,11 @@
 import "@/i18n";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 import { Stack, router, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { ActivityIndicator, LogBox, View } from "react-native";
+import { ActivityIndicator, LogBox, Platform, View } from "react-native";
 import {
   configureReanimatedLogger,
   ReducedMotionConfig,
@@ -32,6 +33,8 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import PresenceConnection from "@/components/presence/PresenceConnection";
 import { PostUploadProvider } from "@/contexts/PostUploadContext";
 import { SnapIndicatorProvider } from "@/contexts/SnapIndicatorContext";
+
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 // The reduced-motion override intentionally emits a warning whenever it
 // mounts. Keep genuine Reanimated errors visible without noisy dev notices.
@@ -126,6 +129,13 @@ function RootNavigator() {
 
   useEffect(() => {
     if (isLoading) return;
+    requestAnimationFrame(() => {
+      void SplashScreen.hideAsync();
+    });
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (isLoading) return;
 
     const inAuthScreen = segments[0] === "(auth)";
 
@@ -142,11 +152,25 @@ function RootNavigator() {
 
   return (
     <>
-      <Stack initialRouteName={user ? "(tabs)" : "(auth)"}>
+      <Stack
+        initialRouteName={user ? "(tabs)" : "(auth)"}
+        screenOptions={{
+          contentStyle: {
+            backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
+          },
+        }}
+      >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(users)" options={{ headerShown: false }} />
-        <Stack.Screen name="(profile)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(profile)"
+          options={{
+            headerShown: false,
+            animation: Platform.OS === "android" ? "none" : "default",
+            animationMatchesGesture: Platform.OS !== "android",
+          }}
+        />
         <Stack.Screen name="(posts)/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="posts/edit/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="posts/connections/[id]" options={{ headerShown: false }} />
@@ -155,10 +179,24 @@ function RootNavigator() {
         <Stack.Screen name="create/content" options={{ headerShown: false }} />
         <Stack.Screen name="create/review" options={{ headerShown: false }} />
         <Stack.Screen name="create/snap" options={{ headerShown: false }} />
-        <Stack.Screen name="snaps/[userId]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="snaps/[userId]"
+          options={{
+            headerShown: false,
+            animation: "none",
+            gestureEnabled: false,
+          }}
+        />
         <Stack.Screen name="business/index" />
         <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
-        <Stack.Screen name="saved/index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="saved/index"
+          options={{
+            headerShown: false,
+            animation: Platform.OS === "android" ? "none" : "default",
+            animationMatchesGesture: Platform.OS !== "android",
+          }}
+        />
         <Stack.Screen name="saved-lists/index" options={{ headerShown: false }} />
         <Stack.Screen name="saved-lists/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="saved-lists/edit/[id]" options={{ headerShown: false }} />

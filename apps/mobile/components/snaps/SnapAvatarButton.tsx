@@ -75,12 +75,9 @@ export default function SnapAvatarButton({
         {indicatorPlacement === "outside" && indicator ? (
           <View
             style={{
-              borderRadius: (size + 9) / 2,
-              borderWidth: 1.5,
-              borderColor:
-                indicator === "unseen" ? "#FF5B35" : "#9CA3AF",
-              padding: 2,
-              backgroundColor: "transparent",
+              width: size,
+              height: size,
+              borderRadius: size / 2,
               alignItems: "center",
               justifyContent: "center",
             }}
@@ -91,6 +88,20 @@ export default function SnapAvatarButton({
               userId={userId}
               size={size}
               showSnapIndicator={false}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: -3,
+                right: -3,
+                bottom: -3,
+                left: -3,
+                borderRadius: (size + 6) / 2,
+                borderWidth: 1.5,
+                borderColor:
+                  indicator === "unseen" ? "#FF5B35" : "#9CA3AF",
+              }}
             />
           </View>
         ) : (

@@ -55,13 +55,25 @@ export default function ConnectionsScreen() {
             ? await api.users.following(id)
             : await api.users.friends(id);
 
-      setItems(connections);
+      const currentUserId = currentUser?.id;
+      setItems(
+        currentUserId
+          ? [...connections].sort((left, right) => {
+              const leftUser =
+                activeTab === "following" ? left.following : left.follower;
+              const rightUser =
+                activeTab === "following" ? right.following : right.follower;
+              return Number(rightUser?.id === currentUserId) -
+                Number(leftUser?.id === currentUserId);
+            })
+          : connections,
+      );
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [id, activeTab]);
+  }, [id, activeTab, currentUser?.id]);
 
   async function toggleFollow(
     targetUserId: string,
@@ -202,10 +214,7 @@ export default function ConnectionsScreen() {
 
                 <View className="ml-4 flex-1">
                   <Text className="text-lg font-bold text-black dark:text-white">
-                    {user.displayName?.trim() || user.username}
-                  </Text>
-                  <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    @{user.username}
+                    {user.username}
                   </Text>
                 </View>
               </View>

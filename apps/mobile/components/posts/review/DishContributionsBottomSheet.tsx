@@ -61,8 +61,7 @@ export default function DishContributionsBottomSheet({
                   />
                   <View className="ml-3 flex-1">
                     <Text className="font-bold text-black dark:text-white">
-                      {contribution.user.displayName ||
-                        `@${contribution.user.username}`}
+                      {contribution.user.username}
                     </Text>
                     {contribution.rating != null && (
                       <View className="mt-1 flex-row items-center">

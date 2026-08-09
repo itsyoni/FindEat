@@ -46,6 +46,7 @@ export default function MapRestaurantListCard({
     .filter(Boolean)
     .join(", ");
   const userStatus = restaurant.userRestaurant;
+  const coverImageUrl = restaurant.coverUrl ?? restaurant.coverThumbnailUrl;
 
   const status = userStatus?.favorite
     ? {
@@ -86,11 +87,12 @@ export default function MapRestaurantListCard({
     >
       <View className="flex-row p-3">
         <View className="relative h-28 w-28 overflow-hidden rounded-[20px] bg-[#F1EEE8] dark:bg-gray-900">
-          {restaurant.coverUrl ? (
+          {coverImageUrl ? (
             <ProgressiveImage
-              source={{ uri: restaurant.coverUrl }}
-              className="h-full w-full"
-              resizeMode="cover"
+              source={{ uri: coverImageUrl }}
+              thumbnailUrl={restaurant.coverThumbnailUrl}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
             />
           ) : (
             <View className="h-full w-full items-center justify-center">
@@ -103,7 +105,7 @@ export default function MapRestaurantListCard({
             </View>
           )}
 
-          {restaurant.coverUrl ? (
+          {coverImageUrl ? (
             <View className="absolute bottom-2 left-2 rounded-full bg-white p-0.5 dark:bg-black">
               <Avatar
                 uri={restaurant.logoUrl}

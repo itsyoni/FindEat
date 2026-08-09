@@ -149,7 +149,7 @@
   "reportUser": "Report user",
   "blockUser": "Block user",
   "blockUserHint": "They won't be able to find, follow, or message you",
-  "blockUserTitle": "Block @{{username}}?",
+  "blockUserTitle": "Block {{username}}?",
   "blockUserDescription": "You will unfollow each other. They won't be able to find your profile, see your posts, follow you, or send you direct messages.",
   "block": "Block",
   "blockUserError": "Could not block this user. Please try again.",

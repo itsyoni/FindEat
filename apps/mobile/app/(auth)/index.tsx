@@ -17,10 +17,6 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  FadeInLeft,
-  FadeInRight,
-  FadeOutLeft,
-  FadeOutRight,
   LinearTransition,
   runOnJS,
 } from "react-native-reanimated";
@@ -42,7 +38,6 @@ export default function AuthIndexScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [pendingEmail, setPendingEmail] = useState("");
-  const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const isRtl = i18n.language.startsWith("he");
 
   useEffect(() => {
@@ -84,10 +79,6 @@ export default function AuthIndexScreen() {
   ];
 
   const current = steps[step];
-  const visualTransitionDirection = isRtl
-    ? -transitionDirection
-    : transitionDirection;
-
   function openSheet(mode: AuthMode = "login") {
     setAuthMode(mode);
     setSheetOpen(true);
@@ -101,7 +92,6 @@ export default function AuthIndexScreen() {
 
   function handleContinue() {
     if (step < steps.length - 1) {
-      setTransitionDirection(1);
       setStep((prev) => prev + 1);
       return;
     }
@@ -116,7 +106,6 @@ export default function AuthIndexScreen() {
     }
 
     if (step > 0) {
-      setTransitionDirection(-1);
       setStep((prev) => prev - 1);
     }
   }
@@ -126,10 +115,8 @@ export default function AuthIndexScreen() {
     const isBackSwipe = isRtl ? translationX < -60 : translationX > 60;
 
     if (isForwardSwipe && step < steps.length - 1) {
-      setTransitionDirection(1);
       setStep((currentStep) => currentStep + 1);
     } else if (isBackSwipe && step > 0) {
-      setTransitionDirection(-1);
       setStep((currentStep) => currentStep - 1);
     }
   }
@@ -161,9 +148,14 @@ export default function AuthIndexScreen() {
     return (
       <Animated.View
         layout={LinearTransition.springify().damping(28).stiffness(260)}
-        className={`h-2 rounded-full ${
-          active ? "w-8 bg-white" : "w-2 bg-white/40"
-        }`}
+        style={{
+          width: active ? 32 : 8,
+          height: 8,
+          borderRadius: 999,
+          backgroundColor: active
+            ? "#FAF9F6"
+            : "rgba(250, 249, 246, 0.4)",
+        }}
       />
     );
   }
@@ -173,14 +165,21 @@ export default function AuthIndexScreen() {
   }
 
   return (
-    <View className="flex-1 bg-black">
+    <View style={{ flex: 1, backgroundColor: "#0B0B0A" }}>
       <ImageBackground
         source={require("@/assets/images/auth-bg.png")}
         style={{ flex: 1 }}
         imageStyle={{ width: "100%", height: "100%" }}
         resizeMode="cover"
       >
-        <View className="absolute inset-0 bg-black/35" />
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(11, 11, 10, 0.35)",
+          }}
+        />
 
         <GestureDetector gesture={swipeGesture}>
           <SafeAreaView
@@ -192,8 +191,12 @@ export default function AuthIndexScreen() {
             }}
           >
           <View
-            style={{ zIndex: 100 }}
-            className="flex-row items-center justify-between"
+            style={{
+              zIndex: 100,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
           >
             {step > 0 || sheetOpen ? (
               <TouchableOpacity onPress={handleBack}>
@@ -205,12 +208,19 @@ export default function AuthIndexScreen() {
 
             <TouchableOpacity
               onPress={toggleLanguage}
-              className="flex-row items-center rounded-full bg-black/35 px-3 py-2"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                borderRadius: 999,
+                backgroundColor: "rgba(11, 11, 10, 0.42)",
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
             >
-              <Text className="mr-1.5 text-lg">
+              <Text style={{ marginRight: 6, fontSize: 18 }}>
                 {i18n.language.startsWith("he") ? "🇺🇸" : "🇮🇱"}
               </Text>
-              <Text weight="bold" className="text-sm text-white">
+              <Text weight="bold" style={{ fontSize: 14, color: "#FAF9F6" }}>
                 {i18n.language.startsWith("he") ? "EN" : "HE"}
               </Text>
             </TouchableOpacity>
@@ -236,7 +246,6 @@ export default function AuthIndexScreen() {
                   style={{ flex: 1 }}
                   disabled={step === 0}
                   onPress={() => {
-                    setTransitionDirection(-1);
                     setStep((currentStep) => Math.max(0, currentStep - 1));
                   }}
                 />
@@ -246,7 +255,6 @@ export default function AuthIndexScreen() {
                   style={{ flex: 1 }}
                   disabled={step === steps.length - 1}
                   onPress={() => {
-                    setTransitionDirection(1);
                     setStep((currentStep) =>
                       Math.min(steps.length - 1, currentStep + 1),
                     );
@@ -254,17 +262,17 @@ export default function AuthIndexScreen() {
                 />
               </View>
 
-              <Animated.View
-                key={current.title}
-                entering={(visualTransitionDirection === 1 ? FadeInRight : FadeInLeft).duration(350)}
-                exiting={(visualTransitionDirection === 1 ? FadeOutLeft : FadeOutRight).duration(200)}
-                style={{ alignItems: "flex-start" }}
+              <View
+                key={`${step}-${i18n.language}`}
+                style={{ zIndex: 30, alignItems: "flex-start" }}
               >
                 <Text
                   weight="black"
-                  className="text-6xl leading-15.5 text-white"
                   style={{
                     alignSelf: "stretch",
+                    color: "#FAF9F6",
+                    fontSize: 56,
+                    lineHeight: 60,
                     textAlign: "auto",
                     writingDirection: isRtl ? "rtl" : "ltr",
                   }}
@@ -273,31 +281,50 @@ export default function AuthIndexScreen() {
                 </Text>
 
                 <Text
-                  className="mt-5 max-w-72.5 text-lg leading-7 text-white/85"
                   style={{
                     alignSelf: "flex-start",
+                    maxWidth: 290,
+                    marginTop: 20,
+                    color: "rgba(250, 249, 246, 0.86)",
+                    fontSize: 18,
+                    lineHeight: 27,
                     textAlign: "auto",
                     writingDirection: isRtl ? "rtl" : "ltr",
                   }}
                 >
                   {current.subtitle}
                 </Text>
-              </Animated.View>
+              </View>
 
-              <View>
-                <View className="mb-6 flex-row justify-center gap-2">
+              <View style={{ zIndex: 30 }}>
+                <View
+                  style={{
+                    marginBottom: 24,
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
                   {steps.map((_, index) => (
                     <IndicatorDot key={index} active={index === step} />
                   ))}
                 </View>
 
                 <TouchableOpacity
-                  className="rounded-full bg-white py-4"
+                  style={{
+                    borderRadius: 999,
+                    backgroundColor: "#FAF9F6",
+                    paddingVertical: 16,
+                  }}
                   onPress={handleContinue}
                 >
                   <Text
                     weight="bold"
-                    className="text-center text-base text-black"
+                    style={{
+                      color: "#171715",
+                      fontSize: 16,
+                      textAlign: "center",
+                    }}
                   >
                     {step === steps.length - 1
                       ? t("getStarted")
@@ -312,7 +339,8 @@ export default function AuthIndexScreen() {
 
         {sheetOpen ? <BottomSheet
           ref={bottomSheetRef}
-          index={-1}
+          index={0}
+          enableDynamicSizing
           enablePanDownToClose
           keyboardBehavior="interactive"
           keyboardBlurBehavior="restore"

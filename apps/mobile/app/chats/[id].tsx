@@ -309,7 +309,11 @@ function firstPostImage(post: NonNullable<Message["post"]>) {
 export default function ChatScreen() {
   const { user, token } = useAuth();
   const currentUserId = user?.id;
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
+  const isRtl = i18n.dir() === "rtl";
+  const rtlTextStyle = isRtl
+    ? ({ textAlign: "right", writingDirection: "rtl" } as const)
+    : undefined;
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
 
@@ -476,7 +480,6 @@ export default function ChatScreen() {
     (participant) => participant.userId === typingUserIds[0],
   );
   const typingName =
-    typingParticipant?.user.displayName ??
     typingParticipant?.user.username ??
     t("someone");
   const typingLabel = isGroupChat
@@ -1198,7 +1201,7 @@ export default function ChatScreen() {
 
   function replyAuthor(message: Message) {
     if (message.senderId === user?.id) return t("you");
-    return message.sentAsRestaurant?.name ?? message.sender.displayName ?? message.sender.username;
+    return message.sentAsRestaurant?.name ?? message.sender.username;
   }
 
   const scrollToMessage = useCallback((messageId: string) => {
@@ -1239,7 +1242,7 @@ export default function ChatScreen() {
     }
 
     const names = viewers.map(
-      ({ user: viewer }) => viewer.displayName ?? viewer.username,
+      ({ user: viewer }) => viewer.username,
     );
     if (names.length === 1) return t("seenByOne", { name: names[0] });
     if (names.length === 2) {
@@ -1341,6 +1344,7 @@ export default function ChatScreen() {
                   onPress={openChatInfo}
                   disabled={isNewChat}
                   className="min-w-0 flex-1 flex-row items-center py-2"
+                  style={isRtl ? { flexDirection: "row-reverse" } : undefined}
                 >
                   {isGroupChat && !headerImage ? (
                     <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800">
@@ -1356,12 +1360,23 @@ export default function ChatScreen() {
                       username={headerTitle ?? "Chat"}
                       size={42}
                       fallbackType={isRestaurantChat ? "restaurant" : "user"}
+                      showSnapIndicator={false}
                     />
                   )}
 
-                  <View className="ml-3 min-w-0 flex-1">
-                    <View className="flex-row items-center">
-                      <Text numberOfLines={1} className="shrink text-base font-bold text-black dark:text-white">
+                  <View
+                    className="min-w-0 flex-1"
+                    style={isRtl ? { marginRight: 12 } : { marginLeft: 12 }}
+                  >
+                    <View
+                      className="flex-row items-center"
+                      style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={rtlTextStyle}
+                        className="shrink text-base font-bold text-black dark:text-white"
+                      >
                         {headerTitle ?? "Chat"}
                       </Text>
                       {isRestaurantChat ? <RestaurantBadge /> : null}
@@ -1370,6 +1385,7 @@ export default function ChatScreen() {
                     {statusText ? (
                       <Text
                         numberOfLines={1}
+                        style={rtlTextStyle}
                         className={`text-xs ${typingUserIds.length > 0 || (!isGroupChat && !isRestaurantChat && otherUser?.isOnline) ? "font-semibold text-emerald-600 dark:text-emerald-400" : "text-gray-500"}`}
                       >
                         {statusText}
@@ -1504,7 +1520,7 @@ export default function ChatScreen() {
                         {shouldShowAvatar ? (
                           <TouchableOpacity
                             accessibilityRole="button"
-                            accessibilityLabel={`Open @${item.sender.username}'s profile`}
+                            accessibilityLabel={`Open ${item.sender.username}'s profile`}
                             onPress={() =>
                               router.push({
                                 pathname: "/(users)/[id]",
@@ -1516,6 +1532,7 @@ export default function ChatScreen() {
                               uri={item.sender.avatarUrl}
                               username={item.sender.username}
                               size={32}
+                              showSnapIndicator={false}
                             />
                           </TouchableOpacity>
                         ) : null}
@@ -1540,7 +1557,7 @@ export default function ChatScreen() {
                     >
                       {shouldShowSenderName && (
                         <Text className="mb-1 text-xs font-bold text-gray-500">
-                          @{item.sender.username}
+                          {item.sender.username}
                         </Text>
                       )}
 
@@ -1552,7 +1569,7 @@ export default function ChatScreen() {
                           <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">
                             {item.replyTo.sender.id === user?.id
                               ? t("you")
-                              : item.replyTo.sentAsRestaurant?.name ?? item.replyTo.sender.displayName ?? item.replyTo.sender.username}
+                              : item.replyTo.sentAsRestaurant?.name ?? item.replyTo.sender.username}
                           </Text>
                           <Text numberOfLines={2} className={`mt-0.5 text-xs ${isMine ? "text-black/60" : "text-gray-500 dark:text-gray-400"}`}>
                             {replyPreview(item.replyTo)}
@@ -1813,6 +1830,8 @@ export default function ChatScreen() {
                 lineHeight: 20,
                 fontSize: 16,
                 fontFamily: "CabinetRegular",
+                textAlign: isRtl ? "right" : undefined,
+                writingDirection: isRtl ? "rtl" : undefined,
               }}
             />
 

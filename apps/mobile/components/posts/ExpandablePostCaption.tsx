@@ -73,11 +73,7 @@ export default function ExpandablePostCaption({
     tone === "overlay"
       ? "text-sm font-bold text-white"
       : "text-sm font-bold text-black dark:text-white";
-  const authorPrefix = authorName?.trim()
-    ? authorName.trim().startsWith("@")
-      ? authorName.trim()
-      : `@${authorName.trim()}`
-    : null;
+  const authorPrefix = authorName?.trim().replace(/^@+/, "") || null;
 
   const captionContent = (interactive = false) => (
     <>

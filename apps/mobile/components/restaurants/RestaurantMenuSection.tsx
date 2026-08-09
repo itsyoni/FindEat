@@ -69,6 +69,16 @@ export default function RestaurantMenuSection({
     [popularItems],
   );
 
+  const favoriteItems = useMemo(
+    () =>
+      restaurant.menus
+        .flatMap((menu) => menu.items)
+        .filter(
+          (item) => (favoriteOverrides[item.id] ?? item.isFavorite) === true,
+        ),
+    [favoriteOverrides, restaurant.menus],
+  );
+
   const visibleMenus = useMemo(() => {
     const cleanQuery = query.trim().toLocaleLowerCase();
 
@@ -76,23 +86,33 @@ export default function RestaurantMenuSection({
       .filter((menu) => selectedMenuId === "ALL" || menu.id === selectedMenuId)
       .map((menu) => ({
         ...menu,
-        items: menu.items.filter((item) => {
-          if (!cleanQuery) return true;
-          return [
-            item.name,
-            item.description,
-            item.category,
-            ...(item.allergens ?? []),
-            ...(item.dietaryTags ?? []),
-            ...(item.cuisineTags ?? []),
-            ...(item.dishTags ?? []),
-          ]
-            .filter(Boolean)
-            .some((value) => value!.toLocaleLowerCase().includes(cleanQuery));
-        }),
+        items: menu.items
+          .filter((item) => {
+            if (!cleanQuery) return true;
+            return [
+              item.name,
+              item.description,
+              item.category,
+              ...(item.allergens ?? []),
+              ...(item.dietaryTags ?? []),
+              ...(item.cuisineTags ?? []),
+              ...(item.dishTags ?? []),
+            ]
+              .filter(Boolean)
+              .some((value) => value!.toLocaleLowerCase().includes(cleanQuery));
+          })
+          .sort(
+            (left, right) =>
+              Number(
+                (favoriteOverrides[right.id] ?? right.isFavorite) === true,
+              ) -
+              Number(
+                (favoriteOverrides[left.id] ?? left.isFavorite) === true,
+              ),
+          ),
       }))
       .filter((menu) => menu.items.length > 0 || !cleanQuery);
-  }, [query, restaurant.menus, selectedMenuId]);
+  }, [favoriteOverrides, query, restaurant.menus, selectedMenuId]);
 
   const visibleItemCount = visibleMenus.reduce(
     (total, menu) => total + menu.items.length,
@@ -203,6 +223,27 @@ export default function RestaurantMenuSection({
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {!query.trim() &&
+        selectedMenuId === "ALL" &&
+        favoriteItems.length > 0 && (
+          <View className="mt-7">
+            <Text className="text-xl font-bold text-black dark:text-white">
+              {t("favoriteDishes")}
+            </Text>
+            <Text className="mt-1 text-sm text-gray-500">
+              {t("favoriteDishesHint")}
+            </Text>
+            {favoriteItems.map((item) => (
+              <DishCard
+                key={`favorite-${item.id}`}
+                item={item}
+                popular={popularIds.has(item.id)}
+                isFavorite
+              />
+            ))}
+          </View>
+        )}
 
       {!query.trim() &&
         selectedMenuId === "ALL" &&

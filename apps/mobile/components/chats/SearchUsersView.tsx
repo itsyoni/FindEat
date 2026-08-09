@@ -61,8 +61,8 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
         const updated = await addRecentSearch(user.id, {
           id: selectedUser.id,
           type: "USER",
-          title: selectedUser.displayName?.trim() || selectedUser.username,
-          subtitle: `@${selectedUser.username}`,
+          title: selectedUser.username,
+          subtitle: undefined,
           imageUrl: selectedUser.avatarUrl,
         });
 
@@ -76,11 +76,7 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
             id: "new-direct",
             type: "DIRECT",
             targetUserId: userId,
-            title:
-              selectedUser?.displayName?.trim() ||
-              selectedUser?.username ||
-              recentUser?.title ||
-              userId,
+            title: selectedUser?.username || recentUser?.title || userId,
             imageUrl: selectedUser?.avatarUrl ?? recentUser?.imageUrl ?? "",
           },
         });
@@ -135,13 +131,10 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
               onPress={() => handleUserPress(item.id)}
               className="border-b border-gray-100 p-4 flex-1 flex-row items-center gap-4"
             >
-              <Avatar uri={item.avatarUrl} username={item.username} size={44} />
+              <Avatar uri={item.avatarUrl} username={item.username} size={44} showSnapIndicator={false} />
               <View className="flex-1">
                 <Text className="font-bold text-black dark:text-white">
-                  {item.displayName?.trim() || item.username}
-                </Text>
-                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  @{item.username}
+                  {item.username}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -156,15 +149,17 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
               onPress={() => handleUserPress(item.id)}
               className="flex-row items-center gap-4 border-b border-gray-100 p-4"
             >
-              <Avatar uri={item.imageUrl} username={item.title} size={44} />
+              <Avatar uri={item.imageUrl} username={item.title} size={44} showSnapIndicator={false} />
 
               <View className="flex-1">
                 <Text className="font-bold text-black dark:text-white">
                   {item.title}
                 </Text>
-                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {item.subtitle || `@${item.title.replace(/^@/, "")}`}
-                </Text>
+                {item.subtitle ? (
+                  <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {item.subtitle.replace(/^@+/, "")}
+                  </Text>
+                ) : null}
               </View>
 
               <TouchableOpacity

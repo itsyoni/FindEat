@@ -36,8 +36,7 @@ export default function ManageReviewCollaboratorsScreen() {
             )
             .map((participant) => ({
               id: participant.userId,
-              displayName:
-                participant.user.displayName || participant.user.username,
+              displayName: participant.user.username,
               username: participant.user.username,
               avatarUrl: participant.user.avatarUrl,
             }));

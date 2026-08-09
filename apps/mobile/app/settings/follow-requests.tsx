@@ -63,8 +63,7 @@ export default function FollowRequestsScreen() {
             >
               <Avatar uri={item.requester.avatarUrl} username={item.requester.username} size={50} />
               <View className="min-w-0 flex-1" style={{ marginStart: 12 }}>
-                <Text numberOfLines={1} weight="bold" className="text-black dark:text-white" style={textStyle}>{item.requester.displayName || item.requester.username}</Text>
-                <Text numberOfLines={1} className="mt-0.5 text-sm text-gray-500" style={textStyle}>@{item.requester.username}</Text>
+                <Text numberOfLines={1} weight="bold" className="text-black dark:text-white" style={textStyle}>{item.requester.username}</Text>
               </View>
               <TouchableOpacity disabled={!!workingId} onPress={(event) => { event.stopPropagation(); void resolve(item.requester.id, true); }} className="rounded-xl bg-black px-3.5 py-2.5 dark:bg-white">
                 <Text weight="bold" className="text-xs text-white dark:text-black">{t("confirmRequest")}</Text>

@@ -357,9 +357,9 @@ export function AdminPage({
                       </div>
                       <div className="claim-person">
                         <span>Requested by</span>
-                        <strong>{claim.user.displayName}</strong>
+                        <strong>{claim.user.username}</strong>
                         <p>
-                          @{claim.user.username} · {claim.user.email}
+                          {claim.user.email}
                         </p>
                       </div>
                       {claim.evidenceText && (

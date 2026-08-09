@@ -4,7 +4,7 @@ import { BellSlashIcon } from '@phosphor-icons/react/dist/csr/BellSlash'
 import { XIcon } from '@phosphor-icons/react/dist/csr/X'
 
 function notificationCopy(notification: AppNotification) {
-  const actor = notification.actor?.displayName || notification.actor?.username || 'Someone'
+  const actor = notification.actor?.username || 'Someone'
   switch (notification.type) {
     case 'RESTAURANT_FOLLOW': return `${actor} followed your restaurant`
     case 'RESTAURANT_REVIEW': return `${actor} published a new review`
@@ -79,7 +79,7 @@ export function NotificationsPopover({ restaurant, notifications, loading, onNav
       {notifications.map((notification) => {
         const canOpen = notification.type === 'MESSAGE' || notification.type === 'MESSAGE_MENTION' || notification.type === 'RESTAURANT_REVIEW'
         return <button className={`restaurant-notification-row ${notification.readAt ? '' : 'unread'}`} key={notification.id} type="button" disabled={!canOpen} onClick={() => openNotification(notification)}>
-          <div className="notification-avatar">{notification.actor?.avatarUrl ? <img src={notification.actor.avatarUrl} alt="" /> : <span>{(notification.actor?.displayName || notification.actor?.username || restaurant.name).charAt(0).toUpperCase()}</span>}</div>
+          <div className="notification-avatar">{notification.actor?.avatarUrl ? <img src={notification.actor.avatarUrl} alt="" /> : <span>{(notification.actor?.username || restaurant.name).charAt(0).toUpperCase()}</span>}</div>
           <div className="notification-copy"><strong>{notificationCopy(notification)}</strong>{notification.body && <p>{notification.body}</p>}<small>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(notification.createdAt))}</small></div>
           {notification.postPreview?.imageUrl ? <img className="notification-post-preview" src={notification.postPreview.imageUrl} alt="" /> : canOpen ? <span className="notification-open">Open</span> : null}
           {!notification.readAt && <i aria-label="Unread" />}

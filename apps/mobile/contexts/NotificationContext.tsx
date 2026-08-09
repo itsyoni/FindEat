@@ -186,13 +186,18 @@ export function NotificationProvider({
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const [popup, setPopup] = useState<AppNotification | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notificationsScreenOpen = useRef(false);
   const pathnameRef = useRef(pathname);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    if (!popup) return;
+    const dismissTimer = setTimeout(() => setPopup(null), 3_000);
+    return () => clearTimeout(dismissTimer);
+  }, [popup]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -206,7 +211,6 @@ export function NotificationProvider({
 
     if (notificationsScreenOpen.current) {
       setPopup(null);
-      if (timer.current) clearTimeout(timer.current);
     }
   }, [pathname]);
 
@@ -229,8 +233,6 @@ export function NotificationProvider({
         }
 
         setPopup(item);
-        if (timer.current) clearTimeout(timer.current);
-        timer.current = setTimeout(() => setPopup(null), 4500);
         return;
       }
 
@@ -271,13 +273,10 @@ export function NotificationProvider({
       }
 
       setPopup(item);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setPopup(null), 4500);
     });
 
     return () => {
       socket.disconnect();
-      if (timer.current) clearTimeout(timer.current);
     };
   }, [queryClient, token, user]);
 
@@ -439,8 +438,6 @@ export function NotificationProvider({
           createdAt: new Date().toISOString(),
         });
         setPopup(item);
-        if (timer.current) clearTimeout(timer.current);
-        timer.current = setTimeout(() => setPopup(null), 4500);
       },
     );
     const pushTokenSubscription = Notifications.addPushTokenListener(() => {

@@ -75,10 +75,7 @@ export default function SnapViewersBottomSheet({ snapId, open, onClose }: Props)
                   }}
                 >
                   <Text numberOfLines={1} className="font-bold text-black dark:text-white">
-                    {viewer.user.displayName || viewer.user.username}
-                  </Text>
-                  <Text numberOfLines={1} className="text-sm text-gray-500 dark:text-gray-400">
-                    @{viewer.user.username}
+                    {viewer.user.username}
                   </Text>
                 </TouchableOpacity>
               </View>

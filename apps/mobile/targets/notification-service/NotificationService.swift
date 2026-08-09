@@ -136,12 +136,13 @@ final class NotificationService: UNNotificationServiceExtension {
 
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.direction = .incoming
-        interaction.donate(completion: nil)
-        do {
-            let updatedContent = try content.updating(from: intent)
-            contentHandler?(updatedContent)
-        } catch {
-            contentHandler?(content)
+        interaction.donate { _ in
+            do {
+                let updatedContent = try content.updating(from: intent)
+                self.contentHandler?(updatedContent)
+            } catch {
+                self.contentHandler?(content)
+            }
         }
     }
 
@@ -171,8 +172,10 @@ final class NotificationService: UNNotificationServiceExtension {
             ?? userInfo["richContent"] as? [String: Any]
         let image =
             richContent?["image"] as? String
-            ?? data["senderAvatarUrl"] as? String
-            ?? data["actorAvatarUrl"] as? String
+            ?? ((data["type"] as? String) == "MESSAGE"
+                ? (data["senderAvatarUrl"] as? String
+                    ?? data["actorAvatarUrl"] as? String)
+                : nil)
         guard let image, let url = URL(string: image) else { return nil }
         return url
     }

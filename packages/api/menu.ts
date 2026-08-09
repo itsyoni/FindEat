@@ -1,4 +1,4 @@
-import type { Dish, DishDetails, Menu } from "@findeat/types";
+import type { Dish, DishDetails, DishSearchResult, Menu } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
 export function createMenuApi(api: AxiosInstance) {
@@ -20,6 +20,23 @@ export function createMenuApi(api: AxiosInstance) {
 
     async getDish(dishId: string) {
       const { data } = await api.get<DishDetails>(`/menu-items/${dishId}`);
+      return data;
+    },
+
+    async searchDishes(
+      query: string,
+      options: { latitude?: number; longitude?: number } = {},
+    ) {
+      const { data } = await api.get<DishSearchResult[]>("/menu-items/search", {
+        params: { q: query, ...options },
+      });
+      return data;
+    },
+
+    async favoriteDishes() {
+      const { data } = await api.get<DishSearchResult[]>(
+        "/menu-items/favorites",
+      );
       return data;
     },
 

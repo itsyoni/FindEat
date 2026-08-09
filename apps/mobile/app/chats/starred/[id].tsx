@@ -73,7 +73,7 @@ export default function StarredMessagesScreen() {
         }}
         contentContainerStyle={messages.length ? { padding: 16, paddingBottom: 40 } : { flexGrow: 1 }}
         renderItem={({ item }) => {
-          const senderName = item.sentAsRestaurant?.name ?? item.sender.displayName ?? item.sender.username;
+          const senderName = item.sentAsRestaurant?.name ?? item.sender.username;
           const senderImage = item.sentAsRestaurant?.logoUrl ?? item.sender.avatarUrl;
           return (
             <TouchableOpacity
@@ -87,7 +87,7 @@ export default function StarredMessagesScreen() {
               className="mb-3 rounded-[22px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]"
             >
               <View className="flex-row items-center">
-                <Avatar uri={senderImage} username={senderName} size={38} fallbackType={item.sentAsRestaurant ? "restaurant" : "user"} />
+                <Avatar uri={senderImage} username={senderName} size={38} fallbackType={item.sentAsRestaurant ? "restaurant" : "user"} showSnapIndicator={false} />
                 <View className="ml-3 min-w-0 flex-1">
                   <Text numberOfLines={1} className="font-bold text-black dark:text-white">{senderName}</Text>
                   <Text className="mt-0.5 text-[11px] text-gray-400">

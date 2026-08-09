@@ -59,7 +59,6 @@ export function SavedPostCard({ item }: { item: SavedPostAttribution }) {
   const image = postImage(item.post);
   const caption = postCaption(item.post);
   const creator =
-    item.post.author?.displayName ||
     item.post.author?.username ||
     item.post.authorRestaurant?.name;
 

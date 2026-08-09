@@ -683,8 +683,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             </div>
             <div className="account-summary">
               <div>
-                <strong>{account.displayName || account.username}</strong>
-                <small>@{account.username}</small>
+                <strong>{account.username}</strong>
               </div>
               <AccountAvatar account={account} />
             </div>

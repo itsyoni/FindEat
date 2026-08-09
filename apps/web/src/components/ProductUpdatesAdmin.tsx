@@ -250,8 +250,8 @@ export function ProductUpdatesAdmin() {
             <div className="update-audience-list">
               {filteredAudience.map((user) => (
                 <div className="update-audience-row" key={user.id}>
-                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.displayName.charAt(0)}</span>}
-                  <div><strong>{user.displayName}</strong><small>@{user.username} · {user.email}</small></div>
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.username.charAt(0)}</span>}
+                  <div><strong>{user.username}</strong><small>{user.email}</small></div>
                   <div className={user.seen ? "audience-seen" : "audience-unseen"}>{user.seen ? <><CheckCircleIcon size={17} weight="fill" /> Seen {user.viewedAt ? new Date(user.viewedAt).toLocaleString() : ""}</> : "Not seen"}</div>
                 </div>
               ))}

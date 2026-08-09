@@ -60,7 +60,7 @@ export default function ChatInfoScreen() {
     ? chat?.title
     : isRestaurant
       ? chat?.restaurant?.name
-      : otherUser?.displayName || otherUser?.username;
+      : otherUser?.username;
   const imageUrl = isGroup
     ? chat?.imageUrl
     : isRestaurant
@@ -71,7 +71,7 @@ export default function ChatInfoScreen() {
     : isRestaurant
       ? t("restaurantChat")
       : otherUser
-        ? `@${otherUser.username}`
+        ? otherUser.username
         : "";
 
   function openProfile() {
@@ -135,6 +135,7 @@ export default function ChatInfoScreen() {
                 username={title ?? t("chat")}
                 size={112}
                 fallbackType={isRestaurant ? "restaurant" : "user"}
+                showSnapIndicator={false}
               />
             )}
             <View className="mt-4 flex-row items-center justify-center">

@@ -113,7 +113,11 @@ export function DishCompatibilityChips({
   compatibility?: DishCompatibility;
   detailed?: boolean;
 }) {
-  const { t } = useTranslation("restaurants");
+  const { t, i18n } = useTranslation("restaurants");
+  const isRtl = i18n.dir() === "rtl";
+  const rtlTextStyle = isRtl
+    ? ({ textAlign: "right", writingDirection: "rtl" } as const)
+    : undefined;
   const tagLabel = useFoodTagLabel();
   if (!compatibility) return null;
 
@@ -125,13 +129,20 @@ export function DishCompatibilityChips({
   if (!warningLabels.length && !matchTags.length) return null;
 
   return (
-    <View className={detailed ? "mt-5 gap-3" : "mt-2 min-w-0 flex-row flex-wrap gap-1.5"}>
+    <View
+      className={detailed ? "mt-5 gap-3" : "mt-2 min-w-0 flex-row flex-wrap gap-1.5"}
+      style={isRtl && !detailed ? { flexDirection: "row-reverse" } : undefined}
+    >
       {!!warningLabels.length && (
-        <View className={`${detailed ? "p-4" : "max-w-full px-2 py-1"} min-w-0 flex-row items-center gap-1.5 rounded-2xl bg-red-100 dark:bg-red-950/60`}>
+        <View
+          className={`${detailed ? "p-4" : "max-w-full px-2 py-1"} min-w-0 flex-row items-center gap-1.5 rounded-2xl bg-red-100 dark:bg-red-950/60`}
+          style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+        >
           <WarningCircleIcon size={detailed ? 20 : 13} color="#DC2626" weight="fill" />
           <Text
             numberOfLines={detailed ? undefined : 2}
             ellipsizeMode="tail"
+            style={rtlTextStyle}
             className={`${detailed ? "text-sm" : "text-xs"} min-w-0 flex-shrink font-bold text-red-800 dark:text-red-200`}
           >
             {t("dishContainsAllergens", { allergens: warningLabels.join(", ") })}
@@ -139,10 +150,15 @@ export function DishCompatibilityChips({
         </View>
       )}
       {matchTags.slice(0, detailed ? undefined : 2).map((tag) => (
-        <View key={tag} className={`${detailed ? "px-3 py-2" : "max-w-full px-2 py-1"} min-w-0 flex-row items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60`}>
+        <View
+          key={tag}
+          className={`${detailed ? "px-3 py-2" : "max-w-full px-2 py-1"} min-w-0 flex-row items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60`}
+          style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+        >
           <CheckCircleIcon size={detailed ? 15 : 12} color="#16A34A" weight="fill" />
           <Text
             numberOfLines={detailed ? undefined : 1}
+            style={rtlTextStyle}
             className="min-w-0 flex-shrink text-xs font-bold text-emerald-800 dark:text-emerald-200"
           >
             {tagLabel(tag)}
@@ -150,7 +166,7 @@ export function DishCompatibilityChips({
         </View>
       ))}
       {detailed && !!warningLabels.length && (
-        <Text className="text-xs leading-4 text-gray-500">
+        <Text style={rtlTextStyle} className="text-xs leading-4 text-gray-500">
           {t("allergenDisclaimer")}
         </Text>
       )}

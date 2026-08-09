@@ -197,6 +197,9 @@ export type Post = {
   restaurantSavesCount: number;
   restaurantSavedListCount?: number;
   commentsCount: number;
+  hideLikeCount: boolean;
+  commentsDisabled: boolean;
+  canViewLikes: boolean;
   sharesCount: number;
   isLiked: boolean;
   canDelete: boolean;

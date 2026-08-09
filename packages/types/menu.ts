@@ -120,6 +120,17 @@ export type DishDetails = Dish & {
   reviewItems?: DishReview[];
 };
 
+export type DishSearchResult = Dish & {
+  restaurant: {
+    id: string;
+    name: string;
+    logoUrl?: string | null;
+    city?: string | null;
+    address?: string | null;
+  };
+  distanceKm?: number | null;
+};
+
 export type Menu = {
   id: string;
   title: string;

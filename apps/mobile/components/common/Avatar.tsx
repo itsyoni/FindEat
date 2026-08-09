@@ -6,6 +6,7 @@ import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
 
 type Props = {
   uri?: string | null;
+  thumbnailUrl?: string | null;
   username?: string | null;
   size?: number;
   style?: StyleProp<ViewStyle>;
@@ -16,6 +17,7 @@ type Props = {
 
 export default function Avatar({
   uri,
+  thumbnailUrl,
   username,
   size = 40,
   style,
@@ -23,10 +25,11 @@ export default function Avatar({
   userId,
   showSnapIndicator = true,
 }: Props) {
+  const resolvedUri = uri?.trim() || thumbnailUrl?.trim() || null;
   const snapIndicator = useSnapIndicator({
     userId,
     username,
-    avatarUrl: uri,
+    avatarUrl: resolvedUri,
     enabled: fallbackType === "user" && showSnapIndicator,
   });
   const circleStyle = {
@@ -35,23 +38,23 @@ export default function Avatar({
     borderRadius: size / 2,
   };
   const ringWidth = Math.max(2, Math.min(3, size * 0.06));
-  const ringGap = Math.max(1.5, Math.min(2.5, size * 0.045));
-  const mediaInset = snapIndicator ? ringWidth + ringGap : 0;
-  const mediaSize = size - mediaInset * 2;
+  const mediaSize = size;
   const mediaStyle = {
     width: mediaSize,
     height: mediaSize,
     borderRadius: mediaSize / 2,
   };
   const isSvg =
-    !!uri && (uri.startsWith("data:image/svg+xml") || uri.endsWith(".svg"));
+    !!resolvedUri &&
+    (resolvedUri.startsWith("data:image/svg+xml") ||
+      resolvedUri.endsWith(".svg"));
 
   return (
     <View
       style={[circleStyle, { alignItems: "center", justifyContent: "center" }, style]}
     >
       <View style={{ ...mediaStyle, overflow: "hidden" }}>
-        {!uri ? (
+        {!resolvedUri ? (
           <View
             style={mediaStyle}
             className="items-center justify-center bg-gray-200 dark:bg-gray-800"
@@ -71,10 +74,13 @@ export default function Avatar({
             )}
           </View>
         ) : isSvg ? (
-          <SvgUri width={mediaSize} height={mediaSize} uri={uri} />
+          <SvgUri width={mediaSize} height={mediaSize} uri={resolvedUri} />
         ) : (
           <ProgressiveImage
-            source={{ uri }}
+            source={{ uri: resolvedUri }}
+            thumbnailUrl={
+              uri?.trim() && thumbnailUrl?.trim() ? thumbnailUrl.trim() : null
+            }
             transition={160}
             style={mediaStyle}
           />

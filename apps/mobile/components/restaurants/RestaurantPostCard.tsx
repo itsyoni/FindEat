@@ -18,7 +18,7 @@ export default function RestaurantPostCard({ post }: Props) {
         />
       )}
 
-      <Text className="font-bold text-black">@{post.author.username}</Text>
+      <Text className="font-bold text-black">{post.author.username}</Text>
 
       {!!post.description && (
         <Text className="mt-2 text-gray-700">{post.description}</Text>

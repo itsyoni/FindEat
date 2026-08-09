@@ -24,11 +24,11 @@ function UserSummary({ user }: { user: RestaurantOwnershipUser }) {
       {user.avatarUrl ? (
         <img src={user.avatarUrl} alt="" />
       ) : (
-        <span>{(user.displayName || user.username).charAt(0).toUpperCase()}</span>
+        <span>{user.username.charAt(0).toUpperCase()}</span>
       )}
       <div>
-        <strong>{user.displayName}</strong>
-        <small>@{user.username} · {user.email}</small>
+        <strong>{user.username}</strong>
+        <small>{user.email}</small>
       </div>
     </div>
   );
@@ -162,8 +162,8 @@ export function RestaurantOwnershipManager() {
   ) {
     const removingLastOwner = restaurant.members.length === 1;
     const warning = removingLastOwner
-      ? `Remove ${owner.user.displayName} from ${restaurant.name}? This is the final owner, so the restaurant will become unclaimed.`
-      : `Remove ${owner.user.displayName} as an owner of ${restaurant.name}?`;
+      ? `Remove ${owner.user.username} from ${restaurant.name}? This is the final owner, so the restaurant will become unclaimed.`
+      : `Remove ${owner.user.username} as an owner of ${restaurant.name}?`;
     if (!window.confirm(warning)) return;
 
     const actionKey = `remove:${restaurant.id}:${owner.user.id}`;
@@ -272,7 +272,7 @@ export function RestaurantOwnershipManager() {
                                 <img key={owner.id} src={owner.user.avatarUrl} alt="" />
                               ) : (
                                 <i key={owner.id}>
-                                  {(owner.user.displayName || owner.user.username)
+                                  {owner.user.username
                                     .charAt(0)
                                     .toUpperCase()}
                                 </i>
@@ -284,7 +284,7 @@ export function RestaurantOwnershipManager() {
                             <small>
                               {restaurant.members
                                 .slice(0, 2)
-                                .map((owner) => owner.user.displayName)
+                                .map((owner) => owner.user.username)
                                 .join(", ")}
                               {restaurant.members.length > 2
                                 ? ` +${restaurant.members.length - 2}`
@@ -325,7 +325,7 @@ export function RestaurantOwnershipManager() {
                                   className="ownership-remove"
                                   disabled={workingId === `remove:${restaurant.id}:${owner.user.id}`}
                                   onClick={() => void removeOwner(restaurant, owner)}
-                                  aria-label={`Remove ${owner.user.displayName} as owner`}
+                                  aria-label={`Remove ${owner.user.username} as owner`}
                                 >
                                   <TrashIcon size={17} aria-hidden="true" />
                                 </button>

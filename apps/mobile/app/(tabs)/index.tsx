@@ -4,6 +4,7 @@ import Text from "@/components/common/AppText";
 import ContentFeedList from "@/components/posts/content/ContentFeed";
 import SearchResultRow from "@/components/search/SearchResultRow";
 import SearchResultsView from "@/components/search/SearchResultsView";
+import Tabs from "@/components/common/Tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   homeFeedQueryKey,
@@ -13,9 +14,9 @@ import {
 } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import { getFreshDeviceLocation } from "@/lib/currentLocation";
-import { searchGlobal } from "@/services/search";
+import { refreshRecentSearchItems, searchGlobal } from "@/services/search";
 import type { FeedScope } from "@findeat/types/post";
-import { SearchResultItem } from "@findeat/types/search";
+import { SearchEntityType, SearchResultItem } from "@findeat/types/search";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import type { FeedPage, RecentSearchItem } from "@findeat/types";
 import { router } from "expo-router";
@@ -46,9 +47,14 @@ import {
 } from "phosphor-react-native";
 import SnapsTray from "@/components/snaps/SnapsTray";
 import { snapsQueryKey } from "@/hooks/useSnaps";
-import { addRecentSearch, getRecentSearches } from "@/lib/recentSearches";
+import {
+  addRecentSearch,
+  getRecentSearches,
+  saveRecentSearches,
+} from "@/lib/recentSearches";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import FollowingSuggestions from "@/components/feed/FollowingSuggestions";
+import DishCard from "@/components/restaurants/DishCard";
 
 const homeGestureThreshold = 12;
 const homeRefreshThreshold = 64;
@@ -68,6 +74,8 @@ export default function HomeScreen() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
+  const [searchType, setSearchType] = useState<SearchEntityType>("USER");
+  const [searchQuery, setSearchQuery] = useState("");
   const [snapsCollapsed, setSnapsCollapsed] = useState(false);
   const [feedHeight, setFeedHeight] = useState(0);
   const [sharePostId, setSharePostId] = useState<string | null>(null);
@@ -92,14 +100,8 @@ export default function HomeScreen() {
     [followingFeed.data],
   );
   const explorePosts = useMemo(
-    () =>
-      (exploreFeed.data?.pages.flatMap((page) => page.items) ?? []).filter(
-        (post) =>
-          post.authorId !== user?.id &&
-          post.authorRelationship !== "FOLLOWING" &&
-          post.authorRelationship !== "FRIENDS",
-      ),
-    [exploreFeed.data, user?.id],
+    () => exploreFeed.data?.pages.flatMap((page) => page.items) ?? [],
+    [exploreFeed.data],
   );
 
   const onRefresh = useCallback(
@@ -242,6 +244,14 @@ export default function HomeScreen() {
       return;
     }
 
+    if (item.type === "DISH") {
+      router.push({
+        pathname: "/menu-items/[id]",
+        params: { id: item.id, source: "search" },
+      });
+      return;
+    }
+
     try {
       const restaurantId = item.restaurantSuggestion
         ? (
@@ -270,15 +280,26 @@ export default function HomeScreen() {
       searchGlobal(query, {
         ...(searchLocation ?? {}),
         languageCode: i18n.resolvedLanguage ?? i18n.language,
+        type: searchType,
       }),
-    [i18n.language, i18n.resolvedLanguage, searchLocation],
+    [i18n.language, i18n.resolvedLanguage, searchLocation, searchType],
   );
 
   function openSearch() {
     if (pageLoading) return;
+    setSearchType("USER");
+    setSearchQuery("");
     setIsSearching(true);
     if (user?.id) {
-      void getRecentSearches(user.id).then(setRecentSearches);
+      const userId = user.id;
+      void getRecentSearches(userId).then(async (savedItems) => {
+        // Show the local history immediately, then replace stale profile and
+        // restaurant snapshots without delaying the search screen.
+        setRecentSearches(savedItems);
+        const refreshedItems = await refreshRecentSearchItems(savedItems);
+        setRecentSearches(refreshedItems);
+        await saveRecentSearches(userId, refreshedItems);
+      });
     }
     void getFreshDeviceLocation()
       .then((location) => {
@@ -309,6 +330,9 @@ export default function HomeScreen() {
   const topBarInset = insets.top + 56;
   const contentCardTopInset = snapsCollapsed ? 0 : insets.top + 150;
   const contentControlsTopInset = snapsCollapsed ? topBarInset : 0;
+  const followingEmptyTopInset = snapsCollapsed
+    ? contentControlsTopInset + 48
+    : contentCardTopInset;
   const activeFeedRefreshing =
     activeFeed === "FOLLOWING"
       ? followingFeed.isRefetching
@@ -413,6 +437,12 @@ export default function HomeScreen() {
   );
   function selectFeed(scope: FeedScope) {
     setActiveFeed(scope);
+    if (
+      scope === "EXPLORE" &&
+      queryClient.getQueryState(homeFeedQueryKey("EXPLORE"))?.isInvalidated
+    ) {
+      void exploreFeed.refetch();
+    }
   }
 
   return (
@@ -431,12 +461,43 @@ export default function HomeScreen() {
             className="flex-1"
           >
             <SearchResultsView
-              idleData={recentSearches}
+              key={searchType}
+              initialQuery={searchQuery}
+              onQueryChange={setSearchQuery}
+              idleData={recentSearches.filter(
+                (item) => item.type === searchType,
+              )}
               searchRequest={searchRequest}
               onCancel={() => setIsSearching(false)}
               onSelect={(item) => void handleSearchSelect(item)}
               keyExtractor={(item) => `${item.type}-${item.id}`}
-              renderItem={(item) => <SearchResultRow item={item} />}
+              headerContent={
+                <Tabs
+                  activeTab={searchType}
+                  onChange={setSearchType}
+                  tabs={[
+                    { value: "USER", label: t("users") },
+                    { value: "RESTAURANT", label: t("places") },
+                    { value: "DISH", label: t("dishes") },
+                  ]}
+                />
+              }
+              renderItem={(item) =>
+                item.type === "DISH" && item.dish ? (
+                  <DishCard
+                    item={item.dish}
+                    interactive={false}
+                    variant="search-row"
+                    contextLabel={`${item.dish.restaurant.name}${
+                      item.dish.distanceKm == null
+                        ? ""
+                        : ` · ${item.dish.distanceKm.toFixed(1)} km`
+                    }`}
+                  />
+                ) : (
+                  <SearchResultRow item={item} />
+                )
+              }
             />
           </Animated.View>
         </SafeAreaView>
@@ -489,7 +550,7 @@ export default function HomeScreen() {
                   loadingMore={followingFeed.isFetchingNextPage}
                   loading={authLoading || followingFeed.isPending}
                   emptyComponent={
-                    <FollowingSuggestions topInset={contentCardTopInset} />
+                    <FollowingSuggestions topInset={followingEmptyTopInset} />
                   }
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
