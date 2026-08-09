@@ -1,9 +1,10 @@
 import Avatar from '@/components/common/Avatar';
+import Text from '@/components/common/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import type { AppNotification } from '@findeat/types';
 import { XIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { notificationText } from './notificationHelpers';
 
@@ -23,7 +24,7 @@ export default function NotificationPopup({ item, onPress, onDismiss }: Props) {
     >
       <Pressable onPress={onPress} className="flex-row items-center p-4">
         <Avatar
-          uri={item.actor?.avatarThumbnailUrl ?? item.actor?.avatarUrl}
+          uri={item.actor?.avatarUrl ?? item.actor?.avatarThumbnailUrl}
           username={item.actor?.username}
           userId={item.actor?.id}
           fallbackType={fallbackType}

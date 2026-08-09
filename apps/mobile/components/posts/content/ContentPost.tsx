@@ -39,6 +39,7 @@ import ContentVideo from "./ContentVideo";
 import { useEffect, useState } from "react";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
+import TaggedUsersBottomSheet from "./TaggedUsersBottomSheet";
 
 const CONTENT_ACTION_ICON_SIZE = 31;
 
@@ -80,6 +81,7 @@ export default function ContentPost({
   const { width } = useWindowDimensions();
   const { isDark } = useAppTheme();
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [taggedUsersOpen, setTaggedUsersOpen] = useState(false);
   const {
     openManageSavedPlace,
     quickSavePlace,
@@ -465,6 +467,7 @@ export default function ContentPost({
                   username={displayName}
                   userId={post.author?.id}
                   size={42}
+                  indicatorPlacement="outside"
                   onPressWithoutSnap={openAuthorProfile}
                 />
               )}
@@ -499,75 +502,82 @@ export default function ContentPost({
             <PostAuthorFollowAction post={post} onMedia />
           </View>
 
-          {!!post.taggedUsers?.length && (
+          {!!post.restaurant || !!post.taggedUsers?.length ? (
             <View className="mb-3 flex-row items-center">
-              <View className="mr-2 flex-row">
-                {post.taggedUsers.slice(0, 3).map((person, index) => (
-                  <TouchableOpacity
-                    key={person.id}
-                    activeOpacity={0.8}
-                    style={{ marginLeft: index === 0 ? 0 : -8 }}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/(users)/[id]",
-                        params: { id: person.id },
-                      })
-                    }
-                  >
-                    <View className="rounded-full border border-white/80">
-                      <Avatar
-                        uri={person.avatarUrl}
-                        username={person.username}
-                        size={27}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(users)/[id]",
-                    params: { id: post.taggedUsers![0].id },
-                  })
-                }
-              >
-                <Text
-                  numberOfLines={1}
-                  style={textShadow}
-                  className="max-w-56 text-sm font-semibold text-white"
+              {!!post.restaurant ? (
+                <TouchableOpacity
+                  className="max-w-[55%] shrink rounded-full bg-[#00000080] px-3 py-2"
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/restaurants/[id]",
+                      params: { id: post.restaurant!.id },
+                    })
+                  }
                 >
-                  {post.taggedUsers.length === 1
-                    ? `${tCommon("taggedWith")} @${post.taggedUsers[0].username}`
-                    : tCommon("taggedWithMore", {
-                        name: `@${post.taggedUsers[0].username}`,
-                        count: post.taggedUsers.length - 1,
-                      })}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                  <View className="min-w-0 flex-row items-center">
+                    <Text
+                      numberOfLines={1}
+                      className="shrink font-semibold text-white"
+                    >
+                      {post.restaurant.name}
+                    </Text>
+                    <RestaurantBadge
+                      size={14}
+                      status={post.restaurant.status}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ) : null}
 
-          {!!post.restaurant && (
-            <TouchableOpacity
-              className="mb-3 self-start rounded-full bg-[#00000080] px-3 py-2"
-              activeOpacity={0.8}
-              onPress={() =>
-                router.push({
-                  pathname: "/restaurants/[id]",
-                  params: { id: post.restaurant!.id },
-                })
-              }
-            >
-              <View className="flex-row items-center">
-                <Text className="font-semibold text-white">
-                  {post.restaurant.name}
-                </Text>
-                <RestaurantBadge size={14} status={post.restaurant.status} />
-              </View>
-            </TouchableOpacity>
-          )}
+              {!!post.taggedUsers?.length ? (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  className="ml-2 min-w-0 shrink flex-row items-center rounded-full bg-[#00000080] py-1.5 pl-1.5 pr-3"
+                  onPress={() => {
+                    if (post.taggedUsers!.length > 1) {
+                      setTaggedUsersOpen(true);
+                      return;
+                    }
+                    router.push({
+                      pathname: "/(users)/[id]",
+                      params: { id: post.taggedUsers![0].id },
+                    });
+                  }}
+                >
+                  <View className="mr-2 flex-row">
+                    {post.taggedUsers.slice(0, 2).map((person, index) => (
+                      <View
+                        key={person.id}
+                        className="rounded-full border border-white/80"
+                        style={{ marginLeft: index === 0 ? 0 : -6 }}
+                      >
+                        <Avatar
+                          uri={
+                            person.avatarUrl ?? person.avatarThumbnailUrl
+                          }
+                          username={person.username}
+                          userId={person.id}
+                          size={20}
+                          showSnapIndicator={false}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    className="shrink text-xs font-bold text-white"
+                  >
+                    {post.taggedUsers.length === 1
+                      ? `@${post.taggedUsers[0].username}`
+                      : tCommon("taggedPeopleCount", {
+                          count: post.taggedUsers.length,
+                        })}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
 
           <View>
             {!!caption && (
@@ -701,6 +711,11 @@ export default function ContentPost({
           </TouchableOpacity>
         </View>
       </Animated.View>
+      <TaggedUsersBottomSheet
+        open={taggedUsersOpen}
+        users={post.taggedUsers ?? []}
+        onClose={() => setTaggedUsersOpen(false)}
+      />
     </View>
   );
 }

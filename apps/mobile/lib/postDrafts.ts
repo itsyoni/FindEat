@@ -118,6 +118,14 @@ export async function persistContentMediaUri(
   return keepDraftImage(uri, userId, "content", name);
 }
 
+export async function persistReviewMediaUri(
+  userId: string,
+  uri: string,
+  name: string,
+) {
+  return keepDraftImage(uri, userId, "review", name);
+}
+
 async function existingImage(uri: string | undefined) {
   if (!uri) return undefined;
   const info = await FileSystem.getInfoAsync(uri);

@@ -1,5 +1,7 @@
 import Avatar from "@/components/common/Avatar";
+import AppBottomSheet from "@/components/common/AppBottomSheet";
 import Text from "@/components/common/AppText";
+import ReportBottomSheet from "@/components/moderation/ReportBottomSheet";
 import { snapsQueryKey, useSnaps } from "@/hooks/useSnaps";
 import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
@@ -9,26 +11,29 @@ import { Image } from "expo-image";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
-  EyeIcon,
+  DotsThreeIcon,
   MapPinIcon,
-  PlusIcon,
-  TrashIcon,
+  PaperPlaneTiltIcon,
   XIcon,
 } from "phosphor-react-native";
-import SnapViewersBottomSheet from "@/components/snaps/SnapViewersBottomSheet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
   ActivityIndicator,
   AppState,
+  Keyboard,
   PanResponder,
   Pressable,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useToast } from "@/contexts/ToastContext";
 import {
   useIsSnapWatched,
   useMarkSnapWatched,
@@ -40,6 +45,7 @@ export default function SnapViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { t } = useTranslation(["snaps", "common"]);
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const markSnapWatched = useMarkSnapWatched();
   const isSnapWatched = useIsSnapWatched();
   const [isFocused, setIsFocused] = useState(true);
@@ -54,13 +60,11 @@ export default function SnapViewerScreen() {
     resume: () => void;
     nextGroup: () => void;
     previousGroup: () => void;
-    openViewers: () => void;
   }>({
     pause: () => undefined,
     resume: () => undefined,
     nextGroup: () => undefined,
     previousGroup: () => undefined,
-    openViewers: () => undefined,
   });
   const [openedAt] = useState(() => Date.now());
   const [groupIndex, setGroupIndex] = useState<number | null>(null);
@@ -68,7 +72,10 @@ export default function SnapViewerScreen() {
   const [playbackRevision, setPlaybackRevision] = useState(0);
   const [loadedSnapId, setLoadedSnapId] = useState<string | null>(null);
   const [failedSnapId, setFailedSnapId] = useState<string | null>(null);
-  const [viewersOpen, setViewersOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [comment, setComment] = useState("");
+  const [sendingComment, setSendingComment] = useState(false);
   const [groupOrder, setGroupOrder] = useState<string[]>([]);
   const latestGroups = useMemo(() => snaps.data ?? [], [snaps.data]);
   const groups = useMemo(() => {
@@ -214,12 +221,6 @@ export default function SnapViewerScreen() {
     });
   }, [advance, currentSnapId, isFocused, loadedSnapId, progress]);
 
-  const openViewers = useCallback(() => {
-    if (!currentGroup?.isOwn || !currentSnapId) return;
-    pausePlayback();
-    setViewersOpen(true);
-  }, [currentGroup?.isOwn, currentSnapId, pausePlayback, setViewersOpen]);
-
   useEffect(() => {
     if (!currentSnapId || !isFocused || loadedSnapId !== currentSnapId) return;
     animationRef.current?.stop();
@@ -274,12 +275,10 @@ export default function SnapViewerScreen() {
       resume: resumePlayback,
       nextGroup: moveToNextGroup,
       previousGroup: moveToPreviousGroup,
-      openViewers,
     };
   }, [
     moveToNextGroup,
     moveToPreviousGroup,
-    openViewers,
     pausePlayback,
     resumePlayback,
   ]);
@@ -293,14 +292,6 @@ export default function SnapViewerScreen() {
       onPanResponderGrant: () => gestureActionsRef.current.pause(),
       onPanResponderRelease: (_, gesture) => {
         const horizontal = Math.abs(gesture.dx) > Math.abs(gesture.dy);
-        if (!horizontal && gesture.dy > 70) {
-          router.back();
-          return;
-        }
-        if (!horizontal && gesture.dy < -70) {
-          gestureActionsRef.current.openViewers();
-          return;
-        }
         if (horizontal && gesture.dx < -60) {
           gestureActionsRef.current.nextGroup();
           return;
@@ -400,6 +391,45 @@ export default function SnapViewerScreen() {
     ]);
   }
 
+  async function sendSnapComment() {
+    const cleanComment = comment.trim();
+    if (
+      !cleanComment ||
+      sendingComment ||
+      currentGroup?.isOwn ||
+      !currentSnap
+    ) {
+      return;
+    }
+
+    try {
+      setSendingComment(true);
+      pausePlayback();
+      await api.chats.sendSnapReply(
+        currentGroup.user.id,
+        currentSnap.id,
+        cleanComment,
+      );
+      setComment("");
+      Keyboard.dismiss();
+      showToast(t("snaps:replySent"));
+    } catch {
+      showToast(t("snaps:replyError"), { kind: "error" });
+    } finally {
+      setSendingComment(false);
+      resumePlayback();
+    }
+  }
+
+  function handleSnapOption() {
+    setOptionsOpen(false);
+    setTimeout(() => {
+      pausePlayback();
+      if (currentGroup?.isOwn) removeCurrentSnap();
+      else setReportOpen(true);
+    }, 220);
+  }
+
   if (!currentGroup || !currentSnap) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
@@ -465,6 +495,7 @@ export default function SnapViewerScreen() {
       ) : null}
       <View style={[StyleSheet.absoluteFill, styles.scrim]} />
 
+      <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.safeArea}>
       <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
         <View className="flex-row gap-1.5 px-3 pt-1">
           {currentGroup.snaps.map((snap, index) => (
@@ -501,7 +532,10 @@ export default function SnapViewerScreen() {
             }
           >
             <Avatar
-              uri={currentGroup.user.avatarUrl}
+              uri={
+                currentGroup.user.avatarUrl ??
+                currentGroup.user.avatarThumbnailUrl
+              }
               username={currentGroup.user.username}
               size={40}
               showSnapIndicator={false}
@@ -513,22 +547,15 @@ export default function SnapViewerScreen() {
               <Text className="text-xs text-white/70">{ageLabel}</Text>
             </View>
           </TouchableOpacity>
-          {currentGroup.isOwn ? (
-            <>
-              <TouchableOpacity
-                onPress={() => router.push("/create/snap")}
-                className="mr-2 h-10 w-10 items-center justify-center rounded-full bg-black/35"
-              >
-                <PlusIcon size={20} color="#FAF9F6" weight="bold" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={removeCurrentSnap}
-                className="mr-2 h-10 w-10 items-center justify-center rounded-full bg-black/35"
-              >
-                <TrashIcon size={19} color="#FAF9F6" weight="fill" />
-              </TouchableOpacity>
-            </>
-          ) : null}
+          <TouchableOpacity
+            onPress={() => {
+              pausePlayback();
+              setOptionsOpen(true);
+            }}
+            className="mr-2 h-10 w-10 items-center justify-center rounded-full bg-black/35"
+          >
+            <DotsThreeIcon size={23} color="#FAF9F6" weight="bold" />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.back()}
             className="h-10 w-10 items-center justify-center rounded-full bg-black/35"
@@ -592,27 +619,95 @@ export default function SnapViewerScreen() {
               </Text>
             </TouchableOpacity>
           ) : null}
-          {currentGroup.isOwn ? (
-            <TouchableOpacity
-              onPress={openViewers}
-              className="mt-3 self-start flex-row items-center rounded-full bg-black/55 px-4 py-2.5"
-            >
-              <EyeIcon size={18} color="#FAF9F6" weight="fill" />
-              <Text className="ml-2 font-bold text-white">
-                {t("snaps:activity")}
-                {typeof currentSnap.viewsCount === "number"
-                  ? ` · ${currentSnap.viewsCount}`
-                  : ""}
-              </Text>
-            </TouchableOpacity>
+          {!currentGroup.isOwn ? (
+            <View className="mt-3 flex-row items-end gap-2">
+              <TextInput
+                value={comment}
+                onChangeText={setComment}
+                onFocus={pausePlayback}
+                onBlur={resumePlayback}
+                placeholder={t("snaps:replyPlaceholder")}
+                placeholderTextColor="#D1D5DB"
+                maxLength={500}
+                multiline={false}
+                className="h-11 flex-1 rounded-3xl border border-white/35 bg-black/40 px-4 text-white"
+                style={{
+                  paddingVertical: 0,
+                  fontFamily: "CabinetRegular",
+                  includeFontPadding: false,
+                  textAlignVertical: "center",
+                }}
+              />
+              <TouchableOpacity
+                disabled={!comment.trim() || sendingComment}
+                onPress={() => void sendSnapComment()}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white"
+                style={{
+                  opacity: !comment.trim() || sendingComment ? 0.45 : 1,
+                }}
+              >
+                {sendingComment ? (
+                  <ActivityIndicator size="small" color="#171717" />
+                ) : (
+                  <PaperPlaneTiltIcon
+                    size={20}
+                    color="#171717"
+                    weight="fill"
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
           ) : null}
         </View>
       </SafeAreaView>
-      <SnapViewersBottomSheet
-        snapId={currentSnap.id}
-        open={viewersOpen}
+      </KeyboardAvoidingView>
+      <AppBottomSheet
+        open={optionsOpen}
         onClose={() => {
-          setViewersOpen(false);
+          setOptionsOpen(false);
+          resumePlayback();
+        }}
+        snapPoints={["30%"]}
+      >
+        <BottomSheetView className="flex-1 px-4 pb-5 pt-2">
+          <Text className="mb-4 text-center text-xl font-bold text-black dark:text-white">
+            {t("snaps:snapOptions")}
+          </Text>
+          <TouchableOpacity
+            onPress={handleSnapOption}
+            className={`items-center rounded-2xl py-4 ${
+              currentGroup.isOwn
+                ? "bg-red-500"
+                : "border border-red-100 bg-red-50 dark:border-red-950 dark:bg-red-950/30"
+            }`}
+          >
+            <Text
+              className={`font-bold ${
+                currentGroup.isOwn ? "text-white" : "text-red-500"
+              }`}
+            >
+              {t(currentGroup.isOwn ? "common:delete" : "snaps:reportSnap")}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setOptionsOpen(false);
+              resumePlayback();
+            }}
+            className="mt-3 items-center rounded-2xl bg-gray-100 py-4 dark:bg-gray-800"
+          >
+            <Text className="font-bold text-black dark:text-white">
+              {t("common:cancel")}
+            </Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </AppBottomSheet>
+      <ReportBottomSheet
+        open={reportOpen}
+        targetType="SNAP"
+        targetId={currentSnap.id}
+        onClose={() => {
+          setReportOpen(false);
           resumePlayback();
         }}
       />

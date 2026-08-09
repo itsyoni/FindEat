@@ -61,8 +61,15 @@ export default function PostConnectionPicker({
         >
           {posts.map((post) => {
             const selected = selectedPostId === post.id;
+            const reviewPreviewImage = post.reviewPost?.items
+              .flatMap((item) => [
+                item.primaryMedia?.imageUrl,
+                item.imageUrl,
+                item.menuItem?.imageUrl,
+              ])
+              .find((url): url is string => Boolean(url?.trim()));
             const imageUrl = isReview
-              ? post.reviewPost?.coverImageUrl
+              ? reviewPreviewImage ?? post.reviewPost?.coverImageUrl
               : post.contentPost?.imageUrl;
             const text = isReview
               ? post.reviewPost?.summary

@@ -12,6 +12,8 @@
   "viewPost": "צפה בפוסט",
   "openChat": "פתיחת הצ׳אט",
   "joinReview": "הצטרפות",
+  "approve": "אישור",
+  "decline": "דחייה",
   "emptyTitle": "אין התראות עדיין",
   "emptyBody": "לייקים, תגובות, עוקבים והודעות יופיעו כאן.",
   "aggregatedTypes": {
@@ -42,6 +44,8 @@
     "PLACE_LIST_INVITE": "{{name}} הזמין/ה אותך לרשימה משותפת",
     "PROFILE_TAG_UNLOCKED": "פתחת תג פרופיל חדש",
     "REVIEW_INVITE": "{{name}} הזמין/ה אותך לכתוב ביקורת משותפת",
+    "REVIEW_JOIN_REQUEST": "{{name}} ביקש/ה להצטרף לביקורת שלך",
+    "REVIEW_JOIN_REQUEST_APPROVED": "{{name}} אישר/ה את בקשתך להצטרף לביקורת",
     "REVIEW_JOINED": "{{name}} הצטרף/ה לביקורת המשותפת שלך",
     "REVIEW_CONTRIBUTION": "{{name}} הוסיף/ה את החוויה שלו/ה לביקורת המשותפת"
   }

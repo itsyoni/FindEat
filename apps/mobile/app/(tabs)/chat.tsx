@@ -10,10 +10,24 @@ import { Chat } from "@findeat/types/chat";
 import { SearchResultItem } from "@findeat/types/search";
 import { router, useFocusEffect } from "expo-router";
 import { ArchiveIcon, PlusIcon } from "phosphor-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Animated, {
+  cancelAnimation,
+  Easing,
+  FadeIn,
+  FadeOut,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +66,88 @@ export default function ChatsScreen() {
   const [optionsChat, setOptionsChat] = useState<Chat | null>(null);
   const [updatingPin, setUpdatingPin] = useState(false);
   const [archivedCount, setArchivedCount] = useState(0);
+  const searchVisibility = useSharedValue(1);
+  const isSearchVisible = useRef(true);
+  const scrollTransitionLockedUntil = useRef(0);
+  const lastScrollOffset = useRef(0);
+  const scrollDirection = useRef<"up" | "down" | null>(null);
+  const directionDistance = useRef(0);
+
+  const setSearchVisible = useCallback(
+    (visible: boolean) => {
+      if (isSearchVisible.current === visible) return;
+
+      isSearchVisible.current = visible;
+      scrollTransitionLockedUntil.current = Date.now() + 260;
+      scrollDirection.current = null;
+      directionDistance.current = 0;
+      cancelAnimation(searchVisibility);
+      searchVisibility.set(
+        withTiming(visible ? 1 : 0, {
+          duration: visible ? 220 : 190,
+          easing: Easing.out(Easing.cubic),
+        }),
+      );
+    },
+    [searchVisibility],
+  );
+
+  const searchContainerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(searchVisibility.value, [0, 0.45, 1], [0, 0.15, 1]),
+    transform: [{ translateY: -14 * (1 - searchVisibility.value) }],
+  }));
+  const chatContainerStyle = useAnimatedStyle(() => ({
+    borderTopLeftRadius: 30 * searchVisibility.value,
+    borderTopRightRadius: 30 * searchVisibility.value,
+    transform: [{ translateY: 96 * searchVisibility.value }],
+  }));
+
+  const handleChatScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offset = Math.max(0, event.nativeEvent.contentOffset.y);
+      const delta = offset - lastScrollOffset.current;
+      lastScrollOffset.current = offset;
+
+      // Collapsing the search area resizes the list. Native platforms can
+      // report that layout movement as another scroll in the opposite
+      // direction, so ignore it until the single transition has settled.
+      if (Date.now() < scrollTransitionLockedUntil.current) return;
+
+      if (offset <= 1) {
+        scrollDirection.current = null;
+        directionDistance.current = 0;
+        setSearchVisible(true);
+        return;
+      }
+      if (Math.abs(delta) < 0.5) return;
+
+      const nextDirection = delta > 0 ? "down" : "up";
+      if (scrollDirection.current !== nextDirection) {
+        scrollDirection.current = nextDirection;
+        directionDistance.current = 0;
+      }
+      directionDistance.current += Math.abs(delta);
+
+      if (nextDirection === "down" && directionDistance.current >= 18) {
+        setSearchVisible(false);
+        directionDistance.current = 0;
+      } else if (nextDirection === "up" && directionDistance.current >= 12) {
+        setSearchVisible(true);
+        directionDistance.current = 0;
+      }
+    },
+    [setSearchVisible],
+  );
+
+  useEffect(() => {
+    if (!isSearching) {
+      scrollTransitionLockedUntil.current = 0;
+      lastScrollOffset.current = 0;
+      scrollDirection.current = null;
+      directionDistance.current = 0;
+      setSearchVisible(true);
+    }
+  }, [isSearching, setSearchVisible]);
 
   const loadChats = useCallback(async () => {
     try {
@@ -244,27 +340,35 @@ export default function ChatsScreen() {
           key="normal"
           entering={FadeIn.duration(180)}
           exiting={FadeOut.duration(120)}
-          className="flex-1"
+          className="flex-1 overflow-hidden"
         >
-          <SearchBar
-            editable={false}
-            placeholder={t("search")}
-            onPress={() => {
-              if (loading) return;
-              setIsSearching(true);
-              if (userId) void getRecentSearches(userId).then(setRecentSearches);
-            }}
-            rightAccessory={
-              <TouchableOpacity
-                className="h-full aspect-square items-center justify-center rounded-2xl bg-brand"
-                onPress={() => router.push("/chats/create-group")}
-              >
-                <PlusIcon size={23} color="#FAF9F6" weight="bold" />
-              </TouchableOpacity>
-            }
-          />
+          <Animated.View
+            style={searchContainerStyle}
+            className="absolute inset-x-0 top-0 h-24 overflow-hidden"
+          >
+            <SearchBar
+              editable={false}
+              placeholder={t("search")}
+              onPress={() => {
+                if (loading) return;
+                setIsSearching(true);
+                if (userId) void getRecentSearches(userId).then(setRecentSearches);
+              }}
+              rightAccessory={
+                <TouchableOpacity
+                  className="h-full aspect-square items-center justify-center rounded-2xl bg-brand"
+                  onPress={() => router.push("/chats/create-group")}
+                >
+                  <PlusIcon size={23} color="#FAF9F6" weight="bold" />
+                </TouchableOpacity>
+              }
+            />
+          </Animated.View>
 
-          <View className="flex-1 overflow-hidden rounded-t-[30px] bg-white pt-2 dark:bg-[#0F0F10]">
+          <Animated.View
+            style={chatContainerStyle}
+            className="flex-1 overflow-hidden bg-white pt-2 dark:bg-[#0F0F10]"
+          >
             {archivedCount > 0 ? (
               <TouchableOpacity
                 onPress={() => router.push("/chats/archived")}
@@ -286,8 +390,9 @@ export default function ChatsScreen() {
               onRefresh={onRefresh}
               drafts={drafts}
               onLongPressChat={setOptionsChat}
+              onScroll={handleChatScroll}
             />
-          </View>
+          </Animated.View>
         </Animated.View>
       )}
       <ChatOptionsBottomSheet

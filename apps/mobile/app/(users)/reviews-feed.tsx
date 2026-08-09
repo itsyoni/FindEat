@@ -222,6 +222,7 @@ export default function UserReviewsFeedScreen() {
       <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
         <ReviewFeed
           posts={posts}
+          preferredPerspectiveUserId={userId}
           initialIndex={initialIndex}
           contentTopInset={56}
           refreshing={refreshing}

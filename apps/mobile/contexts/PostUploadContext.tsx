@@ -23,6 +23,8 @@ import { AccessibilityInfo, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
+import { snapsQueryKey } from "@/hooks/useSnaps";
 
 type PostUploadKind = "content" | "review" | "snap";
 type PostUploadStatus = "uploading" | "completed" | "failed";
@@ -81,6 +83,7 @@ export function createCombinedUploadProgress(
 
 export function PostUploadProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation("common");
+  const queryClient = useQueryClient();
   const [tasks, setTasks] = useState<PostUploadTask[]>([]);
   const runnersRef = useRef(new Map<string, PostUploadRunner>());
   const nextIdRef = useRef(0);
@@ -101,7 +104,22 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
       )
         .then((result) => {
           updateTask(id, { status: "completed", progress: 1, result });
-          result.type === "post" && result.afterUpload?.();
+          if (result.type === "post") {
+            result.afterUpload?.();
+            void queryClient.invalidateQueries({
+              queryKey: ["feed"],
+              refetchType: "active",
+            });
+            void queryClient.invalidateQueries({
+              queryKey: ["restaurant-posts"],
+              refetchType: "active",
+            });
+          } else {
+            void queryClient.invalidateQueries({
+              queryKey: snapsQueryKey,
+              refetchType: "all",
+            });
+          }
           void AccessibilityInfo.announceForAccessibility(
             t("postUploadComplete"),
           );
@@ -122,7 +140,7 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
           );
         });
     },
-    [t, updateTask],
+    [queryClient, t, updateTask],
   );
 
   const startPostUpload = useCallback(

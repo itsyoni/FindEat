@@ -10,6 +10,8 @@ type Props = {
   tone?: "surface" | "overlay";
   textClassName?: string;
   textStyle?: TextStyle;
+  authorName?: string | null;
+  onAuthorPress?: () => void;
   onExpansionChange?: (expanded: boolean, fullTextHeight: number) => void;
 };
 
@@ -19,6 +21,8 @@ export default function ExpandablePostCaption({
   tone = "surface",
   textClassName,
   textStyle,
+  authorName,
+  onAuthorPress,
   onExpansionChange,
 }: Props) {
   const { t } = useTranslation("common");
@@ -69,6 +73,27 @@ export default function ExpandablePostCaption({
     tone === "overlay"
       ? "text-sm font-bold text-white"
       : "text-sm font-bold text-black dark:text-white";
+  const authorPrefix = authorName?.trim()
+    ? authorName.trim().startsWith("@")
+      ? authorName.trim()
+      : `@${authorName.trim()}`
+    : null;
+
+  const captionContent = (interactive = false) => (
+    <>
+      {authorPrefix ? (
+        <Text
+          weight="bold"
+          style={{ writingDirection: "ltr" }}
+          onPress={interactive ? onAuthorPress : undefined}
+          accessibilityRole={interactive && onAuthorPress ? "link" : undefined}
+        >
+          {authorPrefix}{" "}
+        </Text>
+      ) : null}
+      {text}
+    </>
+  );
 
   return (
     <View className="relative">
@@ -87,19 +112,19 @@ export default function ExpandablePostCaption({
           },
         ]}
       >
-        {text}
+        {captionContent()}
       </Text>
 
       {expanded ? (
         <View>
           <Text className={captionClass} style={fullWidthStyle}>
-            {text}
+            {captionContent(true)}
           </Text>
           {canExpand ? (
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={toggleExpanded}
-              style={{ alignSelf: isRtl ? "flex-end" : "flex-start" }}
+              style={{ alignSelf: "flex-end" }}
               className="mt-1"
             >
               <Text className={actionClass}>{t("showLess")}</Text>
@@ -110,7 +135,7 @@ export default function ExpandablePostCaption({
         <View
           className="flex-row items-center gap-2"
           style={{
-            flexDirection: isRtl ? "row-reverse" : "row",
+            flexDirection: "row",
             minHeight: 22,
           }}
         >
@@ -120,7 +145,7 @@ export default function ExpandablePostCaption({
             className={`flex-1 ${captionClass}`}
             style={directionStyle}
           >
-            {text}
+            {captionContent(true)}
           </Text>
           {canExpand ? (
             <TouchableOpacity activeOpacity={0.75} onPress={toggleExpanded}>

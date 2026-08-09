@@ -34,6 +34,7 @@
   "removeFavoriteDish": "Remove from favorite dishes",
   "favoriteDishError": "Could not update this favorite dish. Please try again.",
   "savePlace": "Save place",
+  "savePlaceHint": "Choose a status or add to a folder",
   "savedPlace": "Saved",
   "favoriteAfterVisit": "Mark this place as visited before adding it to favorites.",
   "allergenWarningTitle": "Check before ordering",

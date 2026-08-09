@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import type { Chat } from "@findeat/types/chat";
 import * as Haptics from "expo-haptics";
+import { CheckCircleIcon } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -30,7 +31,8 @@ export default function SharePostBottomSheet({
   const [chats, setChats] = useState<Chat[]>([]);
   const [loadedPostId, setLoadedPostId] = useState<string | null>(null);
   const [errorPostId, setErrorPostId] = useState<string | null>(null);
-  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
 
   const loading = !!postId && loadedPostId !== postId;
   const error = !!postId && errorPostId === postId;
@@ -90,33 +92,64 @@ export default function SharePostBottomSheet({
     };
   }
 
-  async function sendToChat(conversationId: string) {
-    if (!postId || sendingId) return;
+  function closeSheet() {
+    setSelectedIds(new Set());
+    setSending(false);
+    onClose();
+  }
+
+  function toggleChat(conversationId: string) {
+    if (sending) return;
+    setErrorPostId(null);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(conversationId)) next.delete(conversationId);
+      else next.add(conversationId);
+      return next;
+    });
+  }
+
+  async function shareSelected() {
+    if (!postId || sending || selectedIds.size === 0) return;
 
     try {
-      setSendingId(conversationId);
+      setSending(true);
+      const conversationIds = Array.from(selectedIds);
+      const results = await Promise.allSettled(
+        conversationIds.map((conversationId) =>
+          api.chats.sendMessage(conversationId, {
+            type: "POST",
+            postId,
+          }),
+        ),
+      );
+      const failedIds = conversationIds.filter(
+        (_, index) => results[index].status === "rejected",
+      );
+      const successCount = results.length - failedIds.length;
 
-      await api.chats.sendMessage(conversationId, {
-        type: "POST",
-        postId,
-      });
+      for (let index = 0; index < successCount; index += 1) {
+        onShared?.(postId);
+      }
 
-      onShared?.(postId);
-      onClose();
+      if (failedIds.length > 0) {
+        console.error("share post failed for some conversations");
+        setSelectedIds(new Set(failedIds));
+        setErrorPostId(postId);
+        return;
+      }
 
       void Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Success,
       ).catch(() => undefined);
-    } catch (error) {
-      console.error("share post failed", error);
-      setErrorPostId(postId);
+      closeSheet();
     } finally {
-      setSendingId(null);
+      setSending(false);
     }
   }
 
   return (
-    <AppBottomSheet open={!!postId} snapPoints={["55%"]} onClose={onClose}>
+    <AppBottomSheet open={!!postId} snapPoints={["68%"]} onClose={closeSheet}>
       <View className="flex-1 px-5 pb-4 dark:bg-gray-900">
         <Text className="mb-1 text-2xl font-bold text-black dark:text-white">
           {t("sharePost")}
@@ -155,15 +188,18 @@ export default function SharePostBottomSheet({
             }
             renderItem={({ item }) => {
               const presentation = getChatPresentation(item);
-              const isSending = sendingId === item.id;
+              const selected = selectedIds.has(item.id);
 
               return (
                 <TouchableOpacity
-                  onPress={() => sendToChat(item.id)}
-                  disabled={sendingId !== null}
+                  onPress={() => toggleChat(item.id)}
+                  disabled={sending}
                   activeOpacity={0.75}
-                  className="mb-2 flex-row items-center rounded-2xl px-3 py-3"
-                  style={{ opacity: sendingId && !isSending ? 0.45 : 1 }}
+                  className={`mb-2 flex-row items-center rounded-2xl border px-3 py-3 ${
+                    selected
+                      ? "border-brand bg-brand-soft"
+                      : "border-transparent"
+                  }`}
                 >
                   <Avatar
                     uri={presentation.imageUrl}
@@ -180,20 +216,33 @@ export default function SharePostBottomSheet({
                     </Text>
                   </View>
 
-                  {isSending ? (
-                    <ActivityIndicator />
-                  ) : (
-                    <View className="rounded-full bg-black px-4 py-2">
-                      <Text className="text-sm font-bold text-white">
-                        {t("send")}
-                      </Text>
-                    </View>
-                  )}
+                  <CheckCircleIcon
+                    size={27}
+                    color={selected ? "#FF5B35" : "#B6B1A8"}
+                    weight={selected ? "fill" : "regular"}
+                  />
                 </TouchableOpacity>
               );
             }}
           />
         )}
+
+        <View className="border-t border-gray-100 pt-3 dark:border-gray-800">
+          <TouchableOpacity
+            disabled={selectedIds.size === 0 || sending}
+            onPress={() => void shareSelected()}
+            className="h-13 flex-row items-center justify-center rounded-2xl bg-brand"
+            style={{ opacity: selectedIds.size === 0 || sending ? 0.42 : 1 }}
+          >
+            {sending ? (
+              <ActivityIndicator color="#F7F6F2" />
+            ) : (
+              <Text className="font-bold text-[#F7F6F2]">
+                {t("shareSelected", { count: selectedIds.size })}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </AppBottomSheet>
   );

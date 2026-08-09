@@ -1,7 +1,7 @@
 import Avatar from "@/components/common/Avatar";
 import CreateLauncherButton from "@/components/create/CreateLauncherButton";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tabs } from "expo-router";
+import { router, Tabs } from "expo-router";
 import {
   ChatCircleIcon,
   HouseIcon,
@@ -58,6 +58,12 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="create"
+        listeners={{
+          tabPress: (event) => {
+            event.preventDefault();
+            router.push("/create/content");
+          },
+        }}
         options={{
           title: "Create",
           tabBarButton: (props) => (

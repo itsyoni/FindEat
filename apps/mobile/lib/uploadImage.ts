@@ -57,22 +57,42 @@ async function createUploadTicket(
   kind: "image" | "video",
   purpose: MediaPurpose,
 ) {
-  try {
-    const { data } = await apiClient.post<MediaUploadTicket>(
-      "/media/upload-url",
-      uploadMetadata(file, kind, purpose),
-    );
-    return data;
-  } catch (error) {
-    const detail = getErrorMessage(error, "The server rejected the media upload.");
-    const endpoint = isAxiosError(error) ? error.config?.url : undefined;
-    console.warn("Could not prepare media upload", {
-      endpoint,
-      status: isAxiosError(error) ? error.response?.status : undefined,
-      detail,
-    });
-    throw new Error(detail);
+  const metadata = uploadMetadata(file, kind, purpose);
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const { data } = await apiClient.post<MediaUploadTicket>(
+        "/media/upload-url",
+        metadata,
+        { timeout: 12_000 },
+      );
+      return data;
+    } catch (error) {
+      const networkFailure = isAxiosError(error) && !error.response;
+      if (networkFailure && attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+        continue;
+      }
+
+      const fallbackMessage = networkFailure
+        ? "Could not reach the upload server. Check your connection and try again."
+        : "The server rejected the media upload.";
+      const detail = getErrorMessage(error, fallbackMessage);
+      const endpoint = isAxiosError(error) ? error.config?.url : undefined;
+      console.warn("Could not prepare media upload", {
+        endpoint,
+        status: isAxiosError(error) ? error.response?.status : undefined,
+        attempt,
+        detail,
+      });
+      throw new Error(
+        networkFailure && detail === "Network Error" ? fallbackMessage : detail,
+      );
+    }
   }
+
+  throw new Error("Could not reach the upload server. Please try again.");
 }
 
 export async function uploadImage(

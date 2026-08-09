@@ -3,14 +3,30 @@ import type { Restaurant } from "./restaurant";
 import type { UserSummary } from "./user";
 
 export type ChatType = "DIRECT" | "GROUP" | "RESTAURANT";
-export type MessageType = "TEXT" | "IMAGE" | "POST" | "RESTAURANT" | "POLL" | "SYSTEM";
+export type MessageType =
+  | "TEXT"
+  | "IMAGE"
+  | "POST"
+  | "RESTAURANT"
+  | "POLL"
+  | "SYSTEM"
+  | "SNAP";
 
 export type SendMessagePayload = (
   | { type: "TEXT"; content: string }
   | { type: "POST"; postId: string }
   | { type: "RESTAURANT"; restaurantId: string }
   | { type: "IMAGE"; imageUrl: string }
+  | { type: "SNAP"; snapId: string; content: string }
 ) & { replyToId?: string };
+
+export type MessageSnap = {
+  id: string;
+  imageUrl: string;
+  caption?: string | null;
+  expiresAt: string;
+  userId: string;
+};
 
 type MessageReply = {
   id: string;
@@ -60,6 +76,9 @@ export type Message = {
 
   postId?: string | null;
   post?: Post | null;
+
+  snapId?: string | null;
+  snap?: MessageSnap | null;
 
   restaurantId?: string | null;
   restaurant?: Restaurant | null;

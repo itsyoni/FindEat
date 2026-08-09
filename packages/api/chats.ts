@@ -61,6 +61,14 @@ export function createChatsApi(api: AxiosInstance) {
       return data;
     },
 
+    async sendSnapReply(userId: string, snapId: string, content: string) {
+      const { data } = await api.post<Message>(
+        `/chats/direct/${userId}/snap-replies`,
+        { snapId, content },
+      );
+      return data;
+    },
+
     async sendRestaurantMessage(restaurantId: string, content: string) {
       const { data } = await api.post(
         `/chats/restaurants/${restaurantId}/messages`,
@@ -80,6 +88,17 @@ export function createChatsApi(api: AxiosInstance) {
         participantIds,
       });
 
+      return data;
+    },
+
+    async updateGroup(
+      conversationId: string,
+      payload: { imageUrl?: string | null },
+    ) {
+      const { data } = await api.patch<Chat>(
+        `/chats/${conversationId}/group`,
+        payload,
+      );
       return data;
     },
 

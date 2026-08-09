@@ -9,13 +9,19 @@ import {
   loadChatDraft,
   saveChatDraft,
 } from "@/lib/chatDrafts";
-import { Chat, Message } from "@findeat/types/chat";
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Chat, Message, MessageSnap } from "@findeat/types/chat";
+import {
+  router,
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
 import {
   ChecksIcon,
   CheckIcon,
   PaperPlaneTiltIcon,
   StarIcon,
+  UsersThreeIcon,
   XIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
@@ -24,12 +30,13 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
+  Image as RNImage,
+  Platform,
   Pressable,
   TouchableOpacity,
   View,
   TextInput as RNTextInput,
 } from "react-native";
-import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Socket } from "socket.io-client";
@@ -40,14 +47,12 @@ import Animated, {
   FadeIn,
   FadeOut,
   interpolate,
-  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
   withTiming,
-  ZoomInEasyDown,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -58,6 +63,7 @@ import MentionText from "@/components/common/MentionText";
 import SeenByBottomSheet, {
   type SeenByViewer,
 } from "@/components/chats/SeenByBottomSheet";
+import { useQuery } from "@tanstack/react-query";
 
 type ChatMessage = Message & {
   renderKey?: string;
@@ -157,6 +163,149 @@ function TypingDots() {
   );
 }
 
+function ExpiringSnapPreview({ snap }: { snap: MessageSnap }) {
+  const { t } = useTranslation("chat");
+  const [imageFailed, setImageFailed] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(
+    () => new Date(snap.expiresAt).getTime() > Date.now(),
+  );
+
+  useEffect(() => {
+    const remainingMs = new Date(snap.expiresAt).getTime() - Date.now();
+    if (remainingMs <= 0) return;
+
+    const expiryTimer = setTimeout(() => setIsAvailable(false), remainingMs);
+    return () => clearTimeout(expiryTimer);
+  }, [snap.expiresAt]);
+
+  if (!isAvailable || imageFailed) {
+    return (
+      <View className="h-28 items-center justify-center bg-gray-100 px-5 dark:bg-gray-800">
+        <Text className="text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+          {t("snapUnavailable")}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <RNImage
+      source={{ uri: snap.imageUrl }}
+      style={{ width: 224, height: 160, backgroundColor: "#E5E7EB" }}
+      resizeMode="cover"
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
+
+function SnapReplyMessage({
+  message,
+  isMine,
+  hasTail,
+}: {
+  message: Message;
+  isMine: boolean;
+  hasTail: boolean;
+}) {
+  const { t } = useTranslation("chat");
+  const preview = useQuery({
+    queryKey: ["snap-message-preview", message.snapId],
+    queryFn: () => api.snaps.preview(message.snapId!),
+    enabled: !message.snap && !!message.snapId,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const embeddedSnap =
+    message.snapId && message.imageUrl
+      ? {
+          id: message.snapId,
+          imageUrl: message.imageUrl,
+          caption: null,
+          expiresAt: new Date(
+            new Date(message.createdAt).getTime() + 24 * 60 * 60 * 1_000,
+          ).toISOString(),
+          userId: message.senderId,
+        }
+      : null;
+  const snap = message.snap ?? preview.data ?? embeddedSnap;
+
+  return (
+    <View
+      className={`w-56 overflow-hidden rounded-[16px] bg-gray-50 dark:bg-gray-900 ${
+        hasTail ? (isMine ? "rounded-br-md" : "rounded-bl-md") : ""
+      }`}
+    >
+      {snap ? (
+        <ExpiringSnapPreview key={snap.expiresAt} snap={snap} />
+      ) : preview.isPending && message.snapId ? (
+        <View className="h-28 items-center justify-center bg-gray-100 dark:bg-gray-800">
+          <ActivityIndicator color="#D97706" />
+        </View>
+      ) : (
+        <View className="h-28 items-center justify-center bg-gray-100 px-5 dark:bg-gray-800">
+          <Text className="text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+            {t("snapUnavailable")}
+          </Text>
+        </View>
+      )}
+      <View className="p-3">
+        <Text className="text-xs font-bold uppercase text-brand">
+          {t("snapReply")}
+        </Text>
+        <MentionText
+          className="mt-1 text-black dark:text-white"
+          content={message.content ?? ""}
+          mentions={message.mentions}
+        />
+        <View className="mt-2 flex-row items-center self-end">
+          {message.starred ? (
+            <StarIcon
+              size={10}
+              color="#D97706"
+              weight="fill"
+              style={{ marginRight: 3 }}
+            />
+          ) : null}
+          <Text className="text-[10px] text-gray-400 dark:text-gray-500">
+            {formatMessageTime(message.createdAt)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function firstPostImage(post: NonNullable<Message["post"]>) {
+  const contentImage = [...(post.contentPost?.media ?? [])]
+    .sort((left, right) => left.order - right.order)
+    .find((media) => media.type === "IMAGE" && !!media.imageUrl);
+  if (contentImage) {
+    return contentImage.imageUrl ?? null;
+  }
+  if (post.contentPost) {
+    return post.contentPost.imageUrl ?? null;
+  }
+
+  const review = post.reviewPost;
+  if (!review) return null;
+  if (review.coverImageUrl) {
+    return review.coverImageUrl;
+  }
+
+  const orderedItems = [...(review.items ?? [])].sort(
+    (left, right) => left.order - right.order,
+  );
+  for (const item of orderedItems) {
+    const image =
+      item.primaryMedia?.imageUrl ??
+      item.imageUrl ??
+      item.media?.[0]?.imageUrl ??
+      item.menuItem?.imageUrl;
+    if (image) return image;
+  }
+  return null;
+}
+
 export default function ChatScreen() {
   const { user, token } = useAuth();
   const currentUserId = user?.id;
@@ -193,7 +342,6 @@ export default function ChatScreen() {
   );
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
-  const [animateNewMessages, setAnimateNewMessages] = useState(false);
   const [conversationId, setConversationId] = useState(id);
   const unresolvedDraftKey =
     params.type === "DIRECT"
@@ -470,6 +618,12 @@ export default function ChatScreen() {
     setChat(chat);
   }, [conversationId, isNewChat]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!isNewChat) void loadChat();
+    }, [isNewChat, loadChat]),
+  );
+
   const loadMessages = useCallback(async (prepareInitialPosition = false) => {
     if (isNewChat) return;
 
@@ -482,7 +636,6 @@ export default function ChatScreen() {
     scrollToEndAnimatedRef.current = false;
     setMessages(messages.map(withBufferedReadReceipts));
 
-    requestAnimationFrame(() => setAnimateNewMessages(true));
   }, [conversationId, isNewChat]);
 
   useEffect(() => {
@@ -490,8 +643,6 @@ export default function ChatScreen() {
 
     async function init() {
       if (isNewChat) {
-        setAnimateNewMessages(true);
-
         if (shouldResolveRestaurantChat && params.restaurantId) {
           try {
             setLoading(true);
@@ -1040,6 +1191,7 @@ export default function ChatScreen() {
     if (message.content) return message.content;
     if (message.type === "IMAGE") return t("photoMessage");
     if (message.type === "POST") return t("postMessage");
+    if (message.type === "SNAP") return t("snapReply");
     if (message.type === "RESTAURANT") return t("restaurantMessage");
     return t("message");
   }
@@ -1190,12 +1342,22 @@ export default function ChatScreen() {
                   disabled={isNewChat}
                   className="min-w-0 flex-1 flex-row items-center py-2"
                 >
-                  <Avatar
-                    uri={headerImage}
-                    username={headerTitle ?? "Chat"}
-                    size={42}
-                    fallbackType={isRestaurantChat ? "restaurant" : "user"}
-                  />
+                  {isGroupChat && !headerImage ? (
+                    <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800">
+                      <UsersThreeIcon
+                        size={22}
+                        color="#6B7280"
+                        weight="fill"
+                      />
+                    </View>
+                  ) : (
+                    <Avatar
+                      uri={headerImage}
+                      username={headerTitle ?? "Chat"}
+                      size={42}
+                      fallbackType={isRestaurantChat ? "restaurant" : "user"}
+                    />
+                  )}
 
                   <View className="ml-3 min-w-0 flex-1">
                     <View className="flex-row items-center">
@@ -1227,8 +1389,9 @@ export default function ChatScreen() {
       >
         <KeyboardAvoidingView
           className="flex-1"
-          behavior="padding"
+          behavior={Platform.OS === "android" ? "translate-with-padding" : "padding"}
           automaticOffset
+          keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 6}
         >
           {(loading || !isThreadReady) && <ChatSkeleton />}
           {!loading && <>
@@ -1331,13 +1494,7 @@ export default function ChatScreen() {
                     </View>
                   )}
 
-                  <Animated.View
-                    entering={
-                      animateNewMessages
-                        ? ZoomInEasyDown.duration(180)
-                        : undefined
-                    }
-                    layout={LinearTransition.duration(160)}
+                  <View
                     className={`${nextMessageIsDifferentSender ? "mb-3" : "mb-1"} flex-row ${
                       isMine ? "justify-end" : "justify-start"
                     }`}
@@ -1370,11 +1527,16 @@ export default function ChatScreen() {
                         if (!item.deletedAt) setSelectedMessage(item);
                       }}
                       delayLongPress={260}
-                      className={`max-w-[78%] rounded-[22px] border px-4 py-2.5 ${
-                        isMine
-                          ? `${nextMessage?.senderId !== item.senderId ? "rounded-br-md" : ""} border-[#FFD8CD] bg-brand-soft`
-                          : `${nextMessage?.senderId !== item.senderId ? "rounded-bl-md" : ""} border-gray-100 bg-white dark:border-gray-800 dark:bg-[#1B1B1D]`
-                      }`}
+                      className={
+                        (item.type === "POST" || item.type === "SNAP") &&
+                        !item.deletedAt
+                          ? "max-w-[78%]"
+                          : `max-w-[78%] rounded-[16px] border px-4 py-2.5 ${
+                              isMine
+                                ? `${nextMessage?.senderId !== item.senderId ? "rounded-br-md" : ""} border-[#FFD8CD] bg-brand-soft`
+                                : `${nextMessage?.senderId !== item.senderId ? "rounded-bl-md" : ""} border-gray-100 bg-white dark:border-gray-800 dark:bg-[#1B1B1D]`
+                            }`
+                      }
                     >
                       {shouldShowSenderName && (
                         <Text className="mb-1 text-xs font-bold text-gray-500">
@@ -1402,10 +1564,22 @@ export default function ChatScreen() {
                         <Text className={`italic ${isMine ? "text-black/55" : "text-gray-500 dark:text-gray-400"}`}>
                           {t("deletedMessage")}
                         </Text>
+                      ) : item.type === "SNAP" ? (
+                        <SnapReplyMessage
+                          message={item}
+                          isMine={isMine}
+                          hasTail={nextMessage?.senderId !== item.senderId}
+                        />
                       ) : item.type === "POST" ? (
                         item.post ? (
                           <Pressable
-                            className="overflow-hidden rounded-2xl bg-gray-50 dark:bg-gray-900"
+                            className={`overflow-hidden rounded-[16px] bg-gray-50 dark:bg-gray-900 ${
+                              nextMessage?.senderId !== item.senderId
+                                ? isMine
+                                  ? "rounded-br-md"
+                                  : "rounded-bl-md"
+                                : ""
+                            }`}
                             onPress={() =>
                               router.push({
                                 pathname: "/(posts)/[id]",
@@ -1414,9 +1588,7 @@ export default function ChatScreen() {
                             }
                           >
                             {(() => {
-                              const image =
-                                item.post.contentPost?.imageUrl ??
-                                item.post.reviewPost?.coverImageUrl;
+                              const image = firstPostImage(item.post);
 
                               const description =
                                 item.post.contentPost?.caption ??
@@ -1425,9 +1597,15 @@ export default function ChatScreen() {
                               return (
                                 <>
                                   {!!image && (
-                                    <ProgressiveImage
+                                    <RNImage
                                       source={{ uri: image }}
-                                      className="h-40 w-56"
+                                      style={{
+                                        width: 224,
+                                        height: 160,
+                                        backgroundColor: isDark
+                                          ? "#1F2937"
+                                          : "#E5E7EB",
+                                      }}
                                       resizeMode="cover"
                                     />
                                   )}
@@ -1448,6 +1626,20 @@ export default function ChatScreen() {
                                         {description}
                                       </Text>
                                     )}
+
+                                    <View className="mt-2 flex-row items-center self-end">
+                                      {item.starred ? (
+                                        <StarIcon
+                                          size={10}
+                                          color="#D97706"
+                                          weight="fill"
+                                          style={{ marginRight: 3 }}
+                                        />
+                                      ) : null}
+                                      <Text className="text-[10px] text-gray-400 dark:text-gray-500">
+                                        {formatMessageTime(item.createdAt)}
+                                      </Text>
+                                    </View>
                                   </View>
                                 </>
                               );
@@ -1472,6 +1664,9 @@ export default function ChatScreen() {
                         />
                       )}
 
+                      {!item.deletedAt &&
+                      (item.type === "SNAP" ||
+                        (item.type === "POST" && item.post)) ? null : (
                       <View className="mt-1 flex-row items-center self-end">
                         {item.starred ? (
                           <StarIcon
@@ -1492,8 +1687,9 @@ export default function ChatScreen() {
                           {formatMessageTime(item.createdAt)}
                         </Text>
                       </View>
+                      )}
                     </Pressable>
-                  </Animated.View>
+                  </View>
                   {seenLabel ? (
                     <TouchableOpacity
                       disabled={!isGroupChat}
@@ -1522,7 +1718,7 @@ export default function ChatScreen() {
             <Animated.View
               entering={FadeIn.duration(140)}
               exiting={FadeOut.duration(140)}
-              className="mx-3 mb-2 self-start flex-row items-center rounded-[18px] rounded-bl-md border border-gray-100 bg-white px-3 py-2 dark:border-gray-800 dark:bg-[#1B1B1D]"
+              className="mx-3 mb-2 self-start flex-row items-center rounded-[16px] rounded-bl-md border border-gray-100 bg-white px-3 py-2 dark:border-gray-800 dark:bg-[#1B1B1D]"
             >
               <TypingDots />
               <Text className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-300">
@@ -1531,7 +1727,10 @@ export default function ChatScreen() {
             </Animated.View>
           ) : null}
 
-          <View className="border-t border-line bg-white px-3 py-2 dark:border-gray-900 dark:bg-[#0F0F10]">
+          <View
+            className="px-3 py-2"
+            style={{ backgroundColor: "transparent", borderTopWidth: 0 }}
+          >
             {editingMessage ? (
               <View className="mb-2 flex-row items-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#1B1B1D]">
                 <View className="h-full w-1 bg-brand" />
@@ -1618,7 +1817,8 @@ export default function ChatScreen() {
             />
 
             <TouchableOpacity
-              className={`ml-2 h-10 w-10 items-center justify-center rounded-full ${canSubmitComposer && !sending ? "bg-brand" : "bg-gray-200 dark:bg-gray-800"}`}
+              className={`ml-2 items-center justify-center rounded-full ${canSubmitComposer && !sending ? "bg-brand" : "bg-gray-200 dark:bg-gray-800"}`}
+              style={{ width: 42, height: 42 }}
               onPress={sendMessage}
               disabled={!canSubmitComposer || sending}
             >

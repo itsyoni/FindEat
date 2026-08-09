@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
-import { ThemedSafeAreaView } from "@/components/common";
+import { AppButton, ThemedSafeAreaView } from "@/components/common";
 import DishCard from "../components/DishCard";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
@@ -20,6 +20,7 @@ import { UsersThreeIcon } from "phosphor-react-native";
 import ContentVideo from "@/components/posts/content/ContentVideo";
 import { useState } from "react";
 import type { LinkedContentPreview } from "../ReviewCreator";
+import DishPreviewImage from "../components/DishPreviewImage";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -32,6 +33,15 @@ type Props = {
   savingDraft?: boolean;
   linkedContentPreview?: LinkedContentPreview;
   showVisibilitySelector?: boolean;
+};
+
+type PreviewMediaItem = {
+  id: string;
+  type: "IMAGE" | "VIDEO";
+  uri: string;
+  dishName?: string;
+  dishPrice?: number | null;
+  fallbackUri?: string | null;
 };
 
 export default function PreviewStep({
@@ -54,7 +64,7 @@ export default function PreviewStep({
     draft.restaurant?.source === "FINDEAT"
       ? draft.restaurant.restaurant.name
       : draft.restaurant?.name;
-  const reviewMedia = [
+  const reviewMedia: PreviewMediaItem[] = [
     ...(draft.coverImageUri || draft.coverImageUrl
       ? [
           {
@@ -66,22 +76,35 @@ export default function PreviewStep({
       : []),
     ...draft.items.flatMap((item) => {
       const uri = item.imageUri ?? item.fallbackImageUrl;
+      const dishName =
+        item.menuItemName ?? item.customDishName ?? t("create:dish");
+      const dishPrice = item.customPrice ?? item.menuItemPrice;
       return uri
-        ? [{ id: `dish-${item.id}`, type: "IMAGE" as const, uri }]
+        ? [
+            {
+              id: `dish-${item.id}`,
+              type: "IMAGE" as const,
+              uri,
+              dishName,
+              dishPrice,
+              fallbackUri: item.fallbackImageUrl,
+            },
+          ]
         : [];
     }),
   ];
-  const previewMedia = linkedContentPreview?.media.length
+  const previewMedia: PreviewMediaItem[] = linkedContentPreview?.media.length
     ? linkedContentPreview.media
     : reviewMedia;
 
   return (
-    <ThemedSafeAreaView>
+    <ThemedSafeAreaView edges={["top", "bottom"]}>
       <ScrollView
+        className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: 24,
           paddingTop: 32,
-          paddingBottom: 40,
+          paddingBottom: 32,
         }}
       >
         <View className="flex-row items-center justify-between">
@@ -157,6 +180,12 @@ export default function PreviewStep({
                       tapToToggle
                       showProgress
                     />
+                  ) : item.dishName ? (
+                    <DishPreviewImage
+                      pickedUri={item.uri}
+                      menuImageUrl={item.fallbackUri}
+                      style={{ width: "100%", height: "100%" }}
+                    />
                   ) : (
                     <ProgressiveImage
                       source={{ uri: item.uri }}
@@ -164,6 +193,24 @@ export default function PreviewStep({
                       contentFit="cover"
                     />
                   )}
+                  {item.dishName ? (
+                    <View
+                      pointerEvents="none"
+                      className="absolute inset-x-0 bottom-0 flex-row items-end justify-between gap-3 bg-black/60 px-4 py-4"
+                    >
+                      <Text
+                        numberOfLines={2}
+                        className="flex-1 text-lg font-bold text-white"
+                      >
+                        {item.dishName}
+                      </Text>
+                      {item.dishPrice != null ? (
+                        <Text className="font-bold text-white">
+                          ₪{item.dishPrice}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               )}
             />
@@ -287,20 +334,15 @@ export default function PreviewStep({
           />
         ) : null}
 
-        <TouchableOpacity
-          className={`mt-8 rounded-2xl py-4 ${
-            loading ? "bg-gray-400" : "bg-black dark:bg-white"
-          }`}
-          onPress={onPublish}
-          disabled={loading}
-        >
-          <Text className="text-center font-bold text-white dark:text-black">
-            {loading
-              ? t("create:publishing")
-              : t("create:publishReview")}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      <View className="border-t border-gray-200 bg-[#FBFAF8] px-6 pb-2 pt-3 dark:border-gray-800 dark:bg-[#0B0B0A]">
+        <AppButton
+          title={t("create:publishReview")}
+          onPress={onPublish}
+          loading={loading}
+        />
+      </View>
     </ThemedSafeAreaView>
   );
 }

@@ -1,7 +1,12 @@
 import type { PostType } from "./post";
 import type { UserSummary } from "./user";
 
-export type ReportTargetType = "USER" | "POST" | "COMMENT" | "RESTAURANT";
+export type ReportTargetType =
+  | "USER"
+  | "POST"
+  | "COMMENT"
+  | "RESTAURANT"
+  | "SNAP";
 export type ReportReason =
   | "HATE_SPEECH"
   | "HARASSMENT"

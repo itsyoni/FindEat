@@ -201,6 +201,27 @@ export function createPostsApi(api: AxiosInstance) {
       return data;
     },
 
+    async requestToJoinReview(id: string) {
+      const { data } = await api.post<{ ok: boolean }>(
+        `/posts/${id}/collaboration/request`,
+      );
+      return data;
+    },
+
+    async approveReviewJoinRequest(id: string, requesterId: string) {
+      const { data } = await api.post<Post>(
+        `/posts/${id}/collaboration/requests/${requesterId}/approve`,
+      );
+      return data;
+    },
+
+    async declineReviewJoinRequest(id: string, requesterId: string) {
+      const { data } = await api.post<{ ok: boolean }>(
+        `/posts/${id}/collaboration/requests/${requesterId}/decline`,
+      );
+      return data;
+    },
+
     async leaveReview(id: string) {
       const { data } = await api.delete<{ ok: boolean }>(
         `/posts/${id}/collaboration`,

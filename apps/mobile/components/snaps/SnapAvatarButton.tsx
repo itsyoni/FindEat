@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import {
   type StyleProp,
   TouchableOpacity,
+  View,
   type ViewStyle,
 } from "react-native";
 
@@ -17,6 +18,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   onPressWithoutSnap?: () => void;
   showProfilePictureOnLongPress?: boolean;
+  indicatorPlacement?: "inset" | "outside";
 };
 
 /**
@@ -32,6 +34,7 @@ export default function SnapAvatarButton({
   style,
   onPressWithoutSnap,
   showProfilePictureOnLongPress = true,
+  indicatorPlacement = "inset",
 }: Props) {
   const indicator = useSnapIndicator({ userId, username, avatarUrl });
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -69,12 +72,35 @@ export default function SnapAvatarButton({
         delayLongPress={280}
         style={style}
       >
-        <Avatar
-          uri={avatarUrl}
-          username={username}
-          userId={userId}
-          size={size}
-        />
+        {indicatorPlacement === "outside" && indicator ? (
+          <View
+            style={{
+              borderRadius: (size + 9) / 2,
+              borderWidth: 1.5,
+              borderColor:
+                indicator === "unseen" ? "#FF5B35" : "#9CA3AF",
+              padding: 2,
+              backgroundColor: "transparent",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Avatar
+              uri={avatarUrl}
+              username={username}
+              userId={userId}
+              size={size}
+              showSnapIndicator={false}
+            />
+          </View>
+        ) : (
+          <Avatar
+            uri={avatarUrl}
+            username={username}
+            userId={userId}
+            size={size}
+          />
+        )}
       </TouchableOpacity>
       {showProfilePictureOnLongPress ? (
         <FullScreenImageViewer

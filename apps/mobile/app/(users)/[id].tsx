@@ -1,7 +1,7 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { Skeleton, SkeletonList, SkeletonPulse } from "@/components/common";
 import Text from "@/components/common/AppText";
-import Avatar from "@/components/common/Avatar";
+import ProfileAvatarRing from "@/components/profile/ProfileAvatarRing";
 import FullScreenImageViewer from "@/components/common/FullScreenImageViewer";
 import Tabs from "@/components/common/Tabs";
 import ProfileManagedRestaurants from "@/components/profile/ProfileManagedRestaurants";
@@ -314,7 +314,7 @@ export default function UserProfileScreen() {
           className="-mt-7 rounded-t-[30px]"
           style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         >
-          <View className="-mt-12 items-center px-5">
+          <View className="items-center px-5" style={{ marginTop: -56 }}>
             <TouchableOpacity
               activeOpacity={1}
               accessibilityRole="imagebutton"
@@ -331,26 +331,12 @@ export default function UserProfileScreen() {
               onPress={openAvatarOrSnap}
               onLongPress={openAvatarPicture}
               delayLongPress={280}
-              className={
-                snapIndicator === "unseen"
-                  ? "rounded-full bg-brand p-1"
-                  : snapIndicator === "viewed"
-                    ? "rounded-full bg-gray-400 p-1 dark:bg-gray-600"
-                  : "rounded-full bg-white p-1.5 dark:bg-black"
-              }
             >
-              <View
-                className={
-                  hasSnap ? "rounded-full bg-white p-0.5 dark:bg-black" : ""
-                }
-              >
-                <Avatar
-                  uri={user.avatarUrl}
-                  username={user.username}
-                  size={100}
-                  showSnapIndicator={false}
-                />
-              </View>
+              <ProfileAvatarRing
+                avatarUrl={user.avatarUrl}
+                username={user.username}
+                snapIndicator={snapIndicator}
+              />
             </TouchableOpacity>
           </View>
           <View className="items-center px-5 pb-5">

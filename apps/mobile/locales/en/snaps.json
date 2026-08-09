@@ -34,5 +34,10 @@
   "hoursAgo_other": "{{count}}h",
   "deleteTitle": "Delete this snap?",
   "deleteBody": "It will disappear immediately.",
-  "deleteError": "The snap could not be deleted."
+  "deleteError": "The snap could not be deleted.",
+  "snapOptions": "Snap options",
+  "reportSnap": "Report snap",
+  "replyPlaceholder": "Reply to this snap…",
+  "replySent": "Reply sent",
+  "replyError": "Your reply could not be sent."
 }

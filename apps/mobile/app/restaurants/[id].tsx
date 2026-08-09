@@ -25,6 +25,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import RestaurantAboutBottomSheet from "@/components/restaurants/RestaurantAboutBottomSheet";
 import PlaceStatusBookmark, { getPlaceStatusLabelKey } from "@/components/restaurants/PlaceStatusBookmark";
+import { CaretDownIcon } from "phosphor-react-native";
 
 type RestaurantTab = RestaurantPostSection | "MENU";
 
@@ -220,29 +221,57 @@ export default function RestaurantScreen() {
       />
 
       <View className="bg-surface px-5 pb-5 dark:bg-black">
-        <View>
-          <TouchableOpacity
-            onPress={openSavedPlaceManager}
-            className={`w-full flex-row items-center justify-center rounded-xl px-4 py-3 ${isPlaceSaved || savedListCount > 0 ? "bg-amber-500" : "bg-gray-100 dark:bg-gray-800"}`}
+        <TouchableOpacity
+          onPress={openSavedPlaceManager}
+          activeOpacity={0.72}
+          className="w-full flex-row items-center rounded-2xl border border-[#E5E1D8] bg-[#F7F4EE] px-3.5 py-3 dark:border-[#353532] dark:bg-[#1A1A18]"
+        >
+          <View
+            className={`h-11 w-11 items-center justify-center rounded-full ${
+              isPlaceSaved || savedListCount > 0
+                ? "bg-amber-100 dark:bg-amber-950"
+                : "bg-[#EAE6DE] dark:bg-[#292927]"
+            }`}
           >
             <PlaceStatusBookmark
               wantToTry={!!placeStatus?.wantToTry}
               visited={!!placeStatus?.visited}
               favorite={!!placeStatus?.favorite}
-              size={22}
-              defaultColor={isPlaceSaved || savedListCount > 0 ? "#FAF9F6" : "#6B7280"}
+              size={23}
+              defaultColor="#77736B"
               savedListCount={savedListCount}
             />
+          </View>
+
+          <View className="ml-3 min-w-0 flex-1">
             <Text
               numberOfLines={1}
-              className={`ml-2 text-center font-bold ${isPlaceSaved || savedListCount > 0 ? "text-white" : "text-black dark:text-white"}`}
+              className="font-bold text-[#171716] dark:text-[#F7F6F2]"
             >
               {!isPlaceSaved && savedListCount > 0
                 ? t("common:inList")
                 : t(`restaurants:${statusLabel}`)}
             </Text>
-          </TouchableOpacity>
-        </View>
+            <Text
+              numberOfLines={1}
+              className="mt-0.5 text-xs text-[#77736B] dark:text-[#AAA69E]"
+            >
+              {t(
+                isPlaceSaved || savedListCount > 0
+                  ? "common:manageSavedPlace"
+                  : "restaurants:savePlaceHint",
+              )}
+            </Text>
+          </View>
+
+          <View className="ml-3 h-8 w-8 items-center justify-center rounded-full bg-[#EAE6DE] dark:bg-[#292927]">
+            <CaretDownIcon
+              size={16}
+              weight="bold"
+              color={isDark ? "#D4D0C8" : "#68645D"}
+            />
+          </View>
+        </TouchableOpacity>
       </View>
 
       <RestaurantCompatibilitySummary compatibility={restaurant.compatibility} />

@@ -5,6 +5,7 @@ import {
   TextInput as RNTextInput,
   TextInputProps,
   I18nManager,
+  Platform,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -70,6 +71,10 @@ export default function TextInput({
         onChangeText={onChangeText}
         secureTextEntry={isPassword && hidden}
         allowFontScaling={usesSystemTextSize}
+        maxFontSizeMultiplier={
+          props.maxFontSizeMultiplier ??
+          (Platform.OS === "android" ? 1.15 : undefined)
+        }
         placeholderTextColor={placeholderTextColor ?? (isDark ? "#9CA3AF" : "#747474")}
         textAlign={isRtl ? "right" : "left"}
         textAlignVertical={isMultiline ? "top" : "center"}
@@ -77,7 +82,9 @@ export default function TextInput({
           {
             flex: 1,
             paddingVertical: 16,
-            fontSize: Math.round(16 * textScale),
+            fontSize: Math.round(
+              16 * textScale * (Platform.OS === "android" ? 0.9 : 1),
+            ),
             color: isDark ? "#FAF9F6" : "#171717",
             fontFamily: boldText ? "CabinetMedium" : "CabinetRegular",
             writingDirection: isRtl ? "rtl" : "ltr",

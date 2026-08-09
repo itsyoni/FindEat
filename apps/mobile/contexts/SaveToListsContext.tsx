@@ -205,11 +205,19 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
 
   const chooseStatus = useCallback(
     (status: PlaceSaveStatus) => {
-      if (status === "FAVORITE" && initialStatus !== "VISITED" && initialStatus !== "FAVORITE") {
-        Alert.alert(t("favoriteRequiresVisitTitle"), t("favoriteRequiresVisitBody"));
+      if (status === "FAVORITE") {
+        if (initialStatus !== "VISITED" && initialStatus !== "FAVORITE") {
+          return;
+        }
+        setSelectedStatus((current) =>
+          current === "FAVORITE" ? "VISITED" : "FAVORITE",
+        );
         return;
       }
-      if (status === "WANT_TO_TRY" && (initialStatus === "VISITED" || initialStatus === "FAVORITE")) {
+      if (
+        status === "WANT_TO_TRY" &&
+        (selectedStatus === "VISITED" || selectedStatus === "FAVORITE")
+      ) {
         Alert.alert(t("changeVisitedToWantTitle"), t("changeVisitedToWantBody"), [
           { text: t("cancel"), style: "cancel" },
           { text: t("changeStatus"), onPress: () => setSelectedStatus(status) },
@@ -218,7 +226,7 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
       }
       setSelectedStatus(status);
     },
-    [initialStatus, t],
+    [initialStatus, selectedStatus, t],
   );
 
   const createList = useCallback(async () => {
@@ -245,7 +253,7 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
       setSaving(true);
       const savedRestaurantId = restaurantId;
       const offerReview =
-        selectedStatus === "VISITED" &&
+        (selectedStatus === "VISITED" || selectedStatus === "FAVORITE") &&
         initialStatus !== "VISITED" &&
         initialStatus !== "FAVORITE";
       const status = await api.restaurants.setSaveStatus(
@@ -392,15 +400,30 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
               <Text className="mb-2 text-sm font-bold uppercase tracking-wide text-gray-500">{t("placeStatus")}</Text>
               <View className="flex-row gap-2">
                 {statusOptions.map(({ value: status, label, color, Icon }) => {
-                  const selected = selectedStatus === status;
+                  const selected =
+                    selectedStatus === status ||
+                    (status === "VISITED" && selectedStatus === "FAVORITE");
+                  const disabled =
+                    (status === "FAVORITE" &&
+                      initialStatus !== "VISITED" &&
+                      initialStatus !== "FAVORITE") ||
+                    (status === "WANT_TO_TRY" &&
+                      (initialStatus === "VISITED" ||
+                        initialStatus === "FAVORITE"));
                   return (
                     <TouchableOpacity
                       key={status}
+                      disabled={disabled}
                       onPress={() => chooseStatus(status)}
                       className="flex-1 items-center rounded-2xl border px-2 py-3"
                       style={{
-                        borderColor: selected ? color : "#D1D5DB",
+                        borderColor: selected
+                          ? color
+                          : disabled
+                            ? "#E5E7EB"
+                            : "#D1D5DB",
                         backgroundColor: selected ? `${color}18` : "transparent",
+                        opacity: disabled ? 0.42 : 1,
                       }}
                     >
                       <Icon size={23} color={selected ? color : "#6B7280"} weight={selected ? "fill" : "regular"} />
@@ -409,6 +432,11 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
                   );
                 })}
               </View>
+              {initialStatus !== "VISITED" && initialStatus !== "FAVORITE" ? (
+                <Text className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {t("favoriteRequiresVisitHint")}
+                </Text>
+              ) : null}
 
               <View className="mb-2 mt-6 flex-row items-center">
                 <FolderSimpleIcon size={18} color="#8B5CF6" weight="fill" />

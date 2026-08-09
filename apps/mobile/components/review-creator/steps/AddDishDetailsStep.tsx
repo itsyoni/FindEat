@@ -2,25 +2,22 @@ import Text from "@/components/common/AppText";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { AppButton, TextInput, ThemedSafeAreaView } from "@/components/common";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
-import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
   pickReviewImage,
   type ReviewImageSource,
 } from "@/lib/reviewImagePicker";
+import { persistReviewMediaUri } from "@/lib/postDrafts";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Dish } from "@findeat/types";
 import type {
   ReviewDishDraft,
   ReviewDishFormDraft,
 } from "@findeat/types/review";
-import {
-  CameraIcon,
-  ImagesIcon,
-  TrashIcon,
-} from "phosphor-react-native";
 import { useRef, useState } from "react";
-import { ActivityIndicator, Image, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import DishPhotoPickerCard from "../components/DishPhotoPickerCard";
 import PriceInput from "../components/PriceInput";
 import RatingPicker from "../components/RatingPicker";
 
@@ -32,6 +29,7 @@ type Props = {
   onDraftChange: (update: Partial<ReviewDishFormDraft>) => void;
   onSaveDraft?: () => void;
   savingDraft?: boolean;
+  submitting?: boolean;
   editing?: boolean;
 };
 
@@ -43,11 +41,12 @@ export default function AddDishDetailsStep({
   onDraftChange,
   onSaveDraft,
   savingDraft,
+  submitting = false,
   editing = false,
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
-  const { isDark } = useAppTheme();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const isFromMenu = !!selectedDish;
   const form: ReviewDishFormDraft = initialDraft ?? {
     dishName: selectedDish?.name ?? "",
@@ -74,7 +73,17 @@ export default function AddDishDetailsStep({
       // Use the native crop result immediately. Persistence protects drafts,
       // but never blocks the preview or the rest of the form.
       onDraftChange({ imageUri: image.uri });
-      setPickingSource(null);
+
+      if (user?.id) {
+        const persistedUri = await persistReviewMediaUri(
+          user.id,
+          image.uri,
+          `pending-dish-${selectionId}`,
+        );
+        if (imageSelectionRef.current === selectionId) {
+          onDraftChange({ imageUri: persistedUri });
+        }
+      }
 
     } catch (error) {
       console.error("Could not pick review dish image", error);
@@ -93,6 +102,7 @@ export default function AddDishDetailsStep({
   }
 
   function handleSave() {
+    if (submitting) return;
     setAttemptedSave(true);
     if (!isFromMenu && !dishName.trim()) return;
 
@@ -108,8 +118,6 @@ export default function AddDishDetailsStep({
       text: text.trim() || undefined,
     });
   }
-
-  const iconColor = isDark ? "#FAF9F6" : "#171717";
 
   return (
     <ThemedSafeAreaView edges={["top", "bottom"]}>
@@ -140,84 +148,14 @@ export default function AddDishDetailsStep({
         bottomOffset={30}
         contentContainerStyle={{ padding: 20, paddingBottom: 44 }}
       >
-        <View className="overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-          {imageUri ? (
-            <View style={{ width: "100%", aspectRatio: 4 / 3 }}>
-              <Image
-                source={{ uri: imageUri }}
-                style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
-                onError={(event) =>
-                  console.error("Review dish image preview failed", {
-                    uri: imageUri,
-                    error: event.nativeEvent.error,
-                  })
-                }
-              />
-              <TouchableOpacity
-                accessibilityLabel={t("delete")}
-                onPress={removePhoto}
-                className="absolute right-3 top-3 h-10 w-10 items-center justify-center rounded-full bg-black/70"
-              >
-                <TrashIcon size={19} color="#FAF9F6" weight="fill" />
-              </TouchableOpacity>
-            </View>
-          ) : selectedDish?.imageUrl ? (
-            <View style={{ width: "100%", aspectRatio: 4 / 3 }}>
-              <Image
-                source={{ uri: selectedDish.imageUrl }}
-                style={{ width: "100%", height: "100%", opacity: 0.62 }}
-                resizeMode="cover"
-              />
-              <View className="absolute inset-x-0 bottom-0 bg-black/60 px-4 py-3">
-                <Text className="text-center text-sm font-semibold text-white">
-                  {t("usingMenuDishPhoto")}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View className="items-center px-6 py-9">
-              <ImagesIcon size={35} color={iconColor} weight="light" />
-              <Text className="mt-3 font-bold text-black dark:text-white">
-                {t("addDishPhoto")}
-              </Text>
-              <Text className="mt-1 text-center text-sm text-gray-500">
-                {t("dishPhotoOptionalHint")}
-              </Text>
-            </View>
-          )}
-
-          <View className="flex-row gap-3 border-t border-gray-200 p-3 dark:border-gray-800">
-            <TouchableOpacity
-              disabled={!!pickingSource}
-              onPress={() => void choosePhoto("camera")}
-              className="min-h-12 flex-1 flex-row items-center justify-center rounded-2xl bg-white px-3 dark:bg-black"
-            >
-              {pickingSource === "camera" ? (
-                <ActivityIndicator color={iconColor} />
-              ) : (
-                <CameraIcon size={20} color={iconColor} weight="bold" />
-              )}
-              <Text className="ml-2 font-bold text-black dark:text-white">
-                {t("takePhoto")}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              disabled={!!pickingSource}
-              onPress={() => void choosePhoto("gallery")}
-              className="min-h-12 flex-1 flex-row items-center justify-center rounded-2xl bg-white px-3 dark:bg-black"
-            >
-              {pickingSource === "gallery" ? (
-                <ActivityIndicator color={iconColor} />
-              ) : (
-                <ImagesIcon size={20} color={iconColor} weight="bold" />
-              )}
-              <Text className="ml-2 font-bold text-black dark:text-white">
-                {t("chooseFromGallery")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <DishPhotoPickerCard
+          imageUrl={imageUri}
+          fallbackImageUrl={selectedDish?.imageUrl}
+          pickingSource={pickingSource}
+          disabled={submitting}
+          onChoose={(source) => void choosePhoto(source)}
+          onRemove={removePhoto}
+        />
 
         <View className="mt-7 gap-7">
           {!isFromMenu ? (
@@ -276,6 +214,8 @@ export default function AddDishDetailsStep({
           <AppButton
             title={editing ? t("common:saveChanges") : t("saveDish")}
             onPress={handleSave}
+            loading={submitting}
+            disabled={!!pickingSource}
           />
         </View>
       </KeyboardAwareFormScrollView>

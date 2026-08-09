@@ -56,6 +56,26 @@ export default function SnapsTray({
     router.push("/create/snap");
   }
 
+  const ownAvatarUrl =
+    user?.avatarUrl ||
+    user?.avatarThumbnailUrl ||
+    ownGroup?.user.avatarUrl ||
+    ownGroup?.user.avatarThumbnailUrl;
+
+  function snapRingStyle(color: string) {
+    return {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 2,
+      borderColor: color,
+      padding: 2,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      backgroundColor: "transparent",
+    };
+  }
+
   return (
     <View
       className={`pb-1 pt-1 ${
@@ -79,28 +99,25 @@ export default function SnapsTray({
           >
             {ownGroup ? (
               <View
-                className={`rounded-full p-0.75 ${
-                  ownSnapIndicator === "viewed"
-                    ? "bg-gray-400 dark:bg-gray-600"
-                    : "bg-brand"
-                }`}
-                style={{ overflow: "hidden" }}
+                style={snapRingStyle(
+                  ownSnapIndicator === "viewed" ? "#9CA3AF" : "#FF5B35",
+                )}
               >
-                <View className="rounded-full bg-white p-0.5 dark:bg-black">
-                  <Avatar
-                    uri={user?.avatarUrl}
-                    username={user?.username}
-                    size={56}
-                    showSnapIndicator={false}
-                  />
-                </View>
+                <Avatar
+                  uri={ownAvatarUrl}
+                  username={user?.username}
+                  size={56}
+                  showSnapIndicator={false}
+                />
               </View>
             ) : (
-              <View className="rounded-full border-2 border-gray-300 p-0.75 dark:border-gray-700">
+              <View
+                style={snapRingStyle(isDark ? "#374151" : "#D1D5DB")}
+              >
                 <Avatar
-                  uri={user?.avatarUrl}
+                  uri={ownAvatarUrl}
                   username={user?.username}
-                  size={58}
+                  size={56}
                   showSnapIndicator={false}
                 />
               </View>
@@ -145,25 +162,22 @@ export default function SnapsTray({
             className="w-17.5 items-center"
           >
             {snapIndicatorFor({ userId: group.user.id }) === "unseen" ? (
-              <View
-                className="rounded-full bg-brand p-0.75"
-                style={{ overflow: "hidden" }}
-              >
-                <View className="rounded-full bg-white p-0.5 dark:bg-black">
-                  <Avatar
-                    uri={group.user.avatarUrl}
-                    username={group.user.username}
-                    size={56}
-                    showSnapIndicator={false}
-                  />
-                </View>
+              <View style={snapRingStyle("#FF5B35")}>
+                <Avatar
+                  uri={group.user.avatarUrl || group.user.avatarThumbnailUrl}
+                  username={group.user.username}
+                  size={56}
+                  showSnapIndicator={false}
+                />
               </View>
             ) : (
-              <View className="rounded-full border-2 border-gray-300 p-0.75 dark:border-gray-700">
+              <View
+                style={snapRingStyle(isDark ? "#4B5563" : "#9CA3AF")}
+              >
                 <Avatar
-                  uri={group.user.avatarUrl}
+                  uri={group.user.avatarUrl || group.user.avatarThumbnailUrl}
                   username={group.user.username}
-                  size={58}
+                  size={56}
                   showSnapIndicator={false}
                 />
               </View>

@@ -1,4 +1,3 @@
-import Avatar from "@/components/common/Avatar";
 import FullScreenImageViewer from "@/components/common/FullScreenImageViewer";
 import { Profile } from "@findeat/types/profile";
 import { router } from "expo-router";
@@ -23,6 +22,7 @@ import { getProfileCompletion } from "@/lib/profileCompletion";
 import { DirectionalForwardIcon } from "@/components/common/icons/DirectionalIcon";
 import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
 import { useRef, useState } from "react";
+import ProfileAvatarRing from "./ProfileAvatarRing";
 
 type Props = {
   profile?: Profile | null;
@@ -122,26 +122,13 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
           onPress={openSnap}
           onLongPress={openAvatarPicture}
           delayLongPress={280}
-          className={
-            snapIndicator === "unseen"
-              ? "-mt-12 rounded-full bg-brand p-1"
-              : snapIndicator === "viewed"
-                ? "-mt-12 rounded-full bg-gray-400 p-1 dark:bg-gray-600"
-              : "-mt-12 rounded-full bg-white p-1.5 dark:bg-black"
-          }
+          style={{ marginTop: -56 }}
         >
-          <View
-            className={
-              hasSnap ? "rounded-full bg-white p-0.5 dark:bg-black" : ""
-            }
-          >
-            <Avatar
-              uri={profile.avatarUrl}
-              username={profile.username}
-              size={100}
-              showSnapIndicator={false}
-            />
-          </View>
+          <ProfileAvatarRing
+            avatarUrl={profile.avatarUrl}
+            username={profile.username}
+            snapIndicator={snapIndicator}
+          />
         </TouchableOpacity>
 
         <View className="mt-2 flex-row items-center justify-center gap-2 px-5">

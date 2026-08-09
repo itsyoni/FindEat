@@ -130,8 +130,11 @@ export default function PostConnectionCard({
     router.push({ pathname: "/(posts)/[id]", params: { id } });
   }
 
-  function renderConnectedPost(post: LinkedPost, index?: number) {
+  function renderConnectedPost(post: LinkedPost) {
     const review = post.type === "REVIEW";
+    const connectedTitle = review
+      ? post.reviewPost?.summary?.trim() || t("writtenReview")
+      : post.contentPost?.caption?.trim() || t("quickPost");
     const imageCandidates = review
       ? [
           ...(post.reviewPost?.previewImageUrls ?? []),
@@ -171,7 +174,7 @@ export default function PostConnectionCard({
 
         <View className={targets.length > 1 ? "mt-2" : "ml-3 flex-1"}>
           <Text
-            numberOfLines={1}
+            numberOfLines={targets.length > 1 ? 2 : 1}
             className={
               overlay
                 ? "font-bold text-white"
@@ -179,7 +182,7 @@ export default function PostConnectionCard({
             }
           >
             {targets.length > 1
-              ? t("connectedPostNumber", { number: (index ?? 0) + 1 })
+              ? connectedTitle
               : t(review ? "readConnectedReview" : "viewConnectedPost")}
           </Text>
           {targets.length === 1 ? (
@@ -356,7 +359,7 @@ export default function PostConnectionCard({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 10, paddingRight: 12 }}
             >
-              {targets.map((post, index) => renderConnectedPost(post, index))}
+              {targets.map((post) => renderConnectedPost(post))}
             </ScrollView>
           )}
         </View>

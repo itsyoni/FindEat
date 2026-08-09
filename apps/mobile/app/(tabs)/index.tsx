@@ -1,5 +1,6 @@
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { CommentsBottomSheet } from "@/components/common";
+import Text from "@/components/common/AppText";
 import ContentFeedList from "@/components/posts/content/ContentFeed";
 import SearchResultRow from "@/components/search/SearchResultRow";
 import SearchResultsView from "@/components/search/SearchResultsView";
@@ -20,7 +21,7 @@ import type { FeedPage, RecentSearchItem } from "@findeat/types";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Text, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -294,9 +295,9 @@ export default function HomeScreen() {
 
   const pageLoading = authLoading || feed.isPending;
   const iconShadow = {
-    shadowColor: isDark ? "#0B0B0A" : "#FAF9F6",
+    shadowColor: "#0B0B0A",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 6,
   };
@@ -572,7 +573,7 @@ export default function HomeScreen() {
               >
                 <MagnifyingGlassIcon
                   size={28}
-                  color={isDark ? "#FAF9F6" : "#171717"}
+                  color="#FAF9F6"
                   weight="bold"
                   style={iconShadow}
                 />
@@ -626,7 +627,7 @@ export default function HomeScreen() {
               >
                 <BellIcon
                   size={27}
-                  color={isDark ? "#FAF9F6" : "#171717"}
+                  color="#FAF9F6"
                   weight="fill"
                   style={iconShadow}
                 />

@@ -28,10 +28,9 @@ import {
 } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -136,7 +135,16 @@ export default function CreateSnapScreen() {
           restaurantId,
         });
         queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) => {
-          if (!current) return current;
+          if (!current) {
+            return [
+              {
+                user: createdSnap.user,
+                snaps: [createdSnap],
+                isOwn: true,
+                hasUnseen: false,
+              },
+            ];
+          }
           const ownGroup = current.find(
             (group) => group.isOwn || group.user.id === createdSnap.user.id,
           );
@@ -157,7 +165,10 @@ export default function CreateSnapScreen() {
               : group,
           );
         });
-        await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
+        await queryClient.invalidateQueries({
+          queryKey: snapsQueryKey,
+          refetchType: "active",
+        });
         return { type: "snap", userId: createdSnap.user.id };
       },
     });
@@ -214,7 +225,8 @@ export default function CreateSnapScreen() {
           </SafeAreaView>
 
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior="padding"
+            automaticOffset
             style={styles.previewKeyboardArea}
           >
             <SafeAreaView edges={["bottom"]} style={styles.previewComposer}>
@@ -234,6 +246,8 @@ export default function CreateSnapScreen() {
                   paddingVertical: 13,
                   color: "#FAF9F6",
                   fontSize: 16,
+                  fontFamily: "CabinetRegular",
+                  includeFontPadding: false,
                   textAlign: "auto",
                 }}
               />

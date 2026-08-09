@@ -33,6 +33,7 @@ type Props = {
   ) => void;
   loading?: boolean;
   initialIndex?: number;
+  preferredPerspectiveUserId?: string;
 };
 
 const feedViewabilityConfig = { itemVisiblePercentThreshold: 50 };
@@ -53,6 +54,7 @@ export default function ReviewFeed({
   onOpenPostOptions,
   loading = false,
   initialIndex = 0,
+  preferredPerspectiveUserId,
 }: Props) {
   const topSpacing = contentTopInset + (header ? 0 : 12);
   const listRef = useRef<FlatList<Post>>(null);
@@ -193,6 +195,7 @@ export default function ReviewFeed({
           onToggleWantToTry={onToggleWantToTry}
           onOpenSharePost={onOpenSharePost}
           onOpenPostOptions={onOpenPostOptions}
+          preferredPerspectiveUserId={preferredPerspectiveUserId}
         />
       )}
     />

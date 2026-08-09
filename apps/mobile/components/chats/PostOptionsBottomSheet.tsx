@@ -4,7 +4,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { api } from "@/lib/api";
 import ReportForm from "@/components/moderation/ReportForm";
 import type { Post } from "@findeat/types";
-import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import {
   ArchiveIcon,
   NotePencilIcon,
@@ -14,10 +14,16 @@ import {
   UserMinusIcon,
   LinkSimpleIcon,
   UsersThreeIcon,
+  UserPlusIcon,
 } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { router } from "expo-router";
 import { useToast } from "@/contexts/ToastContext";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
@@ -48,10 +54,30 @@ export default function PostOptionsBottomSheet({
   const [reporting, setReporting] = useState(false);
   const [askingToBlock, setAskingToBlock] = useState(false);
   const [blocking, setBlocking] = useState(false);
+  const [requestingReviewJoin, setRequestingReviewJoin] = useState(false);
   const [blockError, setBlockError] = useState("");
   const [post, setPost] = useState<Post | null>(null);
   const [failedPostId, setFailedPostId] = useState<string | null>(null);
   const activePost = post?.id === postId ? post : null;
+  const hasConnectedReview =
+    activePost?.linkedPosts?.some((linkedPost) => linkedPost.type === "REVIEW") ??
+    false;
+  const hasReviewCollaboration =
+    activePost?.type === "REVIEW" &&
+    (activePost.reviewParticipants?.length ?? 0) > 0;
+  const canRequestReviewJoin =
+    activePost?.type === "REVIEW" &&
+    !activePost.canDelete &&
+    (!activePost.collaborationStatus ||
+      activePost.collaborationStatus === "DECLINED");
+  const reviewJoinRequestPending =
+    activePost?.type === "REVIEW" &&
+    activePost.collaborationStatus === "REQUESTED";
+  const showViewerReviewCollaborationOption =
+    activePost?.type === "REVIEW" &&
+    (activePost.canContribute ||
+      canRequestReviewJoin ||
+      reviewJoinRequestPending);
   const loadingPost = !!postId && !activePost && failedPostId !== postId;
 
   useEffect(() => {
@@ -80,6 +106,7 @@ export default function PostOptionsBottomSheet({
     setReporting(false);
     setAskingToBlock(false);
     setBlocking(false);
+    setRequestingReviewJoin(false);
     setBlockError("");
     onClose();
   }
@@ -142,11 +169,52 @@ export default function PostOptionsBottomSheet({
     router.push({ pathname: "/posts/connections/[id]", params: { id } });
   }
 
+  function addReviewToContent() {
+    if (!activePost?.restaurantId || activePost.type !== "CONTENT") return;
+    const coverImageUrl =
+      activePost.contentPost?.media?.find(
+        (mediaItem) => mediaItem.type === "IMAGE" && !!mediaItem.imageUrl,
+      )?.imageUrl ?? activePost.contentPost?.imageUrl;
+    const id = activePost.id;
+    const restaurantId = activePost.restaurantId;
+    closeSheet();
+    router.push({
+      pathname: "/create/review",
+      params: {
+        restaurantId,
+        linkedPostId: id,
+        ...(coverImageUrl ? { coverImageUrl } : {}),
+      },
+    });
+  }
+
   function manageReviewPeople() {
     if (!postId) return;
     const id = postId;
     closeSheet();
     router.push({ pathname: "/posts/collaborators/[id]", params: { id } });
+  }
+
+  function editSharedReviewFeedback() {
+    if (!postId) return;
+    const id = postId;
+    closeSheet();
+    router.push({ pathname: "/posts/contribute/[id]", params: { id } });
+  }
+
+  async function requestToJoinReview() {
+    if (!postId || requestingReviewJoin || !canRequestReviewJoin) return;
+    try {
+      setRequestingReviewJoin(true);
+      await api.posts.requestToJoinReview(postId);
+      await queryClient.invalidateQueries({ queryKey: ["feed"] });
+      closeSheet();
+      showToast(t("reviewJoinRequestSent"));
+    } catch {
+      showToast(t("reviewJoinRequestError"), { kind: "error" });
+    } finally {
+      setRequestingReviewJoin(false);
+    }
   }
 
   function finishReport() {
@@ -181,13 +249,30 @@ export default function PostOptionsBottomSheet({
             ? "48%"
             : activePost?.canDelete
               ? activePost.type === "REVIEW"
-                ? "78%"
+                ? Platform.OS === "android"
+                  ? "92%"
+                  : hasReviewCollaboration
+                    ? "88%"
+                    : "78%"
                 : "67%"
-              : "34%",
+              : showViewerReviewCollaborationOption
+                ? activePost?.canContribute && Platform.OS === "android"
+                  ? "72%"
+                  : "48%"
+                : "34%",
       ]}
       onClose={closeSheet}
     >
-      <BottomSheetView className="flex-1 px-4 pb-5 pt-1">
+      <BottomSheetScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: 20,
+          paddingHorizontal: 16,
+          paddingTop: 4,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {reporting && postId ? (
           <ReportForm
             targetType="POST"
@@ -332,6 +417,7 @@ export default function PostOptionsBottomSheet({
             </TouchableOpacity>
 
             {activePost.type === "REVIEW" ? (
+              <>
               <TouchableOpacity
                 activeOpacity={0.72}
                 accessibilityRole="button"
@@ -356,6 +442,33 @@ export default function PostOptionsBottomSheet({
                   weight="bold"
                 />
               </TouchableOpacity>
+              {hasReviewCollaboration ? (
+                <TouchableOpacity
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                  onPress={editSharedReviewFeedback}
+                >
+                  <View className="h-11 w-11 items-center justify-center rounded-full bg-yellow-50 dark:bg-yellow-950/40">
+                    <NotePencilIcon size={21} color="#D4A72C" weight="fill" />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-base font-bold text-black dark:text-white">
+                      {t("manageSharedReviewFeedback")}
+                    </Text>
+                    <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                      {t("manageSharedReviewFeedbackHint")}
+                    </Text>
+                  </View>
+                  <DirectionalIcon
+                    direction="forward"
+                    size={18}
+                    color={isDark ? "#6B7280" : "#9CA3AF"}
+                    weight="bold"
+                  />
+                </TouchableOpacity>
+              ) : null}
+              </>
             ) : null}
 
             <TouchableOpacity
@@ -388,25 +501,57 @@ export default function PostOptionsBottomSheet({
               />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              activeOpacity={0.72}
-              accessibilityRole="button"
-              className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
-              onPress={manageConnections}
-            >
-              <View className="h-11 w-11 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40">
-                <LinkSimpleIcon size={21} color="#D4A72C" weight="bold" />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-base font-bold text-black dark:text-white">
-                  {t("manageConnections")}
-                </Text>
-                <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  {t("manageConnectionsOptionHint")}
-                </Text>
-              </View>
-              <DirectionalIcon direction="forward" size={18} color={isDark ? "#6B7280" : "#9CA3AF"} weight="bold" />
-            </TouchableOpacity>
+            {activePost.type === "CONTENT" && !hasConnectedReview ? (
+              <TouchableOpacity
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                className="mb-3 flex-row items-center rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-900 dark:bg-amber-950/30"
+                onPress={addReviewToContent}
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/60">
+                  <NotePencilIcon size={21} color="#D4A72C" weight="fill" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("addReviewToPost")}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {t("addReviewToPostHint")}
+                  </Text>
+                </View>
+                <DirectionalIcon
+                  direction="forward"
+                  size={18}
+                  color={isDark ? "#6B7280" : "#9CA3AF"}
+                  weight="bold"
+                />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                onPress={manageConnections}
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40">
+                  <LinkSimpleIcon size={21} color="#D4A72C" weight="bold" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("manageConnections")}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {t("manageConnectionsOptionHint")}
+                  </Text>
+                </View>
+                <DirectionalIcon
+                  direction="forward"
+                  size={18}
+                  color={isDark ? "#6B7280" : "#9CA3AF"}
+                  weight="bold"
+                />
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               activeOpacity={0.72}
@@ -434,6 +579,101 @@ export default function PostOptionsBottomSheet({
             </TouchableOpacity>
               </>
             ) : (
+              <>
+              {activePost?.type === "REVIEW" && activePost.canContribute ? (
+                <>
+                  <TouchableOpacity
+                    activeOpacity={0.72}
+                    accessibilityRole="button"
+                    className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                    onPress={editSharedReviewFeedback}
+                  >
+                    <View className="h-11 w-11 items-center justify-center rounded-full bg-yellow-50 dark:bg-yellow-950/40">
+                      <NotePencilIcon size={21} color="#D4A72C" weight="fill" />
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-base font-bold text-black dark:text-white">
+                        {t("editSharedReviewFeedback")}
+                      </Text>
+                      <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                        {t("editSharedReviewFeedbackHint")}
+                      </Text>
+                    </View>
+                    <DirectionalIcon
+                      direction="forward"
+                      size={18}
+                      color={isDark ? "#6B7280" : "#9CA3AF"}
+                      weight="bold"
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.72}
+                    accessibilityRole="button"
+                    className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                    onPress={manageConnections}
+                  >
+                    <View className="h-11 w-11 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40">
+                      <LinkSimpleIcon size={21} color="#D4A72C" weight="bold" />
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-base font-bold text-black dark:text-white">
+                        {t("manageConnections")}
+                      </Text>
+                      <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                        {t("manageConnectionsOptionHint")}
+                      </Text>
+                    </View>
+                    <DirectionalIcon
+                      direction="forward"
+                      size={18}
+                      color={isDark ? "#6B7280" : "#9CA3AF"}
+                      weight="bold"
+                    />
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {canRequestReviewJoin || reviewJoinRequestPending ? (
+                <TouchableOpacity
+                  disabled={requestingReviewJoin || reviewJoinRequestPending}
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                  onPress={() => void requestToJoinReview()}
+                >
+                  <View className="h-11 w-11 items-center justify-center rounded-full bg-yellow-50 dark:bg-yellow-950/40">
+                    {requestingReviewJoin ? (
+                      <ActivityIndicator color="#D4A72C" />
+                    ) : (
+                      <UserPlusIcon size={21} color="#D4A72C" weight="fill" />
+                    )}
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-base font-bold text-black dark:text-white">
+                      {t(
+                        reviewJoinRequestPending
+                          ? "reviewJoinRequestPending"
+                          : "askAuthorToJoin",
+                      )}
+                    </Text>
+                    <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                      {t(
+                        reviewJoinRequestPending
+                          ? "reviewJoinRequestPendingHint"
+                          : "askAuthorToJoinHint",
+                      )}
+                    </Text>
+                  </View>
+                  {!reviewJoinRequestPending ? (
+                    <DirectionalIcon
+                      direction="forward"
+                      size={18}
+                      color={isDark ? "#6B7280" : "#9CA3AF"}
+                      weight="bold"
+                    />
+                  ) : null}
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
                 activeOpacity={0.72}
                 accessibilityRole="button"
@@ -453,6 +693,7 @@ export default function PostOptionsBottomSheet({
                 </View>
                 <DirectionalIcon direction="forward" size={18} color="#EF4444" weight="bold" />
               </TouchableOpacity>
+              </>
             )}
 
             <TouchableOpacity
@@ -466,7 +707,7 @@ export default function PostOptionsBottomSheet({
             </TouchableOpacity>
           </View>
         )}
-      </BottomSheetView>
+      </BottomSheetScrollView>
     </AppBottomSheet>
   );
 }

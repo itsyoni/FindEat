@@ -1,8 +1,9 @@
 import Avatar from '@/components/common/Avatar';
+import Text from '@/components/common/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import type { AppNotification } from '@findeat/types';
 import { useTranslation } from 'react-i18next';
-import { GestureResponderEvent, Text, TouchableOpacity, View } from 'react-native';
+import { GestureResponderEvent, TouchableOpacity, View } from 'react-native';
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ImagesSquareIcon } from 'phosphor-react-native';
 import ContentVideo from '@/components/posts/content/ContentVideo';
@@ -17,6 +18,8 @@ type Props = {
   onAction?: () => void;
   actionLabel?: string;
   actionActive?: boolean;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
   postPreview?: AppNotification['postPreview'];
   isPostAction?: boolean;
 };
@@ -27,6 +30,8 @@ export default function NotificationRow({
   onAction,
   actionLabel,
   actionActive,
+  secondaryActionLabel,
+  onSecondaryAction,
   postPreview,
   isPostAction,
 }: Props) {
@@ -42,7 +47,7 @@ export default function NotificationRow({
       style={{ backgroundColor: item.readAt ? 'transparent' : isDark ? '#172033' : '#F2F7FF' }}
     >
       <Avatar
-        uri={item.actor?.avatarThumbnailUrl ?? item.actor?.avatarUrl}
+        uri={item.actor?.avatarUrl ?? item.actor?.avatarThumbnailUrl}
         username={item.actor?.username}
         userId={item.actor?.id}
         fallbackType={fallbackType}
@@ -60,9 +65,35 @@ export default function NotificationRow({
         <Text className="mt-1 text-xs text-gray-400">
           {relativeNotificationTime(item.createdAt, i18n.language)}
         </Text>
+        {onAction && actionLabel && onSecondaryAction && secondaryActionLabel ? (
+          <View className="mt-2 flex-row gap-2">
+            <TouchableOpacity
+              onPress={(event: GestureResponderEvent) => {
+                event.stopPropagation();
+                onAction();
+              }}
+              className="min-w-20 items-center rounded-xl bg-neutral-950 px-3 py-2 dark:bg-neutral-100"
+            >
+              <Text className="text-xs font-bold text-neutral-50 dark:text-neutral-950">
+                {actionLabel}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={(event: GestureResponderEvent) => {
+                event.stopPropagation();
+                onSecondaryAction();
+              }}
+              className="min-w-20 items-center rounded-xl border border-gray-200 px-3 py-2 dark:border-gray-700"
+            >
+              <Text className="text-xs font-bold text-gray-700 dark:text-gray-200">
+                {secondaryActionLabel}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
 
-      {onAction && isPostAction ? (
+      {onAction && onSecondaryAction ? null : onAction && isPostAction ? (
         <TouchableOpacity
           onPress={(event: GestureResponderEvent) => {
             event.stopPropagation();

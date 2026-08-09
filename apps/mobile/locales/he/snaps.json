@@ -37,5 +37,10 @@
   "hoursAgo_other": "{{count}} שעות",
   "deleteTitle": "למחוק את הסנאפ?",
   "deleteBody": "הוא ייעלם מיד.",
-  "deleteError": "לא הצלחנו למחוק את הסנאפ."
+  "deleteError": "לא הצלחנו למחוק את הסנאפ.",
+  "snapOptions": "אפשרויות סנאפ",
+  "reportSnap": "דיווח על הסנאפ",
+  "replyPlaceholder": "תגובה לסנאפ…",
+  "replySent": "התגובה נשלחה",
+  "replyError": "לא הצלחנו לשלוח את התגובה."
 }

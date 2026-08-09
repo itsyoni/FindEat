@@ -7,12 +7,14 @@ import CollaborativeDishPicker from "@/components/review-collaboration/Collabora
 import ReviewContributionEditor, {
   type ContributionEditorValue,
 } from "@/components/review-collaboration/ReviewContributionEditor";
+import AddDishDetailsStep from "@/components/review-creator/steps/AddDishDetailsStep";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/uploadImage";
 import type { Dish, Post, ReviewItem } from "@findeat/types";
+import type { ReviewDishFormDraft } from "@findeat/types/review";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -61,6 +63,8 @@ export default function ContributeToReviewScreen() {
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [selectedMenuDish, setSelectedMenuDish] = useState<Dish | null>(null);
   const [customDish, setCustomDish] = useState(false);
+  const [newDishDraft, setNewDishDraft] =
+    useState<ReviewDishFormDraft | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -86,9 +90,14 @@ export default function ContributeToReviewScreen() {
   const ownContribution = selectedItem?.contributions?.find(
     (contribution) => contribution.userId === user?.id,
   );
-  const ownMedia = (selectedItem?.media ?? []).filter(
-    (media) => media.uploadedById === user?.id,
-  );
+  const ownMedia = (selectedItem?.media ?? [])
+    .filter((media) => media.uploadedById === user?.id)
+    .sort((left, right) => {
+      const primaryId = selectedItem?.primaryMedia?.id;
+      if (left.id === primaryId) return -1;
+      if (right.id === primaryId) return 1;
+      return 0;
+    });
 
   async function uploadSelectedImages(imageUris: string[]) {
     return Promise.all(
@@ -144,6 +153,7 @@ export default function ContributeToReviewScreen() {
       refreshSharedReviewCaches();
       setSelectedMenuDish(null);
       setCustomDish(false);
+      setNewDishDraft(null);
       setMode("LIST");
       showToast(t("dishAdded"));
     } catch (error) {
@@ -276,11 +286,17 @@ export default function ContributeToReviewScreen() {
           onSelect={(dish) => {
             setSelectedMenuDish(dish);
             setCustomDish(false);
+            setNewDishDraft({
+              dishName: dish.name,
+              price: dish.price ?? undefined,
+              text: "",
+            });
             setMode("EDIT_NEW");
           }}
           onCustom={() => {
             setSelectedMenuDish(null);
             setCustomDish(true);
+            setNewDishDraft({ dishName: "", text: "" });
             setMode("EDIT_NEW");
           }}
         />
@@ -315,14 +331,30 @@ export default function ContributeToReviewScreen() {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
-        <ReviewContributionEditor
-          title={selectedMenuDish?.name ?? t("customDish")}
-          imageUrl={selectedMenuDish?.imageUrl}
-          customDish={customDish}
-          saving={saving}
-          submitLabel={t("addDish")}
+        <AddDishDetailsStep
+          selectedDish={selectedMenuDish}
+          initialDraft={newDishDraft}
+          onDraftChange={(update) =>
+            setNewDishDraft((current) => ({
+              dishName: selectedMenuDish?.name ?? "",
+              price: selectedMenuDish?.price ?? undefined,
+              text: "",
+              ...current,
+              ...update,
+            }))
+          }
+          editing={false}
+          submitting={saving}
           onBack={() => setMode("PICK_DISH")}
-          onSave={(value) => void saveNew(value)}
+          onSave={(item) =>
+            void saveNew({
+              rating: item.rating,
+              text: item.text ?? "",
+              imageUris: item.imageUri ? [item.imageUri] : [],
+              customDishName: customDish ? item.customDishName : undefined,
+              customPrice: customDish ? item.customPrice : undefined,
+            })
+          }
         />
       </>
     );

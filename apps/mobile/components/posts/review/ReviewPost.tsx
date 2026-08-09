@@ -37,14 +37,9 @@ import PostDate from "@/components/posts/PostDate";
 import { isRtlText } from "@/lib/textDirection";
 import PostConnectionCard from "@/components/posts/PostConnectionCard";
 import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import ReviewCollaborationCard from "./ReviewCollaborationCard";
-import DishContributionsBottomSheet from "./DishContributionsBottomSheet";
-import type { ReviewItem } from "@findeat/types";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/contexts/ToastContext";
-import { api } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import { prefetchImageUrls } from "@/lib/imagePrefetch";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
@@ -60,6 +55,19 @@ type Props = {
     restaurantId: string,
     isWantToTry: boolean,
   ) => void;
+  preferredPerspectiveUserId?: string;
+};
+
+type DishPerspective = {
+  id: string;
+  userId: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  rating?: number | null;
+  text?: string | null;
+  textEditedAt?: string | null;
 };
 
 type ReviewSlide =
@@ -70,6 +78,8 @@ type ReviewSlide =
       thumbnailUrl?: string | null;
       text?: string | null;
       textEditedAt?: string | null;
+      captionAuthorUsername?: string | null;
+      captionAuthorUserId?: string | null;
     }
   | {
       type: "DISH";
@@ -78,13 +88,15 @@ type ReviewSlide =
       thumbnailUrl?: string | null;
       text?: string | null;
       textEditedAt?: string | null;
+      captionAuthorUsername?: string | null;
+      captionAuthorUserId?: string | null;
       dishName: string;
       price?: number | null;
       rating?: number | null;
       menuItemId?: string | null;
       isLinkedToMenu: boolean;
-      reviewItem: ReviewItem;
-      contributionCount: number;
+      perspectives: DishPerspective[];
+      selectedPerspectiveId: string;
     };
 
 const reviewViewabilityConfig = { itemVisiblePercentThreshold: 60 };
@@ -122,6 +134,7 @@ export default function ReviewPost({
   onOpenComments,
   onOpenSharePost,
   onOpenPostOptions,
+  preferredPerspectiveUserId,
 }: Props) {
   const {
     openManageSavedPlace,
@@ -133,18 +146,13 @@ export default function ReviewPost({
   const { t } = useTranslation("restaurants");
   const { t: tCommon, i18n } = useTranslation("common");
   const { t: tCollaboration } = useTranslation("collaborativeReview");
-  const { user } = useAuth();
-  const { showToast } = useToast();
-  const queryClient = useQueryClient();
   const isRtl = i18n.language.startsWith("he");
   const actionColor = isDark ? "#E5E7EB" : "#212121";
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
-  const [selectedContributionsItem, setSelectedContributionsItem] =
-    useState<ReviewItem | null>(null);
-  const [primaryMediaOverrides, setPrimaryMediaOverrides] = useState<
-    Record<string, { id: string; imageUrl: string }>
+  const [selectedPerspectiveIds, setSelectedPerspectiveIds] = useState<
+    Record<string, string>
   >({});
   const review = post.reviewPost;
   const items = review?.items ?? [];
@@ -162,37 +170,105 @@ export default function ReviewPost({
       thumbnailUrl: review?.coverThumbnailUrl,
       text: review?.summary,
       textEditedAt: review?.summaryEditedAt,
+      captionAuthorUsername:
+        post.author?.username ?? post.authorRestaurant?.name,
+      captionAuthorUserId: post.author?.id,
     },
     ...items.map((item) => {
-      const contributionRatings = (item.contributions ?? [])
-        .map((contribution) => contribution.rating)
-        .filter((rating): rating is number => typeof rating === "number");
-      const combinedRating =
-        contributionRatings.length > 0
-          ? contributionRatings.reduce((sum, rating) => sum + rating, 0) /
-            contributionRatings.length
-          : item.rating;
+      const authorContribution = (item.contributions ?? []).find(
+        (contribution) => contribution.userId === post.authorId,
+      );
+      const authorMedia = (item.media ?? []).find(
+        (media) => media.uploadedById === post.authorId,
+      );
+      const authorImageUrl =
+        authorMedia?.imageUrl ??
+        (item.createdById === post.authorId ? item.imageUrl : undefined) ??
+        item.menuItem?.imageUrl;
+      const authorPerspective: DishPerspective = {
+            id: post.authorId ?? "review-author",
+            userId: post.authorId ?? "review-author",
+            username: post.author?.username,
+            avatarUrl: post.author?.avatarUrl,
+            imageUrl: authorImageUrl,
+            thumbnailUrl:
+              authorMedia?.thumbnailUrl ??
+              (item.createdById === post.authorId
+                ? item.thumbnailUrl
+                : undefined) ??
+              item.menuItem?.thumbnailUrl,
+            rating: authorContribution?.rating ?? item.rating,
+            text: authorContribution?.text ?? item.text,
+            textEditedAt:
+              authorContribution?.textEditedAt ?? item.textEditedAt,
+          };
+      const collaboratorPerspectives = (item.contributions ?? []).flatMap(
+        (contribution) => {
+          if (contribution.userId === post.authorId) return [];
+          const media = (item.media ?? []).find(
+            (candidate) => candidate.uploadedById === contribution.userId,
+          );
+          if (!media && item.createdById !== contribution.userId) return [];
+          return [
+            {
+              id: contribution.userId,
+              userId: contribution.userId,
+              username: contribution.user.username,
+              avatarUrl: contribution.user.avatarUrl,
+              imageUrl:
+                media?.imageUrl ??
+                (item.createdById === contribution.userId
+                  ? item.menuItem?.imageUrl
+                  : undefined),
+              thumbnailUrl:
+                media?.thumbnailUrl ??
+                (item.createdById === contribution.userId
+                  ? item.menuItem?.thumbnailUrl
+                  : undefined),
+              rating: contribution.rating,
+              text: contribution.text,
+              textEditedAt: contribution.textEditedAt,
+            } satisfies DishPerspective,
+          ];
+        },
+      );
+      const perspectives = [
+        ...(item.createdById === post.authorId || authorContribution
+          ? [authorPerspective]
+          : []),
+        ...collaboratorPerspectives,
+      ].filter(
+        (perspective, index, candidates) =>
+          candidates.findIndex(
+            (candidate) => candidate.userId === perspective.userId,
+          ) === index,
+      );
+      const preferredUserId = preferredPerspectiveUserId ?? post.authorId;
+      const selectedPerspective =
+        perspectives.find(
+          (perspective) =>
+            perspective.id === selectedPerspectiveIds[item.id],
+        ) ??
+        perspectives.find(
+          (perspective) => perspective.userId === preferredUserId,
+        ) ??
+        perspectives[0];
       return {
       type: "DISH" as const,
       id: item.id,
       menuItemId: item.menuItemId,
       isLinkedToMenu: !!item.menuItemId,
-      imageUrl:
-        primaryMediaOverrides[item.id]?.imageUrl ??
-        item.primaryMedia?.imageUrl ??
-        item.imageUrl ??
-        item.menuItem?.imageUrl,
-      thumbnailUrl:
-        item.primaryMedia?.thumbnailUrl ??
-        item.thumbnailUrl ??
-        item.menuItem?.thumbnailUrl,
-      text: item.text,
-      textEditedAt: item.textEditedAt,
+      imageUrl: selectedPerspective?.imageUrl,
+      thumbnailUrl: selectedPerspective?.thumbnailUrl,
+      text: selectedPerspective?.text,
+      textEditedAt: selectedPerspective?.textEditedAt,
+      captionAuthorUsername: selectedPerspective?.username,
+      captionAuthorUserId: selectedPerspective?.userId,
       dishName: item.menuItem?.name ?? item.customDishName ?? "Dish",
       price: item.menuItem?.price ?? item.customPrice,
-      rating: combinedRating,
-      reviewItem: item,
-      contributionCount: item.contributions?.length ?? 0,
+      rating: selectedPerspective?.rating,
+      perspectives,
+      selectedPerspectiveId: selectedPerspective?.id ?? "",
     };
     }),
   ];
@@ -222,29 +298,6 @@ export default function ReviewPost({
 
   const isRestaurantPost = !!post.authorRestaurantId && !!post.authorRestaurant;
 
-  async function choosePrimaryMedia(itemId: string, mediaId: string) {
-    const item = items.find((candidate) => candidate.id === itemId);
-    const media = item?.media?.find((candidate) => candidate.id === mediaId);
-    if (!media) return;
-    try {
-      await api.posts.setReviewDishPrimaryMedia(post.id, itemId, mediaId);
-      setPrimaryMediaOverrides((current) => ({
-        ...current,
-        [itemId]: { id: mediaId, imageUrl: media.imageUrl },
-      }));
-      setSelectedContributionsItem((current) =>
-        current?.id === itemId
-          ? { ...current, primaryMedia: media, primaryMediaId: mediaId }
-          : current,
-      );
-      void queryClient.invalidateQueries({ queryKey: ["feed"] });
-      showToast(tCollaboration("primaryUpdated"));
-    } catch (error) {
-      console.error("Could not update dish primary image", error);
-      showToast(tCollaboration("primaryUpdateError"), { kind: "error" });
-    }
-  }
-
   const displayAvatar = isRestaurantPost
     ? post.authorRestaurant?.logoUrl
     : post.author?.avatarUrl;
@@ -252,6 +305,28 @@ export default function ReviewPost({
   const displayName = isRestaurantPost
     ? post.authorRestaurant?.name
     : post.author?.username;
+  const joinedCollaborators = (post.reviewParticipants ?? []).filter(
+    (participant) =>
+      participant.status === "JOINED" && participant.userId !== post.authorId,
+  );
+  const firstCollaborator = joinedCollaborators[0];
+  const additionalCollaboratorCount = Math.max(
+    0,
+    joinedCollaborators.length - 1,
+  );
+  const sharedAuthorName =
+    !isRestaurantPost && firstCollaborator && displayName
+      ? additionalCollaboratorCount > 0
+        ? tCollaboration("sharedAuthorsWithOthers", {
+            author: displayName,
+            collaborator: firstCollaborator.user.username,
+            count: additionalCollaboratorCount,
+          })
+        : tCollaboration("sharedAuthorsPair", {
+            author: displayName,
+            collaborator: firstCollaborator.user.username,
+          })
+      : null;
 
   const userRestaurant = post.restaurant?.id
     ? (statusOverrides[post.restaurant.id] ?? post.restaurant.userSaves?.[0])
@@ -373,6 +448,49 @@ export default function ReviewPost({
                 fallbackType="restaurant"
               />
             </TouchableOpacity>
+          ) : firstCollaborator ? (
+            <View
+              style={{
+                width: additionalCollaboratorCount > 0 ? 80 : 62,
+                height: 42,
+              }}
+            >
+              <View className="absolute left-0 top-0 z-30">
+                <SnapAvatarButton
+                  avatarUrl={displayAvatar}
+                  username={displayName}
+                  userId={post.author?.id}
+                  size={42}
+                  onPressWithoutSnap={openAuthorProfile}
+                />
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(users)/[id]",
+                    params: { id: firstCollaborator.userId },
+                  })
+                }
+                className="absolute left-8 top-0 z-20 rounded-full"
+              >
+                <Avatar
+                  uri={firstCollaborator.user.avatarUrl}
+                  username={firstCollaborator.user.username}
+                  userId={firstCollaborator.userId}
+                  size={32}
+                  showSnapIndicator={false}
+                  style={{ borderWidth: 2, borderColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
+                />
+              </TouchableOpacity>
+              {additionalCollaboratorCount > 0 ? (
+                <View className="absolute left-[52px] top-0 z-10 h-7 w-7 items-center justify-center rounded-full border-2 border-[#FAF9F6] bg-brand dark:border-[#0B0B0A]">
+                  <Text className="text-[10px] font-bold text-white">
+                    +{additionalCollaboratorCount}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           ) : (
             <SnapAvatarButton
               avatarUrl={displayAvatar}
@@ -389,8 +507,13 @@ export default function ReviewPost({
               onPress={openAuthorProfile}
               className="self-start flex-row items-center"
             >
-              <Text className="font-bold text-black dark:text-white">
-                {isRestaurantPost ? displayName : `@${displayName}`}
+              <Text
+                numberOfLines={1}
+                className="min-w-0 flex-shrink font-bold text-black dark:text-white"
+              >
+                {isRestaurantPost
+                  ? displayName
+                  : sharedAuthorName ?? `@${displayName}`}
               </Text>
               {isRestaurantPost ? <RestaurantBadge /> : null}
               {!isRestaurantPost && post.visibility !== "PUBLIC" ? (
@@ -489,6 +612,66 @@ export default function ReviewPost({
                   <Text className="text-white">No image</Text>
                 </View>
               )}
+
+              {item.type === "DISH" && item.perspectives.length > 1 ? (
+                <View className="absolute right-3 top-3 z-30 flex-row gap-2">
+                  {item.perspectives
+                    .filter(
+                      (perspective) =>
+                        perspective.id !== item.selectedPerspectiveId,
+                    )
+                    .map((perspective) => (
+                      <TouchableOpacity
+                        key={perspective.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${
+                          perspective.username
+                            ? `@${perspective.username}`
+                            : "friend"
+                        }'s dish photo`}
+                        activeOpacity={0.82}
+                        onPress={() =>
+                          setSelectedPerspectiveIds((current) => ({
+                            ...current,
+                            [item.id]: perspective.id,
+                          }))
+                        }
+                        className="h-14 w-14"
+                        style={{
+                          shadowColor: "#0B0B0A",
+                          shadowOpacity: 0.3,
+                          shadowRadius: 5,
+                          shadowOffset: { width: 0, height: 2 },
+                          elevation: 5,
+                        }}
+                      >
+                        <View className="h-14 w-14 overflow-hidden rounded-xl border-2 border-[#FAF9F6] bg-gray-800">
+                          {perspective.imageUrl ? (
+                            <ProgressiveImage
+                              source={{ uri: perspective.imageUrl }}
+                              thumbnailUrl={perspective.thumbnailUrl}
+                              style={{ width: "100%", height: "100%" }}
+                              contentFit="cover"
+                            />
+                          ) : null}
+                        </View>
+                        <View className="absolute -left-1.5 -top-1.5">
+                          <Avatar
+                            uri={perspective.avatarUrl}
+                            username={perspective.username}
+                            userId={perspective.userId}
+                            size={22}
+                            showSnapIndicator={false}
+                            style={{
+                              borderWidth: 2,
+                              borderColor: "#FAF9F6",
+                            }}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              ) : null}
 
               {item.type === "COVER" && (
                 <View
@@ -666,43 +849,22 @@ export default function ReviewPost({
         </View>
 
         <View className="mt-3">
-          {activeSlide?.type === "DISH" &&
-            activeSlide.contributionCount > 0 && (
-              <TouchableOpacity
-                onPress={() =>
-                  setSelectedContributionsItem(activeSlide.reviewItem)
-                }
-                className="mb-3 self-start flex-row items-center rounded-full bg-brand/15 px-3 py-2"
-              >
-                <View className="mr-2 flex-row">
-                  {(activeSlide.reviewItem.contributions ?? [])
-                    .slice(0, 3)
-                    .map((contribution, index) => (
-                      <View
-                        key={contribution.id}
-                        style={{ marginLeft: index === 0 ? 0 : -7 }}
-                      >
-                        <Avatar
-                          uri={contribution.user.avatarUrl}
-                          username={contribution.user.username}
-                          size={24}
-                        />
-                      </View>
-                    ))}
-                </View>
-                <Text className="text-xs font-bold text-black dark:text-white">
-                  {tCollaboration("reviewTakes", {
-                    count: activeSlide.contributionCount,
-                  })}
-                </Text>
-              </TouchableOpacity>
-            )}
           {!!activeSlide?.text && (
             <>
               <ExpandablePostCaption
-                key={`${activeSlide.id}-${activeSlide.text}`}
+                key={`${activeSlide.id}-${activeSlide.captionAuthorUsername}-${activeSlide.text}`}
                 text={activeSlide.text}
                 isRtl={activeTextIsRtl}
+                authorName={activeSlide.captionAuthorUsername}
+                onAuthorPress={
+                  activeSlide.captionAuthorUserId
+                    ? () =>
+                        router.push({
+                          pathname: "/(users)/[id]",
+                          params: { id: activeSlide.captionAuthorUserId! },
+                        })
+                    : undefined
+                }
               />
               {!!activeSlide.textEditedAt && (
                 <Text
@@ -731,20 +893,6 @@ export default function ReviewPost({
           />
         </View>
       </View>
-      <DishContributionsBottomSheet
-        item={selectedContributionsItem}
-        onClose={() => setSelectedContributionsItem(null)}
-        canChoosePrimary={post.authorId === user?.id}
-        primaryMediaId={
-          selectedContributionsItem
-            ? (primaryMediaOverrides[selectedContributionsItem.id]?.id ??
-              selectedContributionsItem.primaryMediaId)
-            : null
-        }
-        onChoosePrimary={(itemId, mediaId) =>
-          void choosePrimaryMedia(itemId, mediaId)
-        }
-      />
     </View>
   );
 }

@@ -1,7 +1,12 @@
 import { Chat } from "@findeat/types/chat";
 import { ChatCircleIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
-import { FlatList, View } from "react-native";
+import {
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  View,
+} from "react-native";
 import Text from "../common/AppText";
 import ChatRow from "./ChatRow";
 import { Skeleton, SkeletonPulse } from "../common";
@@ -16,9 +21,10 @@ type Props = {
   onLongPressChat?: (chat: Chat) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 };
 
-export default function ChatList({ chats, refreshing, onRefresh, loading = false, drafts = {}, onLongPressChat, emptyTitle, emptyDescription }: Props) {
+export default function ChatList({ chats, refreshing, onRefresh, loading = false, drafts = {}, onLongPressChat, emptyTitle, emptyDescription, onScroll }: Props) {
   const { t } = useTranslation("chat");
 
   if (loading) {
@@ -45,6 +51,8 @@ export default function ChatList({ chats, refreshing, onRefresh, loading = false
     <FlatList
       refreshing={refreshing}
       onRefresh={onRefresh}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       data={chats}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -57,7 +65,7 @@ export default function ChatList({ chats, refreshing, onRefresh, loading = false
       contentContainerStyle={
         chats.length === 0
           ? { flexGrow: 1 }
-          : { paddingBottom: 24 }
+          : { paddingBottom: 120 }
       }
       ListEmptyComponent={
         <View className="flex-1 items-center justify-center px-10 pb-20">

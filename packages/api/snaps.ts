@@ -1,5 +1,6 @@
 import type {
   CreateSnapInput,
+  MessageSnap,
   Snap,
   SnapGroup,
   SnapViewer,
@@ -22,6 +23,11 @@ export function createSnapsApi(api: AxiosInstance) {
       const { data } = await api.post<{ viewedAt: string | null }>(
         `/snaps/${id}/view`,
       );
+      return data;
+    },
+
+    async preview(id: string) {
+      const { data } = await api.get<MessageSnap>(`/snaps/${id}/preview`);
       return data;
     },
 

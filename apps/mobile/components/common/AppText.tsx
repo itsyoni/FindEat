@@ -1,10 +1,16 @@
 import { useAccessibilityPreferences } from "@/contexts/AccessibilityContext";
-import { StyleSheet, Text as RNText, TextProps } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text as RNText,
+  TextProps,
+} from "react-native";
 
 type Props = TextProps & {
   scaleWithAccessibility?: boolean;
   weight?:
     | "thin"
+    | "extralight"
     | "light"
     | "regular"
     | "medium"
@@ -37,6 +43,28 @@ function classFontSize(className?: string) {
   return undefined;
 }
 
+function classFontWeight(className?: string): Props["weight"] {
+  if (!className) return undefined;
+  const tokens = className.split(/\s+/);
+  const weights: Record<string, NonNullable<Props["weight"]>> = {
+    "font-thin": "thin",
+    "font-extralight": "extralight",
+    "font-light": "light",
+    "font-normal": "regular",
+    "font-medium": "medium",
+    "font-semibold": "bold",
+    "font-bold": "bold",
+    "font-extrabold": "extrabold",
+    "font-black": "black",
+  };
+
+  for (let index = tokens.length - 1; index >= 0; index -= 1) {
+    const resolved = weights[tokens[index]];
+    if (resolved) return resolved;
+  }
+  return undefined;
+}
+
 const fonts = {
   thin: "CabinetThin",
   extralight: "CabinetExtraLight",
@@ -49,7 +77,7 @@ const fonts = {
 };
 
 export default function Text({
-  weight = "regular",
+  weight,
   scaleWithAccessibility = true,
   style,
   ...props
@@ -59,21 +87,34 @@ export default function Text({
   const flattenedStyle = StyleSheet.flatten(style);
   const baseFontSize =
     flattenedStyle?.fontSize ?? classFontSize(props.className) ?? 14;
-  const effectiveWeight = boldText && weight === "regular" ? "medium" : weight;
+  const requestedWeight = weight ?? classFontWeight(props.className) ?? "regular";
+  const effectiveWeight =
+    boldText && requestedWeight === "regular" ? "medium" : requestedWeight;
+  const androidScale = Platform.OS === "android" ? 0.9 : 1;
+  const appTextScale = usesSystemTextSize ? 1 : textScale;
+  const shouldSetFontMetrics =
+    Platform.OS === "android" ||
+    (scaleWithAccessibility && !usesSystemTextSize);
 
   return (
     <RNText
       {...props}
       allowFontScaling={scaleWithAccessibility && usesSystemTextSize}
+      maxFontSizeMultiplier={
+        props.maxFontSizeMultiplier ?? (Platform.OS === "android" ? 1.15 : undefined)
+      }
       style={[
+        style,
         {
           fontFamily: fonts[effectiveWeight],
+          fontWeight: "normal",
         },
-        style,
-        scaleWithAccessibility && !usesSystemTextSize
+        shouldSetFontMetrics
           ? {
-              fontSize: Math.round(baseFontSize * textScale),
-              lineHeight: Math.round(baseFontSize * textScale * 1.35),
+              fontSize: Math.round(baseFontSize * appTextScale * androidScale),
+              lineHeight: Math.round(
+                baseFontSize * appTextScale * androidScale * 1.35,
+              ),
             }
           : null,
       ]}

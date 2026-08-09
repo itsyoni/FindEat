@@ -1,3 +1,4 @@
+import * as ImagePicker from "expo-image-picker";
 import ImageCropPicker from "react-native-image-crop-picker";
 
 export type ReviewImageKind = "cover" | "dish";
@@ -18,8 +19,28 @@ export async function pickReviewImage(
   kind: ReviewImageKind,
   toolbarTitle: string,
 ): Promise<PickedReviewImage | null> {
+  if (source === "gallery") {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      allowsEditing: false,
+      orderedSelection: true,
+      selectionLimit: 1,
+      defaultTab: "photos",
+      quality: 0.9,
+    });
+    if (result.canceled || !result.assets[0]) return null;
+
+    const image = result.assets[0];
+    return {
+      uri: image.uri,
+      width: Math.max(1, Math.round(image.width)),
+      height: Math.max(1, Math.round(image.height)),
+    };
+  }
+
   const options = {
-    width: kind === "dish" ? 1200 : 1200,
+    width: 1200,
     height: kind === "dish" ? 900 : 1200,
     cropping: true,
     freeStyleCropEnabled: false,
@@ -31,10 +52,7 @@ export async function pickReviewImage(
   };
 
   try {
-    const image =
-      source === "camera"
-        ? await ImageCropPicker.openCamera(options)
-        : await ImageCropPicker.openPicker(options);
+    const image = await ImageCropPicker.openCamera(options);
 
     return {
       uri: normalizeFileUri(image.path),

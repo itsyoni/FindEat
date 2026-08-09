@@ -2,6 +2,7 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const variant = process.env.APP_VARIANT ?? "development";
+  const appleTeamId = process.env.APPLE_TEAM_ID?.trim();
 
   const isDevelopment = variant === "development";
   const isPreview = variant === "preview";
@@ -24,6 +25,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ? "findeat-preview"
       : "findeat";
 
+  const userActivityTypes = Array.from(
+    new Set([
+      ...((config.ios?.infoPlist?.NSUserActivityTypes as string[] | undefined) ?? []),
+      "INSendMessageIntent",
+    ]),
+  );
+
   return {
     ...config,
 
@@ -34,11 +42,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       ...(config.plugins ?? []),
       "@react-native-community/datetimepicker",
+      "@bacons/apple-targets",
     ],
 
     ios: {
       ...config.ios,
       bundleIdentifier,
+      ...(appleTeamId ? { appleTeamId } : {}),
+      entitlements: {
+        ...config.ios?.entitlements,
+        "com.apple.developer.usernotifications.communication": true,
+      },
+      infoPlist: {
+        ...config.ios?.infoPlist,
+        NSUserActivityTypes: userActivityTypes,
+      },
     },
 
     android: {

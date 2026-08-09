@@ -91,6 +91,7 @@ export default function ProfileReviewsFeedScreen() {
       <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
         <ReviewFeed
           posts={posts}
+          preferredPerspectiveUserId={profile.id}
           initialIndex={initialIndex}
           contentTopInset={56}
           refreshing={false}

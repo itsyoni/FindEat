@@ -41,6 +41,7 @@ export type ContentPostMedia = {
 export type ReviewItem = {
   id: string;
   reviewPostId: string;
+  createdById: string;
 
   menuItemId?: string | null;
   menuItem?: {
@@ -95,7 +96,11 @@ export type ReviewDishMedia = {
   uploadedBy: UserSummary;
 };
 
-export type ReviewParticipantStatus = "INVITED" | "JOINED" | "DECLINED";
+export type ReviewParticipantStatus =
+  | "INVITED"
+  | "REQUESTED"
+  | "JOINED"
+  | "DECLINED";
 
 export type ReviewParticipant = {
   id: string;

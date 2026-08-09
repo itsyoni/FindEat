@@ -1,4 +1,5 @@
 import NotificationRow from '@/components/notifications/NotificationRow';
+import Text from '@/components/common/AppText';
 import { SkeletonList } from '@/components/common';
 import { notificationHref } from '@/components/notifications/notificationHelpers';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -19,7 +20,7 @@ import { BellIcon } from 'phosphor-react-native';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   getNextRelationshipAfterToggle,
@@ -27,6 +28,16 @@ import {
   shouldRemoveFollowRelationship,
 } from '@findeat/utils';
 import { useAuth } from '@/contexts/AuthContext';
+
+type NotificationAction = {
+  label?: string;
+  active: boolean;
+  isPost: boolean;
+  preview?: AppNotification['postPreview'];
+  run: () => void;
+  secondaryLabel?: string;
+  runSecondary?: () => void;
+};
 
 export default function NotificationsScreen() {
   const { t } = useTranslation('notifications');
@@ -118,7 +129,7 @@ export default function NotificationsScreen() {
     }
   }
 
-  function notificationAction(item: AppNotification) {
+  function notificationAction(item: AppNotification): NotificationAction | null {
     if (item.type === 'REVIEW_INVITE' && item.postId) {
       return {
         label: t('joinReview'),
@@ -132,6 +143,39 @@ export default function NotificationsScreen() {
               params: { id: item.postId! },
             });
           });
+        },
+      };
+    }
+
+    if (item.type === 'REVIEW_JOIN_REQUEST' && item.postId && item.actorId) {
+      const postId = item.postId;
+      const requesterId = item.actorId;
+      return {
+        label: t('approve'),
+        secondaryLabel: t('decline'),
+        active: false,
+        isPost: false,
+        preview: undefined,
+        run: () => {
+          void api.posts
+            .approveReviewJoinRequest(postId, requesterId)
+            .then(async () => {
+              await Promise.all([
+                notifications.refetch(),
+                queryClient.invalidateQueries({ queryKey: ['feed'] }),
+              ]);
+            })
+            .catch((error) =>
+              console.error('review join request approval failed', error),
+            );
+        },
+        runSecondary: () => {
+          void api.posts
+            .declineReviewJoinRequest(postId, requesterId)
+            .then(() => notifications.refetch())
+            .catch((error) =>
+              console.error('review join request decline failed', error),
+            );
         },
       };
     }
@@ -229,6 +273,8 @@ export default function NotificationsScreen() {
                 onAction={action?.run}
                 actionLabel={action?.label}
                 actionActive={action?.active}
+                secondaryActionLabel={action?.secondaryLabel}
+                onSecondaryAction={action?.runSecondary}
                 isPostAction={action?.isPost}
                 postPreview={action?.preview}
               />

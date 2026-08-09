@@ -84,8 +84,8 @@ export default function ChatSkeleton() {
         <Bubble side="right" width="65%" grouped />
       </Animated.View>
 
-      <View className="flex-row items-center border-t border-line bg-white px-3 py-2 dark:border-gray-900 dark:bg-[#0F0F10]">
-        <View className="h-[42px] flex-1 rounded-3xl bg-gray-100 dark:bg-[#1B1B1D]" />
+      <View className="flex-row items-center px-3 py-2">
+        <View className="h-[42px] flex-1 rounded-3xl border border-line bg-soft dark:border-gray-800 dark:bg-[#1B1B1D]" />
         <View className="ml-2 h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-800" />
       </View>
     </View>

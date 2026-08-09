@@ -5,6 +5,7 @@ import { TextInput } from "@/components/common";
 import FullPageRestaurantPicker from "@/components/restaurants/FullPageRestaurantPicker";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
+import PostConnectionPicker from "@/components/posts/PostConnectionPicker";
 import ReviewCreator, {
   type ReviewCreatorSnapshot,
 } from "@/components/review-creator/ReviewCreator";
@@ -54,6 +55,7 @@ import {
   LockIcon,
   SquareIcon,
   StorefrontIcon,
+  NotePencilIcon,
   TrashIcon,
   UsersThreeIcon,
   XIcon,
@@ -382,7 +384,9 @@ export default function CreateContentScreen() {
     setStep(
       availableDraft.step === "CAMERA"
         ? "EDIT_MEDIA"
-        : availableDraft.step,
+        : availableDraft.step === "READY"
+          ? "DETAILS"
+          : availableDraft.step,
     );
     setAvailableDraft(null);
   }
@@ -995,6 +999,7 @@ export default function CreateContentScreen() {
     selectedRestaurant?.source === "FINDEAT"
       ? selectedRestaurant.restaurant.logoUrl
       : null;
+  const detailPickerCircleSize = 40;
 
   function changeVisibility(nextVisibility: PostVisibility) {
     if (nextVisibility === "PRIVATE" && taggedPeople.length > 0) {
@@ -1287,7 +1292,25 @@ export default function CreateContentScreen() {
                         {t("videoCaptureLimit")}
                       </Text>
                     </View>
-                  ) : null}
+                  ) : (
+                    <View className="absolute left-16 right-16 items-center">
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={t("writeReviewOnly")}
+                        onPress={() => router.replace("/create/review")}
+                        className="flex-row items-center rounded-full bg-black/55 px-3 py-2"
+                      >
+                        <NotePencilIcon
+                          size={16}
+                          color="#F7D786"
+                          weight="fill"
+                        />
+                        <Text className="ml-1.5 text-xs font-bold text-white">
+                          {t("writeReviewOnly")}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                   <TouchableOpacity
                     disabled={recording}
                     onPress={cycleFlashMode}
@@ -1551,7 +1574,7 @@ export default function CreateContentScreen() {
           linkedContentPreview={{ media, caption }}
           onLinkedFlowBack={(snapshot) => {
             setLinkedReviewSnapshot(snapshot);
-            setStep("READY");
+            setStep("DETAILS");
           }}
           linkedContentPublisher={(reportProgress) =>
             createContentPost(reportProgress, true)
@@ -1779,18 +1802,12 @@ export default function CreateContentScreen() {
           </Text>
           <TouchableOpacity
             disabled={publishing || !selectedRestaurant}
-            onPress={() => {
-              if (!selectedRestaurant) {
-                Alert.alert(t("missingRestaurantTitle"), t("restaurantRequired"));
-                return;
-              }
-              setStep("READY");
-            }}
+            onPress={handleReadyPost}
             className={`px-2 py-2 ${
               publishing || !selectedRestaurant ? "opacity-35" : ""
             }`}
           >
-            <Text className="font-bold text-brand">{t("next")}</Text>
+            <Text className="font-bold text-brand">{t("post")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1906,16 +1923,23 @@ export default function CreateContentScreen() {
               onPress={() => setStep("RESTAURANT")}
               className="flex-row items-center border-b border-gray-100 py-4 dark:border-gray-800"
             >
-              {selectedPlace ? (
+              {selectedPlace && selectedPlaceLogo ? (
                 <Avatar
                   uri={selectedPlaceLogo}
                   username={selectedPlace.name}
-                  size={44}
+                  size={detailPickerCircleSize}
                   fallbackType="restaurant"
+                  showSnapIndicator={false}
                 />
               ) : (
-                <View className="h-11 w-11 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
-                  <StorefrontIcon size={22} color="#9CA3AF" weight="fill" />
+                <View
+                  className="items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900"
+                  style={{
+                    width: detailPickerCircleSize,
+                    height: detailPickerCircleSize,
+                  }}
+                >
+                  <StorefrontIcon size={20} color="#9CA3AF" weight="fill" />
                 </View>
               )}
               <View className="ml-3 flex-1">
@@ -1958,8 +1982,14 @@ export default function CreateContentScreen() {
               onPress={() => setStep("PEOPLE")}
               className="mt-2 flex-row items-center border-b border-gray-100 py-4 dark:border-gray-800"
             >
-              <View className="h-11 w-11 items-center justify-center rounded-full bg-brand/15">
-                <UsersThreeIcon size={23} color="#C89C25" weight="fill" />
+              <View
+                className="items-center justify-center rounded-full bg-brand/15"
+                style={{
+                  width: detailPickerCircleSize,
+                  height: detailPickerCircleSize,
+                }}
+              >
+                <UsersThreeIcon size={21} color="#C89C25" weight="fill" />
               </View>
               <View className="ml-3 min-w-0 flex-1">
                 <Text className="font-bold text-black dark:text-white">
@@ -1996,6 +2026,59 @@ export default function CreateContentScreen() {
             <PostVisibilitySelector
               value={visibility}
               onChange={changeVisibility}
+            />
+
+            {!linkedPostId ? (
+              <TouchableOpacity
+                disabled={!selectedRestaurant}
+                onPress={() => setStep("REVIEW")}
+                className={`mb-3 mt-2 flex-row items-center rounded-2xl border border-[#E8D39A] bg-[#FFF9E9] p-4 dark:border-[#5A4820] dark:bg-[#1B170D] ${
+                  !selectedRestaurant ? "opacity-40" : ""
+                }`}
+              >
+              <View className="h-11 w-11 items-center justify-center rounded-full bg-[#F7D786]/25">
+                <NotePencilIcon size={23} color="#C89C25" weight="fill" />
+              </View>
+              <View className="ml-3 flex-1">
+                <View className="flex-row items-center">
+                  <Text className="font-bold text-black dark:text-white">
+                    {linkedReviewSnapshot
+                      ? t("continueFullReview")
+                      : t("addFullReviewTitle")}
+                  </Text>
+                  <View className="ml-2 rounded-full bg-black/5 px-2 py-0.5 dark:bg-white/10">
+                    <Text className="text-[10px] font-bold text-gray-500 dark:text-gray-300">
+                      {t("optional")}
+                    </Text>
+                  </View>
+                </View>
+                <Text numberOfLines={2} className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  {linkedReviewSnapshot
+                    ? t("continueFullReviewHint")
+                    : t("addFullReviewBody")}
+                </Text>
+              </View>
+              <DirectionalIcon
+                direction="forward"
+                size={20}
+                color="#9CA3AF"
+                weight="bold"
+              />
+              </TouchableOpacity>
+            ) : null}
+
+            <PostConnectionPicker
+              restaurantId={
+                selectedRestaurant?.source === "FINDEAT"
+                  ? selectedRestaurant.restaurant.id
+                  : undefined
+              }
+              candidateType="REVIEW"
+              selectedPostId={linkedPostId}
+              onSelect={(postId) => {
+                setLinkedPostId(postId);
+                if (postId) setLinkedReviewSnapshot(null);
+              }}
             />
 
           </View>

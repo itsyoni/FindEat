@@ -1,6 +1,7 @@
 import Text from "@/components/common/AppText";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type { LinkedPost, Post } from "@findeat/types";
@@ -76,6 +77,7 @@ function ConnectionPreview({
 
 export default function PostConnectionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const { isDark } = useAppTheme();
   const { t } = useTranslation("common");
   const { showToast } = useToast();
@@ -90,8 +92,11 @@ export default function PostConnectionsScreen() {
     queryKey: connectionQueryKey,
     queryFn: async () => {
       const source = await api.posts.get(id);
-      if (!source.canDelete || !source.restaurantId) {
-        throw new Error("Post connections are only available to the author");
+      const canManageConnections =
+        source.canDelete ||
+        (source.type === "REVIEW" && source.canContribute === true);
+      if (!canManageConnections || !source.restaurantId) {
+        throw new Error("Post connections are not available to this user");
       }
       const targetType = source.type === "CONTENT" ? "REVIEW" : "CONTENT";
       const available = await api.posts.linkCandidates(
@@ -130,7 +135,9 @@ export default function PostConnectionsScreen() {
     }
   }
 
-  const linked = post?.linkedPosts ?? [];
+  const linked = (post?.linkedPosts ?? []).filter(
+    (target) => post?.canDelete || target.authorId === user?.id,
+  );
   const linkedIds = new Set(linked.map((target) => target.id));
   const available = candidates.filter((target) => !linkedIds.has(target.id));
 
