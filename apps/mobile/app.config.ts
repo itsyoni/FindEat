@@ -3,6 +3,9 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 export default ({ config }: ConfigContext): ExpoConfig => {
   const variant = process.env.APP_VARIANT ?? "development";
   const appleTeamId = process.env.APPLE_TEAM_ID?.trim();
+  const googleServicesFile =
+    process.env.GOOGLE_SERVICES_JSON?.trim() ??
+    config.android?.googleServicesFile;
 
   const isDevelopment = variant === "development";
   const isPreview = variant === "preview";
@@ -62,6 +65,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       ...config.android,
       package: bundleIdentifier,
+      ...(googleServicesFile ? { googleServicesFile } : {}),
     },
   };
 };
