@@ -3,7 +3,7 @@
     "name": "FindEat",
     "slug": "mobile",
     "scheme": "findeat",
-    "version": "1.11.8",
+    "version": "1.11.11",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -38,12 +38,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/findeat-splash.png",
+          "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#FAF9F6",
+          "backgroundColor": "#363535",
           "dark": {
-            "backgroundColor": "#0B0B0A"
+            "image": "./assets/images/findeat-splash.png",
+            "backgroundColor": "#363535"
           }
         }
       ],

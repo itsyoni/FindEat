@@ -11,6 +11,8 @@ import { HeadsetIcon } from "@phosphor-icons/react/dist/csr/Headset";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
+import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
+import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import type {
   AdminUser,
   AppNotification,
@@ -199,6 +201,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   const [restaurantUnreadCount, setRestaurantUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [claims, setClaims] = useState<RestaurantClaim[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -546,7 +549,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
     );
   return (
     <div className="dashboard">
-      <aside>
+      <aside className={mobileNavOpen ? "mobile-nav-open" : ""}>
         <div className="brand">
           <div className="brand-mark">F</div>
           <div>
@@ -554,12 +557,46 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <small>Business</small>
           </div>
         </div>
-        <RestaurantSwitcher
-          restaurant={restaurant}
-          restaurants={restaurants}
-          onSelect={selectRestaurant}
-        />
-        <nav>
+        <div className="desktop-restaurant-switcher">
+          <RestaurantSwitcher
+            restaurant={restaurant}
+            restaurants={restaurants}
+            onSelect={selectRestaurant}
+          />
+        </div>
+        <div className="mobile-nav-bar">
+          <div className="mobile-nav-title">
+            <StorefrontIcon size={20} weight="duotone" aria-hidden="true" />
+            <div>
+              <div className="mobile-nav-title-row">
+                <strong>FindEat Business</strong>
+                <span className="mobile-access-pill">
+                  {restaurant.accessRole === "ADMIN"
+                    ? "Admin access"
+                    : restaurant.status === "CLAIMED"
+                      ? "Claimed"
+                      : "Unclaimed"}
+                </span>
+              </div>
+              <small>Restaurant workspace</small>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={mobileNavOpen}
+            aria-controls="business-navigation"
+            onClick={() => setMobileNavOpen((current) => !current)}
+          >
+            {mobileNavOpen ? (
+              <XIcon size={21} weight="bold" aria-hidden="true" />
+            ) : (
+              <ListIcon size={23} weight="bold" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+        <nav id="business-navigation" onClick={() => setMobileNavOpen(false)}>
           <AppLink
             to={businessPaths.overview}
             className={section === "overview" ? "active" : ""}
@@ -640,7 +677,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       </aside>
       <main className="content">
         <header>
-          <div>
+          <div className="desktop-header-restaurant-summary">
             <strong>{restaurant.name}</strong>
             <span className="claimed">
               {restaurant.accessRole === "ADMIN"
@@ -649,6 +686,13 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
                   ? "Claimed"
                   : "Unclaimed"}
             </span>
+          </div>
+          <div className="mobile-header-restaurant-selector">
+            <RestaurantSwitcher
+              restaurant={restaurant}
+              restaurants={restaurants}
+              onSelect={selectRestaurant}
+            />
           </div>
           <div className="top-actions">
             <div className="notifications-menu">

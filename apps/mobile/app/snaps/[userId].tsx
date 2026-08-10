@@ -78,6 +78,7 @@ export default function SnapViewerScreen() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [comment, setComment] = useState("");
+  const [replyFocused, setReplyFocused] = useState(false);
   const [sendingComment, setSendingComment] = useState(false);
   const [groupOrder, setGroupOrder] = useState<string[]>([]);
   const latestGroups = useMemo(() => snaps.data ?? [], [snaps.data]);
@@ -353,13 +354,20 @@ export default function SnapViewerScreen() {
     }),
   );
 
-  const handleTap = useCallback((action: () => void) => {
-    if (heldRef.current) {
-      heldRef.current = false;
-      return;
-    }
-    action();
-  }, []);
+  const handleTap = useCallback(
+    (action: () => void) => {
+      if (heldRef.current) {
+        heldRef.current = false;
+        return;
+      }
+      if (replyFocused) {
+        Keyboard.dismiss();
+        return;
+      }
+      action();
+    },
+    [replyFocused],
+  );
 
   useEffect(() => {
     if (
@@ -554,7 +562,10 @@ export default function SnapViewerScreen() {
       <View style={[StyleSheet.absoluteFill, styles.scrim]} />
 
       <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.safeArea}>
-      <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
+      <SafeAreaView
+        edges={replyFocused ? ["top"] : ["top", "bottom"]}
+        style={styles.safeArea}
+      >
         <View className="flex-row gap-1.5 px-3 pt-1">
           {currentGroup.snaps.map((snap, index) => (
             <View
@@ -655,7 +666,10 @@ export default function SnapViewerScreen() {
           />
         </View>
 
-        <View className="px-5 pb-3">
+        <View
+          className="px-5"
+          style={{ paddingBottom: replyFocused ? 4 : 12 }}
+        >
           {currentSnap.caption ? (
             <Text className="mb-3 text-base leading-6 text-white">
               {currentSnap.caption}
@@ -682,8 +696,14 @@ export default function SnapViewerScreen() {
               <TextInput
                 value={comment}
                 onChangeText={setComment}
-                onFocus={pausePlayback}
-                onBlur={resumePlayback}
+                onFocus={() => {
+                  setReplyFocused(true);
+                  pausePlayback();
+                }}
+                onBlur={() => {
+                  setReplyFocused(false);
+                  resumePlayback();
+                }}
                 placeholder={t("snaps:replyPlaceholder")}
                 placeholderTextColor="#D1D5DB"
                 maxLength={500}

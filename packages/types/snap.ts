@@ -33,6 +33,7 @@ export type SnapGroup = {
 };
 
 export type CreateSnapInput = {
+  clientRequestId?: string;
   imageUrl: string;
   caption?: string;
   restaurantId?: string;

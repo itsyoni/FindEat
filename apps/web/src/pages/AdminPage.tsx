@@ -11,6 +11,8 @@ import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 import { SparkleIcon } from "@phosphor-icons/react/dist/csr/Sparkle";
 import { FlagIcon } from "@phosphor-icons/react/dist/csr/Flag";
 import { MapPinLineIcon } from "@phosphor-icons/react/dist/csr/MapPinLine";
+import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
+import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import type {
   AdminDashboardSection,
   AdminUser,
@@ -54,6 +56,7 @@ export function AdminPage({
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [visitedSections, setVisitedSections] = useState<
     Set<AdminDashboardSection>
   >(() => new Set([section]));
@@ -170,7 +173,7 @@ export function AdminPage({
 
   return (
     <div className="dashboard admin-dashboard">
-      <aside>
+      <aside className={mobileNavOpen ? "mobile-nav-open" : ""}>
         <div className="brand">
           <div className="brand-mark">F</div>
           <div>
@@ -185,7 +188,30 @@ export function AdminPage({
             <small>Restricted access</small>
           </div>
         </div>
-        <nav>
+        <div className="mobile-nav-bar admin-mobile-nav-bar">
+          <div className="mobile-nav-title">
+            <ShieldCheckIcon size={20} weight="duotone" aria-hidden="true" />
+            <div>
+              <strong>Admin workspace</strong>
+              <small>FindEat administration</small>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={mobileNavOpen}
+            aria-controls="admin-navigation"
+            onClick={() => setMobileNavOpen((current) => !current)}
+          >
+            {mobileNavOpen ? (
+              <XIcon size={21} weight="bold" aria-hidden="true" />
+            ) : (
+              <ListIcon size={23} weight="bold" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+        <nav id="admin-navigation" onClick={() => setMobileNavOpen(false)}>
           {onBackToBusiness && (
             <button onClick={onBackToBusiness}>
               <ArrowLeftIcon className="nav-icon" weight="duotone" /> Restaurant dashboard

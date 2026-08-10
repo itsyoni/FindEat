@@ -4,7 +4,8 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack, router, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { Image } from "expo-image";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, LogBox, Platform, View } from "react-native";
 import {
   configureReanimatedLogger,
@@ -20,7 +21,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, useAppTheme } from "@/contexts/ThemeContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PortalHost } from "@gorhom/portal";
-import { LoadingScreen } from "@/components/common";
+import Text from "@/components/common/AppText";
 import WhatsNewModal from "@/components/updates/WhatsNewModal";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { AppAlertProvider } from "@/contexts/AppAlertContext";
@@ -126,13 +127,15 @@ function RootNavigator() {
   const { user, isLoading } = useAuth();
   const { isDark } = useAppTheme();
   const segments = useSegments();
+  const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
 
   useEffect(() => {
-    if (isLoading) return;
     requestAnimationFrame(() => {
       void SplashScreen.hideAsync();
     });
-  }, [isLoading]);
+    const timer = setTimeout(() => setMinimumSplashElapsed(true), 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;
@@ -148,7 +151,7 @@ function RootNavigator() {
     }
   }, [user, isLoading, segments]);
 
-  if (isLoading) return <LoadingScreen variant="feed" />;
+  if (isLoading || !minimumSplashElapsed) return <BrandedLaunchScreen />;
 
   return (
     <>
@@ -226,5 +229,36 @@ function RootNavigator() {
       {user ? <PresenceConnection /> : null}
       {user ? <WhatsNewModal /> : null}
     </>
+  );
+}
+
+function BrandedLaunchScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#363535",
+      }}
+    >
+      <Image
+        source={require("../assets/images/findeat-splash.png")}
+        contentFit="contain"
+        style={{ width: "78%", maxWidth: 340, aspectRatio: 1 }}
+      />
+      <Text
+        weight="black"
+        style={{
+          position: "absolute",
+          bottom: 54,
+          color: "#FAF9F6",
+          fontSize: 34,
+          letterSpacing: 1.2,
+        }}
+      >
+        FindEat
+      </Text>
+    </View>
   );
 }

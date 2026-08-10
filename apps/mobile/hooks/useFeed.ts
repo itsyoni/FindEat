@@ -12,7 +12,12 @@ const feedPageSize = 10;
 export const feedQueryKey = (type: PostType) => ["feed", type] as const;
 
 export const homeFeedQueryKey = (scope: FeedScope) =>
-  ["feed", "home", scope] as const;
+  [
+    "feed",
+    "home",
+    scope,
+    scope === "EXPLORE" ? "explore-mixed-v1" : "following-v1",
+  ] as const;
 
 export function useHomeFeed(scope: FeedScope, enabled = true) {
   return useInfiniteQuery({

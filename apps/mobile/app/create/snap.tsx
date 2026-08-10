@@ -16,6 +16,7 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { router, Stack } from "expo-router";
 import {
   ArrowsClockwiseIcon,
@@ -73,7 +74,20 @@ export default function CreateSnapScreen() {
         quality: 0.9,
         mirror: false,
       });
-      if (photo?.uri) setImageUri(photo.uri);
+      if (photo?.uri) {
+        if (cameraFacing === "front") {
+          const context = ImageManipulator.manipulate(photo.uri);
+          context.flip("horizontal");
+          const rendered = await context.renderAsync();
+          const corrected = await rendered.saveAsync({
+            compress: 0.9,
+            format: SaveFormat.JPEG,
+          });
+          setImageUri(corrected.uri);
+        } else {
+          setImageUri(photo.uri);
+        }
+      }
     } catch {
       Alert.alert(t("common:error"), t("snaps:captureError"));
     } finally {
@@ -109,37 +123,51 @@ export default function CreateSnapScreen() {
     const pendingImageUri = imageUri;
     const pendingCaption = caption.trim() || undefined;
     const pendingRestaurant = restaurant;
+    const clientRequestId = `snap-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 12)}`;
+    let uploadedImageUrl: string | null = null;
+    let resolvedRestaurantId: string | undefined;
+    let restaurantResolved = false;
 
     startPostUpload({
       kind: "snap",
       run: async (reportProgress) => {
         reportProgress(0.04);
-        const imageUrl = await uploadImage(
-          pendingImageUri,
-          "snap",
-          (progress) => reportProgress(0.08 + progress * 0.78),
-        );
+        if (!uploadedImageUrl) {
+          uploadedImageUrl = await uploadImage(
+            pendingImageUri,
+            "snap",
+            (progress) => reportProgress(0.08 + progress * 0.78),
+          );
+        } else {
+          reportProgress(0.86);
+        }
         reportProgress(0.88);
-        const restaurantId =
-          pendingRestaurant?.source === "FINDEAT"
-            ? pendingRestaurant.restaurant.id
-            : pendingRestaurant?.source === "GOOGLE"
-              ? (
-                  await api.restaurants.fromGoogle({
-                    name: pendingRestaurant.name,
-                    address: pendingRestaurant.address,
-                    latitude: pendingRestaurant.latitude,
-                    longitude: pendingRestaurant.longitude,
-                    googlePlaceId: pendingRestaurant.googlePlaceId,
-                  })
-                ).id
-              : undefined;
+        if (!restaurantResolved) {
+          resolvedRestaurantId =
+            pendingRestaurant?.source === "FINDEAT"
+              ? pendingRestaurant.restaurant.id
+              : pendingRestaurant?.source === "GOOGLE"
+                ? (
+                    await api.restaurants.fromGoogle({
+                      name: pendingRestaurant.name,
+                      address: pendingRestaurant.address,
+                      latitude: pendingRestaurant.latitude,
+                      longitude: pendingRestaurant.longitude,
+                      googlePlaceId: pendingRestaurant.googlePlaceId,
+                    })
+                  ).id
+                : undefined;
+          restaurantResolved = true;
+        }
 
         reportProgress(0.94);
         const createdSnap = await api.snaps.create({
-          imageUrl,
+          clientRequestId,
+          imageUrl: uploadedImageUrl,
           caption: pendingCaption,
-          restaurantId,
+          restaurantId: resolvedRestaurantId,
         });
         queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) => {
           if (!current) {
@@ -168,7 +196,9 @@ export default function CreateSnapScreen() {
           }
           return current.map((group) =>
             group === ownGroup
-              ? { ...group, snaps: [...group.snaps, createdSnap] }
+              ? group.snaps.some((snap) => snap.id === createdSnap.id)
+                ? group
+                : { ...group, snaps: [...group.snaps, createdSnap] }
               : group,
           );
         });

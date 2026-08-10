@@ -204,6 +204,9 @@ input:focus,textarea:focus { border-color:var(--ink); box-shadow:0 0 0 3px #1717
 }
 .dashboard { height:100vh; min-height:0; display:grid; grid-template-columns:260px minmax(0,1fr); overflow:hidden; background:var(--page); color:var(--ink); }
 aside { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; padding:25px 18px; border-right:1px solid var(--line); background:var(--surface); }
+.mobile-nav-bar { display:contents; }
+.mobile-nav-toggle,.mobile-nav-title { display:none; }
+.mobile-header-restaurant-selector { display:none; }
 .brand { display:flex; align-items:center; gap:12px; padding:0 8px 25px; }
 .brand strong,.brand small,.restaurant-chip strong,.restaurant-chip small { display:block; }
 .brand strong { font-size:18px; }
@@ -1260,4 +1263,314 @@ header>div { display:flex; align-items:center; gap:10px; }
 
 @media(max-width:700px){
   .theme-options{grid-template-columns:1fr}.settings-panel-heading{padding:21px 20px 16px}.theme-options{padding:0 20px 21px}.settings-link-list>a{padding-inline:20px}
+}
+
+/* Responsive web workspace -------------------------------------------------
+   The business tools remain information-dense on large screens, but below a
+   tablet width navigation becomes a compact, touch-friendly strip and dense
+   tables/forms turn into readable single-column layouts. */
+@media(max-width:800px){
+  .dashboard{
+    height:100vh;
+    height:100dvh;
+    grid-template-rows:auto minmax(0,1fr);
+    overflow:hidden;
+  }
+  .dashboard>aside{
+    position:relative;
+    z-index:30;
+    display:block;
+    width:100%;
+    height:auto;
+    min-width:0;
+    padding:10px 12px;
+    border-right:0;
+    border-bottom:1px solid var(--line);
+    box-shadow:0 5px 20px color-mix(in srgb,var(--ink) 6%,transparent);
+  }
+  .mobile-nav-bar{display:flex;align-items:center;gap:9px;min-width:0}
+  .desktop-restaurant-switcher{display:none}
+  .mobile-nav-toggle{
+    display:grid;
+    place-items:center;
+    width:46px;
+    height:46px;
+    flex:0 0 46px;
+    padding:0;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--surface-subtle);
+    color:var(--ink);
+  }
+  .mobile-nav-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .mobile-nav-title{display:flex;align-items:center;min-width:0;flex:1;gap:10px;padding:5px 3px}
+  .mobile-nav-title>svg{flex:0 0 auto;color:var(--accent)}
+  .mobile-nav-title>div{min-width:0}
+  .mobile-nav-title strong,.mobile-nav-title small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mobile-nav-title strong{font-size:13px}
+  .mobile-nav-title small{margin-top:2px;color:var(--muted);font-size:10px}
+  .mobile-nav-title-row{display:flex;align-items:center;min-width:0;gap:7px}
+  .mobile-nav-title-row>strong{min-width:0}
+  .mobile-access-pill{
+    flex:0 0 auto;
+    max-width:110px;
+    overflow:hidden;
+    padding:3px 7px;
+    border-radius:999px;
+    background:var(--success-soft);
+    color:var(--success);
+    font-size:8px;
+    font-weight:900;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .dashboard>aside .restaurant-switcher{width:100%}
+  .dashboard>aside .restaurant-chip{
+    min-height:52px;
+    margin:0;
+    padding:7px 10px;
+    border-color:var(--line);
+    background:var(--surface-subtle);
+  }
+  .dashboard>aside .restaurant-chip img,
+  .dashboard>aside .restaurant-chip>span{width:36px;height:36px;flex-basis:36px}
+  .restaurant-switcher-menu{right:0;left:0;width:auto;max-width:none}
+  .dashboard>aside nav{
+    display:none;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px;
+    width:100%;
+    margin:10px 0 0;
+    padding:9px 0 0;
+    overflow:visible;
+    border-top:1px solid var(--line);
+  }
+  .dashboard>aside.mobile-nav-open nav{display:grid}
+  .dashboard>aside nav a,
+  .dashboard>aside nav button{
+    justify-content:flex-start;
+    width:100%;
+    min-width:0;
+    min-height:42px;
+    gap:7px;
+    padding:9px 11px;
+    border:1px solid transparent;
+    border-radius:11px;
+    font-size:11px;
+    white-space:normal;
+  }
+  .dashboard>aside nav a.active,
+  .dashboard>aside nav button.active{border-color:var(--line)}
+  .dashboard>aside nav .nav-icon{width:17px;height:17px;flex-basis:17px}
+  .dashboard>aside .nav-count{margin-left:1px}
+  .admin-dashboard>aside{padding-top:10px}
+  .admin-dashboard>aside nav{margin-top:10px}
+
+  .content{height:100%;grid-template-rows:60px minmax(0,1fr)}
+  .content>header{
+    display:flex;
+    height:60px;
+    min-width:0;
+    padding:0 16px;
+  }
+  .content>header>div:first-child{min-width:0}
+  .content>header>div:first-child>strong{
+    min-width:0;
+    max-width:min(44vw,260px);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .top-actions{gap:9px}
+  .desktop-header-restaurant-summary{display:none!important}
+  .mobile-header-restaurant-selector{display:flex!important;align-self:stretch;align-items:center;justify-content:flex-start;min-width:0;flex:1;margin-right:10px}
+  .mobile-header-restaurant-selector .restaurant-switcher{width:100%;max-width:none}
+  .mobile-header-restaurant-selector .restaurant-chip{
+    min-height:44px;
+    padding:4px 7px;
+    border-color:transparent;
+    background:transparent;
+  }
+  .mobile-header-restaurant-selector .restaurant-chip:hover,
+  .mobile-header-restaurant-selector .restaurant-chip.open{background:var(--surface-hover)}
+  .mobile-header-restaurant-selector .restaurant-chip img,
+  .mobile-header-restaurant-selector .restaurant-chip>span{width:34px;height:34px;flex-basis:34px}
+  .mobile-header-restaurant-selector .restaurant-switcher-menu{top:calc(100% + 7px);right:auto;left:0;width:min(310px,calc(100vw - 32px))}
+  .notifications-trigger{width:38px;height:38px}
+  .account-avatar{width:35px;height:35px}
+  .page-stack,.admin-content{
+    width:100%;
+    padding:26px clamp(14px,4vw,22px) calc(42px + env(safe-area-inset-bottom));
+  }
+  .page-heading{gap:14px;margin-bottom:22px}
+  .page-heading h2{font-size:clamp(28px,8vw,34px);line-height:1.08}
+  .page-heading p{max-width:68ch;line-height:1.5}
+  .page-heading>div,.section-title>div{min-width:0}
+
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+  .stats article{min-width:0;padding:16px 13px}
+  .stats strong{margin:11px 0 5px;font-size:clamp(23px,7vw,30px)}
+  .stats span,.stats small{font-size:10px}
+  .official-card,.checklist{padding:20px}
+  .checklist>div{grid-template-columns:32px minmax(0,1fr);gap:11px}
+  .checklist>div>button{grid-column:2;justify-self:start;padding-left:0}
+
+  .inline-create{grid-template-columns:minmax(0,1fr) auto;padding:13px}
+  .section-heading{padding:17px}
+  .section-body{padding:0 17px 17px}
+  .dish-row{min-height:0;padding:15px 0}
+  .dish-copy p{-webkit-line-clamp:2}
+  .dish-meta{gap:8px}
+  .dish-row-side{flex-wrap:wrap}
+  .dish-options-menu{max-width:calc(100vw - 48px)}
+
+  .profile-form{gap:16px;padding:20px}
+  .restaurant-media-editor{margin:-20px -20px 8px}
+  .cover-editor{border-radius:17px 17px 0 0}
+  .restaurant-categories,.restaurant-certifications,.opening-hours-editor{padding:15px}
+  .address-change-locked,.address-request-pending{align-items:flex-start;flex-direction:column}
+  .form-footer,.section-actions{gap:10px;flex-wrap:wrap}
+
+  .review-toolbar{align-items:stretch;flex-direction:column;gap:9px}
+  .review-toolbar input{max-width:none}
+  .review-toolbar span{align-self:flex-end}
+  .review-table-wrap{overflow:visible;border:0;background:transparent}
+  .review-table,.review-table tbody{display:grid;width:100%;min-width:0;gap:12px}
+  .review-table thead{display:none}
+  .review-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:11px;padding:16px;border:1px solid var(--line);border-radius:17px;background:var(--surface)}
+  .review-table td{display:block;min-width:0;padding:0;border:0}
+  .review-table td:nth-child(1){grid-column:1}
+  .review-table td:nth-child(2){grid-column:2;grid-row:1}
+  .review-table td:nth-child(3),.review-table td:nth-child(4){grid-column:1/-1}
+  .review-table td:nth-child(5),.review-table td:nth-child(6){color:var(--muted);font-size:11px}
+  .review-table td:nth-child(6){text-align:right}
+  .review-copy{min-width:0;max-width:none;display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+  .reviewer{min-width:0}
+  .review-detail-heading,.review-detail-body{padding:18px}
+  .review-detail-meta time{width:100%;margin-left:0}
+  .review-dish-grid{grid-template-columns:1fr}
+
+  .claims-grid,.performance-stats,.performance-grid,.premium-insights,
+  .pro-main-grid,.pro-secondary-grid,.pro-menu-health{grid-template-columns:1fr}
+  .claim-card,.admin-search-card,.update-editor{padding:19px}
+  .ownership-search{grid-template-columns:auto minmax(0,1fr);padding:9px 10px}
+  .ownership-search button{grid-column:1/-1;width:100%}
+  .ownership-picker,.ownership-picker>form{grid-template-columns:1fr}
+  .ownership-picker>form button{width:100%}
+  .ownership-restaurant{padding:16px}
+  .ownership-title{align-items:flex-start;flex-direction:column;gap:5px}
+  .owners-manage-label{display:none}
+  .owners-accordion-trigger{grid-template-columns:auto minmax(0,1fr) auto}
+  .support-workspace{min-height:0}
+
+  .settings-panel{border-radius:18px}
+  .settings-panel-heading{padding:20px 18px 15px}
+  .theme-options{padding:0 18px 20px}
+  .settings-link-list>a{padding-inline:18px}
+  .notifications-popover{top:64px;bottom:12px;max-height:none}
+}
+
+@media(max-width:600px){
+  .login-page{align-items:center;overflow-x:hidden;overflow-y:auto;padding:max(72px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom))}
+  .login-theme-toggle{top:max(16px,env(safe-area-inset-top));right:16px}
+  .login-card{padding:26px 20px;border-radius:22px}
+  .login-card h1{font-size:32px}
+  .login-brand{padding-right:52px}
+  .claimed,.admin-badge{max-width:30vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .account-summary>div{display:none}
+
+  .stats{grid-template-columns:1fr}
+  .stats article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px}
+  .stats strong{grid-column:2;grid-row:1/3;margin:0}
+  .inline-create{grid-template-columns:1fr}
+  .inline-create button{width:100%}
+  .section-actions,.form-actions,.form-footer,.address-request-actions,
+  .update-editor-footer{align-items:stretch;flex-direction:column}
+  .section-actions button,.form-actions button,.form-footer button,
+  .address-request-actions button,.update-editor-footer>button{width:100%}
+
+  .dish-row{grid-template-columns:56px minmax(0,1fr);gap:11px}
+  .dish-image{width:56px;height:56px;border-radius:13px}
+  .dish-title h4{font-size:14px}
+  .dish-price{padding:6px 9px;font-size:12px}
+  .dish-row-food-tags span{max-width:88px}
+  .dish-editor-body{padding:16px}
+  .dish-editor-media{grid-template-columns:88px minmax(0,1fr)}
+  .dish-editor-header h2{font-size:20px}
+  .dish-editor-footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  .dish-editor-footer button{flex:1}
+  .dish-insights-quick-grid{grid-template-columns:1fr 1fr}
+
+  .cover-editor{aspect-ratio:3/2}
+  .media-change-button{right:12px;bottom:12px}
+  .logo-editor{padding:0 16px}
+  .opening-hours-day{padding:12px}
+  .opening-hours-time-fields{grid-template-columns:1fr 1fr}
+  .opening-hours-period{grid-template-columns:minmax(0,1fr) 38px}
+
+  .messages-page{padding:16px 12px 12px}
+  .messages-heading h2{font-size:25px}
+  .messages-workspace{grid-template-rows:minmax(116px,31%) minmax(0,69%);border-radius:17px}
+  .conversation-list-title{height:52px;min-height:52px}
+  .conversation-list>button{min-height:68px;padding:10px 12px}
+  .conversation-header{height:56px;min-height:56px;padding:0 13px}
+  .message-thread{padding:14px 12px}
+  .message-bubble{max-width:90%}
+  .message-composer{padding:10px 10px calc(8px + env(safe-area-inset-bottom))}
+  .message-composer>div{grid-template-columns:minmax(0,1fr)}
+  .message-composer button{width:100%}
+  .message-composer>small{display:none}
+
+  .review-detail-heading{align-items:flex-start}
+  .review-detail-rating{padding:7px 9px}
+  .review-detail-rating strong{font-size:18px}
+  .review-detail-copy p{font-size:14px}
+  .review-table tr{grid-template-columns:minmax(0,1fr) auto;padding:14px}
+
+  .pro-kpis,.pro-menu-metrics,.pro-mini-grid{grid-template-columns:1fr}
+  .pro-main-grid>.card,.pro-secondary-grid>.card,.pro-menu-health{padding:18px}
+  .pro-score-list>div{grid-template-columns:80px minmax(0,1fr) 26px}
+  .pro-menu-metrics article{border-top:1px solid var(--line);border-left:0}
+  .moderation-card-head,.moderation-reason,.support-detail-head,
+  .owner-ticket-head{align-items:flex-start;flex-direction:column}
+  .moderation-preview{grid-template-columns:52px minmax(0,1fr)}
+  .moderation-preview img{width:52px;height:52px}
+  .claim-actions{grid-template-columns:1fr}
+  .admin-list{padding:0 14px}
+  .admin-user-row{gap:12px}
+  .admin-row-actions{flex-wrap:wrap}
+  .ownership-actions{align-items:stretch;flex-direction:column}
+  .ownership-owner,.ownership-claim{align-items:flex-start;flex-direction:column}
+  .ownership-user-results>button{align-items:flex-start;flex-direction:column}
+  .update-card{grid-template-columns:70px minmax(0,1fr)}
+  .update-card-image,.update-card-placeholder{width:70px;height:70px}
+  .update-editor-heading{align-items:flex-start;flex-direction:column}
+  .update-editor-footer{gap:12px}
+  .publish-toggle{width:100%}
+  .update-audience-row{padding:12px 14px}
+  .support-ticket-detail{padding:16px}
+  .support-message{padding:14px}
+  .owner-support-form,.owner-ticket-card{padding:18px}
+
+  .image-crop-dialog,.dish-editor{height:100dvh;max-height:100dvh}
+  .image-crop-footer{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  .image-crop-footer button{flex:1}
+  .notifications-popover{right:8px;bottom:8px;left:8px;border-radius:17px}
+  .restaurant-notification-row{grid-template-columns:42px minmax(0,1fr) auto;padding:12px;gap:10px}
+  .notification-avatar,.notification-avatar img{width:42px;height:42px}
+}
+
+@media(max-width:380px){
+  .content>header{padding-inline:12px}
+  .content>header>div:first-child>strong{max-width:34vw;font-size:12px}
+  .claimed,.admin-badge{font-size:9px}
+  .page-stack,.admin-content{padding-inline:12px}
+  .dashboard>aside nav{grid-template-columns:1fr}
+  .dashboard>aside nav a,.dashboard>aside nav button{padding-inline:9px}
+  .review-table td:nth-child(5),.review-table td:nth-child(6){grid-column:1/-1;text-align:left}
+  .dish-insights-quick-grid{grid-template-columns:1fr}
+}
+
+@media(max-width:340px){
+  .content>header .account-avatar{display:none}
 }
