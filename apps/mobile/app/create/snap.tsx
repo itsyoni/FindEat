@@ -4,7 +4,8 @@ import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { snapsQueryKey } from "@/hooks/useSnaps";
 import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
-import { uploadImage } from "@/lib/uploadImage";
+import { uploadImage, uploadVideo } from "@/lib/uploadImage";
+import ContentVideo from "@/components/posts/content/ContentVideo";
 import type { SelectedRestaurant, SnapGroup } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePostUpload } from "@/contexts/PostUploadContext";
@@ -50,6 +51,8 @@ export default function CreateSnapScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null);
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
   const [flash, setFlash] = useState<FlashMode>("off");
   const [cameraReady, setCameraReady] = useState(false);
@@ -95,7 +98,7 @@ export default function CreateSnapScreen() {
     }
   }
 
-  async function choosePhoto() {
+  async function chooseMedia() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
@@ -105,28 +108,46 @@ export default function CreateSnapScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
+      mediaTypes: ["images", "videos"],
       quality: 0.9,
-      allowsEditing: false,
+      allowsEditing: true,
+      videoMaxDuration: 10,
       selectionLimit: 1,
     });
     if (!result.canceled && result.assets[0]?.uri) {
-      setImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      if (asset.type === "video") {
+        const duration = Math.round(asset.duration ?? 0);
+        if (!duration || duration > 10_000) {
+          Alert.alert(t("snaps:videoTooLongTitle"), t("snaps:videoTooLongBody"));
+          return;
+        }
+        setImageUri(null);
+        setVideoUri(asset.uri);
+        setVideoDurationMs(duration);
+      } else {
+        setVideoUri(null);
+        setVideoDurationMs(null);
+        setImageUri(asset.uri);
+      }
     }
   }
 
   function publish() {
-    if (!imageUri || publishing || publishStartedRef.current) return;
+    if ((!imageUri && !videoUri) || publishing || publishStartedRef.current) return;
 
     setPublishing(true);
     publishStartedRef.current = true;
     const pendingImageUri = imageUri;
+    const pendingVideoUri = videoUri;
+    const pendingVideoDurationMs = videoDurationMs;
     const pendingCaption = caption.trim() || undefined;
     const pendingRestaurant = restaurant;
     const clientRequestId = `snap-${Date.now()}-${Math.random()
       .toString(36)
       .slice(2, 12)}`;
     let uploadedImageUrl: string | null = null;
+    let uploadedVideoUrl: string | null = null;
     let resolvedRestaurantId: string | undefined;
     let restaurantResolved = false;
 
@@ -134,7 +155,13 @@ export default function CreateSnapScreen() {
       kind: "snap",
       run: async (reportProgress) => {
         reportProgress(0.04);
-        if (!uploadedImageUrl) {
+        if (pendingVideoUri && !uploadedVideoUrl) {
+          uploadedVideoUrl = await uploadVideo(
+            pendingVideoUri,
+            (progress) => reportProgress(0.08 + progress * 0.78),
+            "snap",
+          );
+        } else if (pendingImageUri && !uploadedImageUrl) {
           uploadedImageUrl = await uploadImage(
             pendingImageUri,
             "snap",
@@ -163,12 +190,16 @@ export default function CreateSnapScreen() {
         }
 
         reportProgress(0.94);
-        const createdSnap = await api.snaps.create({
+        const shared = {
           clientRequestId,
-          imageUrl: uploadedImageUrl,
           caption: pendingCaption,
           restaurantId: resolvedRestaurantId,
-        });
+        };
+        const createdSnap = await api.snaps.create(
+          uploadedVideoUrl && pendingVideoDurationMs
+            ? { ...shared, videoUrl: uploadedVideoUrl, durationMs: pendingVideoDurationMs }
+            : { ...shared, imageUrl: uploadedImageUrl! },
+        );
         queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) => {
           if (!current) {
             return [
@@ -236,17 +267,27 @@ export default function CreateSnapScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      {imageUri ? (
+      {imageUri || videoUri ? (
         <>
-          <Image
-            source={{ uri: imageUri }}
-            contentFit="cover"
-            style={StyleSheet.absoluteFill}
-          />
+          {videoUri ? (
+            <ContentVideo
+              uri={videoUri}
+              autoPlay
+              loop
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+            />
+          ) : (
+            <Image source={{ uri: imageUri! }} contentFit="cover" style={StyleSheet.absoluteFill} />
+          )}
           <View style={[StyleSheet.absoluteFill, styles.previewScrim]} />
           <SafeAreaView edges={["top"]} style={styles.previewHeader}>
             <TouchableOpacity
-              onPress={() => setImageUri(null)}
+              onPress={() => {
+                setImageUri(null);
+                setVideoUri(null);
+                setVideoDurationMs(null);
+              }}
               className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
             >
               <DirectionalIcon
@@ -383,7 +424,7 @@ export default function CreateSnapScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               accessibilityRole="button"
-              onPress={() => void choosePhoto()}
+              onPress={() => void chooseMedia()}
               className="mt-3 flex-row items-center justify-center rounded-2xl border border-white/15 py-4"
             >
               <ImagesIcon size={21} color="#F7D786" weight="fill" />
@@ -397,7 +438,7 @@ export default function CreateSnapScreen() {
         <View style={styles.cameraStage}>
           <CameraView
             ref={cameraRef}
-            active={!imageUri}
+            active={!imageUri && !videoUri}
             facing={cameraFacing}
             mirror={false}
             flash={flash}
@@ -431,7 +472,7 @@ export default function CreateSnapScreen() {
             <View className="flex-row items-center justify-between px-8 pb-5">
               <TouchableOpacity
                 accessibilityLabel={t("snaps:choosePhoto")}
-                onPress={() => void choosePhoto()}
+                onPress={() => void chooseMedia()}
                 className="h-12 w-12 items-center justify-center"
               >
                 <ImagesIcon size={30} color="#FAF9F6" weight="fill" />

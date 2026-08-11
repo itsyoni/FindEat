@@ -4,6 +4,7 @@ import Avatar from "@/components/common/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import type { Chat } from "@findeat/types/chat";
+import type { ConnectionItem } from "@findeat/types";
 import * as Haptics from "expo-haptics";
 import { CheckCircleIcon } from "phosphor-react-native";
 import { useEffect, useState } from "react";
@@ -14,12 +15,21 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import { TextInput } from "@/components/common";
+import { useToast } from "@/contexts/ToastContext";
+import { userDisplayName } from "@/lib/userIdentity";
+import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 
 type Props = {
   postId: string | null;
   onClose: () => void;
   onShared?: (postId: string) => void;
 };
+
+type ShareFriend = NonNullable<ConnectionItem["follower"]>;
+type ShareTarget =
+  | { id: string; type: "USER"; user: ShareFriend }
+  | { id: string; type: "GROUP"; chat: Chat };
 
 export default function SharePostBottomSheet({
   postId,
@@ -28,26 +38,44 @@ export default function SharePostBottomSheet({
 }: Props) {
   const { user } = useAuth();
   const { t } = useTranslation("chat");
-  const [chats, setChats] = useState<Chat[]>([]);
+  const { showToast } = useToast();
+  const [targets, setTargets] = useState<ShareTarget[]>([]);
   const [loadedPostId, setLoadedPostId] = useState<string | null>(null);
   const [errorPostId, setErrorPostId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
+  const [shareComment, setShareComment] = useState("");
 
   const loading = !!postId && loadedPostId !== postId;
   const error = !!postId && errorPostId === postId;
 
   useEffect(() => {
-    if (!postId) return;
+    if (!postId || !user?.id) return;
 
     let cancelled = false;
 
-    api.chats
-      .list()
-      .then((nextChats) => {
+    Promise.all([api.users.friends(user.id), api.chats.list()])
+      .then(([connections, nextChats]) => {
         if (cancelled) return;
 
-        setChats(nextChats);
+        const friendTargets: ShareTarget[] = connections.flatMap(
+          (connection) =>
+            connection.follower
+              ? [{
+                  id: `user:${connection.follower.id}`,
+                  type: "USER" as const,
+                  user: connection.follower,
+                }]
+              : [],
+        );
+        const groupTargets: ShareTarget[] = nextChats
+          .filter((chat) => chat.type === "GROUP")
+          .map((chat) => ({
+            id: `group:${chat.id}`,
+            type: "GROUP" as const,
+            chat,
+          }));
+        setTargets([...friendTargets, ...groupTargets]);
         setErrorPostId(null);
         setLoadedPostId(postId);
       })
@@ -62,49 +90,40 @@ export default function SharePostBottomSheet({
     return () => {
       cancelled = true;
     };
-  }, [postId]);
+  }, [postId, user?.id]);
 
-  function getChatPresentation(chat: Chat) {
-    const otherUser = chat.participants.find(
-      (participant) => participant.userId !== user?.id,
-    )?.user;
-
-    if (chat.type === "GROUP") {
+  function getTargetPresentation(target: ShareTarget) {
+    if (target.type === "GROUP") {
       return {
-        title: chat.title ?? t("group"),
-        imageUrl: chat.imageUrl,
-        subtitle: t("members", { count: chat.participants.length }),
-      };
-    }
-
-    if (chat.type === "RESTAURANT") {
-      return {
-        title: chat.restaurant?.name ?? t("restaurant"),
-        imageUrl: chat.restaurant?.logoUrl,
-        subtitle: t("restaurantChat"),
+        title: target.chat.title ?? t("group"),
+        imageUrl: target.chat.imageUrl,
+        subtitle: t("members", { count: target.chat.participants.length }),
       };
     }
 
     return {
-      title: otherUser?.username ?? t("conversation"),
-      imageUrl: otherUser?.avatarUrl,
-      subtitle: otherUser?.username ?? t("directChat"),
+      title: userDisplayName(target.user) || t("conversation"),
+      imageUrl: target.user.avatarUrl,
+      subtitle: target.user.username
+        ? `@${target.user.username.replace(/^@/, "")}`
+        : t("directChat"),
     };
   }
 
   function closeSheet() {
     setSelectedIds(new Set());
     setSending(false);
+    setShareComment("");
     onClose();
   }
 
-  function toggleChat(conversationId: string) {
+  function toggleTarget(targetId: string) {
     if (sending) return;
     setErrorPostId(null);
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(conversationId)) next.delete(conversationId);
-      else next.add(conversationId);
+      if (next.has(targetId)) next.delete(targetId);
+      else next.add(targetId);
       return next;
     });
   }
@@ -114,18 +133,28 @@ export default function SharePostBottomSheet({
 
     try {
       setSending(true);
-      const conversationIds = Array.from(selectedIds);
+      const selectedTargets = targets.filter((target) =>
+        selectedIds.has(target.id),
+      );
       const results = await Promise.allSettled(
-        conversationIds.map((conversationId) =>
-          api.chats.sendMessage(conversationId, {
-            type: "POST",
-            postId,
-          }),
-        ),
+        selectedTargets.map(async (target) => {
+          const conversationId =
+            target.type === "GROUP"
+              ? target.chat.id
+              : (await api.chats.startDirectConversation(target.user.id)).id;
+          await api.chats.sendMessage(conversationId, { type: "POST", postId });
+          const message = shareComment.trim();
+          if (message) {
+            await api.chats.sendMessage(conversationId, {
+              type: "TEXT",
+              content: message,
+            });
+          }
+        }),
       );
-      const failedIds = conversationIds.filter(
-        (_, index) => results[index].status === "rejected",
-      );
+      const failedIds = selectedTargets
+        .filter((_, index) => results[index].status === "rejected")
+        .map((target) => target.id);
       const successCount = results.length - failedIds.length;
 
       for (let index = 0; index < successCount; index += 1) {
@@ -142,6 +171,7 @@ export default function SharePostBottomSheet({
       void Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Success,
       ).catch(() => undefined);
+      showToast(t("shareSuccess"));
       closeSheet();
     } finally {
       setSending(false);
@@ -164,7 +194,7 @@ export default function SharePostBottomSheet({
           </View>
         ) : (
           <FlatList
-            data={chats}
+            data={targets}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
@@ -179,25 +209,25 @@ export default function SharePostBottomSheet({
             ListEmptyComponent={
               <View className="items-center justify-center py-12">
                 <Text className="text-base font-bold text-black dark:text-white">
-                  {t("noConversations")}
+                  {t("noFriendsToShare")}
                 </Text>
                 <Text className="mt-1 text-center text-sm text-gray-500">
-                  {t("noConversationsDescription")}
+                  {t("noFriendsToShareDescription")}
                 </Text>
               </View>
             }
             renderItem={({ item }) => {
-              const presentation = getChatPresentation(item);
+              const presentation = getTargetPresentation(item);
               const selected = selectedIds.has(item.id);
 
               return (
                 <TouchableOpacity
-                  onPress={() => toggleChat(item.id)}
+                  onPress={() => toggleTarget(item.id)}
                   disabled={sending}
                   activeOpacity={0.75}
                   className={`mb-2 flex-row items-center rounded-2xl border px-3 py-3 ${
                     selected
-                      ? "border-brand bg-brand-soft"
+                      ? "border-brand bg-brand-soft dark:border-[#FF7658] dark:bg-[#3A211C]"
                       : "border-transparent"
                   }`}
                 >
@@ -206,6 +236,7 @@ export default function SharePostBottomSheet({
                     username={presentation.title}
                     size={48}
                     showSnapIndicator={false}
+                    fallbackType={item.type === "GROUP" ? "group" : "user"}
                   />
 
                   <View className="ml-3 flex-1">
@@ -228,22 +259,40 @@ export default function SharePostBottomSheet({
           />
         )}
 
-        <View className="border-t border-gray-100 pt-3 dark:border-gray-800">
-          <TouchableOpacity
-            disabled={selectedIds.size === 0 || sending}
-            onPress={() => void shareSelected()}
-            className="h-13 flex-row items-center justify-center rounded-2xl bg-brand"
-            style={{ opacity: selectedIds.size === 0 || sending ? 0.42 : 1 }}
+        {selectedIds.size > 0 ? (
+          <Animated.View
+            entering={FadeInDown.duration(180)}
+            exiting={FadeOutDown.duration(130)}
+            className="border-t border-gray-100 pt-3 dark:border-gray-800"
           >
-            {sending ? (
-              <ActivityIndicator color="#F7F6F2" />
-            ) : (
-              <Text className="font-bold text-[#F7F6F2]">
-                {t("shareSelected", { count: selectedIds.size })}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <TextInput
+              value={shareComment}
+              onChangeText={setShareComment}
+              placeholder={t("addShareComment")}
+              useBottomSheetInput
+              numberOfLines={1}
+              returnKeyType="done"
+              className="mb-3 h-12"
+              style={{ paddingVertical: 0 }}
+            />
+            <TouchableOpacity
+              disabled={sending}
+              onPress={() => void shareSelected()}
+              className="h-13 flex-row items-center justify-center rounded-2xl bg-brand"
+              style={{ opacity: sending ? 0.42 : 1 }}
+            >
+              {sending ? (
+                <ActivityIndicator color="#F7F6F2" />
+              ) : (
+                <Text className="font-bold text-[#F7F6F2]">
+                  {selectedIds.size === 1
+                    ? t("share")
+                    : t("shareSelected", { count: selectedIds.size })}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
       </View>
     </AppBottomSheet>
   );

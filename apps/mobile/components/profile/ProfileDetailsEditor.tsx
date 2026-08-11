@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import {
   Modal,
   Platform,
-  Switch,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -27,6 +26,7 @@ export type ProfileDetailAnswerField =
   | "allergies"
   | "foodPreferences"
   | "dietaryRestrictions"
+  | "restaurantDietaryRequirements"
   | "favoriteCuisines";
 
 export const PROFILE_DETAIL_ANSWER_FIELDS: ProfileDetailAnswerField[] = [
@@ -35,16 +35,17 @@ export const PROFILE_DETAIL_ANSWER_FIELDS: ProfileDetailAnswerField[] = [
   "allergies",
   "foodPreferences",
   "dietaryRestrictions",
+  "restaurantDietaryRequirements",
   "favoriteCuisines",
 ];
 
 export type ProfileDetailsDraft = {
   birthday: string;
   pronouns: string[];
-  showPronouns: boolean;
   allergies: string[];
   foodPreferences: string[];
   dietaryRestrictions: string[];
+  restaurantDietaryRequirements: string[];
   favoriteCuisines: string[];
   completedFields: ProfileDetailAnswerField[];
 };
@@ -52,10 +53,10 @@ export type ProfileDetailsDraft = {
 export const EMPTY_PROFILE_DETAILS: ProfileDetailsDraft = {
   birthday: "",
   pronouns: [],
-  showPronouns: true,
   allergies: [],
   foodPreferences: [],
   dietaryRestrictions: [],
+  restaurantDietaryRequirements: [],
   favoriteCuisines: [],
   completedFields: [],
 };
@@ -68,6 +69,7 @@ type Props = {
 const TAG_FIELDS: ProfileTagField[] = [
   "foodPreferences",
   "dietaryRestrictions",
+  "restaurantDietaryRequirements",
   "allergies",
   "favoriteCuisines",
 ];
@@ -205,17 +207,6 @@ export default function ProfileDetailsEditor({ value, onChange }: Props) {
         completed={value.pronouns.length > 0 || isCompleted("pronouns")}
         onPress={() => setActiveTagField("pronouns")}
       />
-      <View className="mt-2 flex-row items-center justify-between rounded-2xl bg-[#f8f8f8] px-4 py-3 dark:bg-gray-900">
-        <Text className="text-sm text-gray-600 dark:text-gray-300">
-          {t("profile:showPronounsOnProfile")}
-        </Text>
-        <Switch
-          value={value.showPronouns}
-          onValueChange={(nextValue) => update("showPronouns", nextValue)}
-          trackColor={{ false: isDark ? "#374151" : "#D1D5DB", true: "#F6C445" }}
-          thumbColor="#FAF9F6"
-        />
-      </View>
 
       {TAG_FIELDS.map((field) => (
         <SelectedTagsField

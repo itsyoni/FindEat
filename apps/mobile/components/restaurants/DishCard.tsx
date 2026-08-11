@@ -38,7 +38,7 @@ export default function DishCard({
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
   const cardClassName = isSearchRow
-    ? "border-b border-gray-100 px-4 py-3 dark:border-gray-800"
+    ? "relative px-4 py-3"
     : `mt-3 rounded-3xl border p-3 ${
         isFavorite
           ? "border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/35"
@@ -191,6 +191,12 @@ export default function DishCard({
     return (
       <View className={cardClassName} style={cardStyle}>
         {content}
+        {isSearchRow ? (
+          <View
+            pointerEvents="none"
+            className="absolute bottom-0 left-4 right-4 h-px bg-gray-200/40 dark:bg-gray-700/35"
+          />
+        ) : null}
       </View>
     );
   }
@@ -211,6 +217,12 @@ export default function DishCard({
       style={cardStyle}
     >
       {content}
+      {isSearchRow ? (
+        <View
+          pointerEvents="none"
+          className="absolute bottom-0 left-4 right-4 h-px bg-gray-200/40 dark:bg-gray-700/35"
+        />
+      ) : null}
     </TouchableOpacity>
   );
 }

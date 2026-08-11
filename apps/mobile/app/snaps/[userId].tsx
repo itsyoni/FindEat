@@ -16,7 +16,7 @@ import {
   PaperPlaneTiltIcon,
   XIcon,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -35,6 +35,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useToast } from "@/contexts/ToastContext";
+import ContentVideo from "@/components/posts/content/ContentVideo";
+import { userDisplayName } from "@/lib/userIdentity";
 import {
   useIsSnapWatched,
   useMarkSnapWatched,
@@ -53,6 +55,8 @@ export default function SnapViewerScreen() {
   const snaps = useSnaps();
   const [progress] = useState(() => new Animated.Value(0));
   const [dismissTranslateY] = useState(() => new Animated.Value(0));
+  const [groupTransition] = useState(() => new Animated.Value(1));
+  const previousGroupIndexRef = useRef<number | null>(null);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressRef = useRef(0);
   const pausedRef = useRef(false);
@@ -75,6 +79,8 @@ export default function SnapViewerScreen() {
   const [playbackRevision, setPlaybackRevision] = useState(0);
   const [loadedSnapId, setLoadedSnapId] = useState<string | null>(null);
   const [failedSnapId, setFailedSnapId] = useState<string | null>(null);
+  const [mediaOnly, setMediaOnly] = useState(false);
+  const [mediaPaused, setMediaPaused] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [comment, setComment] = useState("");
@@ -100,6 +106,21 @@ export default function SnapViewerScreen() {
   const currentSnap = currentGroup?.snaps[snapIndex];
   const currentSnapId = currentSnap?.id;
   const currentSnapCount = currentGroup?.snaps.length ?? 0;
+
+  useLayoutEffect(() => {
+    if (groupIndex === null) return;
+    const previousGroupIndex = previousGroupIndexRef.current;
+    previousGroupIndexRef.current = groupIndex;
+    if (previousGroupIndex === null || previousGroupIndex === groupIndex) return;
+
+    groupTransition.stopAnimation();
+    groupTransition.setValue(0);
+    Animated.timing(groupTransition, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [groupIndex, groupTransition]);
 
   useFocusEffect(
     useCallback(() => {
@@ -197,6 +218,7 @@ export default function SnapViewerScreen() {
   const pausePlayback = useCallback(() => {
     if (pausedRef.current) return;
     pausedRef.current = true;
+    setMediaPaused(true);
     animationRef.current?.stop();
     progress.stopAnimation((value) => {
       progressRef.current = value;
@@ -213,18 +235,19 @@ export default function SnapViewerScreen() {
     )
       return;
     pausedRef.current = false;
+    setMediaPaused(false);
     const fromValue = progressRef.current;
     progress.setValue(fromValue);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: Math.max(1, SNAP_DURATION_MS * (1 - fromValue)),
+      duration: Math.max(1, (currentSnap?.durationMs ?? SNAP_DURATION_MS) * (1 - fromValue)),
       useNativeDriver: false,
     });
     animationRef.current = animation;
     animation.start(({ finished }) => {
       if (finished && !pausedRef.current) advance();
     });
-  }, [advance, currentSnapId, isFocused, loadedSnapId, progress]);
+  }, [advance, currentSnap?.durationMs, currentSnapId, isFocused, loadedSnapId, progress]);
 
   useEffect(() => {
     if (!currentSnapId || !isFocused || loadedSnapId !== currentSnapId) return;
@@ -234,7 +257,7 @@ export default function SnapViewerScreen() {
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: SNAP_DURATION_MS,
+      duration: currentSnap?.durationMs ?? SNAP_DURATION_MS,
       useNativeDriver: false,
     });
     animationRef.current = animation;
@@ -248,6 +271,7 @@ export default function SnapViewerScreen() {
   }, [
     advance,
     currentSnapId,
+    currentSnap?.durationMs,
     isFocused,
     loadedSnapId,
     playbackRevision,
@@ -531,18 +555,52 @@ export default function SnapViewerScreen() {
         }}
       />
       <StatusBar hidden />
-      <Image
-        key={currentSnap.id}
-        source={{ uri: currentSnap.imageUrl }}
-        contentFit="cover"
-        onLoad={() => {
-          setFailedSnapId(null);
-          setLoadedSnapId(currentSnap.id);
-        }}
-        onError={() => setFailedSnapId(currentSnap.id)}
-        style={StyleSheet.absoluteFill}
-      />
-      {loadedSnapId !== currentSnap.id && failedSnapId !== currentSnap.id ? (
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            opacity: groupTransition.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.45, 1],
+            }),
+            transform: [
+              {
+                scale: groupTransition.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.975, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+      {currentSnap.videoUrl ? (
+        <ContentVideo
+          key={currentSnap.id}
+          uri={currentSnap.videoUrl}
+          autoPlay
+          loop={false}
+          paused={mediaPaused}
+          restartOnActivate={false}
+          contentFit="cover"
+          style={StyleSheet.absoluteFill}
+        />
+      ) : currentSnap.imageUrl ? (
+        <Image
+          key={currentSnap.id}
+          source={{ uri: currentSnap.imageUrl }}
+          contentFit="cover"
+          onLoad={() => {
+            setFailedSnapId(null);
+            setLoadedSnapId(currentSnap.id);
+          }}
+          onError={() => setFailedSnapId(currentSnap.id)}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      {!currentSnap.videoUrl &&
+      loadedSnapId !== currentSnap.id &&
+      failedSnapId !== currentSnap.id ? (
         <ActivityIndicator
           pointerEvents="none"
           color="#FAF9F6"
@@ -559,14 +617,14 @@ export default function SnapViewerScreen() {
           {t("snaps:mediaError")}
         </Text>
       ) : null}
-      <View style={[StyleSheet.absoluteFill, styles.scrim]} />
+      {!mediaOnly ? <View style={[StyleSheet.absoluteFill, styles.scrim]} /> : null}
 
       <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.safeArea}>
       <SafeAreaView
         edges={replyFocused ? ["top"] : ["top", "bottom"]}
         style={styles.safeArea}
       >
-        <View className="flex-row gap-1.5 px-3 pt-1">
+        {!mediaOnly ? <View className="flex-row gap-1.5 px-3 pt-1">
           {currentGroup.snaps.map((snap, index) => (
             <View
               key={snap.id}
@@ -587,9 +645,9 @@ export default function SnapViewerScreen() {
               ) : null}
             </View>
           ))}
-        </View>
+        </View> : null}
 
-        <View className="mt-3 flex-row items-center px-4">
+        {!mediaOnly ? <View className="mt-3 flex-row items-center px-4">
           <TouchableOpacity
             activeOpacity={0.8}
             className="min-w-0 flex-1 flex-row items-center"
@@ -611,7 +669,7 @@ export default function SnapViewerScreen() {
             />
             <View className="ml-3 min-w-0 flex-1">
               <Text numberOfLines={1} className="font-bold text-white">
-                {currentGroup.user.username}
+                {userDisplayName(currentGroup.user)}
               </Text>
               <Text className="text-xs text-white/70">{ageLabel}</Text>
             </View>
@@ -631,7 +689,7 @@ export default function SnapViewerScreen() {
           >
             <XIcon size={22} color="#FAF9F6" weight="bold" />
           </TouchableOpacity>
-        </View>
+        </View> : null}
 
         <View style={styles.tapRow} {...panResponder.panHandlers}>
           <Pressable
@@ -640,9 +698,13 @@ export default function SnapViewerScreen() {
               heldRef.current = false;
               pausePlayback();
             }}
-            onPressOut={resumePlayback}
+            onPressOut={() => {
+              setMediaOnly(false);
+              resumePlayback();
+            }}
             onLongPress={() => {
               heldRef.current = true;
+              setMediaOnly(true);
             }}
             delayLongPress={180}
             style={styles.previousTapZone}
@@ -655,9 +717,13 @@ export default function SnapViewerScreen() {
               heldRef.current = false;
               pausePlayback();
             }}
-            onPressOut={resumePlayback}
+            onPressOut={() => {
+              setMediaOnly(false);
+              resumePlayback();
+            }}
             onLongPress={() => {
               heldRef.current = true;
+              setMediaOnly(true);
             }}
             delayLongPress={180}
             style={styles.nextTapZone}
@@ -666,7 +732,7 @@ export default function SnapViewerScreen() {
           />
         </View>
 
-        <View
+        {!mediaOnly ? <View
           className="px-5"
           style={{ paddingBottom: replyFocused ? 4 : 12 }}
         >
@@ -736,9 +802,10 @@ export default function SnapViewerScreen() {
               </TouchableOpacity>
             </View>
           ) : null}
-        </View>
+        </View> : null}
       </SafeAreaView>
       </KeyboardAvoidingView>
+      </Animated.View>
       <AppBottomSheet
         open={optionsOpen}
         onClose={() => {

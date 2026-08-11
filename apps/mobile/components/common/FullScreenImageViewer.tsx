@@ -2,7 +2,7 @@ import { XIcon } from "phosphor-react-native";
 import { StatusBar } from "expo-status-bar";
 import { Modal, Pressable, View } from "react-native";
 import ProgressiveImage from "./ProgressiveImage";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgUri } from "react-native-svg";
 import Avatar from "./Avatar";
 
@@ -11,6 +11,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   showDefaultAvatar?: boolean;
+  closeButtonSide?: "left" | "right";
 };
 
 export default function FullScreenImageViewer({
@@ -18,7 +19,9 @@ export default function FullScreenImageViewer({
   visible,
   onClose,
   showDefaultAvatar = false,
+  closeButtonSide = "right",
 }: Props) {
+  const insets = useSafeAreaInsets();
   if (!uri && !showDefaultAvatar) return null;
 
   const isSvg =
@@ -53,12 +56,19 @@ export default function FullScreenImageViewer({
           )}
         </View>
 
-        <SafeAreaView
-          edges={["top"]}
+        <View
           pointerEvents="box-none"
-          style={{ position: "absolute", top: 0, left: 0, right: 0 }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            paddingTop: insets.top + 8,
+          }}
         >
-          <View className="items-end px-4 pt-2">
+          <View
+            className={`${closeButtonSide === "left" ? "items-start" : "items-end"} px-4 pt-2`}
+          >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close image"
@@ -69,7 +79,7 @@ export default function FullScreenImageViewer({
               <XIcon size={25} color="#FAF9F6" weight="bold" />
             </Pressable>
           </View>
-        </SafeAreaView>
+        </View>
       </Pressable>
     </Modal>
   );

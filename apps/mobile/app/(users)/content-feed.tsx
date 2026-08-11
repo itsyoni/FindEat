@@ -11,11 +11,15 @@ import {
   useLocalSearchParams,
 } from "expo-router";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Dimensions, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
+import {
+  cacheProfilePostsForNavigation,
+  getCachedProfilePosts,
+} from "@/lib/profilePostNavigationCache";
 
 const { height } = Dimensions.get("window");
 
@@ -26,8 +30,11 @@ export default function UserContentFeedScreen() {
     postId: string;
   }>();
 
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const cachedPosts = getCachedProfilePosts(userId, "CONTENT");
+  const [posts, setPosts] = useState<Post[]>(() => cachedPosts ?? []);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(() =>
+    cachedPosts ? userId : null,
+  );
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [sharePostId, setSharePostId] = useState<string | null>(null);
   const [optionsPostId, setOptionsPostId] = useState<string | null>(null);
@@ -55,6 +62,7 @@ export default function UserContentFeedScreen() {
 
     setPosts(nextPosts);
     setLoadedUserId(userId);
+    cacheProfilePostsForNavigation(userId, "CONTENT", nextPosts);
   }, [fetchPosts, userId]);
 
   useFocusEffect(
@@ -182,31 +190,6 @@ export default function UserContentFeedScreen() {
       ),
     );
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchInitialPosts() {
-      try {
-        const nextPosts = await fetchPosts();
-
-        if (!nextPosts || cancelled || !userId) return;
-
-        setPosts(nextPosts);
-        setLoadedUserId(userId);
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to load posts", error);
-        }
-      }
-    }
-
-    void fetchInitialPosts();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchPosts, userId]);
 
   const loading = !userId || loadedUserId !== userId;
 

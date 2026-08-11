@@ -1,6 +1,6 @@
 import Text from "@/components/common/AppText";
 import type {
-  RestaurantOpeningHours as OpeningHours,
+  RestaurantResolvedOpeningHours as OpeningHours,
   RestaurantWeekday,
 } from "@findeat/types";
 import { RESTAURANT_WEEKDAYS } from "@findeat/types";
@@ -54,7 +54,10 @@ function getOpenState(hours: OpeningHours) {
       (open < close && now.minutes >= open && now.minutes < close) ||
       (open > close && now.minutes >= open)
     ) {
-      return { isOpen: true, closesAt: period.close, today: now.day };
+      const minutesUntilClose = open < close
+        ? close - now.minutes
+        : 1440 - now.minutes + close;
+      return { isOpen: true, closesAt: period.close, minutesUntilClose, opensAt: null, opensDay: null, today: now.day };
     }
   }
 
@@ -62,16 +65,36 @@ function getOpenState(hours: OpeningHours) {
     const open = minutesFromTime(period.open);
     const close = minutesFromTime(period.close);
     if (open > close && now.minutes < close) {
-      return { isOpen: true, closesAt: period.close, today: now.day };
+      return { isOpen: true, closesAt: period.close, minutesUntilClose: close - now.minutes, opensAt: null, opensDay: null, today: now.day };
     }
   }
 
-  return { isOpen: false, closesAt: null, today: now.day };
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = RESTAURANT_WEEKDAYS[(dayIndex + offset) % 7];
+    const next = hours.weekly[day]
+      .map((period) => ({ period, open: minutesFromTime(period.open) }))
+      .filter(({ open }) => offset > 0 || open > now.minutes)
+      .sort((left, right) => left.open - right.open)[0];
+    if (next) {
+      return { isOpen: false, closesAt: null, minutesUntilClose: null, opensAt: next.period.open, opensDay: day, today: now.day };
+    }
+  }
+
+  return { isOpen: false, closesAt: null, minutesUntilClose: null, opensAt: null, opensDay: null, today: now.day };
 }
 
-function formatPeriods(periods: OpeningHours["weekly"][RestaurantWeekday]) {
+function formatPeriods(
+  periods: OpeningHours["weekly"][RestaurantWeekday],
+  relativeLabel?: (rule: NonNullable<(typeof periods)[number]["openRule"]>, edge: "open" | "close") => string,
+) {
   if (!periods.length) return null;
-  return periods.map((period) => `${period.open}–${period.close}`).join(", ");
+  return periods.map((period) => {
+    const descriptions = [
+      period.openRule && relativeLabel?.(period.openRule, "open"),
+      period.closeRule && relativeLabel?.(period.closeRule, "close"),
+    ].filter(Boolean);
+    return `${period.open}–${period.close}${descriptions.length ? ` · ${descriptions.join(" · ")}` : ""}`;
+  }).join(", ");
 }
 
 export default function RestaurantOpeningHours({ hours }: { hours?: OpeningHours | null }) {
@@ -86,13 +109,24 @@ export default function RestaurantOpeningHours({ hours }: { hours?: OpeningHours
 
   if (!hours) return null;
 
+  const relativeLabel = (
+    rule: NonNullable<OpeningHours["weekly"][RestaurantWeekday][number]["openRule"]>,
+    edge: "open" | "close",
+  ) => t("relativeHours", {
+    edge: t(edge === "open" ? "opens" : "closes"),
+    event: t(rule.type === "SHABBAT_ENTRY" ? "shabbatEntry" : "shabbatEnd"),
+    offset: rule.offsetMinutes === 0
+      ? ""
+      : ` · ${t("minuteOffset", { count: Math.abs(rule.offsetMinutes), direction: t(rule.offsetMinutes > 0 ? "after" : "before") })}`,
+  });
+
   let state: ReturnType<typeof getOpenState>;
   try {
     state = getOpenState(hours);
   } catch {
     return null;
   }
-  const todayHours = formatPeriods(hours.weekly[state.today]);
+  const todayHours = formatPeriods(hours.weekly[state.today], relativeLabel);
 
   return (
     <Animated.View
@@ -138,8 +172,10 @@ export default function RestaurantOpeningHours({ hours }: { hours?: OpeningHours
               className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
             >
               {state.isOpen && state.closesAt
-                ? t("closesAt", { time: state.closesAt })
-                : todayHours ?? t("closedToday")}
+                ? t(state.minutesUntilClose != null && state.minutesUntilClose <= 60 ? "closingSoonAt" : "closesAt", { time: state.closesAt })
+                : state.opensAt
+                  ? t("opensAt", { time: state.opensAt, day: state.opensDay === state.today ? t("today") : t(`weekdays.${state.opensDay}`) })
+                  : todayHours ?? t("closedToday")}
             </Text>
           </View>
           <CaretDownIcon
@@ -172,7 +208,7 @@ export default function RestaurantOpeningHours({ hours }: { hours?: OpeningHours
                   {t(`weekdays.${day}`)}
                 </Text>
                 <Text className="text-sm text-gray-600 dark:text-gray-300">
-                  {formatPeriods(hours.weekly[day]) ?? t("closed")}
+                  {formatPeriods(hours.weekly[day], relativeLabel) ?? t("closed")}
                 </Text>
               </View>
             ))}

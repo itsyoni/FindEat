@@ -59,6 +59,7 @@ export default function ReviewFeed({
   const topSpacing = contentTopInset + (header ? 0 : 12);
   const listRef = useRef<FlatList<Post>>(null);
   const postsRef = useRef(posts);
+  const appliedInitialPostIdRef = useRef<string | null>(null);
   const lastScrollOffsetRef = useRef(0);
   const scrollDirectionRef = useRef<"UP" | "DOWN" | null>(null);
   const scrollDistanceRef = useRef(0);
@@ -111,6 +112,27 @@ export default function ReviewFeed({
   useEffect(() => {
     postsRef.current = posts;
   }, [posts]);
+
+  useEffect(() => {
+    const initialPost = posts[initialIndex];
+    if (!initialPost || initialIndex <= 0) return;
+    if (appliedInitialPostIdRef.current === initialPost.id) return;
+    appliedInitialPostIdRef.current = initialPost.id;
+
+    const scrollToSelectedReview = () => {
+      listRef.current?.scrollToIndex({
+        index: initialIndex,
+        animated: false,
+        viewPosition: 0,
+      });
+    };
+    const frame = requestAnimationFrame(scrollToSelectedReview);
+    const retry = setTimeout(scrollToSelectedReview, 180);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(retry);
+    };
+  }, [initialIndex, posts]);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<Post>[] }) => {
       const index = viewableItems.find(
@@ -151,7 +173,10 @@ export default function ReviewFeed({
       onRefresh={onRefresh}
       onEndReached={onEndReached}
       onEndReachedThreshold={0.6}
-      initialNumToRender={3}
+      initialNumToRender={Math.max(
+        3,
+        Math.min(posts.length, initialIndex + 2),
+      )}
       maxToRenderPerBatch={3}
       windowSize={5}
       removeClippedSubviews

@@ -8,6 +8,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   postId: string;
@@ -155,8 +156,17 @@ function PresentedPostLikesBottomSheet({
                     style={rtlTextStyle}
                     className="font-bold text-[#171716] dark:text-[#F7F6F2]"
                   >
-                    {user.username}
+                    {userDisplayName(user)}
                   </Text>
+                  {user.displayName?.trim() ? (
+                    <Text
+                      numberOfLines={1}
+                      style={rtlTextStyle}
+                      className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {usernameLabel(user.username)}
+                    </Text>
+                  ) : null}
                 </View>
               </TouchableOpacity>
             ))}

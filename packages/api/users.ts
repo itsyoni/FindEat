@@ -68,6 +68,7 @@ export function createUsersApi(api: AxiosInstance) {
       allergies?: string[];
       foodPreferences?: string[];
       dietaryRestrictions?: string[];
+      restaurantDietaryRequirements?: string[];
       favoriteCuisines?: string[];
       profileCompletedFields?: string[];
       showPhoneNumber?: boolean;

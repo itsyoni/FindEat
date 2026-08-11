@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import useSettingsDirection from "@/components/settings/useSettingsDirection";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 export default function BlockedAccountsScreen() {
   const { t } = useTranslation("settings");
@@ -93,8 +94,13 @@ export default function BlockedAccountsScreen() {
                   className="font-bold text-black dark:text-white"
                   style={textStyle}
                 >
-                  {user.username}
+                  {userDisplayName(user)}
                 </Text>
+                {user.displayName?.trim() ? (
+                  <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400" style={textStyle}>
+                    {usernameLabel(user.username)}
+                  </Text>
+                ) : null}
               </View>
               <TouchableOpacity
                 disabled={unblockingId === user.id}

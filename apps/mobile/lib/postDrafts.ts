@@ -35,6 +35,9 @@ export type ContentMediaDraft = {
   id: string;
   type: "IMAGE" | "VIDEO";
   uri: string;
+  originalUri?: string;
+  originalWidth?: number;
+  originalHeight?: number;
   width: number;
   height: number;
   durationMs?: number;
@@ -149,13 +152,21 @@ export async function loadContentPostDraft(userId: string) {
       ]
     : [];
   const media = await Promise.all(
-    (parsed.media ?? legacyMedia).map(async (item) => ({
-      ...item,
-      uri: await existingImage(item.uri),
-    })),
+    (parsed.media ?? legacyMedia).map(async (item): Promise<ContentMediaDraft | null> => {
+      const uri = await existingImage(item.uri);
+      if (!uri) return null;
+      const originalUri = await existingImage(item.originalUri);
+      return {
+        ...item,
+        uri,
+        originalUri: originalUri ?? uri,
+        originalWidth: item.originalWidth ?? item.width,
+        originalHeight: item.originalHeight ?? item.height,
+      };
+    }),
   );
   const existingMedia = media.filter(
-    (item): item is ContentMediaDraft => !!item.uri,
+    (item): item is ContentMediaDraft => item !== null,
   );
   if (!existingMedia.length) {
     await clearPostDraft(userId, "content");
@@ -191,23 +202,36 @@ export async function saveContentPostDraft(
           : [];
     const media = (
       await Promise.all(
-        sourceMedia.map(async (item, index) => {
+        sourceMedia.map(async (item, index): Promise<ContentMediaDraft | null> => {
           const uri = await keepDraftImage(
             item.uri,
             userId,
             "content",
             `post-media-${index}`,
           );
-          return uri ? { ...item, uri } : null;
+          if (!uri) return null;
+          const originalUri = await keepDraftImage(
+            item.originalUri ?? item.uri,
+            userId,
+            "content",
+            `post-media-${index}-original`,
+          );
+          return {
+            ...item,
+            uri,
+            originalUri: originalUri ?? uri,
+            originalWidth: item.originalWidth ?? item.width,
+            originalHeight: item.originalHeight ?? item.height,
+          };
         }),
       )
-    ).filter((item): item is ContentMediaDraft => !!item);
+    ).filter((item): item is ContentMediaDraft => item !== null);
     if (!media.length) return;
     await AsyncStorage.setItem(
       storageKey(userId, "content"),
       JSON.stringify({
         ...draft,
-        imageUri: media[0].uri,
+        imageUri: media[0]!.uri,
         media,
         updatedAt: new Date().toISOString(),
       }),

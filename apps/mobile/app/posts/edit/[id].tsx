@@ -6,6 +6,8 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { updatePostInFeedCache } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
+import { pickReviewImage } from "@/lib/reviewImagePicker";
+import { uploadImage } from "@/lib/uploadImage";
 import type { Post, ReviewItem } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -33,6 +35,7 @@ export default function EditPostScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [caption, setCaption] = useState("");
   const [summary, setSummary] = useState("");
+  const [coverImageUri, setCoverImageUri] = useState<string | null>(null);
   const [itemTexts, setItemTexts] = useState<Record<string, string>>({});
   const [removedItemIds, setRemovedItemIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,23 +87,29 @@ export default function EditPostScreen() {
     }
 
     return (
+      coverImageUri !== null ||
       summary !== (post.reviewPost?.summary ?? "") ||
       removedItemIds.length > 0 ||
       (post.reviewPost?.items ?? []).some(
         (item) => itemTexts[item.id] !== (item.text ?? ""),
       )
     );
-  }, [caption, itemTexts, post, removedItemIds.length, summary]);
+  }, [caption, coverImageUri, itemTexts, post, removedItemIds.length, summary]);
 
   async function saveChanges() {
     if (!post || saving || !isDirty) return;
 
     try {
       setSaving(true);
+      const uploadedCoverImageUrl =
+        post.type === "REVIEW" && coverImageUri
+          ? await uploadImage(coverImageUri, "review")
+          : undefined;
       const updatedPost =
         post.type === "CONTENT"
           ? await api.posts.updateContent(post.id, { caption })
           : await api.posts.updateReview(post.id, {
+              coverImageUrl: uploadedCoverImageUrl,
               summary,
               items: (post.reviewPost?.items ?? [])
                 .filter((item) => !removedItemIds.includes(item.id))
@@ -140,7 +149,7 @@ export default function EditPostScreen() {
   const isContent = post.type === "CONTENT";
   const mediaUrl = isContent
     ? post.contentPost?.imageUrl
-    : post.reviewPost?.coverImageUrl;
+    : coverImageUri ?? post.reviewPost?.coverImageUrl;
   const reviewItems = post.reviewPost?.items ?? [];
   const visibleItems = reviewItems.filter(
     (item) => !removedItemIds.includes(item.id),
@@ -183,7 +192,21 @@ export default function EditPostScreen() {
             {t(isContent ? "editContentHint" : "editReviewHint")}
           </Text>
 
-          <View className="mt-6 overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-gray-900">
+          <TouchableOpacity
+            activeOpacity={isContent ? 1 : 0.86}
+            disabled={isContent || saving}
+            onPress={() => {
+              void pickReviewImage("gallery", "cover", t("changeCover"))
+                .then((asset) => {
+                  if (asset?.uri) setCoverImageUri(asset.uri);
+                })
+                .catch((error) => {
+                  console.error("Failed to change review cover", error);
+                  Alert.alert(t("error"), t("editPostError"));
+                });
+            }}
+            className="mt-6 overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-gray-900"
+          >
             {mediaUrl ? (
               <ProgressiveImage
                 source={{ uri: mediaUrl }}
@@ -199,9 +222,9 @@ export default function EditPostScreen() {
               </View>
             )}
             <Text className="px-4 py-3 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">
-              {t(isContent ? "mediaLocked" : "coverLocked")}
+              {t(isContent ? "mediaLocked" : "changeCover")}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           {isContent ? (
             <View className="mt-7">

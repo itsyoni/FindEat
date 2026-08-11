@@ -206,7 +206,6 @@ export default function ReviewCreator({
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
       draft.participants.length > 0 ||
-      draft.overallRating !== undefined ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined;
@@ -236,7 +235,6 @@ export default function ReviewCreator({
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
       draft.participants.length > 0 ||
-      draft.overallRating !== undefined ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined;
@@ -317,7 +315,6 @@ export default function ReviewCreator({
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
       draft.participants.length > 0 ||
-      draft.overallRating !== undefined ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined ||
@@ -353,7 +350,6 @@ export default function ReviewCreator({
     const hasReviewDetails =
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
-      draft.overallRating !== undefined ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined ||
@@ -406,7 +402,7 @@ export default function ReviewCreator({
       ...draft.items.map((item) => item.rating),
     ].filter((rating): rating is number => typeof rating === "number");
 
-    if (ratings.length === 0) return draft.overallRating;
+    if (ratings.length === 0) return undefined;
 
     const average = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
     return Math.round(average * 10) / 10;
@@ -447,7 +443,9 @@ export default function ReviewCreator({
       items: draft.items.map((item) => ({ ...item })),
       participants: [...draft.participants],
     };
-    const pendingOverallRating = calculateOverallRating();
+    const clientRequestId = `review-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}`;
     const pendingUserId = user?.id;
     const uploadCount =
       (pendingDraft.coverImageUri && !linkedContentPublisher ? 1 : 0) +
@@ -504,10 +502,10 @@ export default function ReviewCreator({
         if (uploadCount === 0) reportProgress(0.9);
         reportProgress(0.94);
         const createdPost = await api.posts.createReview({
+          clientRequestId,
           restaurantId,
           visibility: pendingDraft.visibility,
           coverImageUrl,
-          overallRating: pendingOverallRating,
           summary: pendingDraft.summary.trim() || undefined,
           atmosphereRating: pendingDraft.atmosphereRating,
           serviceRating: pendingDraft.serviceRating,

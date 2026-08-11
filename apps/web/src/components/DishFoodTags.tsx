@@ -3,6 +3,7 @@ import {
   CUISINE_OPTIONS,
   DISH_DIETARY_OPTIONS,
   DISH_TAG_OPTIONS,
+  DISH_INGREDIENT_FLAG_OPTIONS,
 } from "@findeat/types";
 import { foodTagLabel } from "../lib/foodTags";
 import { useState } from "react";
@@ -12,10 +13,12 @@ type Props = {
   dietaryTags: string[];
   cuisineTags: string[];
   dishTags: string[];
+  ingredientFlags: string[];
   onAllergensChange: (tags: string[]) => void;
   onDietaryTagsChange: (tags: string[]) => void;
   onCuisineTagsChange: (tags: string[]) => void;
   onDishTagsChange: (tags: string[]) => void;
+  onIngredientFlagsChange: (tags: string[]) => void;
   compact?: boolean;
 };
 
@@ -80,10 +83,12 @@ export function DishFoodTags({
   dietaryTags,
   cuisineTags,
   dishTags,
+  ingredientFlags,
   onAllergensChange,
   onDietaryTagsChange,
   onCuisineTagsChange,
   onDishTagsChange,
+  onIngredientFlagsChange,
   compact = false,
 }: Props) {
   return (
@@ -102,6 +107,14 @@ export function DishFoodTags({
         options={ALLERGEN_OPTIONS}
         tone="warning"
         onChange={onAllergensChange}
+      />
+      <TagGroup
+        title="Ingredient declarations"
+        hint="Select everything this dish contains. These enforce diner exclusions and protect restaurant certifications."
+        values={ingredientFlags}
+        options={DISH_INGREDIENT_FLAG_OPTIONS}
+        tone="warning"
+        onChange={onIngredientFlagsChange}
       />
       <TagGroup
         title="Dietary options"

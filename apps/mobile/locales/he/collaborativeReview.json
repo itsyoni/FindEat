@@ -23,6 +23,20 @@
   "reviewTakes_other": "{{count}} חוות דעת",
   "yourTakeTitle": "החוויה שלך",
   "yourTakeSubtitle": "אפשר להוסיף רק את מה שרוצים לשתף ולחזור מאוחר יותר.",
+  "overallExperience": "דירוג החוויה הכללית",
+  "overallExperienceHint": "הדירוגים שלך משוקללים יחד עם שאר המשתתפים ליצירת הציונים המשותפים.",
+  "atmosphere": "אווירה",
+  "service": "שירות",
+  "value": "תמורה למחיר",
+  "valueShort": "תמורה",
+  "saveExperience": "שמירת דירוגי החוויה",
+  "experienceSaved": "דירוגי החוויה שלך נוספו",
+  "experienceSaveError": "לא ניתן לשמור את דירוגי החוויה שלך",
+  "combinedRatings_one": "משוקלל מדירוג של אדם אחד",
+  "combinedRatings_two": "משוקלל מדירוגים של שני אנשים",
+  "combinedRatings_other": "משוקלל מדירוגים של {{count}} אנשים",
+  "combinedRatingsLabel": "דירוג משוקלל",
+  "ratingsBy": "הדירוג של {{name}}",
   "loadError": "לא ניתן לפתוח את הביקורת המשותפת",
   "noDishesTitle": "עדיין לא נוספו מנות",
   "noDishesBody": "אפשר להוסיף את המנה הראשונה שאכלת בארוחה.",
@@ -71,5 +85,6 @@
   "leaveTitle": "לצאת מהביקורת המשותפת?",
   "leaveBody": "הדירוגים, ההערות והתמונות שלך יוסרו, והביקורת תיעלם מהפרופיל שלך.",
   "leftReview": "יצאת מהביקורת המשותפת",
-  "leaveError": "לא ניתן לצאת מהביקורת המשותפת"
+  "leaveError": "לא ניתן לצאת מהביקורת המשותפת",
+  "includedPeople": "משתתפים בביקורת"
 }

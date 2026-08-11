@@ -478,6 +478,23 @@ export default function MapScreen() {
     }
   }, []);
 
+  const returnToUserLocation = useCallback(async () => {
+    const location = await loadUserLocation();
+    if (!location) return;
+
+    bottomSheetRef.current?.close();
+    dismissRestaurantPreview();
+    cameraRef.current?.setCamera({
+      centerCoordinate: [
+        location.coords.longitude,
+        location.coords.latitude,
+      ],
+      zoomLevel: 14,
+      animationDuration: 650,
+      animationMode: "flyTo",
+    });
+  }, [dismissRestaurantPreview, loadUserLocation]);
+
   useFocusEffect(
     useCallback(() => {
       if (!filtersHydrated || listId) return undefined;
@@ -998,7 +1015,7 @@ export default function MapScreen() {
               )}
 
               <TouchableOpacity
-                onPress={loadUserLocation}
+                onPress={() => void returnToUserLocation()}
                 className={`absolute right-3 h-12 w-12 items-center justify-center rounded-full bg-white dark:bg-gray-800 ${
                   selectedRestaurant ? "bottom-82.5" : "bottom-2"
                 }`}

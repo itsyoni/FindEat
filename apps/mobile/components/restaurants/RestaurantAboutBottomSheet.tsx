@@ -94,7 +94,7 @@ export default function RestaurantAboutBottomSheet({
           </View>
         ) : null}
 
-        <RestaurantOpeningHours hours={restaurant.openingHours} />
+        <RestaurantOpeningHours hours={restaurant.resolvedOpeningHours} />
 
         <View className="mt-4 gap-2.5">
           {location ? (

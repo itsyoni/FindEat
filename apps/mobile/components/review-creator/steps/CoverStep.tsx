@@ -11,8 +11,15 @@ import Avatar from "@/components/common/Avatar";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { UsersThreeIcon } from "phosphor-react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { pickReviewImage } from "@/lib/reviewImagePicker";
+import {
+  pickReviewImage,
+  type ReviewImageSource,
+} from "@/lib/reviewImagePicker";
 import { useToast } from "@/contexts/ToastContext";
+import { persistReviewMediaUri } from "@/lib/postDrafts";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRef, useState } from "react";
+import DishPhotoPickerCard from "../components/DishPhotoPickerCard";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -30,24 +37,66 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [pickingSource, setPickingSource] =
+    useState<ReviewImageSource | null>(null);
+  const coverSelectionRef = useRef(0);
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
       ? draft.restaurant.restaurant.name
       : draft.restaurant?.name;
 
-  async function pickCoverImage() {
+  async function chooseCoverImage(source: ReviewImageSource) {
+    if (pickingSource) return;
+    const selectionId = ++coverSelectionRef.current;
     try {
+      setPickingSource(source);
       const croppedImage = await pickReviewImage(
-        "gallery",
+        source,
         "cover",
         t("cropReviewPhoto"),
       );
-      if (!croppedImage) return;
-      onChange({ coverImageUri: croppedImage.uri });
+      if (!croppedImage || coverSelectionRef.current !== selectionId) return;
+
+      onChange({
+        coverImageUri: croppedImage.uri,
+        coverImageUrl: undefined,
+      });
+
+      // The crop is complete and visible, so release the picker UI now.
+      // Copying the file into draft storage is independent and must not keep
+      // the camera/gallery button spinning.
+      setPickingSource(null);
+
+      if (user?.id) {
+        void persistReviewMediaUri(
+          user.id,
+          croppedImage.uri,
+          `review-cover-${selectionId}`,
+        )
+          .then((persistedUri) => {
+            if (coverSelectionRef.current === selectionId) {
+              onChange({ coverImageUri: persistedUri, coverImageUrl: undefined });
+            }
+          })
+          .catch((error) => {
+            console.error("review cover draft persistence failed", error);
+          });
+      }
     } catch (error) {
       console.error("review cover image crop failed", error);
       showToast(t("imageCropErrorBody"), { kind: "error" });
+    } finally {
+      if (coverSelectionRef.current === selectionId) {
+        setPickingSource(null);
+      }
     }
+  }
+
+  function removeCoverImage() {
+    coverSelectionRef.current += 1;
+    setPickingSource(null);
+    onChange({ coverImageUri: undefined, coverImageUrl: undefined });
   }
 
   return (
@@ -114,6 +163,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
                 uri={participant.avatarUrl}
                 username={participant.username}
                 size={32}
+                showSnapIndicator={false}
               />
             </View>
           ))}
@@ -139,16 +189,11 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
           <Text className="mb-4 text-sm leading-5 text-gray-500 dark:text-gray-400">
             {t("placePhotoHint")}
           </Text>
-          <TouchableOpacity
-            disabled={derivedCover}
-            className="items-center justify-center overflow-hidden rounded-3xl border border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
-            onPress={pickCoverImage}
-          >
-            {draft.coverImageUri || draft.coverImageUrl ? (
-              <View className="w-full">
+          {derivedCover && (draft.coverImageUri || draft.coverImageUrl) ? (
+            <View className="overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800">
                 <ProgressiveImage
                   source={{ uri: draft.coverImageUri ?? draft.coverImageUrl }}
-                  className="aspect-square w-full"
+                  style={{ width: "100%", aspectRatio: 1 }}
                   resizeMode="cover"
                 />
                 <View className="absolute bottom-3 right-3 rounded-full bg-black/65 px-4 py-2">
@@ -156,19 +201,18 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
                     {derivedCover ? t("coverFromPost") : t("changePhoto")}
                   </Text>
                 </View>
-              </View>
-            ) : (
-              <View className="items-center px-6 py-10">
-                <Text className="text-2xl">＋</Text>
-                <Text className="mt-2 font-bold text-black dark:text-white">
-                  {t("addPlacePhoto")}
-                </Text>
-                <Text className="mt-1 text-center text-sm text-gray-500">
-                  {t("chooseFromGallery")}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            </View>
+          ) : (
+            <DishPhotoPickerCard
+              imageUrl={draft.coverImageUri ?? draft.coverImageUrl}
+              pickingSource={pickingSource}
+              emptyTitle={t("addPlacePhoto")}
+              emptyHint={t("takePhotoOrChooseGallery")}
+              aspectRatio={1}
+              onChoose={(source) => void chooseCoverImage(source)}
+              onRemove={removeCoverImage}
+            />
+          )}
         </View> : null}
 
         <View className="mt-8 border-t border-gray-200 pt-7 dark:border-gray-800">
@@ -180,13 +224,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
               {t("optional")}
             </Text>
           </View>
-          <RatingPicker
-            label={t("overallRating")}
-            value={draft.overallRating}
-            onChange={(overallRating) => onChange({ overallRating })}
-          />
-
-          <Text className="mb-3 mt-8 font-bold text-black dark:text-white">
+          <Text className="mb-3 font-bold text-black dark:text-white">
             {t("reviewNote")}
           </Text>
           <TextInput

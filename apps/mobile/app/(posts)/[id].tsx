@@ -14,13 +14,13 @@ import {
 } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
+import { StatusBar } from "expo-status-bar";
 
 export default function PostScreen() {
-  const insets = useSafeAreaInsets();
   const { id, commentId } = useLocalSearchParams<{ id: string; commentId?: string }>();
   const queryClient = useQueryClient();
 
@@ -240,10 +240,20 @@ export default function PostScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-white dark:bg-black" onLayout={(event) => setFeedHeight(event.nativeEvent.layout.height)}>
+      <View
+        className="flex-1 bg-white dark:bg-black"
+        onLayout={(event) => {
+          const nextHeight = event.nativeEvent.layout.height;
+          setFeedHeight((currentHeight) =>
+            selectedPostId && currentHeight > 0
+              ? currentHeight
+              : nextHeight,
+          );
+        }}
+      >
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView edges={["top"]} pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 50 }}><View className="ml-4 mt-2 h-11 w-11 rounded-full bg-black/50" /></SafeAreaView>
-        {feedHeight > 0 ? <ContentFeed posts={[]} loading height={feedHeight} contentTopInset={insets.top} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} /> : null}
+        {feedHeight > 0 ? <ContentFeed posts={[]} loading height={feedHeight} contentTopInset={0} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} /> : null}
       </View>
     );
   }
@@ -251,10 +261,20 @@ export default function PostScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+      {activeFeed === "CONTENT" ? (
+        <StatusBar style="light" />
+      ) : null}
 
       <View
         className="flex-1 bg-white dark:bg-black"
-        onLayout={(event) => setFeedHeight(event.nativeEvent.layout.height)}
+        onLayout={(event) => {
+          const nextHeight = event.nativeEvent.layout.height;
+          setFeedHeight((currentHeight) =>
+            selectedPostId && currentHeight > 0
+              ? currentHeight
+              : nextHeight,
+          );
+        }}
       >
         <SafeAreaView
           edges={["top"]}
@@ -280,7 +300,7 @@ export default function PostScreen() {
             <ContentFeed
               posts={posts}
               height={feedHeight}
-              contentTopInset={insets.top}
+              contentTopInset={0}
               refreshing={refreshing}
               onRefresh={onRefresh}
               onToggleLike={toggleLike}

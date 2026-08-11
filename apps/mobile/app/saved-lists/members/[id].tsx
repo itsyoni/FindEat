@@ -4,6 +4,7 @@ import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import type {
   PlaceListDetail,
@@ -271,8 +272,13 @@ export default function SavedListMembersScreen() {
                     <Avatar uri={user.avatarUrl} username={user.username} size={40} />
                     <View className="ml-3 min-w-0 flex-1">
                       <Text numberOfLines={1} className="font-bold text-black dark:text-white">
-                        {user.username}
+                        {userDisplayName(user)}
                       </Text>
+                      {user.displayName?.trim() ? (
+                        <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {usernameLabel(user.username)}
+                        </Text>
+                      ) : null}
                     </View>
                     <TouchableOpacity
                       disabled={workingId !== null}

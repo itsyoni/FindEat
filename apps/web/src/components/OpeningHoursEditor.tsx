@@ -2,6 +2,7 @@ import {
   RESTAURANT_WEEKDAYS,
   type RestaurantOpeningHours,
   type RestaurantOpeningPeriod,
+  type RestaurantOpeningTime,
   type RestaurantWeekday,
 } from "@findeat/types";
 import { ClockIcon } from "@phosphor-icons/react/dist/csr/Clock";
@@ -18,6 +19,29 @@ const dayLabels: Record<RestaurantWeekday, string> = {
   SATURDAY: "Saturday",
   SUNDAY: "Sunday",
 };
+
+function OpeningTimeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: RestaurantOpeningTime;
+  onChange: (value: RestaurantOpeningTime) => void;
+}) {
+  const mode = typeof value === "string" ? "FIXED" : value.type;
+  const fixedTime =
+    typeof value === "string" ? value : value.type === "FIXED" ? value.time : "09:00";
+  const offset =
+    typeof value === "object" && value.type !== "FIXED" ? value.offsetMinutes : 0;
+  return <div className="opening-hours-time-rule">
+    <label>{label}<select value={mode} onChange={(event) => {
+      const nextMode = event.target.value;
+      onChange(nextMode === "FIXED" ? fixedTime : { type: nextMode as "SHABBAT_ENTRY" | "SHABBAT_END", offsetMinutes: 0 });
+    }}><option value="FIXED">Fixed time</option><option value="SHABBAT_ENTRY">Shabbat entry</option><option value="SHABBAT_END">Shabbat end</option></select></label>
+    {mode === "FIXED" ? <label>Time<input type="time" value={fixedTime} onChange={(event) => onChange(event.target.value)} required /></label> : <label>Offset (minutes)<input type="number" min={-180} max={180} value={offset} onChange={(event) => onChange({ type: mode as "SHABBAT_ENTRY" | "SHABBAT_END", offsetMinutes: Number(event.target.value) })} /></label>}
+  </div>;
+}
 
 export function OpeningHoursEditor({
   value,
@@ -117,30 +141,8 @@ export function OpeningHoursEditor({
                 {periods.map((period, index) => (
                   <div className="opening-hours-period" key={`${day}-${index}`}>
                     <div className="opening-hours-time-fields">
-                      <label>
-                        Opens
-                        <input
-                          type="time"
-                          aria-label={`${dayLabels[day]} opening time`}
-                          value={period.open}
-                          onChange={(event) =>
-                            updatePeriod(day, index, { open: event.target.value })
-                          }
-                          required
-                        />
-                      </label>
-                      <label>
-                        Closes
-                        <input
-                          type="time"
-                          aria-label={`${dayLabels[day]} closing time`}
-                          value={period.close}
-                          onChange={(event) =>
-                            updatePeriod(day, index, { close: event.target.value })
-                          }
-                          required
-                        />
-                      </label>
+                      <OpeningTimeField label="Opens" value={period.open} onChange={(open) => updatePeriod(day, index, { open })} />
+                      <OpeningTimeField label="Closes" value={period.close} onChange={(close) => updatePeriod(day, index, { close })} />
                     </div>
                     <button
                       type="button"

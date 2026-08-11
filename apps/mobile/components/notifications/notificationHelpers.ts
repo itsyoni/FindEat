@@ -1,9 +1,10 @@
 import type { AppNotification } from '@findeat/types';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
+import { userDisplayName } from '@/lib/userIdentity';
 
 export function notificationText(item: AppNotification, t: TFunction) {
-  const name = item.actor?.username || t('someone');
+  const name = userDisplayName(item.actor) || t('someone');
   if (item.type === 'MESSAGE' && item.body) {
     return `${item.title || name}: ${item.body}`;
   }

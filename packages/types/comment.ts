@@ -3,6 +3,7 @@ import type { UserSummary } from "./user";
 export type Comment = {
   id: string;
   content: string;
+  gifUrl?: string | null;
   createdAt: string;
   editedAt?: string | null;
   user: UserSummary;

@@ -4,6 +4,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { homeFeedQueryKey, updatePostInFeedCache } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import type { Post, UserRelationship } from "@findeat/types";
+import { getNextRelationshipAfterToggle } from "@findeat/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { TouchableOpacity } from "react-native";
@@ -72,7 +73,7 @@ export default function PostAuthorFollowAction({
     setSubmitting(true);
     setRelationshipOverride({
       authorId: post.authorId,
-      relationship: "FOLLOWING",
+      relationship: getNextRelationshipAfterToggle(relationship),
     });
 
     try {
@@ -110,7 +111,7 @@ export default function PostAuthorFollowAction({
       disabled={submitting}
       activeOpacity={0.8}
       accessibilityRole="button"
-      accessibilityLabel={t("follow")}
+      accessibilityLabel={t(relationship === "FOLLOWED_BY" ? "followBack" : "follow")}
       onPress={() => void followAuthor()}
       className={
         onMedia
@@ -124,7 +125,7 @@ export default function PostAuthorFollowAction({
           onMedia ? "text-sm text-black" : "text-sm text-white dark:text-black"
         }
       >
-        {t("follow")}
+        {t(relationship === "FOLLOWED_BY" ? "followBack" : "follow")}
       </Text>
     </TouchableOpacity>
   );

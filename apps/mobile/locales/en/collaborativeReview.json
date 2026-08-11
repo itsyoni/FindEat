@@ -23,6 +23,19 @@
   "reviewTakes_other": "{{count}} friends reviewed this dish",
   "yourTakeTitle": "Your feedback",
   "yourTakeSubtitle": "Add only what you want to share. You can return later.",
+  "overallExperience": "Rate the overall experience",
+  "overallExperienceHint": "Your ratings are combined with everyone else's to create the shared scores.",
+  "atmosphere": "Atmosphere",
+  "service": "Service",
+  "value": "Value for money",
+  "valueShort": "Value",
+  "saveExperience": "Save experience ratings",
+  "experienceSaved": "Your experience ratings were added",
+  "experienceSaveError": "Could not save your experience ratings",
+  "combinedRatings_one": "Combined from 1 person",
+  "combinedRatings_other": "Combined from {{count}} people",
+  "combinedRatingsLabel": "Combined ratings",
+  "ratingsBy": "Ratings by {{name}}",
   "loadError": "Could not open this shared review",
   "noDishesTitle": "No dishes have been added yet",
   "noDishesBody": "Add the first dish you had at this meal.",
@@ -70,5 +83,6 @@
   "leaveTitle": "Leave this shared review?",
   "leaveBody": "Your feedback and photos will be removed, and the review will leave your profile.",
   "leftReview": "You left the shared review",
-  "leaveError": "Could not leave the shared review"
+  "leaveError": "Could not leave the shared review",
+  "includedPeople": "People in this review"
 }

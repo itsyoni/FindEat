@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, TouchableOpacity, View } from "react-native";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
 import { useTranslation } from "react-i18next";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type ConnectionsTab = "followers" | "following" | "friends";
 
@@ -36,6 +37,11 @@ export default function ConnectionsScreen() {
   const [items, setItems] = useState<ConnectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [counts, setCounts] = useState<Record<ConnectionsTab, number>>({
+    followers: 0,
+    following: 0,
+    friends: 0,
+  });
   const followRequestsInFlight = useRef(new Set<string>());
 
   async function onRefresh() {
@@ -48,12 +54,18 @@ export default function ConnectionsScreen() {
     try {
       setLoading(true);
 
+      const [followers, following, friends] = await Promise.all([
+        api.users.followers(id),
+        api.users.following(id),
+        api.users.friends(id),
+      ]);
+      setCounts({
+        followers: followers.length,
+        following: following.length,
+        friends: friends.length,
+      });
       const connections =
-        activeTab === "followers"
-          ? await api.users.followers(id)
-          : activeTab === "following"
-            ? await api.users.following(id)
-            : await api.users.friends(id);
+        activeTab === "followers" ? followers : activeTab === "following" ? following : friends;
 
       const currentUserId = currentUser?.id;
       setItems(
@@ -151,7 +163,7 @@ export default function ConnectionsScreen() {
   }, [loadConnections]);
 
   return (
-    <ThemedSafeAreaView edges={["top"]} className="pt-4">
+    <ThemedSafeAreaView edges={["top"]}>
       <View className="px-4 pb-2">
         <IconButton
           icon={DirectionalBackIcon}
@@ -165,22 +177,22 @@ export default function ConnectionsScreen() {
         onChange={setActiveTab}
         tabs={[
           {
-            label: "Followers",
+            label: `${t("profile:followers")} (${counts.followers})`,
             value: "followers",
           },
           {
-            label: "Following",
+            label: `${t("profile:following")} (${counts.following})`,
             value: "following",
           },
           {
-            label: "Friends",
+            label: `${t("notifications:friends")} (${counts.friends})`,
             value: "friends",
           },
         ]}
       />
 
       {loading ? <SkeletonList count={7} /> : <FlatList
-        className="mt-6 px-6"
+        className="px-6"
         refreshing={refreshing}
         onRefresh={onRefresh}
         data={items}
@@ -214,8 +226,13 @@ export default function ConnectionsScreen() {
 
                 <View className="ml-4 flex-1">
                   <Text className="text-lg font-bold text-black dark:text-white">
-                    {user.username}
+                    {userDisplayName(user)}
                   </Text>
+                  {user.displayName?.trim() ? (
+                    <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {usernameLabel(user.username)}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
 

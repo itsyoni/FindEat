@@ -18,6 +18,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Text from "../common/AppText";
 import Avatar from "../common/Avatar";
+import { usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   onCancel: () => void;
@@ -134,7 +135,7 @@ export default function SearchUsersView({ onCancel, mode = "profile" }: Props) {
               <Avatar uri={item.avatarUrl} username={item.username} size={44} showSnapIndicator={false} />
               <View className="flex-1">
                 <Text className="font-bold text-black dark:text-white">
-                  {item.username}
+                  {usernameLabel(item.username)}
                 </Text>
               </View>
             </TouchableOpacity>

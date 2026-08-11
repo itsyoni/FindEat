@@ -16,6 +16,7 @@ import { DishCompatibilityChips } from "@/components/restaurants/FoodCompatibili
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { publishDishFavoriteChange } from "@/lib/dishFavorites";
 import { getMobileCompatibleImageUrl } from "@findeat/utils";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 export default function MenuItemScreen() {
   const { isDark } = useAppTheme();
@@ -452,9 +453,16 @@ export default function MenuItemScreen() {
                           username={author?.username ?? "user"}
                           size={34}
                         />
-                        <Text className="ml-3 flex-1 text-sm font-bold text-black dark:text-white">
-                          {author?.username ?? "user"}
-                        </Text>
+                        <View className="ml-3 min-w-0 flex-1">
+                          <Text className="text-sm font-bold text-black dark:text-white">
+                            {userDisplayName(author) || t("user")}
+                          </Text>
+                          {author?.displayName?.trim() ? (
+                            <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                              {usernameLabel(author.username)}
+                            </Text>
+                          ) : null}
+                        </View>
                         {!!review.rating && (
                           <View className="flex-row items-center rounded-full bg-white px-2.5 py-1.5 dark:bg-black">
                             <StarIcon

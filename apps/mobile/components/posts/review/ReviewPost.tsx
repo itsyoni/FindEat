@@ -8,11 +8,13 @@ import {
   HeartIcon,
   ShareFatIcon,
   StarIcon,
+  UserIcon,
 } from "phosphor-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   I18nManager,
+  ScrollView,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -24,6 +26,7 @@ import Animated, {
   useSharedValue,
   withSequence,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
@@ -43,7 +46,9 @@ import ReviewCollaborationCard from "./ReviewCollaborationCard";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import { prefetchImageUrls } from "@/lib/imagePrefetch";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
+import TaggedUsersBottomSheet from "@/components/posts/content/TaggedUsersBottomSheet";
 import PostLikesBottomSheet from "@/components/posts/PostLikesBottomSheet";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   post: Post;
@@ -112,13 +117,12 @@ function ReviewPaginationDot({
   const progress = useSharedValue(active ? 1 : 0);
 
   useEffect(() => {
-    progress.set(withSpring(active ? 1 : 0, { damping: 15, stiffness: 180 }));
+    progress.set(withTiming(active ? 1 : 0, { duration: 170 }));
   }, [active, progress]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    width: 6 + progress.value * 16,
+    width: 6 + progress.value * 10,
     opacity: 0.55 + progress.value * 0.45,
-    transform: [{ scaleY: 1 + progress.value * 0.18 }],
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
@@ -153,11 +157,30 @@ export default function ReviewPost({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
   const [likesOpen, setLikesOpen] = useState(false);
+  const [collaboratorsOpen, setCollaboratorsOpen] = useState(false);
+  const [optimisticLike, setOptimisticLike] = useState<{
+    isLiked: boolean;
+    likesCount: number;
+    baseIsLiked: boolean;
+    baseLikesCount: number;
+  } | null>(null);
   const likePressStartedAt = useRef(0);
   const [selectedPerspectiveIds, setSelectedPerspectiveIds] = useState<
     Record<string, string>
   >({});
+  const [selectedCoverRatingId, setSelectedCoverRatingId] = useState<
+    string | null
+  >(preferredPerspectiveUserId ?? post.authorId ?? null);
   const review = post.reviewPost;
+  const shouldShowOptimisticLike =
+    optimisticLike?.baseIsLiked === post.isLiked &&
+    optimisticLike?.baseLikesCount === post.likesCount;
+  const displayedIsLiked = shouldShowOptimisticLike
+    ? optimisticLike.isLiked
+    : post.isLiked;
+  const displayedLikesCount = shouldShowOptimisticLike
+    ? optimisticLike.likesCount
+    : post.likesCount;
   const items = review?.items ?? [];
 
   const totalPrice = items.reduce((sum, item) => {
@@ -174,7 +197,7 @@ export default function ReviewPost({
       text: review?.summary,
       textEditedAt: review?.summaryEditedAt,
       captionAuthorUsername:
-        post.author?.username ?? post.authorRestaurant?.name,
+        userDisplayName(post.author) || post.authorRestaurant?.name,
       captionAuthorUserId: post.author?.id,
     },
     ...items.map((item) => {
@@ -191,7 +214,7 @@ export default function ReviewPost({
       const authorPerspective: DishPerspective = {
             id: post.authorId ?? "review-author",
             userId: post.authorId ?? "review-author",
-            username: post.author?.username,
+            username: userDisplayName(post.author),
             avatarUrl: post.author?.avatarUrl,
             imageUrl: authorImageUrl,
             thumbnailUrl:
@@ -205,36 +228,48 @@ export default function ReviewPost({
             textEditedAt:
               authorContribution?.textEditedAt ?? item.textEditedAt,
           };
-      const collaboratorPerspectives = (item.contributions ?? []).flatMap(
-        (contribution) => {
-          if (contribution.userId === post.authorId) return [];
-          const media = (item.media ?? []).find(
-            (candidate) => candidate.uploadedById === contribution.userId,
-          );
-          if (!media && item.createdById !== contribution.userId) return [];
-          return [
-            {
-              id: contribution.userId,
-              userId: contribution.userId,
-              username: contribution.user.username,
-              avatarUrl: contribution.user.avatarUrl,
-              imageUrl:
-                media?.imageUrl ??
-                (item.createdById === contribution.userId
-                  ? item.menuItem?.imageUrl
-                  : undefined),
-              thumbnailUrl:
-                media?.thumbnailUrl ??
-                (item.createdById === contribution.userId
-                  ? item.menuItem?.thumbnailUrl
-                  : undefined),
-              rating: contribution.rating,
-              text: contribution.text,
-              textEditedAt: contribution.textEditedAt,
-            } satisfies DishPerspective,
-          ];
-        },
+      const collaboratorUserIds = [
+        ...(item.contributions ?? []).map((contribution) => contribution.userId),
+        ...(item.media ?? []).map((media) => media.uploadedById),
+      ].filter(
+        (userId, index, candidates) =>
+          userId !== post.authorId && candidates.indexOf(userId) === index,
       );
+      const collaboratorPerspectives = collaboratorUserIds.flatMap((userId) => {
+        const contribution = (item.contributions ?? []).find(
+          (candidate) => candidate.userId === userId,
+        );
+        const media = (item.media ?? []).find(
+          (candidate) => candidate.uploadedById === userId,
+        );
+        const perspectiveUser = contribution?.user ?? media?.uploadedBy;
+        const imageUrl =
+          media?.imageUrl ??
+          (item.createdById === userId
+            ? item.imageUrl ?? item.menuItem?.imageUrl
+            : item.primaryMedia?.imageUrl ??
+              item.imageUrl ??
+              item.menuItem?.imageUrl);
+        if (!perspectiveUser) return [];
+
+        return [
+          {
+            id: userId,
+            userId,
+            username: userDisplayName(perspectiveUser),
+            avatarUrl: perspectiveUser.avatarUrl,
+            imageUrl,
+            thumbnailUrl:
+              media?.thumbnailUrl ??
+              (item.createdById === userId
+                ? item.thumbnailUrl ?? item.menuItem?.thumbnailUrl
+                : undefined),
+            rating: contribution?.rating,
+            text: contribution?.text,
+            textEditedAt: contribution?.textEditedAt,
+          } satisfies DishPerspective,
+        ];
+      });
       const perspectives = [
         ...(item.createdById === post.authorId || authorContribution
           ? [authorPerspective]
@@ -307,7 +342,7 @@ export default function ReviewPost({
 
   const displayName = isRestaurantPost
     ? post.authorRestaurant?.name
-    : post.author?.username;
+    : userDisplayName(post.author);
   const joinedCollaborators = (post.reviewParticipants ?? []).filter(
     (participant) =>
       participant.status === "JOINED" && participant.userId !== post.authorId,
@@ -322,14 +357,68 @@ export default function ReviewPost({
       ? additionalCollaboratorCount > 0
         ? tCollaboration("sharedAuthorsWithOthers", {
             author: displayName,
-            collaborator: firstCollaborator.user.username,
+            collaborator: userDisplayName(firstCollaborator.user),
             count: additionalCollaboratorCount,
           })
         : tCollaboration("sharedAuthorsPair", {
             author: displayName,
-            collaborator: firstCollaborator.user.username,
+            collaborator: userDisplayName(firstCollaborator.user),
           })
       : null;
+  const collaborationUsers = [
+    ...(post.author ? [post.author] : []),
+    ...joinedCollaborators.map((participant) => participant.user),
+  ];
+  const joinedRatingParticipants = (post.reviewParticipants ?? []).filter(
+    (participant) => participant.status === "JOINED",
+  );
+  const ratingCount = (
+    key: "atmosphereRating" | "serviceRating" | "valueRating",
+  ) =>
+    joinedRatingParticipants.filter((participant) => participant[key] != null)
+      .length;
+  const overallRaterCount = Math.max(
+    ratingCount("atmosphereRating"),
+    ratingCount("serviceRating"),
+    ratingCount("valueRating"),
+  );
+  const coverRatingPerspectives = joinedRatingParticipants.flatMap(
+    (participant) => {
+      const experienceRatings = [
+        participant.atmosphereRating,
+        participant.serviceRating,
+        participant.valueRating,
+      ].filter((rating): rating is number => rating != null);
+      if (experienceRatings.length === 0) return [];
+      return [
+        {
+          userId: participant.userId,
+          user: participant.user,
+          atmosphereRating: participant.atmosphereRating,
+          serviceRating: participant.serviceRating,
+          valueRating: participant.valueRating,
+        },
+      ];
+    },
+  );
+  const selectedCoverRating =
+    coverRatingPerspectives.find(
+      (perspective) => perspective.userId === selectedCoverRatingId,
+    ) ??
+    coverRatingPerspectives.find(
+      (perspective) =>
+        perspective.userId === (preferredPerspectiveUserId ?? post.authorId),
+    ) ??
+    coverRatingPerspectives[0];
+  const displayedCoverAtmosphere = selectedCoverRating
+    ? selectedCoverRating.atmosphereRating
+    : review?.atmosphereRating;
+  const displayedCoverService = selectedCoverRating
+    ? selectedCoverRating.serviceRating
+    : review?.serviceRating;
+  const displayedCoverValue = selectedCoverRating
+    ? selectedCoverRating.valueRating
+    : review?.valueRating;
 
   const userRestaurant = post.restaurant?.id
     ? (statusOverrides[post.restaurant.id] ?? post.restaurant.userSaves?.[0])
@@ -376,22 +465,34 @@ export default function ReviewPost({
       withSequence(withSpring(1), withSpring(1), withSpring(0)),
     );
 
-    if (post.isLiked) return;
+    if (displayedIsLiked) return;
 
     likeScale.set(1);
     likeScale.set(withSequence(withSpring(1.35), withSpring(1)));
+    setOptimisticLike({
+      isLiked: true,
+      likesCount: displayedLikesCount + 1,
+      baseIsLiked: post.isLiked,
+      baseLikesCount: post.likesCount,
+    });
     onToggleLike(post.id, false);
   }
 
   function handleLike() {
-    if (!post.isLiked) {
+    if (!displayedIsLiked) {
       likeScale.set(1);
       likeScale.set(withSequence(withSpring(1.25), withSpring(1)));
     } else {
       likeScale.set(1);
     }
 
-    onToggleLike(post.id, post.isLiked);
+    setOptimisticLike({
+      isLiked: !displayedIsLiked,
+      likesCount: Math.max(0, displayedLikesCount + (displayedIsLiked ? -1 : 1)),
+      baseIsLiked: post.isLiked,
+      baseLikesCount: post.likesCount,
+    });
+    onToggleLike(post.id, displayedIsLiked);
   }
 
   function handleWantToTry() {
@@ -452,48 +553,49 @@ export default function ReviewPost({
               />
             </TouchableOpacity>
           ) : firstCollaborator ? (
-            <View
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => setCollaboratorsOpen(true)}
               style={{
-                width: additionalCollaboratorCount > 0 ? 80 : 62,
+                width: additionalCollaboratorCount > 0 ? 98 : 70,
                 height: 42,
+                flexDirection: "row",
+                alignItems: "center",
               }}
             >
-              <View className="absolute left-0 top-0 z-30">
-                <SnapAvatarButton
-                  avatarUrl={displayAvatar}
+              <View style={{ zIndex: 3 }}>
+                <Avatar
+                  uri={displayAvatar}
                   username={displayName}
                   userId={post.author?.id}
                   size={42}
-                  onPressWithoutSnap={openAuthorProfile}
+                  showSnapIndicator={false}
                 />
               </View>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(users)/[id]",
-                    params: { id: firstCollaborator.userId },
-                  })
-                }
-                className="absolute left-8 top-0 z-20 rounded-full"
-              >
+              <View style={{ marginLeft: -14, zIndex: 2 }}>
                 <Avatar
                   uri={firstCollaborator.user.avatarUrl}
                   username={firstCollaborator.user.username}
                   userId={firstCollaborator.userId}
-                  size={32}
+                  size={42}
                   showSnapIndicator={false}
-                  style={{ borderWidth: 2, borderColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
                 />
-              </TouchableOpacity>
+              </View>
               {additionalCollaboratorCount > 0 ? (
-                <View className="absolute left-[52px] top-0 z-10 h-7 w-7 items-center justify-center rounded-full border-2 border-[#FAF9F6] bg-brand dark:border-[#0B0B0A]">
-                  <Text className="text-[10px] font-bold text-white">
+                <View
+                  className="h-[42px] w-[42px] items-center justify-center rounded-full border-2 bg-brand"
+                  style={{
+                    marginLeft: -14,
+                    zIndex: 1,
+                    borderColor: isDark ? "#0B0B0A" : "#FAF9F6",
+                  }}
+                >
+                  <Text className="text-xs font-bold text-white">
                     +{additionalCollaboratorCount}
                   </Text>
                 </View>
               ) : null}
-            </View>
+            </TouchableOpacity>
           ) : (
             <SnapAvatarButton
               avatarUrl={displayAvatar}
@@ -507,7 +609,11 @@ export default function ReviewPost({
           <View className="flex-1">
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={openAuthorProfile}
+              onPress={
+                firstCollaborator
+                  ? () => setCollaboratorsOpen(true)
+                  : openAuthorProfile
+              }
               className="self-start flex-row items-center"
             >
               <Text
@@ -528,6 +634,14 @@ export default function ReviewPost({
                 </View>
               ) : null}
             </TouchableOpacity>
+
+            {!isRestaurantPost &&
+            !firstCollaborator &&
+            post.author?.displayName?.trim() ? (
+              <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                {usernameLabel(post.author.username)}
+              </Text>
+            ) : null}
 
             {!!post.restaurant && (
               <TouchableOpacity
@@ -617,7 +731,26 @@ export default function ReviewPost({
               )}
 
               {item.type === "DISH" && item.perspectives.length > 1 ? (
-                <View className="absolute right-3 top-3 z-30 flex-row gap-2">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: 12,
+                    zIndex: 30,
+                    width: 152,
+                    height: 72,
+                  }}
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: 8,
+                    paddingLeft: 2,
+                    paddingRight: 2,
+                  }}
+                >
                   {item.perspectives
                     .filter(
                       (perspective) =>
@@ -673,7 +806,70 @@ export default function ReviewPost({
                         </View>
                       </TouchableOpacity>
                     ))}
-                </View>
+                </ScrollView>
+              ) : null}
+
+              {item.type === "COVER" && coverRatingPerspectives.length > 1 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: 12,
+                    zIndex: 30,
+                    width: 152,
+                    height: 72,
+                  }}
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: 8,
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  {coverRatingPerspectives
+                    .filter(
+                      (perspective) =>
+                        perspective.userId !== selectedCoverRating?.userId,
+                    )
+                    .map((perspective) => (
+                      <TouchableOpacity
+                        key={perspective.userId}
+                        accessibilityRole="button"
+                        accessibilityLabel={tCollaboration("ratingsBy", {
+                          name: userDisplayName(perspective.user),
+                        })}
+                        activeOpacity={0.82}
+                        onPress={() =>
+                          setSelectedCoverRatingId(perspective.userId)
+                        }
+                        className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl border-2 border-[#FAF9F6] bg-black/60"
+                        style={{
+                          shadowColor: "#0B0B0A",
+                          shadowOpacity: 0.3,
+                          shadowRadius: 5,
+                          shadowOffset: { width: 0, height: 2 },
+                          elevation: 5,
+                        }}
+                      >
+                        {perspective.user.avatarUrl ? (
+                          <ProgressiveImage
+                            source={{ uri: perspective.user.avatarUrl }}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <UserIcon
+                            size={30}
+                            color="#FAF9F6"
+                            weight="fill"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
               ) : null}
 
               {item.type === "COVER" && (
@@ -688,28 +884,50 @@ export default function ReviewPost({
                       {review?.overallRating ?? "-"}/10
                     </Text>
                   </View>
+                  {selectedCoverRating && joinedCollaborators.length > 0 ? (
+                    <Text className="mt-1 text-sm font-semibold text-white/80">
+                      {tCollaboration("ratingsBy", {
+                        name: userDisplayName(selectedCoverRating.user),
+                      })}
+                    </Text>
+                  ) : overallRaterCount > 1 ? (
+                    <Text className="mt-1 text-sm font-semibold text-white/80">
+                      {tCollaboration("combinedRatings", {
+                        count: overallRaterCount,
+                      })}
+                    </Text>
+                  ) : null}
 
                   <View className="mt-3 flex-row flex-wrap gap-2">
-                    {review?.atmosphereRating != null && (
+                    {displayedCoverAtmosphere != null && (
                       <View className="rounded-full bg-white/20 px-3 py-2">
                         <Text className="font-bold text-white">
-                          Atmosphere {review.atmosphereRating}/10
+                          {tCollaboration("atmosphere")} {displayedCoverAtmosphere}/10
+                          {!selectedCoverRating && ratingCount("atmosphereRating") > 1
+                            ? ` · ${ratingCount("atmosphereRating")}`
+                            : ""}
                         </Text>
                       </View>
                     )}
 
-                    {review?.serviceRating != null && (
+                    {displayedCoverService != null && (
                       <View className="rounded-full bg-white/20 px-3 py-2">
                         <Text className="font-bold text-white">
-                          Service {review.serviceRating}/10
+                          {tCollaboration("service")} {displayedCoverService}/10
+                          {!selectedCoverRating && ratingCount("serviceRating") > 1
+                            ? ` · ${ratingCount("serviceRating")}`
+                            : ""}
                         </Text>
                       </View>
                     )}
 
-                    {review?.valueRating != null && (
+                    {displayedCoverValue != null && (
                       <View className="rounded-full bg-white/20 px-3 py-2">
                         <Text className="font-bold text-white">
-                          VFM {review.valueRating}/10
+                          {tCollaboration("valueShort")} {displayedCoverValue}/10
+                          {!selectedCoverRating && ratingCount("valueRating") > 1
+                            ? ` · ${ratingCount("valueRating")}`
+                            : ""}
                         </Text>
                       </View>
                     )}
@@ -808,15 +1026,15 @@ export default function ReviewPost({
             >
               <Animated.View style={likeAnimatedStyle}>
                 <HeartIcon
-                  weight={post.isLiked ? "fill" : "regular"}
-                  color={post.isLiked ? "#FF3040" : actionColor}
+                  weight={displayedIsLiked ? "fill" : "regular"}
+                  color={displayedIsLiked ? "#FF3040" : actionColor}
                   size={28}
                 />
               </Animated.View>
 
               {post.canViewLikes ? (
                 <Text className="text-base text-black dark:text-white">
-                  {post.likesCount}
+                  {displayedLikesCount}
                 </Text>
               ) : null}
             </TouchableOpacity>
@@ -915,6 +1133,13 @@ export default function ReviewPost({
         postId={post.id}
         open={likesOpen}
         onClose={() => setLikesOpen(false)}
+      />
+      <TaggedUsersBottomSheet
+        open={collaboratorsOpen}
+        users={collaborationUsers}
+        title={tCollaboration("includedPeople")}
+        displayNames
+        onClose={() => setCollaboratorsOpen(false)}
       />
     </View>
   );

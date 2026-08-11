@@ -32,6 +32,7 @@ import {
   View,
 } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
+import RatingPicker from "@/components/review-creator/components/RatingPicker";
 
 type ScreenMode = "LIST" | "PICK_DISH" | "EDIT_EXISTING" | "EDIT_NEW";
 
@@ -65,6 +66,11 @@ export default function ContributeToReviewScreen() {
   const [customDish, setCustomDish] = useState(false);
   const [newDishDraft, setNewDishDraft] =
     useState<ReviewDishFormDraft | null>(null);
+  const [experienceRatings, setExperienceRatings] = useState<{
+    atmosphereRating?: number;
+    serviceRating?: number;
+    valueRating?: number;
+  }>({});
 
   useEffect(() => {
     if (!id) return;
@@ -72,7 +78,17 @@ export default function ContributeToReviewScreen() {
     void api.posts
       .get(id)
       .then((value) => {
-        if (!cancelled) setPost(value);
+        if (!cancelled) {
+          setPost(value);
+          const ownParticipant = value.reviewParticipants?.find(
+            (participant) => participant.userId === user?.id,
+          );
+          setExperienceRatings({
+            atmosphereRating: ownParticipant?.atmosphereRating ?? undefined,
+            serviceRating: ownParticipant?.serviceRating ?? undefined,
+            valueRating: ownParticipant?.valueRating ?? undefined,
+          });
+        }
       })
       .catch((error) => {
         if (cancelled) return;
@@ -85,7 +101,7 @@ export default function ContributeToReviewScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, showToast, t]);
+  }, [id, showToast, t, user?.id]);
 
   const ownContribution = selectedItem?.contributions?.find(
     (contribution) => contribution.userId === user?.id,
@@ -107,6 +123,26 @@ export default function ContributeToReviewScreen() {
 
   function refreshSharedReviewCaches() {
     void queryClient.invalidateQueries({ queryKey: ["feed"] });
+  }
+
+  async function saveExperienceRatings() {
+    if (!post || saving) return;
+    try {
+      setSaving(true);
+      const updated = await api.posts.upsertReviewExperienceRatings(post.id, {
+        atmosphereRating: experienceRatings.atmosphereRating ?? null,
+        serviceRating: experienceRatings.serviceRating ?? null,
+        valueRating: experienceRatings.valueRating ?? null,
+      });
+      setPost(updated);
+      refreshSharedReviewCaches();
+      showToast(t("experienceSaved"));
+    } catch (error) {
+      console.error("Could not save shared experience ratings", error);
+      showToast(t("experienceSaveError"), { kind: "error" });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveExisting(value: ContributionEditorValue) {
@@ -428,6 +464,56 @@ export default function ContributeToReviewScreen() {
               <Text className="mt-2 text-sm leading-5 text-gray-500">
                 {t("yourTakeSubtitle")}
               </Text>
+            </View>
+
+            <View className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+              <Text className="text-lg font-bold text-black dark:text-white">
+                {t("overallExperience")}
+              </Text>
+              <Text className="mt-1 text-sm leading-5 text-gray-500">
+                {t("overallExperienceHint")}
+              </Text>
+              <View className="mt-6 gap-7">
+                <RatingPicker
+                  label={t("atmosphere")}
+                  value={experienceRatings.atmosphereRating}
+                  onChange={(atmosphereRating) =>
+                    setExperienceRatings((current) => ({
+                      ...current,
+                      atmosphereRating,
+                    }))
+                  }
+                />
+                <RatingPicker
+                  label={t("service")}
+                  value={experienceRatings.serviceRating}
+                  onChange={(serviceRating) =>
+                    setExperienceRatings((current) => ({
+                      ...current,
+                      serviceRating,
+                    }))
+                  }
+                />
+                <RatingPicker
+                  label={t("value")}
+                  value={experienceRatings.valueRating}
+                  onChange={(valueRating) =>
+                    setExperienceRatings((current) => ({
+                      ...current,
+                      valueRating,
+                    }))
+                  }
+                />
+              </View>
+              <TouchableOpacity
+                disabled={saving}
+                onPress={() => void saveExperienceRatings()}
+                className="mt-7 rounded-2xl bg-black py-4 dark:bg-white"
+              >
+                <Text className="text-center font-bold text-white dark:text-black">
+                  {saving ? t("saving") : t("saveExperience")}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {(post.reviewPost?.items ?? []).length === 0 ? (

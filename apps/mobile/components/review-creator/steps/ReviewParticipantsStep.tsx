@@ -179,6 +179,7 @@ export default function ReviewParticipantsStep({
                     uri={participant.avatarUrl}
                     username={participant.username}
                     size={52}
+                    showSnapIndicator={false}
                   />
                   <View
                     className={`absolute -bottom-1 -right-1 h-5 w-5 items-center justify-center rounded-full ${

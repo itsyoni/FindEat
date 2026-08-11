@@ -230,9 +230,14 @@ export default function PostConnectionCard({
           />
 
           {rating != null ? (
-            <View className="absolute bottom-1 left-1 right-1 flex-row items-center justify-center rounded-full bg-black/75 px-1.5 py-0.5">
-              <StarIcon size={10} color="#F7D786" weight="fill" />
-              <Text className="ml-0.5 text-[10px] font-bold text-white">
+            <View className="absolute bottom-1 left-1 right-1 flex-row items-center justify-center rounded-full bg-black/75 px-1 py-0.5">
+              <StarIcon size={8} color="#F7D786" weight="fill" />
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                maxFontSizeMultiplier={1}
+                className="ml-0.5 text-[8px] font-bold text-white"
+              >
                 {rating}/10
               </Text>
             </View>

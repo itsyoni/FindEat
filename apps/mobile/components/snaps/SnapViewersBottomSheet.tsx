@@ -7,6 +7,7 @@ import { ActivityIndicator, ScrollView, TouchableOpacity, View } from "react-nat
 import { router } from "expo-router";
 import { EyeIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   snapId: string | null;
@@ -75,8 +76,13 @@ export default function SnapViewersBottomSheet({ snapId, open, onClose }: Props)
                   }}
                 >
                   <Text numberOfLines={1} className="font-bold text-black dark:text-white">
-                    {viewer.user.username}
+                    {userDisplayName(viewer.user)}
                   </Text>
+                  {viewer.user.displayName?.trim() ? (
+                    <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {usernameLabel(viewer.user.username)}
+                    </Text>
+                  ) : null}
                 </TouchableOpacity>
               </View>
             ))}

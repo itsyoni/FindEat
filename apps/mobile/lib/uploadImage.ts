@@ -134,11 +134,12 @@ export async function uploadImage(
 export async function uploadVideo(
   uri: string,
   onProgress?: UploadProgressCallback,
+  purpose: MediaPurpose = "post",
 ) {
   const file = new File(uri);
   if (!file.exists) throw new Error("Video file is unavailable.");
 
-  const data = await createUploadTicket(file, "video", "post");
+  const data = await createUploadTicket(file, "video", purpose);
   const task = file.createUploadTask(data.uploadUrl, {
     httpMethod: "PUT",
     headers: data.headers,

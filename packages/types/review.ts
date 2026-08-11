@@ -54,7 +54,6 @@ export type CreateReviewDraft = {
   coverImageUri?: string;
   coverImageUrl?: string;
   summary: string;
-  overallRating?: number;
   atmosphereRating?: number;
   serviceRating?: number;
   valueRating?: number;

@@ -27,6 +27,7 @@ export type User = {
   allergies?: string[];
   foodPreferences?: string[];
   dietaryRestrictions?: string[];
+  restaurantDietaryRequirements?: string[];
   favoriteCuisines?: string[];
   profileCompletedFields?: string[];
   showPhoneNumber?: boolean;

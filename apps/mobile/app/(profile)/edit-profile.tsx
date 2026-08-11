@@ -15,11 +15,12 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { uploadImage } from "@/lib/uploadImage";
 import ImageCropPicker from "react-native-image-crop-picker";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -74,6 +75,7 @@ export default function EditProfileScreen() {
     allergies: details.allergies,
     foodPreferences: details.foodPreferences,
     dietaryRestrictions: details.dietaryRestrictions,
+    restaurantDietaryRequirements: details.restaurantDietaryRequirements,
     favoriteCuisines: details.favoriteCuisines,
     profileCompletedFields: details.completedFields,
   });
@@ -108,10 +110,11 @@ export default function EditProfileScreen() {
           pronouns: data.pronouns
             ? data.pronouns.split(" · ").map((item) => item.trim()).filter(Boolean)
             : [],
-          showPronouns: data.showPronouns ?? true,
           allergies: data.allergies ?? [],
           foodPreferences: data.foodPreferences ?? [],
           dietaryRestrictions: data.dietaryRestrictions ?? [],
+          restaurantDietaryRequirements:
+            data.restaurantDietaryRequirements ?? [],
           favoriteCuisines: data.favoriteCuisines ?? [],
           completedFields: PROFILE_DETAIL_ANSWER_FIELDS.filter(
             (field) =>
@@ -202,9 +205,10 @@ export default function EditProfileScreen() {
         allergies: details.allergies,
         foodPreferences: details.foodPreferences,
         dietaryRestrictions: details.dietaryRestrictions,
+        restaurantDietaryRequirements: details.restaurantDietaryRequirements,
         favoriteCuisines: details.favoriteCuisines,
         profileCompletedFields: details.completedFields,
-        showPronouns: details.showPronouns,
+        showPronouns: details.pronouns.length > 0,
       });
 
       await refreshUser();
@@ -254,8 +258,29 @@ export default function EditProfileScreen() {
 
     async function openLibrary() {
       try {
-        const image = await ImageCropPicker.openPicker(cropOptions);
-        onSelect(image.path);
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: false,
+          allowsMultipleSelection: false,
+          selectionLimit: 1,
+          defaultTab: "photos",
+          quality: 0.9,
+        });
+        if (result.canceled || !result.assets[0]) return;
+
+        // The system gallery resolves before its native dismissal animation
+        // has fully completed. Presenting the cropper immediately can make
+        // iOS silently ignore it, so wait for that controller to close first.
+        await new Promise((resolve) =>
+          setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+        );
+        const image = await ImageCropPicker.openCropper({
+          ...cropOptions,
+          path: result.assets[0].uri,
+        });
+        onSelect(
+          image.path.startsWith("/") ? `file://${image.path}` : image.path,
+        );
       } catch (error) {
         if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
           console.error("Could not open profile gallery or crop photo", error);
@@ -361,21 +386,28 @@ export default function EditProfileScreen() {
 
           <TouchableOpacity
             onPress={() => pickImage([3, 1], setNewCoverUri)}
-            className="mt-6 h-48 overflow-hidden rounded-3xl bg-gray-100 dark:bg-gray-800"
+            className="mt-6"
           >
-            {newCoverUri || coverUrl ? (
-              <ProgressiveImage
-                source={{ uri: newCoverUri ?? coverUrl ?? "" }}
-                className="h-full w-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <View className="h-full w-full items-center justify-center">
-                <Text className="text-gray-500">
-                  {t("profile:addCoverPhoto")}
-                </Text>
-              </View>
-            )}
+            <View className="h-48 overflow-hidden rounded-3xl bg-gray-100 dark:bg-gray-800">
+              {newCoverUri || coverUrl ? (
+                <ProgressiveImage
+                  source={{ uri: newCoverUri ?? coverUrl ?? "" }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              ) : (
+                <View className="h-full w-full items-center justify-center">
+                  <Text className="text-gray-500">
+                    {t("profile:addCoverPhoto")}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text className="mt-3 text-center font-semibold text-black dark:text-white">
+              {newCoverUri || coverUrl
+                ? t("profile:changeCoverPhoto")
+                : t("profile:addCoverPhoto")}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={pickAvatar}

@@ -80,7 +80,7 @@ export default function FollowingSuggestions({ topInset }: Props) {
   }
 
   return (
-    <View className="flex-1 px-5" style={{ paddingTop: topInset + 24 }}>
+    <View className="px-5" style={{ paddingTop: topInset + 24, paddingBottom: 40 }}>
       <Text className="text-center text-2xl font-bold text-black dark:text-white">
         {t("common:findPeopleToFollow")}
       </Text>

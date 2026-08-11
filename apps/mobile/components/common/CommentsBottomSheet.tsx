@@ -7,18 +7,17 @@ import {
 import type { Comment } from "@findeat/types";
 import {
   BottomSheetFlatList,
-  BottomSheetFooter,
-  BottomSheetFooterProps,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { Keyboard, Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Avatar from "./Avatar";
 import Text from "./AppText";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 import SkeletonList from "./feedback/SkeletonList";
 import {
   CaretDownIcon,
@@ -32,12 +31,15 @@ import {
   PushPinIcon,
   TrashIcon,
   XIcon,
+  GifIcon,
 } from "phosphor-react-native";
 import { api } from "@/lib/api";
 import MentionSuggestions from "./MentionSuggestions";
 import MentionText from "./MentionText";
 import { useToast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@findeat/utils";
+import GifPickerBottomSheet, { type GifSelection } from "./GifPickerBottomSheet";
+import AdaptiveGif from "./AdaptiveGif";
 
 type Props = {
   postId: string | null;
@@ -53,7 +55,7 @@ type CommentActionTarget = {
   remove: () => void;
 };
 
-type CommentFooterProps = BottomSheetFooterProps & {
+type CommentComposerProps = {
   bottomInset: number;
   replyingTo: Comment | null;
   editingComment: Comment | null;
@@ -61,6 +63,7 @@ type CommentFooterProps = BottomSheetFooterProps & {
   onCancelEdit: () => void;
   onAddComment: (content: string, replyToId?: string) => Promise<void>;
   onUpdateComment: (comment: Comment, content: string) => Promise<void>;
+  onOpenGif: () => void;
 };
 
 function formatCommentTime(createdAt: string) {
@@ -101,7 +104,7 @@ function formatCommentTime(createdAt: string) {
   });
 }
 
-function CommentFooter({
+function CommentComposer({
   bottomInset,
   replyingTo,
   editingComment,
@@ -109,12 +112,27 @@ function CommentFooter({
   onCancelEdit,
   onAddComment,
   onUpdateComment,
-  ...footerProps
-}: CommentFooterProps) {
+  onOpenGif,
+}: CommentComposerProps) {
   const { t } = useTranslation("chat");
   const { isDark } = useAppTheme();
   const [content, setContent] = useState(editingComment?.content ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () =>
+      setKeyboardVisible(true),
+    );
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardVisible(false),
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   async function submitComment() {
     const trimmed = content.trim();
@@ -139,9 +157,7 @@ function CommentFooter({
   const disabled = !content.trim() || submitting;
 
   return (
-    <BottomSheetFooter
-      {...footerProps}
-      bottomInset={0}
+    <View
       style={{
         backgroundColor: isDark ? "#111827" : "#FAF9F6",
         shadowColor: "#0B0B0A",
@@ -156,7 +172,11 @@ function CommentFooter({
           className="border-t border-gray-200 bg-white px-4 pt-3 dark:border-gray-700 dark:bg-gray-900"
           style={{
             backgroundColor: isDark ? "#111827" : "#FAF9F6",
-            paddingBottom: bottomInset,
+            paddingBottom: keyboardVisible
+              ? 8
+              : Platform.OS === "android"
+                ? Math.max(bottomInset, 18)
+                : bottomInset,
           }}
         >
           {editingComment ? (
@@ -179,7 +199,7 @@ function CommentFooter({
               <View className="h-full w-1 bg-brand" />
               <View className="min-w-0 flex-1 px-3 py-2">
                 <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                  {t("replyingTo", { username: replyingTo.user.username })}
+                  {t("replyingTo", { username: userDisplayName(replyingTo.user) })}
                 </Text>
                 <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                   {replyingTo.content}
@@ -192,6 +212,15 @@ function CommentFooter({
           ) : null}
           <MentionSuggestions value={content} onChange={setContent} />
           <View className="flex-row items-center gap-2">
+            {!editingComment ? (
+              <TouchableOpacity
+                onPress={onOpenGif}
+                disabled={submitting}
+                className="h-11 w-10 items-center justify-center"
+              >
+                <GifIcon size={25} color={isDark ? "#D1D5DB" : "#4B5563"} weight="fill" />
+              </TouchableOpacity>
+            ) : null}
             <BottomSheetTextInput
               className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-black dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               placeholder={t("addComment")}
@@ -221,7 +250,7 @@ function CommentFooter({
           </View>
         </View>
       </View>
-    </BottomSheetFooter>
+    </View>
   );
 }
 
@@ -255,6 +284,56 @@ export default function CommentsBottomSheet({
   const insets = useSafeAreaInsets();
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const keyboardVisibleRef = useRef(false);
+  const gifPickerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      keyboardVisibleRef.current = true;
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      keyboardVisibleRef.current = false;
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (gifPickerTimerRef.current) clearTimeout(gifPickerTimerRef.current);
+    },
+    [],
+  );
+
+  const openGifPicker = useCallback(() => {
+    if (!Keyboard.isVisible()) {
+      setGifPickerOpen(true);
+      return;
+    }
+
+    let opened = false;
+    const finishOpening = () => {
+      if (opened) return;
+      opened = true;
+      keyboardHiddenSubscription.remove();
+      if (gifPickerTimerRef.current) {
+        clearTimeout(gifPickerTimerRef.current);
+        gifPickerTimerRef.current = null;
+      }
+      setGifPickerOpen(true);
+    };
+    const keyboardHiddenSubscription = Keyboard.addListener(
+      "keyboardDidHide",
+      finishOpening,
+    );
+
+    Keyboard.dismiss();
+    gifPickerTimerRef.current = setTimeout(finishOpening, 450);
+  }, []);
   const [commentActionTarget, setCommentActionTarget] =
     useState<CommentActionTarget | null>(null);
   const commentActionCount = commentActionTarget
@@ -467,21 +546,24 @@ export default function CommentsBottomSheet({
     [postId, addComment, onCommentAdded],
   );
 
-  const renderFooter = useCallback(
-    (props: BottomSheetFooterProps) => (
-      <CommentFooter
-        key={editingComment?.id ?? "comment-composer"}
-        {...props}
-        bottomInset={insets.bottom}
-        replyingTo={replyingTo}
-        editingComment={editingComment}
-        onCancelReply={() => setReplyingTo(null)}
-        onCancelEdit={() => setEditingComment(null)}
-        onAddComment={handleAddComment}
-        onUpdateComment={updateComment}
-      />
-    ),
-    [editingComment, handleAddComment, insets.bottom, replyingTo, updateComment],
+  const handleGifSelected = useCallback(
+    async (gif: GifSelection) => {
+      if (!postId) return;
+      try {
+        await addComment("", replyingTo?.id, gif.url);
+        setGifPickerOpen(false);
+        setReplyingTo(null);
+        onCommentAdded?.(postId);
+        requestAnimationFrame(() =>
+          listRef.current?.scrollToEnd({ animated: true }),
+        );
+      } catch (error) {
+        showToast(getErrorMessage(error, t("mediaSendError")), {
+          kind: "error",
+        });
+      }
+    },
+    [addComment, onCommentAdded, postId, replyingTo, showToast, t],
   );
 
   const renderComment = useCallback(
@@ -505,7 +587,7 @@ export default function CommentsBottomSheet({
                     if (!result?.removedByPostAuthor) return;
                     Alert.alert(
                       t("commentRemovedTitle"),
-                      t("blockAndReportPrompt", { username: item.user.username }),
+                      t("blockAndReportPrompt", { username: userDisplayName(item.user) }),
                       [
                         { text: t("notNow"), style: "cancel" },
                         {
@@ -592,6 +674,11 @@ export default function CommentsBottomSheet({
               : "mb-5"
         }`}
         style={{ marginLeft: item.parentId ? 44 : 0 }}
+        onStartShouldSetResponderCapture={() => {
+          if (!keyboardVisibleRef.current) return false;
+          Keyboard.dismiss();
+          return true;
+        }}
       >
         <TouchableOpacity
           onPress={() => router.push({ pathname: "/(users)/[id]", params: { id: item.user.id } })}
@@ -610,18 +697,16 @@ export default function CommentsBottomSheet({
               className="min-w-0 flex-1 flex-row items-center"
               onPress={() => router.push({ pathname: "/(users)/[id]", params: { id: item.user.id } })}
             >
-              <Text className="font-bold text-black dark:text-white">
-                {item.user.username}
-              </Text>
-
-              <Text className="ml-2 text-xs text-gray-400">
-                {formatCommentTime(item.createdAt)}
-              </Text>
-              {item.editedAt ? (
-                <Text className="ml-1 text-xs text-gray-400">
-                  · {t("edited")}
+              <View className="min-w-0 shrink">
+                <Text className="font-bold text-black dark:text-white">
+                  {userDisplayName(item.user)}
                 </Text>
-              ) : null}
+                {item.user.displayName?.trim() ? (
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">
+                    {usernameLabel(item.user.username)}
+                  </Text>
+                ) : null}
+              </View>
             </TouchableOpacity>
             {!item.isAuthorNote &&
             (item.canDelete || item.canModerate || item.canPin) ? (
@@ -651,15 +736,28 @@ export default function CommentsBottomSheet({
 
           {item.parent ? (
             <Text className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
-              {t("replyingTo", { username: item.parent.user.username })}
+              {t("replyingTo", { username: userDisplayName(item.parent.user) })}
             </Text>
           ) : null}
 
-          <MentionText
-            className="mt-1 text-gray-700 dark:text-gray-300"
-            content={item.content}
-            mentions={item.mentions}
-          />
+          {item.content.trim() ? (
+            <MentionText
+              className="mt-1 text-gray-700 dark:text-gray-300"
+              content={item.content}
+              mentions={item.mentions}
+            />
+          ) : null}
+          {item.gifUrl ? (
+            <AdaptiveGif
+              uri={item.gifUrl}
+              width="100%"
+              style={{
+                marginTop: 4,
+                borderRadius: 16,
+                backgroundColor: isDark ? "#1F2937" : "#F3F4F6",
+              }}
+            />
+          ) : null}
 
           <View className="mt-2 flex-row items-center gap-3">
             {!item.isAuthorNote ? (
@@ -680,6 +778,16 @@ export default function CommentsBottomSheet({
                 {t("likedByAuthor")}
               </Text>
             ) : null}
+            <View className="ml-auto flex-row items-center">
+              <Text className="text-xs text-gray-400">
+                {formatCommentTime(item.createdAt)}
+              </Text>
+              {item.editedAt ? (
+                <Text className="ml-1 text-xs text-gray-400">
+                  · {t("edited")}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </View>
         <TouchableOpacity
@@ -706,6 +814,7 @@ export default function CommentsBottomSheet({
     [
       deleteComment,
       highlightedCommentId,
+      isDark,
       showToast,
       t,
       toggleCommentLike,
@@ -732,16 +841,20 @@ export default function CommentsBottomSheet({
         open={!!postId}
         snapPoints={["70%"]}
         onClose={closeSheet}
-        footerComponent={renderFooter}
         androidKeyboardInputMode="adjustPan"
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+        enableContentPanningGesture
+        dismissKeyboardBeforeBackdropClose
       >
+        <View style={{ flex: 1 }}>
         <BottomSheetFlatList
         ref={listRef}
         data={threadedComments}
         keyExtractor={(item) => item.id}
         renderItem={renderComment}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
         onScrollToIndexFailed={(info) => {
@@ -755,7 +868,7 @@ export default function CommentsBottomSheet({
         }}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 130 + insets.bottom,
+          paddingBottom: 24,
           flexGrow: 1,
         }}
         ListHeaderComponent={
@@ -1046,6 +1159,18 @@ export default function CommentsBottomSheet({
           )
         }
         />
+        <CommentComposer
+          key={editingComment?.id ?? "comment-composer"}
+          bottomInset={insets.bottom}
+          replyingTo={replyingTo}
+          editingComment={editingComment}
+          onCancelReply={() => setReplyingTo(null)}
+          onCancelEdit={() => setEditingComment(null)}
+          onAddComment={handleAddComment}
+          onUpdateComment={updateComment}
+          onOpenGif={openGifPicker}
+        />
+        </View>
       </AppBottomSheet>
 
       <AppBottomSheet
@@ -1134,6 +1259,13 @@ export default function CommentsBottomSheet({
           </TouchableOpacity>
         </View>
       </AppBottomSheet>
+
+      <GifPickerBottomSheet
+        open={gifPickerOpen}
+        onClose={() => setGifPickerOpen(false)}
+        onSelect={(gif) => void handleGifSelected(gif)}
+        selecting={submitting}
+      />
 
       <AppBottomSheet
         open={!!commentActionTarget}

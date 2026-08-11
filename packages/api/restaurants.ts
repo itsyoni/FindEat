@@ -10,6 +10,7 @@ import type {
   UserRestaurant,
   FeedPage,
   RestaurantOpeningHours,
+  RestaurantFoodCertificationDetails,
   SavedPostAttribution,
   SavedRestaurant,
   PlaceSaveStatus,
@@ -48,6 +49,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
       instagram?: string | null;
       openingHours?: RestaurantOpeningHours | null;
       foodCertifications?: string[];
+      foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
     }) {
       const { data } = await api.patch<Restaurant>("/restaurants/me", payload);
       return data;

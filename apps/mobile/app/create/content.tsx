@@ -361,6 +361,9 @@ export default function CreateContentScreen() {
         id: `${Date.now()}-camera`,
         type: "IMAGE",
         uri,
+        originalUri: uri,
+        originalWidth: width,
+        originalHeight: height,
         width,
         height,
       },
@@ -467,6 +470,9 @@ export default function CreateContentScreen() {
             id: `${Date.now()}-camera`,
             type: "IMAGE" as const,
             uri: photo.uri,
+            originalUri: photo.uri,
+            originalWidth: photo.width,
+            originalHeight: photo.height,
             width: photo.width,
             height: photo.height,
           },
@@ -578,6 +584,9 @@ export default function CreateContentScreen() {
           id: `${asset.assetId ?? "gallery"}-${Date.now()}-${index}`,
           type: "IMAGE",
           uri: asset.uri,
+          originalUri: asset.uri,
+          originalWidth: asset.width,
+          originalHeight: asset.height,
           width: asset.width,
           height: asset.height,
         }));
@@ -606,10 +615,33 @@ export default function CreateContentScreen() {
     if (!selected || selected.type !== "IMAGE" || editingMedia) return;
     try {
       setEditingMedia(true);
+      const sourceOriginalUri = selected.originalUri ?? selected.uri;
+      // Native pickers can clean or replace temporary files after editing.
+      // Archive the untouched source before opening the cropper so every
+      // later crop begins with the complete image, never the previous crop.
+      const originalUri = userId
+        ? (await persistContentMediaUri(
+            userId,
+            sourceOriginalUri,
+            `original-${selected.id}`,
+          )) ?? sourceOriginalUri
+        : sourceOriginalUri;
+      setMedia((current) =>
+        current.map((item) =>
+          item.id === selected.id
+            ? {
+                ...item,
+                originalUri,
+                originalWidth: selected.originalWidth ?? selected.width,
+                originalHeight: selected.originalHeight ?? selected.height,
+              }
+            : item,
+        ),
+      );
       const cropped = await cropPostImage({
-        uri: selected.uri,
-        width: selected.width,
-        height: selected.height,
+        uri: originalUri,
+        width: selected.originalWidth ?? selected.width,
+        height: selected.originalHeight ?? selected.height,
         aspect: "CONTENT",
         toolbarTitle: t("cropContentPhoto"),
       });
@@ -626,8 +658,10 @@ export default function CreateContentScreen() {
           item.id === selected.id
             ? {
                 ...item,
-                id: `${item.id}-crop-${Date.now()}`,
                 uri: stableUri ?? cropped.uri,
+                originalUri,
+                originalWidth: selected.originalWidth ?? selected.width,
+                originalHeight: selected.originalHeight ?? selected.height,
                 width: cropped.width,
                 height: cropped.height,
               }

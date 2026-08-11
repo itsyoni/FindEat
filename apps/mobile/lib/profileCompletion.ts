@@ -9,6 +9,7 @@ type ProfileCompletionSource = {
   allergies?: string[];
   foodPreferences?: string[];
   dietaryRestrictions?: string[];
+  restaurantDietaryRequirements?: string[];
   favoriteCuisines?: string[];
   profileCompletedFields?: string[];
 };
@@ -19,6 +20,7 @@ const DETAIL_FIELDS = [
   "allergies",
   "foodPreferences",
   "dietaryRestrictions",
+  "restaurantDietaryRequirements",
   "favoriteCuisines",
 ] as const;
 

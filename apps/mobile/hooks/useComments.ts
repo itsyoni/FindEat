@@ -55,10 +55,10 @@ export function useComments(postId?: string | null) {
   }, [applyCommentContext, postId]);
 
   const addComment = useCallback(
-    async (content: string, replyToId?: string): Promise<void> => {
+    async (content: string, replyToId?: string, gifUrl?: string): Promise<void> => {
       const trimmedContent = content.trim();
 
-      if (!postId || !trimmedContent) return;
+      if (!postId || (!trimmedContent && !gifUrl)) return;
 
       try {
         setSubmitting(true);
@@ -67,9 +67,16 @@ export function useComments(postId?: string | null) {
           postId,
           trimmedContent,
           replyToId,
+          gifUrl,
         );
 
-        setComments((previousComments) => [...previousComments, newComment]);
+        setComments((previousComments) => [
+          ...previousComments,
+          {
+            ...newComment,
+            gifUrl: newComment.gifUrl ?? gifUrl ?? null,
+          },
+        ]);
 
         setLoadedPostId(postId);
       } catch (error) {

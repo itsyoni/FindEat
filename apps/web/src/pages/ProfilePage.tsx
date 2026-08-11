@@ -2,9 +2,9 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import {
   RESTAURANT_CATEGORY_OPTIONS,
-  RESTAURANT_FOOD_CERTIFICATION_OPTIONS,
   type ManagedRestaurant,
   type RestaurantOpeningHours,
+  type RestaurantFoodCertificationDetails,
 } from "@findeat/types";
 import { request, uploadImage } from "../lib/api";
 import { OpeningHoursEditor } from "../components/OpeningHoursEditor";
@@ -26,9 +26,19 @@ export function ProfilePage({
     bio: restaurant.bio || "",
   });
   const [categoryNames, setCategoryNames] = useState(restaurant.categories || []);
-  const [foodCertifications, setFoodCertifications] = useState(
-    restaurant.foodCertifications || [],
-  );
+  const legacyCertificationDetails: RestaurantFoodCertificationDetails = {
+    kosher: {
+      status: restaurant.foodCertifications?.includes("KOSHER") ? "CERTIFIED" : "NOT_KOSHER",
+      standard: "REGULAR",
+    },
+    halal: {
+      status: restaurant.foodCertifications?.includes("HALAL") ? "CERTIFIED" : "NOT_HALAL",
+    },
+  };
+  const [foodCertificationDetails, setFoodCertificationDetails] =
+    useState<RestaurantFoodCertificationDetails>(
+      restaurant.foodCertificationDetails ?? legacyCertificationDetails,
+    );
   const [openingHours, setOpeningHours] = useState<RestaurantOpeningHours | null>(() =>
     restaurant.openingHours
       ? normalizeOpeningHours(restaurant.openingHours)
@@ -87,9 +97,9 @@ export function ProfilePage({
       );
       const categoriesChanged =
         JSON.stringify(categoryNames) !== JSON.stringify(restaurant.categories || []);
-      const foodCertificationsChanged =
-        JSON.stringify(foodCertifications) !==
-        JSON.stringify(restaurant.foodCertifications || []);
+      const foodCertificationDetailsChanged =
+        JSON.stringify(foodCertificationDetails) !==
+        JSON.stringify(restaurant.foodCertificationDetails ?? legacyCertificationDetails);
       const originalOpeningHours = restaurant.openingHours
         ? normalizeOpeningHours(restaurant.openingHours)
         : null;
@@ -98,7 +108,7 @@ export function ProfilePage({
       const body = {
         ...changedFields,
         ...(categoriesChanged ? { categoryNames } : {}),
-        ...(foodCertificationsChanged ? { foodCertifications } : {}),
+        ...(foodCertificationDetailsChanged ? { foodCertificationDetails } : {}),
         ...(openingHoursChanged ? { openingHours } : {}),
         ...(logoUrl ? { logoUrl } : {}),
         ...(coverUrl ? { coverUrl } : {}),
@@ -257,29 +267,26 @@ export function ProfilePage({
             Select only certifications that apply to the entire restaurant.
             Vegan, vegetarian, and allergen information stays on individual dishes.
           </p>
-          <div className="restaurant-certification-options">
-            {RESTAURANT_FOOD_CERTIFICATION_OPTIONS.map((certification) => {
-              const selected = foodCertifications.includes(certification);
-              return (
-                <button
-                  key={certification}
-                  type="button"
-                  className={selected ? "selected" : ""}
-                  aria-pressed={selected}
-                  onClick={() =>
-                    setFoodCertifications((current) =>
-                      selected
-                        ? current.filter((item) => item !== certification)
-                        : [...current, certification],
-                    )
-                  }
-                >
-                  {certification === "KOSHER"
-                    ? "Kosher certified"
-                    : "Halal certified"}
-                </button>
-              );
-            })}
+          <div className="restaurant-certification-fields">
+            <section>
+              <label>Kosher status<select value={foodCertificationDetails.kosher.status} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, status: event.target.value as "NOT_KOSHER" | "CERTIFIED" } }))}><option value="NOT_KOSHER">Not certified kosher</option><option value="CERTIFIED">Kosher certified</option></select></label>
+              {foodCertificationDetails.kosher.status === "CERTIFIED" && <>
+                <label>Standard<select value={foodCertificationDetails.kosher.standard ?? "REGULAR"} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, standard: event.target.value as "REGULAR" | "MEHADRIN" | "OTHER" } }))}><option value="REGULAR">Regular</option><option value="MEHADRIN">Mehadrin</option><option value="OTHER">Other</option></select></label>
+                <label>Restaurant type<select value={foodCertificationDetails.kosher.restaurantType ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, restaurantType: (event.target.value || null) as "MEAT" | "DAIRY" | "PAREVE" | null } }))}><option value="">Not specified</option><option value="MEAT">Meat</option><option value="DAIRY">Dairy</option><option value="PAREVE">Pareve</option></select></label>
+                <label>Certification authority<input value={foodCertificationDetails.kosher.authority ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, authority: event.target.value } }))} placeholder="Authority name" /></label>
+                <label>Certificate URL<input type="url" value={foodCertificationDetails.kosher.certificateUrl ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, certificateUrl: event.target.value } }))} placeholder="https://…" /></label>
+                <label>Certificate expires<input type="date" value={foodCertificationDetails.kosher.expiresAt?.slice(0, 10) ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, expiresAt: event.target.value || null } }))} /></label>
+                <label className="certification-check"><input type="checkbox" checked={Boolean(foodCertificationDetails.kosher.glattMeat)} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, glattMeat: event.target.checked } }))} /><span>Glatt meat</span></label>
+              </>}
+            </section>
+            <section>
+              <label>Halal status<select value={foodCertificationDetails.halal.status} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, status: event.target.value as RestaurantFoodCertificationDetails["halal"]["status"] } }))}><option value="NOT_HALAL">Not declared halal</option><option value="OPTIONS">Halal options available</option><option value="HALAL_MEAT">Halal meat used</option><option value="CERTIFIED">Halal certified</option></select></label>
+              {foodCertificationDetails.halal.status !== "NOT_HALAL" && <>
+                <label>Certification authority<input value={foodCertificationDetails.halal.authority ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, authority: event.target.value } }))} placeholder="Authority name" /></label>
+                <label>Certificate URL<input type="url" value={foodCertificationDetails.halal.certificateUrl ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, certificateUrl: event.target.value } }))} placeholder="https://…" /></label>
+                <label>Certificate expires<input type="date" value={foodCertificationDetails.halal.expiresAt?.slice(0, 10) ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, expiresAt: event.target.value || null } }))} /></label>
+              </>}
+            </section>
           </div>
         </fieldset>
         <OpeningHoursEditor value={openingHours} onChange={setOpeningHours} />

@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { FlatList, TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { userDisplayName } from "@/lib/userIdentity";
 
 export default function StarredMessagesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -73,7 +74,7 @@ export default function StarredMessagesScreen() {
         }}
         contentContainerStyle={messages.length ? { padding: 16, paddingBottom: 40 } : { flexGrow: 1 }}
         renderItem={({ item }) => {
-          const senderName = item.sentAsRestaurant?.name ?? item.sender.username;
+          const senderName = item.sentAsRestaurant?.name ?? userDisplayName(item.sender);
           const senderImage = item.sentAsRestaurant?.logoUrl ?? item.sender.avatarUrl;
           return (
             <TouchableOpacity

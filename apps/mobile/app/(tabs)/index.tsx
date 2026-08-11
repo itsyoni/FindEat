@@ -57,6 +57,8 @@ import FollowingSuggestions from "@/components/feed/FollowingSuggestions";
 import DishCard from "@/components/restaurants/DishCard";
 
 const homeGestureThreshold = 12;
+const homeVerticalGestureThreshold = 22;
+const homeVerticalGestureDominance = 1.25;
 const homeRefreshThreshold = 64;
 const closeSnapsAction = 1;
 const refreshFeedAction = 3;
@@ -323,7 +325,7 @@ export default function HomeScreen() {
     elevation: 6,
   };
   const titleShadow = {
-    textShadowColor: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.8)",
+    textShadowColor: "rgba(0,0,0,0.42)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   };
@@ -354,6 +356,7 @@ export default function HomeScreen() {
 
   const snapsTrayAnimatedStyle = useAnimatedStyle(() => ({
     height: snapsTrayHeight * snapsProgress.value,
+    opacity: Math.max(0, (snapsProgress.value - 0.7) / 0.3),
     overflow: "hidden",
   }));
 
@@ -379,13 +382,24 @@ export default function HomeScreen() {
           if (!touch) return;
           const distanceX = touch.absoluteX - gestureStartX.get();
           const distanceY = touch.absoluteY - gestureStartY.get();
+          const absoluteX = Math.abs(distanceX);
+          const absoluteY = Math.abs(distanceY);
           if (
-            Math.abs(distanceY) < homeGestureThreshold &&
-            Math.abs(distanceX) < homeGestureThreshold
+            absoluteY < homeGestureThreshold &&
+            absoluteX < homeGestureThreshold
           ) {
             return;
           }
-          if (Math.abs(distanceY) <= Math.abs(distanceX)) {
+
+          // Release horizontal media carousels as soon as the user's intent is
+          // clear. Only a deliberate, predominantly vertical gesture may
+          // collapse Snaps or refresh the feed.
+          if (absoluteX >= homeGestureThreshold && absoluteX >= absoluteY) {
+            manager.fail();
+            return;
+          }
+          if (absoluteY < homeVerticalGestureThreshold) return;
+          if (absoluteY < absoluteX * homeVerticalGestureDominance) {
             manager.fail();
             return;
           }
@@ -511,7 +525,14 @@ export default function HomeScreen() {
           <GestureDetector gesture={homeFeedGesture}>
             <View
               style={{ flex: 1 }}
-              onLayout={(e) => setFeedHeight(e.nativeEvent.layout.height)}
+              onLayout={(event) => {
+                const nextHeight = event.nativeEvent.layout.height;
+                setFeedHeight((currentHeight) =>
+                  selectedPostId && currentHeight > 0
+                    ? currentHeight
+                    : nextHeight,
+                );
+              }}
             >
               {feedHeight > 0 ? (
                 <>
@@ -631,10 +652,11 @@ export default function HomeScreen() {
                 accessibilityLabel={t("search")}
                 onPress={openSearch}
                 className="h-12 w-12 items-center justify-center"
+                style={iconShadow}
               >
                 <MagnifyingGlassIcon
                   size={28}
-                  color="#FAF9F6"
+                  color={!isDark && !snapsCollapsed ? "#171717" : "#FAF9F6"}
                   weight="bold"
                   style={iconShadow}
                 />
@@ -658,10 +680,14 @@ export default function HomeScreen() {
                             color: active
                               ? isDark
                                 ? "#FAF9F6"
-                                : "#171717"
+                                : !snapsCollapsed
+                                  ? "#171717"
+                                  : "#FAF9F6"
                               : isDark
                                 ? "rgba(255,255,255,0.65)"
-                                : "rgba(23,23,23,0.55)",
+                                : !snapsCollapsed
+                                  ? "rgba(23,23,23,0.55)"
+                                  : "rgba(255,255,255,0.68)",
                           },
                         ]}
                       >
@@ -671,7 +697,8 @@ export default function HomeScreen() {
                         <View
                           className="mt-1 h-0.5 rounded-full"
                           style={{
-                            backgroundColor: isDark ? "#FAF9F6" : "#171717",
+                            backgroundColor:
+                              isDark || snapsCollapsed ? "#FAF9F6" : "#171717",
                           }}
                         />
                       ) : null}
@@ -685,10 +712,11 @@ export default function HomeScreen() {
                 accessibilityLabel={t("notifications")}
                 className="relative h-12 w-12 items-center justify-center"
                 onPress={() => router.push("/notifications")}
+                style={iconShadow}
               >
                 <BellIcon
                   size={27}
-                  color="#FAF9F6"
+                  color={!isDark && !snapsCollapsed ? "#171717" : "#FAF9F6"}
                   weight="fill"
                   style={iconShadow}
                 />
@@ -723,32 +751,22 @@ export default function HomeScreen() {
                   style={[
                     iconShadow,
                     {
-                      borderColor: isDark
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.06)",
-                      backgroundColor: isDark
-                        ? "rgba(0,0,0,0.1)"
-                        : "rgba(255,255,255,0.55)",
+                      borderColor: "rgba(255,255,255,0.08)",
+                      backgroundColor: "rgba(0,0,0,0.12)",
                     },
                   ]}
                 >
                   <Text
                     className="text-xs font-medium"
                     style={{
-                      color: isDark
-                        ? "rgba(255,255,255,0.6)"
-                        : "rgba(23,23,23,0.6)",
+                      color: "rgba(255,255,255,0.62)",
                     }}
                   >
                     {t("expandSnaps")}
                   </Text>
                   <CaretDownIcon
                     size={18}
-                    color={
-                      isDark
-                        ? "rgba(255,255,255,0.6)"
-                        : "rgba(23,23,23,0.6)"
-                    }
+                    color="rgba(255,255,255,0.62)"
                     weight="regular"
                   />
                 </TouchableOpacity>

@@ -1,6 +1,12 @@
-import { StorefrontIcon, UserIcon } from "phosphor-react-native";
+import { StorefrontIcon, UserIcon, UsersThreeIcon } from "phosphor-react-native";
 import { StyleProp, View, ViewStyle } from "react-native";
-import { SvgUri } from "react-native-svg";
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  SvgUri,
+  Stop,
+} from "react-native-svg";
 import ProgressiveImage from "./ProgressiveImage";
 import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
 
@@ -10,7 +16,7 @@ type Props = {
   username?: string | null;
   size?: number;
   style?: StyleProp<ViewStyle>;
-  fallbackType?: "user" | "restaurant";
+  fallbackType?: "user" | "restaurant" | "group";
   userId?: string | null;
   showSnapIndicator?: boolean;
 };
@@ -37,7 +43,6 @@ export default function Avatar({
     height: size,
     borderRadius: size / 2,
   };
-  const ringWidth = Math.max(2, Math.min(3, size * 0.06));
   const mediaSize = size;
   const mediaStyle = {
     width: mediaSize,
@@ -65,6 +70,8 @@ export default function Avatar({
                 color="#3B82F6"
                 weight="fill"
               />
+            ) : fallbackType === "group" ? (
+              <UsersThreeIcon size={mediaSize * 0.58} color="#9CA3AF" weight="fill" />
             ) : (
               <UserIcon
                 size={mediaSize * 0.55}
@@ -87,20 +94,33 @@ export default function Avatar({
         )}
       </View>
       {snapIndicator ? (
-        <View
+        <Svg
           pointerEvents="none"
           style={{
             position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-            borderRadius: size / 2,
-            borderWidth: ringWidth,
-            borderColor:
-              snapIndicator === "unseen" ? "#FF5B35" : "#9CA3AF",
+            top: -6,
+            left: -6,
           }}
-        />
+          width={size + 12}
+          height={size + 12}
+          viewBox={`0 0 ${size + 12} ${size + 12}`}
+        >
+          <Defs>
+            <SvgLinearGradient id="unseenSnapRing" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#FFD447" />
+              <Stop offset="0.52" stopColor="#FF9F1C" />
+              <Stop offset="1" stopColor="#FF5B35" />
+            </SvgLinearGradient>
+          </Defs>
+          <Circle
+            cx={(size + 12) / 2}
+            cy={(size + 12) / 2}
+            r={(size + 8) / 2}
+            fill="none"
+            stroke={snapIndicator === "unseen" ? "url(#unseenSnapRing)" : "#9CA3AF"}
+            strokeWidth={2.5}
+          />
+        </Svg>
       ) : null}
     </View>
   );

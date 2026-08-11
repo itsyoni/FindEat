@@ -139,6 +139,7 @@ export default function ProfileContentFeedScreen() {
       <CommentsBottomSheet
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}
+        onCommentAdded={() => void refresh()}
       />
     </View>
   );

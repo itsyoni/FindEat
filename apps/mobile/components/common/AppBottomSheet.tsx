@@ -4,6 +4,7 @@ import {
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
 import { ReactNode, useCallback, useEffect, useRef } from "react";
+import { Keyboard } from "react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
 type Props = {
@@ -13,6 +14,10 @@ type Props = {
   children: ReactNode;
   stackBehavior?: "push" | "switch" | "replace";
   androidKeyboardInputMode?: "adjustPan" | "adjustResize";
+  keyboardBehavior?: "interactive" | "extend" | "fillParent";
+  keyboardBlurBehavior?: "none" | "restore";
+  enableContentPanningGesture?: boolean;
+  dismissKeyboardBeforeBackdropClose?: boolean;
   footerComponent?: (
     props: BottomSheetFooterProps,
   ) => React.ReactElement | null;
@@ -26,6 +31,10 @@ export default function AppBottomSheet({
   snapPoints,
   stackBehavior,
   androidKeyboardInputMode,
+  keyboardBehavior,
+  keyboardBlurBehavior,
+  enableContentPanningGesture,
+  dismissKeyboardBeforeBackdropClose,
 }: Props) {
   if (!open) return null;
 
@@ -36,6 +45,10 @@ export default function AppBottomSheet({
       snapPoints={snapPoints}
       stackBehavior={stackBehavior}
       androidKeyboardInputMode={androidKeyboardInputMode}
+      keyboardBehavior={keyboardBehavior}
+      keyboardBlurBehavior={keyboardBlurBehavior}
+      enableContentPanningGesture={enableContentPanningGesture}
+      dismissKeyboardBeforeBackdropClose={dismissKeyboardBeforeBackdropClose}
     >
       {children}
     </PresentedBottomSheet>
@@ -49,17 +62,60 @@ function PresentedBottomSheet({
   snapPoints,
   stackBehavior,
   androidKeyboardInputMode = "adjustResize",
+  keyboardBehavior = "interactive",
+  keyboardBlurBehavior = "restore",
+  enableContentPanningGesture = true,
+  dismissKeyboardBeforeBackdropClose = false,
 }: Omit<Props, "open">) {
   const { isDark } = useAppTheme();
   const modalRef = useRef<BottomSheetModal>(null);
+  const backdropCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const finishBackdropClose = useCallback(() => {
+    modalRef.current?.dismiss();
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       modalRef.current?.present();
     });
 
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (backdropCloseTimerRef.current) {
+        clearTimeout(backdropCloseTimerRef.current);
+      }
+    };
   }, []);
+
+  const closeAfterKeyboard = useCallback(() => {
+    if (!dismissKeyboardBeforeBackdropClose || !Keyboard.isVisible()) {
+      finishBackdropClose();
+      return;
+    }
+
+    let closed = false;
+    const finishClose = () => {
+      if (closed) return;
+      closed = true;
+      keyboardHiddenSubscription.remove();
+      if (backdropCloseTimerRef.current) {
+        clearTimeout(backdropCloseTimerRef.current);
+        backdropCloseTimerRef.current = null;
+      }
+      finishBackdropClose();
+    };
+    const keyboardHiddenSubscription = Keyboard.addListener(
+      "keyboardDidHide",
+      finishClose,
+    );
+
+    Keyboard.dismiss();
+    backdropCloseTimerRef.current = setTimeout(finishClose, 450);
+  }, [dismissKeyboardBeforeBackdropClose, finishBackdropClose]);
 
   const renderBackdrop = useCallback(
     (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
@@ -68,13 +124,16 @@ function PresentedBottomSheet({
         opacity={0.45}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
-        pressBehavior="close"
+        pressBehavior={dismissKeyboardBeforeBackdropClose ? 0 : "close"}
+        onPress={
+          dismissKeyboardBeforeBackdropClose ? closeAfterKeyboard : undefined
+        }
         style={{
           backgroundColor: "#0B0B0A",
         }}
       />
     ),
-    [],
+    [closeAfterKeyboard, dismissKeyboardBeforeBackdropClose],
   );
 
   return (
@@ -84,10 +143,10 @@ function PresentedBottomSheet({
       snapPoints={snapPoints}
       enableDynamicSizing={false}
       enablePanDownToClose
-      enableContentPanningGesture
+      enableContentPanningGesture={enableContentPanningGesture}
       enableHandlePanningGesture
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
+      keyboardBehavior={keyboardBehavior}
+      keyboardBlurBehavior={keyboardBlurBehavior}
       android_keyboardInputMode={androidKeyboardInputMode}
       onDismiss={onClose}
       backdropComponent={renderBackdrop}

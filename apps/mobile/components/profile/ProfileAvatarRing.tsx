@@ -2,6 +2,7 @@ import Avatar from "@/components/common/Avatar";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import type { SnapIndicatorStatus } from "@/contexts/SnapIndicatorContext";
 import { View } from "react-native";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 type Props = {
   avatarUrl?: string | null;
@@ -18,9 +19,7 @@ export default function ProfileAvatarRing({
 }: Props) {
   const { isDark } = useAppTheme();
   const hasSnap = snapIndicator !== null;
-  const profileRingWidth = 4;
-  const snapRingWidth = 3;
-  const outerDiameter = size + profileRingWidth * 2;
+  const outerDiameter = size + 16;
 
   return (
     <View
@@ -28,7 +27,6 @@ export default function ProfileAvatarRing({
         width: outerDiameter,
         height: outerDiameter,
         borderRadius: outerDiameter / 2,
-        padding: profileRingWidth,
         backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
         alignItems: "center",
         justifyContent: "center",
@@ -42,21 +40,33 @@ export default function ProfileAvatarRing({
           showSnapIndicator={false}
         />
         {hasSnap ? (
-          <View
+          <Svg
             pointerEvents="none"
             style={{
               position: "absolute",
-              inset: 0,
-              borderRadius: size / 2,
-              borderWidth: snapRingWidth,
-              borderColor:
-                snapIndicator === "unseen"
-                  ? "#FF5B35"
-                  : isDark
-                    ? "#6B7280"
-                    : "#9CA3AF",
+              top: -6,
+              left: -6,
             }}
-          />
+            width={size + 12}
+            height={size + 12}
+            viewBox={`0 0 ${size + 12} ${size + 12}`}
+          >
+            <Defs>
+              <LinearGradient id="profileSnapGradient" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor="#FFD447" />
+                <Stop offset="0.52" stopColor="#FF9F1C" />
+                <Stop offset="1" stopColor="#FF5B35" />
+              </LinearGradient>
+            </Defs>
+            <Circle
+              cx={(size + 12) / 2}
+              cy={(size + 12) / 2}
+              r={(size + 8) / 2}
+              fill="none"
+              stroke={snapIndicator === "unseen" ? "url(#profileSnapGradient)" : isDark ? "#6B7280" : "#9CA3AF"}
+              strokeWidth={3}
+            />
+          </Svg>
         ) : null}
       </View>
     </View>

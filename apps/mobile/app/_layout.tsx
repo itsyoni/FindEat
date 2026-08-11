@@ -34,6 +34,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import PresenceConnection from "@/components/presence/PresenceConnection";
 import { PostUploadProvider } from "@/contexts/PostUploadContext";
 import { SnapIndicatorProvider } from "@/contexts/SnapIndicatorContext";
+import AppErrorBoundary from "@/components/common/AppErrorBoundary";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -95,7 +96,9 @@ export default function RootLayout() {
                             <BottomSheetModalProvider>
                               <AccessibilityMotionConfig />
                               <SaveToListsProvider>
-                                <RootNavigator />
+                                <AppErrorBoundary>
+                                  <RootNavigator />
+                                </AppErrorBoundary>
                               </SaveToListsProvider>
                               <PortalHost name="pinch-zoom" />
                             </BottomSheetModalProvider>

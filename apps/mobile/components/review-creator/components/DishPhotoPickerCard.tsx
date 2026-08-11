@@ -11,6 +11,9 @@ type Props = {
   pickingSource?: ReviewImageSource | null;
   disabled?: boolean;
   removing?: boolean;
+  emptyTitle?: string;
+  emptyHint?: string;
+  aspectRatio?: number;
   onChoose: (source: ReviewImageSource) => void;
   onRemove: () => void;
 };
@@ -21,6 +24,9 @@ export default function DishPhotoPickerCard({
   pickingSource = null,
   disabled = false,
   removing = false,
+  emptyTitle,
+  emptyHint,
+  aspectRatio = 4 / 3,
   onChoose,
   onRemove,
 }: Props) {
@@ -32,7 +38,7 @@ export default function DishPhotoPickerCard({
   return (
     <View className="overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
       {imageUrl ? (
-        <View style={{ width: "100%", aspectRatio: 4 / 3 }}>
+        <View style={{ width: "100%", aspectRatio }}>
           <Image
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
@@ -58,7 +64,7 @@ export default function DishPhotoPickerCard({
           </TouchableOpacity>
         </View>
       ) : fallbackImageUrl ? (
-        <View style={{ width: "100%", aspectRatio: 4 / 3 }}>
+        <View style={{ width: "100%", aspectRatio }}>
           <Image
             source={{ uri: fallbackImageUrl }}
             style={{ width: "100%", height: "100%", opacity: 0.62 }}
@@ -74,10 +80,10 @@ export default function DishPhotoPickerCard({
         <View className="items-center px-6 py-9">
           <ImagesIcon size={35} color={iconColor} weight="light" />
           <Text className="mt-3 font-bold text-black dark:text-white">
-            {t("addDishPhoto")}
+            {emptyTitle ?? t("addDishPhoto")}
           </Text>
           <Text className="mt-1 text-center text-sm text-gray-500">
-            {t("dishPhotoOptionalHint")}
+            {emptyHint ?? t("dishPhotoOptionalHint")}
           </Text>
         </View>
       )}

@@ -31,7 +31,10 @@ export function RestaurantCompatibilitySummary({
   const tagLabel = useFoodTagLabel();
 
   if (!compatibility) return null;
-  const hasWarnings = compatibility.allergenWarnings.length > 0;
+  const hasWarnings =
+    compatibility.allergenWarnings.length > 0 ||
+    (compatibility.exclusionWarnings?.length ?? 0) > 0 ||
+    compatibility.restaurantEligible === false;
   const hasMatches =
     compatibility.dietaryMatches.length > 0 ||
     compatibility.cuisineMatches.length > 0;
@@ -41,9 +44,13 @@ export function RestaurantCompatibilitySummary({
     const allergens = compatibility!.allergenWarnings
       .map((match) => tagLabel(match.tag))
       .join(", ");
+    const exclusions = [
+      ...(compatibility!.exclusionWarnings ?? []).map((match) => tagLabel(match.tag)),
+      ...(compatibility!.unmetRestaurantRequirements ?? []).map(tagLabel),
+    ].join(", ");
     Alert.alert(
-      t("allergenWarningTitle"),
-      `${t("restaurantAllergenWarning", { allergens })}\n\n${t("allergenDisclaimer")}`,
+      allergens ? t("allergenWarningTitle") : t("dietaryConflictTitle"),
+      `${allergens ? t("restaurantAllergenWarning", { allergens }) : ""}${allergens && exclusions ? "\n\n" : ""}${exclusions ? t("restaurantDietaryConflict", { restrictions: exclusions }) : ""}\n\n${t("allergenDisclaimer")}`,
       [{ text: t("common:ok") }],
       { tone: "warning" },
     );
@@ -79,7 +86,9 @@ export function RestaurantCompatibilitySummary({
             numberOfLines={2}
             className="ml-2 min-w-0 flex-1 text-sm font-bold text-red-900 dark:text-red-100"
           >
-            {t("allergenWarningTitle")}
+            {compatibility.allergenWarnings.length
+              ? t("allergenWarningTitle")
+              : t("dietaryConflictTitle")}
           </Text>
         </TouchableOpacity>
       )}
@@ -122,11 +131,12 @@ export function DishCompatibilityChips({
   if (!compatibility) return null;
 
   const warningLabels = compatibility.allergenWarnings.map(tagLabel);
+  const exclusionLabels = (compatibility.exclusionWarnings ?? []).map(tagLabel);
   const matchTags = [
     ...compatibility.dietaryMatches,
     ...compatibility.cuisineMatches,
   ];
-  if (!warningLabels.length && !matchTags.length) return null;
+  if (!warningLabels.length && !exclusionLabels.length && !matchTags.length) return null;
 
   return (
     <View
@@ -146,6 +156,14 @@ export function DishCompatibilityChips({
             className={`${detailed ? "text-sm" : "text-xs"} min-w-0 flex-shrink font-bold text-red-800 dark:text-red-200`}
           >
             {t("dishContainsAllergens", { allergens: warningLabels.join(", ") })}
+          </Text>
+        </View>
+      )}
+      {!!exclusionLabels.length && (
+        <View className={`${detailed ? "p-4" : "max-w-full px-2 py-1"} min-w-0 flex-row items-center gap-1.5 rounded-2xl bg-amber-100 dark:bg-amber-950/60`} style={isRtl ? { flexDirection: "row-reverse" } : undefined}>
+          <WarningCircleIcon size={detailed ? 20 : 13} color="#D97706" weight="fill" />
+          <Text numberOfLines={detailed ? undefined : 2} ellipsizeMode="tail" style={rtlTextStyle} className={`${detailed ? "text-sm" : "text-xs"} min-w-0 flex-shrink font-bold text-amber-900 dark:text-amber-100`}>
+            {t("dishConflictsWith", { restrictions: exclusionLabels.join(", ") })}
           </Text>
         </View>
       )}

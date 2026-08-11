@@ -176,6 +176,13 @@ export default function PostOptionsBottomSheet({
     router.push({ pathname: "/posts/connections/[id]", params: { id } });
   }
 
+  function manageTags() {
+    if (!postId) return;
+    const id = postId;
+    closeSheet();
+    router.push({ pathname: "/posts/tags/[id]", params: { id } });
+  }
+
   function addReviewToContent() {
     if (!activePost?.restaurantId || activePost.type !== "CONTENT") return;
     const coverImageUrl =
@@ -548,6 +555,28 @@ export default function PostOptionsBottomSheet({
                 </TouchableOpacity>
               ) : null}
               </>
+            ) : null}
+
+            {activePost.type === "CONTENT" ? (
+              <TouchableOpacity
+                activeOpacity={0.72}
+                accessibilityRole="button"
+                className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                onPress={manageTags}
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/40">
+                  <UserPlusIcon size={21} color="#FF5B35" weight="fill" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("manageTags")}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {t("manageTagsHint")}
+                  </Text>
+                </View>
+                <DirectionalIcon direction="forward" size={18} color={isDark ? "#6B7280" : "#9CA3AF"} weight="bold" />
+              </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity

@@ -80,6 +80,7 @@ export default function ContentFeed({
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
   const [visiblePostIndex, setVisiblePostIndex] = useState(initialIndex);
   const listRef = useRef<FlatList<Post>>(null);
+  const appliedInitialPostIdRef = useRef<string | null>(null);
   const scrollOffsetRef = useRef(initialIndex * height);
   const dragStartRef = useRef({ index: initialIndex, offset: initialIndex * height });
   const gestureScrollOffset = useSharedValue(initialIndex * height);
@@ -90,6 +91,23 @@ export default function ContentFeed({
   useEffect(() => {
     postsRef.current = posts;
   }, [posts]);
+
+  useEffect(() => {
+    const initialPost = posts[initialIndex];
+    if (!initialPost || initialIndex <= 0) return;
+    if (appliedInitialPostIdRef.current === initialPost.id) return;
+    appliedInitialPostIdRef.current = initialPost.id;
+
+    const scrollToSelectedPost = () => {
+      const offset = initialIndex * height;
+      listRef.current?.scrollToOffset({ offset, animated: false });
+      scrollOffsetRef.current = offset;
+      gestureScrollOffset.set(offset);
+      setVisiblePostIndex(initialIndex);
+    };
+    const frame = requestAnimationFrame(scrollToSelectedPost);
+    return () => cancelAnimationFrame(frame);
+  }, [gestureScrollOffset, height, initialIndex, posts]);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<Post>[] }) => {
       const index = viewableItems.find(
@@ -250,7 +268,10 @@ export default function ContentFeed({
         onRefresh={nativeRefreshEnabled ? onRefresh : undefined}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.6}
-        initialNumToRender={2}
+        initialNumToRender={Math.max(
+          2,
+          Math.min(posts.length, initialIndex + 1),
+        )}
         maxToRenderPerBatch={2}
         windowSize={3}
         removeClippedSubviews

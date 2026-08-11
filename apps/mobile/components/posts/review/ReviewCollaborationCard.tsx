@@ -2,6 +2,7 @@ import Text from "@/components/common/AppText";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type { Post } from "@findeat/types";
+import { userDisplayName } from "@/lib/userIdentity";
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { UsersThreeIcon } from "phosphor-react-native";
@@ -73,7 +74,7 @@ export default function ReviewCollaborationCard({ post }: Props) {
           <Text className="mt-1 text-sm leading-5 text-gray-500">
             {t("inviteBody", {
               name:
-                post.author?.username ||
+                userDisplayName(post.author) ||
                 t("someone"),
             })}
           </Text>

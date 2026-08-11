@@ -7,6 +7,7 @@ import { CheckCircleIcon, StarIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   item: ReviewItem | null;
@@ -61,8 +62,13 @@ export default function DishContributionsBottomSheet({
                   />
                   <View className="ml-3 flex-1">
                     <Text className="font-bold text-black dark:text-white">
-                      {contribution.user.username}
+                      {userDisplayName(contribution.user)}
                     </Text>
+                    {contribution.user.displayName?.trim() ? (
+                      <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {usernameLabel(contribution.user.username)}
+                      </Text>
+                    ) : null}
                     {contribution.rating != null && (
                       <View className="mt-1 flex-row items-center">
                         <StarIcon size={15} color="#E0B84F" weight="fill" />

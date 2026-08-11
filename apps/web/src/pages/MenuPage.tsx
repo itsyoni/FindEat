@@ -87,6 +87,7 @@ export function MenuPage({
   const [dishDietaryTags, setDishDietaryTags] = useState<string[]>([]);
   const [dishCuisineTags, setDishCuisineTags] = useState<string[]>([]);
   const [dishTags, setDishTags] = useState<string[]>([]);
+  const [dishIngredientFlags, setDishIngredientFlags] = useState<string[]>([]);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
   const [insightsDish, setInsightsDish] = useState<Dish | null>(null);
   const [openDishOptions, setOpenDishOptions] = useState<string | null>(null);
@@ -144,6 +145,7 @@ export function MenuPage({
           dietaryTags: dishDietaryTags,
           cuisineTags: dishCuisineTags,
           dishTags,
+          ingredientFlags: dishIngredientFlags,
         }),
       });
       setDishName("");
@@ -155,6 +157,7 @@ export function MenuPage({
       setDishDietaryTags([]);
       setDishCuisineTags([]);
       setDishTags([]);
+      setDishIngredientFlags([]);
       setDishMenu(null);
       await reload();
     } catch (nextError) {
@@ -407,10 +410,12 @@ export function MenuPage({
                       dietaryTags={dishDietaryTags}
                       cuisineTags={dishCuisineTags}
                       dishTags={dishTags}
+                      ingredientFlags={dishIngredientFlags}
                       onAllergensChange={setDishAllergens}
                       onDietaryTagsChange={setDishDietaryTags}
                       onCuisineTagsChange={setDishCuisineTags}
                       onDishTagsChange={setDishTags}
+                      onIngredientFlagsChange={setDishIngredientFlags}
                     />
                     <label className="image-picker">
                       <input

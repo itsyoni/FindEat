@@ -6,6 +6,8 @@ export type ChatType = "DIRECT" | "GROUP" | "RESTAURANT";
 export type MessageType =
   | "TEXT"
   | "IMAGE"
+  | "VIDEO"
+  | "GIF"
   | "POST"
   | "RESTAURANT"
   | "POLL"
@@ -17,12 +19,16 @@ export type SendMessagePayload = (
   | { type: "POST"; postId: string }
   | { type: "RESTAURANT"; restaurantId: string }
   | { type: "IMAGE"; imageUrl: string }
+  | { type: "GIF"; imageUrl: string }
+  | { type: "VIDEO"; videoUrl: string }
   | { type: "SNAP"; snapId: string; content: string }
 ) & { replyToId?: string };
 
 export type MessageSnap = {
   id: string;
-  imageUrl: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  durationMs?: number | null;
   caption?: string | null;
   expiresAt: string;
   userId: string;
@@ -34,6 +40,7 @@ type MessageReply = {
   content: string | null;
   editedAt?: string | null;
   imageUrl?: string | null;
+  videoUrl?: string | null;
   deletedAt?: string | null;
   sender: UserSummary;
   sentAsRestaurant?: Pick<Restaurant, "id" | "name" | "logoUrl"> | null;
@@ -73,6 +80,7 @@ export type Message = {
   type?: MessageType;
   content: string | null;
   imageUrl?: string | null;
+  videoUrl?: string | null;
 
   postId?: string | null;
   post?: Post | null;

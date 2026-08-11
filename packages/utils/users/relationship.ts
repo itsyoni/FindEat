@@ -76,6 +76,10 @@ export function getNextRelationshipAfterToggle(
   if (relationship === "FRIENDS") return "FOLLOWED_BY";
   if (relationship === "FOLLOWING") return "NONE";
   if (relationship === "REQUESTED") return "NONE";
+  // A follow-back can become FRIENDS immediately or REQUESTED when the other
+  // account is private. Keep the accurate current label until the API returns
+  // instead of briefly showing the incorrect generic FOLLOWING state.
+  if (relationship === "FOLLOWED_BY") return "FOLLOWED_BY";
 
   return "FOLLOWING";
 }

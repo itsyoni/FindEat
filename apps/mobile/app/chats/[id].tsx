@@ -4,6 +4,7 @@ import Avatar from "@/components/common/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api, API_URL } from "@/lib/api";
+import { userDisplayName } from "@/lib/userIdentity";
 import {
   clearChatDraft,
   loadChatDraft,
@@ -20,6 +21,10 @@ import {
   ChecksIcon,
   CheckIcon,
   PaperPlaneTiltIcon,
+  PaperclipIcon,
+  GifIcon,
+  CropIcon,
+  PlayCircleIcon,
   StarIcon,
   UsersThreeIcon,
   XIcon,
@@ -31,6 +36,7 @@ import {
   AppState,
   FlatList,
   Image as RNImage,
+  Modal,
   Platform,
   Pressable,
   TouchableOpacity,
@@ -64,6 +70,19 @@ import SeenByBottomSheet, {
   type SeenByViewer,
 } from "@/components/chats/SeenByBottomSheet";
 import { useQuery } from "@tanstack/react-query";
+import ContentVideo from "@/components/posts/content/ContentVideo";
+import GifPickerBottomSheet, { type GifSelection } from "@/components/common/GifPickerBottomSheet";
+import * as ImagePicker from "expo-image-picker";
+import ImageCropPicker from "react-native-image-crop-picker";
+import { uploadImage, uploadVideo } from "@/lib/uploadImage";
+import FullScreenImageViewer from "@/components/common/FullScreenImageViewer";
+import AdaptiveGif from "@/components/common/AdaptiveGif";
+
+type PendingChatImage = {
+  uri: string;
+  width: number;
+  height: number;
+};
 
 type ChatMessage = Message & {
   renderKey?: string;
@@ -189,12 +208,23 @@ function ExpiringSnapPreview({ snap }: { snap: MessageSnap }) {
   }
 
   return (
-    <RNImage
-      source={{ uri: snap.imageUrl }}
-      style={{ width: 224, height: 160, backgroundColor: "#E5E7EB" }}
-      resizeMode="cover"
-      onError={() => setImageFailed(true)}
-    />
+    snap.videoUrl ? (
+      <ContentVideo
+        uri={snap.videoUrl}
+        autoPlay
+        muted
+        loop
+        style={{ width: 224, height: 160, backgroundColor: "#E5E7EB" }}
+        contentFit="cover"
+      />
+    ) : snap.imageUrl ? (
+      <RNImage
+        source={{ uri: snap.imageUrl }}
+        style={{ width: 224, height: 160, backgroundColor: "#E5E7EB" }}
+        resizeMode="cover"
+        onError={() => setImageFailed(true)}
+      />
+    ) : null
   );
 }
 
@@ -306,6 +336,14 @@ function firstPostImage(post: NonNullable<Message["post"]>) {
   return null;
 }
 
+function firstPostVideo(post: NonNullable<Message["post"]>) {
+  return [...(post.contentPost?.media ?? [])]
+    .sort((left, right) => left.order - right.order)
+    .find((media) => media.type === "VIDEO" && !!media.videoUrl)?.videoUrl ??
+    post.contentPost?.videoUrl ??
+    null;
+}
+
 export default function ChatScreen() {
   const { user, token } = useAuth();
   const currentUserId = user?.id;
@@ -360,6 +398,13 @@ export default function ChatScreen() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [seenByMessageId, setSeenByMessageId] = useState<string | null>(null);
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [pendingChatImage, setPendingChatImage] =
+    useState<PendingChatImage | null>(null);
+  const [preparingChatImage, setPreparingChatImage] = useState(false);
+  const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
+    null,
+  );
 
   const socketRef = useRef<Socket | null>(null);
   const messagesListRef = useRef<FlatList<ChatMessage>>(null);
@@ -466,7 +511,7 @@ export default function ChatScreen() {
       ? chat?.title
       : isRestaurantChat
         ? chat?.restaurant?.name
-        : otherUser?.username;
+        : userDisplayName(otherUser);
 
   const headerImage = isNewChat
     ? params.imageUrl
@@ -479,9 +524,7 @@ export default function ChatScreen() {
   const typingParticipant = chat?.participants.find(
     (participant) => participant.userId === typingUserIds[0],
   );
-  const typingName =
-    typingParticipant?.user.username ??
-    t("someone");
+  const typingName = userDisplayName(typingParticipant?.user) || t("someone");
   const typingLabel = isGroupChat
     ? typingUserIds.length > 1
       ? t("peopleTyping", { count: typingUserIds.length })
@@ -1048,6 +1091,110 @@ export default function ChatScreen() {
     }
   }
 
+  async function sendMediaPayload(
+    payload: { type: "IMAGE" | "GIF"; imageUrl: string } | { type: "VIDEO"; videoUrl: string },
+  ) {
+    if (!user || sending) return false;
+    try {
+      setSending(true);
+      let targetConversationId = conversationId;
+      if (isNewChat) {
+        if (params.type !== "DIRECT" || !params.targetUserId) return false;
+        const started = await api.chats.startDirectConversation(params.targetUserId);
+        targetConversationId = started.id;
+        setConversationId(started.id);
+        router.setParams({ id: started.id });
+      }
+      const message = await api.chats.sendMessage(targetConversationId, {
+        ...payload,
+        ...(replyingTo?.id ? { replyToId: replyingTo.id } : {}),
+      });
+      setMessages((current) =>
+        current.some((item) => item.id === message.id)
+          ? current
+          : [...current, message],
+      );
+      setReplyingTo(null);
+      scheduleScrollToEnd(true);
+      return true;
+    } catch (error) {
+      console.error("Could not send chat media", error);
+      showToast(t("mediaSendError"), { kind: "error" });
+      return false;
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function chooseChatMedia() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images", "videos"],
+      allowsEditing: false,
+      selectionLimit: 1,
+      quality: 0.9,
+    });
+    const asset = result.canceled ? null : result.assets[0];
+    if (!asset) return;
+    if (asset.type === "video") {
+      const videoUrl = await uploadVideo(asset.uri, undefined, "other");
+      await sendMediaPayload({ type: "VIDEO", videoUrl });
+    } else {
+      setPendingChatImage({
+        uri: asset.uri,
+        width: Math.max(1, asset.width),
+        height: Math.max(1, asset.height),
+      });
+    }
+  }
+
+  async function cropPendingChatImage() {
+    if (!pendingChatImage || preparingChatImage) return;
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: pendingChatImage.uri,
+        mediaType: "photo",
+        width: 1200,
+        height: 1500,
+        cropping: true,
+        freeStyleCropEnabled: false,
+        cropperCircleOverlay: false,
+        compressImageQuality: 0.9,
+        forceJpg: true,
+        cropperToolbarTitle: t("cropPhoto"),
+      });
+      setPendingChatImage({
+        uri: cropped.path.startsWith("/") ? `file://${cropped.path}` : cropped.path,
+        width: Math.max(1, cropped.width),
+        height: Math.max(1, cropped.height),
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
+        console.error("Could not crop chat image", error);
+        showToast(t("mediaSendError"), { kind: "error" });
+      }
+    }
+  }
+
+  async function sendPendingChatImage() {
+    if (!pendingChatImage || preparingChatImage) return;
+    try {
+      setPreparingChatImage(true);
+      const imageUrl = await uploadImage(pendingChatImage.uri, "other");
+      const sent = await sendMediaPayload({ type: "IMAGE", imageUrl });
+      if (sent) setPendingChatImage(null);
+    } catch (error) {
+      console.error("Could not prepare chat image", error);
+      showToast(t("mediaSendError"), { kind: "error" });
+    } finally {
+      setPreparingChatImage(false);
+    }
+  }
+
+  function sendGif(gif: GifSelection) {
+    setGifPickerOpen(false);
+    void sendMediaPayload({ type: "GIF", imageUrl: gif.url });
+  }
+
   function startEditingMessage(message: Message) {
     if (!message.content) return;
     editingSnapshotRef.current = { content, replyingTo };
@@ -1201,7 +1348,7 @@ export default function ChatScreen() {
 
   function replyAuthor(message: Message) {
     if (message.senderId === user?.id) return t("you");
-    return message.sentAsRestaurant?.name ?? message.sender.username;
+    return message.sentAsRestaurant?.name ?? userDisplayName(message.sender);
   }
 
   const scrollToMessage = useCallback((messageId: string) => {
@@ -1242,7 +1389,7 @@ export default function ChatScreen() {
     }
 
     const names = viewers.map(
-      ({ user: viewer }) => viewer.username,
+      ({ user: viewer }) => userDisplayName(viewer),
     );
     if (names.length === 1) return t("seenByOne", { name: names[0] });
     if (names.length === 2) {
@@ -1490,6 +1637,10 @@ export default function ChatScreen() {
 
               const nextMessageIsDifferentSender =
                 !!nextMessage && nextMessage.senderId !== item.senderId;
+              const standaloneMedia =
+                !item.deletedAt &&
+                (item.type === "IMAGE" || item.type === "GIF") &&
+                !!item.imageUrl;
               const seenLabel =
                 isMine && item.id === latestSentMessageId
                   ? receiptLabel(item)
@@ -1520,7 +1671,7 @@ export default function ChatScreen() {
                         {shouldShowAvatar ? (
                           <TouchableOpacity
                             accessibilityRole="button"
-                            accessibilityLabel={`Open ${item.sender.username}'s profile`}
+                            accessibilityLabel={`Open ${userDisplayName(item.sender)}'s profile`}
                             onPress={() =>
                               router.push({
                                 pathname: "/(users)/[id]",
@@ -1545,8 +1696,9 @@ export default function ChatScreen() {
                       }}
                       delayLongPress={260}
                       className={
-                        (item.type === "POST" || item.type === "SNAP") &&
-                        !item.deletedAt
+                        ((item.type === "POST" || item.type === "SNAP") &&
+                          !item.deletedAt) ||
+                        standaloneMedia
                           ? "max-w-[78%]"
                           : `max-w-[78%] rounded-[16px] border px-4 py-2.5 ${
                               isMine
@@ -1557,7 +1709,7 @@ export default function ChatScreen() {
                     >
                       {shouldShowSenderName && (
                         <Text className="mb-1 text-xs font-bold text-gray-500">
-                          {item.sender.username}
+                          {userDisplayName(item.sender)}
                         </Text>
                       )}
 
@@ -1569,7 +1721,7 @@ export default function ChatScreen() {
                           <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">
                             {item.replyTo.sender.id === user?.id
                               ? t("you")
-                              : item.replyTo.sentAsRestaurant?.name ?? item.replyTo.sender.username}
+                              : item.replyTo.sentAsRestaurant?.name ?? userDisplayName(item.replyTo.sender)}
                           </Text>
                           <Text numberOfLines={2} className={`mt-0.5 text-xs ${isMine ? "text-black/60" : "text-gray-500 dark:text-gray-400"}`}>
                             {replyPreview(item.replyTo)}
@@ -1597,6 +1749,7 @@ export default function ChatScreen() {
                                   : "rounded-bl-md"
                                 : ""
                             }`}
+                            style={{ width: 224 }}
                             onPress={() =>
                               router.push({
                                 pathname: "/(posts)/[id]",
@@ -1606,10 +1759,13 @@ export default function ChatScreen() {
                           >
                             {(() => {
                               const image = firstPostImage(item.post);
+                              const video = firstPostVideo(item.post);
 
                               const description =
                                 item.post.contentPost?.caption ??
                                 item.post.reviewPost?.summary;
+                              const mediaHeight =
+                                item.post.type === "CONTENT" ? 280 : 160;
 
                               return (
                                 <>
@@ -1618,7 +1774,7 @@ export default function ChatScreen() {
                                       source={{ uri: image }}
                                       style={{
                                         width: 224,
-                                        height: 160,
+                                        height: mediaHeight,
                                         backgroundColor: isDark
                                           ? "#1F2937"
                                           : "#E5E7EB",
@@ -1626,10 +1782,24 @@ export default function ChatScreen() {
                                       resizeMode="cover"
                                     />
                                   )}
+                                  {!image && video ? (
+                                    <View style={{ width: 224, height: mediaHeight, backgroundColor: isDark ? "#1F2937" : "#E5E7EB" }}>
+                                      <ContentVideo uri={video} muted loop={false} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+                                      <View pointerEvents="none" className="absolute inset-0 items-center justify-center bg-black/15">
+                                        <PlayCircleIcon size={46} color="#FAF9F6" weight="fill" />
+                                      </View>
+                                    </View>
+                                  ) : null}
 
                                   <View className="p-3">
+                                    <Text className="mb-1 text-[10px] font-bold uppercase tracking-wider text-brand">
+                                      {item.post.type === "REVIEW" ? t("sharedReview") : t("sharedContent")}
+                                    </Text>
                                     <View className="flex-row items-center">
-                                      <Text className="font-bold text-black dark:text-white">
+                                      <Text
+                                        numberOfLines={1}
+                                        className="min-w-0 flex-1 font-bold text-black dark:text-white"
+                                      >
                                         {item.post.restaurant?.name ?? t("findEatPost")}
                                       </Text>
                                       {item.post.restaurant?.name ? <RestaurantBadge /> : null}
@@ -1643,6 +1813,11 @@ export default function ChatScreen() {
                                         {description}
                                       </Text>
                                     )}
+                                    {item.post.type === "REVIEW" && item.post.reviewPost?.overallRating != null ? (
+                                      <Text className="mt-2 text-sm font-bold text-amber-600 dark:text-amber-400">
+                                        ★ {item.post.reviewPost.overallRating}/10
+                                      </Text>
+                                    ) : null}
 
                                     <View className="mt-2 flex-row items-center self-end">
                                       {item.starred ? (
@@ -1669,6 +1844,65 @@ export default function ChatScreen() {
                             </Text>
                           </View>
                         )
+                      ) : (item.type === "IMAGE" || item.type === "GIF") && item.imageUrl ? (
+                        <Pressable
+                          onPress={
+                            item.type === "IMAGE"
+                              ? () => setFullScreenImageUrl(item.imageUrl ?? null)
+                              : undefined
+                          }
+                          onLongPress={() => setSelectedMessage(item)}
+                          delayLongPress={260}
+                          style={{
+                            width: 224,
+                            ...(item.type === "IMAGE" ? { height: 280 } : {}),
+                            overflow: "hidden",
+                            borderRadius: 16,
+                            ...(nextMessage?.senderId !== item.senderId
+                              ? isMine
+                                ? { borderBottomRightRadius: 4 }
+                                : { borderBottomLeftRadius: 4 }
+                              : {}),
+                            backgroundColor: isDark ? "#1F2937" : "#E5E7EB",
+                          }}
+                        >
+                          {item.type === "GIF" ? (
+                            <AdaptiveGif
+                              uri={item.imageUrl}
+                              width={224}
+                              style={{
+                                backgroundColor: isDark ? "#1F2937" : "#E5E7EB",
+                              }}
+                            />
+                          ) : (
+                            <RNImage
+                              source={{ uri: item.imageUrl }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode="cover"
+                            />
+                          )}
+                          <View className="absolute bottom-2 right-2 flex-row items-center rounded-full bg-black/55 px-2 py-1">
+                            {item.starred ? (
+                              <StarIcon
+                                size={10}
+                                color="#F7D786"
+                                weight="fill"
+                                style={{ marginRight: 3 }}
+                              />
+                            ) : null}
+                            <Text className="text-[10px] text-white/90">
+                              {formatMessageTime(item.createdAt)}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ) : item.type === "VIDEO" && item.videoUrl ? (
+                        <ContentVideo
+                          uri={item.videoUrl}
+                          style={{ width: 224, height: 200, borderRadius: 12, overflow: "hidden" }}
+                          contentFit="cover"
+                          nativeControls
+                          tapToToggle
+                        />
                       ) : (
                         <MentionText
                           className={
@@ -1683,7 +1917,8 @@ export default function ChatScreen() {
 
                       {!item.deletedAt &&
                       (item.type === "SNAP" ||
-                        (item.type === "POST" && item.post)) ? null : (
+                        (item.type === "POST" && item.post) ||
+                        standaloneMedia) ? null : (
                       <View className="mt-1 flex-row items-center self-end">
                         {item.starred ? (
                           <StarIcon
@@ -1785,6 +2020,24 @@ export default function ChatScreen() {
               candidates={mentionCandidates}
             />
             <View className="flex-row items-end">
+            {!editingMessage ? (
+              <>
+                <TouchableOpacity
+                  disabled={sending}
+                  onPress={() => void chooseChatMedia()}
+                  className="mr-1 h-[42px] w-9 items-center justify-center"
+                >
+                  <PaperclipIcon size={22} color={isDark ? "#D1D5DB" : "#4B5563"} weight="bold" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={sending}
+                  onPress={() => setGifPickerOpen(true)}
+                  className="mr-2 h-[42px] w-9 items-center justify-center"
+                >
+                  <GifIcon size={24} color={isDark ? "#D1D5DB" : "#4B5563"} weight="fill" />
+                </TouchableOpacity>
+              </>
+            ) : null}
             <RNTextInput
               ref={composerInputRef}
               className="flex-1 rounded-3xl border border-line bg-soft px-4 text-ink dark:border-gray-800 dark:bg-[#1B1B1D] dark:text-white"
@@ -1860,6 +2113,79 @@ export default function ChatScreen() {
           </>}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <Modal
+        visible={!!pendingChatImage}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => {
+          if (!preparingChatImage) setPendingChatImage(null);
+        }}
+      >
+        <View className="flex-1 bg-[#0B0B0A]">
+          <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
+            <View className="h-16 flex-row items-center justify-between px-3">
+              <TouchableOpacity
+                disabled={preparingChatImage}
+                onPress={() => setPendingChatImage(null)}
+                className="h-11 w-11 items-center justify-center"
+              >
+                <XIcon size={27} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+              <Text className="text-lg font-bold text-[#FAF9F6]">
+                {t("previewPhoto")}
+              </Text>
+              <View className="h-11 w-11" />
+            </View>
+
+            <View className="flex-1 items-center justify-center overflow-hidden bg-[#11110F]">
+              {pendingChatImage ? (
+                <RNImage
+                  source={{ uri: pendingChatImage.uri }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="contain"
+                />
+              ) : null}
+            </View>
+
+            <View className="flex-row gap-3 px-4 pb-2 pt-4">
+              <TouchableOpacity
+                disabled={preparingChatImage}
+                onPress={() => void cropPendingChatImage()}
+                className="flex-1 flex-row items-center justify-center rounded-2xl border border-white/25"
+                style={{ height: 52 }}
+              >
+                <CropIcon size={21} color="#FAF9F6" weight="bold" />
+                <Text className="ml-2 font-bold text-[#FAF9F6]">
+                  {t("cropPhoto")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={preparingChatImage}
+                onPress={() => void sendPendingChatImage()}
+                className="flex-1 flex-row items-center justify-center rounded-2xl bg-brand"
+                style={{ height: 52 }}
+              >
+                {preparingChatImage ? (
+                  <ActivityIndicator color="#FAF9F6" />
+                ) : (
+                  <>
+                    <Text className="mr-2 font-bold text-[#FAF9F6]">
+                      {t("sendPhoto")}
+                    </Text>
+                    <PaperPlaneTiltIcon
+                      size={20}
+                      color="#FAF9F6"
+                      weight="fill"
+                    />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
       <MessageActionsBottomSheet
         message={selectedMessage}
         isMine={selectedMessage?.senderId === user?.id}
@@ -1868,6 +2194,18 @@ export default function ChatScreen() {
         onEdit={startEditingMessage}
         onDelete={deleteMessage}
         onToggleStar={toggleMessageStar}
+      />
+      <FullScreenImageViewer
+        uri={fullScreenImageUrl}
+        visible={!!fullScreenImageUrl}
+        onClose={() => setFullScreenImageUrl(null)}
+        closeButtonSide="left"
+      />
+      <GifPickerBottomSheet
+        open={gifPickerOpen}
+        onClose={() => setGifPickerOpen(false)}
+        onSelect={sendGif}
+        selecting={sending}
       />
       <SeenByBottomSheet
         open={!!seenByMessageId}

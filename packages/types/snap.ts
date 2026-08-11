@@ -10,7 +10,9 @@ export type SnapRestaurant = {
 
 export type Snap = {
   id: string;
-  imageUrl: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  durationMs?: number | null;
   caption?: string | null;
   createdAt: string;
   expiresAt: string;
@@ -32,9 +34,14 @@ export type SnapGroup = {
   hasUnseen: boolean;
 };
 
-export type CreateSnapInput = {
+type CreateSnapBase = {
   clientRequestId?: string;
-  imageUrl: string;
   caption?: string;
   restaurantId?: string;
 };
+
+export type CreateSnapInput = CreateSnapBase &
+  (
+    | { imageUrl: string; videoUrl?: never; durationMs?: never }
+    | { imageUrl?: never; videoUrl: string; durationMs: number }
+  );

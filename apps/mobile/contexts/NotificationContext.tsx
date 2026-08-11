@@ -272,6 +272,13 @@ export function NotificationProvider({
         return;
       }
 
+      // Friend-post alerts are push-only. While FindEat is open the feed/cache
+      // still updates above, but we do not interrupt the user with a banner.
+      if (item.type === "FRIEND_POST") {
+        setPopup(null);
+        return;
+      }
+
       setPopup(item);
     });
 

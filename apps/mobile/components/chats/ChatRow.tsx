@@ -8,6 +8,7 @@ import Avatar from "../common/Avatar";
 import { useTranslation } from "react-i18next";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import type { ChatDraft } from "@/lib/chatDrafts";
+import { userDisplayName } from "@/lib/userIdentity";
 
 type Props = {
   chat: Chat;
@@ -63,7 +64,7 @@ export default function ChatRow({ chat, draft, onLongPress }: Props) {
     ? chat.title
     : isRestaurantChat
       ? chat.restaurant?.name
-      : otherUser?.username;
+      : userDisplayName(otherUser);
 
   const imageUrl = isGroupChat
     ? chat.imageUrl

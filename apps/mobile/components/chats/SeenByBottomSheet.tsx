@@ -6,6 +6,7 @@ import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { ChecksIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 export type SeenByViewer = {
   user: UserSummary;
@@ -56,8 +57,13 @@ export default function SeenByBottomSheet({ open, viewers, onClose }: Props) {
                 numberOfLines={1}
                 className="font-bold text-black dark:text-white"
               >
-                {item.user.username}
+                {userDisplayName(item.user)}
               </Text>
+              {item.user.displayName?.trim() ? (
+                <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {usernameLabel(item.user.username)}
+                </Text>
+              ) : null}
               <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                 {t("seen")}
               </Text>

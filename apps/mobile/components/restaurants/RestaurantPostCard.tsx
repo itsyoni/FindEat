@@ -2,6 +2,7 @@ import { Restaurant } from "@findeat/types";
 import { View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import Text from "../common/AppText";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   post: Restaurant["posts"][number];
@@ -18,7 +19,12 @@ export default function RestaurantPostCard({ post }: Props) {
         />
       )}
 
-      <Text className="font-bold text-black">{post.author.username}</Text>
+      <Text className="font-bold text-black">{userDisplayName(post.author)}</Text>
+      {post.author.displayName?.trim() ? (
+        <Text className="text-xs text-gray-500">
+          {usernameLabel(post.author.username)}
+        </Text>
+      ) : null}
 
       {!!post.description && (
         <Text className="mt-2 text-gray-700">{post.description}</Text>

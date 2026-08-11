@@ -65,6 +65,20 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
   const averageRating = ratings.length > 0
     ? ratings.reduce((total, rating) => total + rating, 0) / ratings.length
     : null;
+  const kosher = restaurant.foodCertificationDetails?.kosher;
+  const halal = restaurant.foodCertificationDetails?.halal;
+  const certificationLabels = [
+    kosher?.status === 'CERTIFIED'
+      ? `${kosher.standard === 'MEHADRIN' ? t('mehadrinCertified') : t('kosherCertified')}${kosher.authority ? ` · ${kosher.authority}` : ''}`
+      : null,
+    halal?.status === 'CERTIFIED'
+      ? `${t('halalCertified')}${halal.authority ? ` · ${halal.authority}` : ''}`
+      : halal?.status === 'HALAL_MEAT'
+        ? t('halalMeat')
+        : halal?.status === 'OPTIONS'
+          ? t('halalOptions')
+          : null,
+  ].filter((value): value is string => Boolean(value));
   return (
     <View style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}>
       <View className="relative">
@@ -99,6 +113,15 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
         <Text weight="bold" className="text-center text-2xl text-black dark:text-white">{restaurant.name}</Text>
         <RestaurantBadge size={19} status={restaurant.status} />
         </View>
+        {certificationLabels.length ? (
+          <View className="mt-2 flex-row flex-wrap justify-center gap-2 px-5">
+            {certificationLabels.map((label) => (
+              <View key={label} className="rounded-full bg-amber-100 px-3 py-1.5 dark:bg-amber-950/60">
+                <Text className="text-xs font-bold text-amber-900 dark:text-amber-100">{label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {location ? (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -115,9 +138,9 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
             <DirectionalIcon direction="forward" size={14} color="#3B82F6" weight="bold" />
           </TouchableOpacity>
         ) : null}
-        {restaurant.openingHours ? (
+        {restaurant.resolvedOpeningHours ? (
           <View className="mt-2">
-            <RestaurantOpeningHoursSummary hours={restaurant.openingHours} />
+            <RestaurantOpeningHoursSummary hours={restaurant.resolvedOpeningHours} />
           </View>
         ) : null}
         <RestaurantStats

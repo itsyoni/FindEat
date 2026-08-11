@@ -319,6 +319,7 @@ export default function PreviewStep({
                       uri={participant.avatarUrl}
                       username={participant.username}
                       size={34}
+                      showSnapIndicator={false}
                     />
                   </View>
                 ))}

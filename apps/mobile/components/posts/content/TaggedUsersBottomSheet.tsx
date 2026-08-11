@@ -6,17 +6,22 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   open: boolean;
   users: UserSummary[];
   onClose: () => void;
+  title?: string;
+  displayNames?: boolean;
 };
 
 export default function TaggedUsersBottomSheet({
   open,
   users,
   onClose,
+  title,
+  displayNames = false,
 }: Props) {
   const { t } = useTranslation("common");
 
@@ -34,7 +39,7 @@ export default function TaggedUsersBottomSheet({
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 36 }}
       >
         <Text className="mb-4 text-xl font-bold text-[#171716] dark:text-[#F7F6F2]">
-          {t("taggedPeople")}
+          {title ?? t("taggedPeople")}
         </Text>
 
         <View className="gap-1">
@@ -46,7 +51,8 @@ export default function TaggedUsersBottomSheet({
               onPress={() => openProfile(user.id)}
             >
               <Avatar
-                uri={user.avatarThumbnailUrl ?? user.avatarUrl}
+                uri={user.avatarUrl}
+                thumbnailUrl={user.avatarThumbnailUrl}
                 username={user.username}
                 userId={user.id}
                 size={44}
@@ -57,8 +63,18 @@ export default function TaggedUsersBottomSheet({
                   numberOfLines={1}
                   className="font-bold text-[#171716] dark:text-[#F7F6F2]"
                 >
-                  {user.username}
+                  {displayNames
+                    ? userDisplayName(user)
+                    : usernameLabel(user.username)}
                 </Text>
+                {displayNames && user.displayName?.trim() ? (
+                  <Text
+                    numberOfLines={1}
+                    className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                  >
+                    {usernameLabel(user.username)}
+                  </Text>
+                ) : null}
               </View>
             </TouchableOpacity>
           ))}

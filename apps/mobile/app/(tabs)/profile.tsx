@@ -48,6 +48,11 @@ export default function ProfileScreen() {
   );
 
   useEffect(() => {
+    router.prefetch("/(profile)/content-feed");
+    router.prefetch("/(profile)/reviews-feed");
+  }, []);
+
+  useEffect(() => {
     if (
       !profile?.id ||
       profile.followersCount < CREATOR_INSIGHTS_FOLLOWER_THRESHOLD

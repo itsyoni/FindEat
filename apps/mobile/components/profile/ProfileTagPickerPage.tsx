@@ -17,12 +17,14 @@ import {
   DIETARY_RESTRICTION_OPTIONS,
   FOOD_PREFERENCE_OPTIONS,
   PRONOUN_OPTIONS,
+  RESTAURANT_DIETARY_REQUIREMENT_OPTIONS,
 } from "@findeat/types";
 
 export type ProfileTagField =
   | "pronouns"
   | "foodPreferences"
   | "dietaryRestrictions"
+  | "restaurantDietaryRequirements"
   | "allergies"
   | "favoriteCuisines";
 
@@ -30,6 +32,7 @@ export const PROFILE_TAG_OPTIONS: Record<ProfileTagField, readonly string[]> = {
   pronouns: PRONOUN_OPTIONS,
   foodPreferences: FOOD_PREFERENCE_OPTIONS,
   dietaryRestrictions: DIETARY_RESTRICTION_OPTIONS,
+  restaurantDietaryRequirements: RESTAURANT_DIETARY_REQUIREMENT_OPTIONS,
   allergies: ALLERGEN_OPTIONS,
   favoriteCuisines: CUISINE_OPTIONS,
 };

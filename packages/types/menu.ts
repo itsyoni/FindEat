@@ -4,8 +4,6 @@ export const FOOD_PREFERENCE_OPTIONS = [
   "VEGAN",
   "VEGETARIAN",
   "PESCATARIAN",
-  "KOSHER",
-  "HALAL",
 ] as const;
 
 export const DIETARY_RESTRICTION_OPTIONS = [
@@ -15,6 +13,27 @@ export const DIETARY_RESTRICTION_OPTIONS = [
   "SHELLFISH_FREE",
   "LOW_SODIUM",
   "DIABETIC_FRIENDLY",
+  "NO_PORK",
+  "NO_SHELLFISH",
+  "NO_SEAFOOD",
+  "NO_ALCOHOL",
+  "NO_MEAT",
+  "NO_DAIRY",
+] as const;
+
+export const RESTAURANT_DIETARY_REQUIREMENT_OPTIONS = [
+  "KOSHER_ONLY",
+  "MEHADRIN_ONLY",
+  "HALAL_ONLY",
+] as const;
+
+export const DISH_INGREDIENT_FLAG_OPTIONS = [
+  "CONTAINS_PORK",
+  "CONTAINS_SHELLFISH",
+  "CONTAINS_SEAFOOD",
+  "CONTAINS_ALCOHOL",
+  "CONTAINS_MEAT",
+  "CONTAINS_DAIRY",
 ] as const;
 
 export const DISH_DIETARY_OPTIONS = [
@@ -64,11 +83,16 @@ export const DISH_TAG_OPTIONS = [
 
 export type DishAllergen = (typeof ALLERGEN_OPTIONS)[number];
 export type DishDietaryTag = (typeof DISH_DIETARY_OPTIONS)[number];
+export type RestaurantDietaryRequirement =
+  (typeof RESTAURANT_DIETARY_REQUIREMENT_OPTIONS)[number];
+export type DishIngredientFlag =
+  (typeof DISH_INGREDIENT_FLAG_OPTIONS)[number];
 export type DishCuisineTag = (typeof CUISINE_OPTIONS)[number];
 export type DishTag = (typeof DISH_TAG_OPTIONS)[number];
 
 export type DishCompatibility = {
   allergenWarnings: string[];
+  exclusionWarnings: string[];
   dietaryMatches: string[];
   cuisineMatches: string[];
 };
@@ -85,6 +109,7 @@ export type Dish = {
   isFeatured: boolean;
   allergens: string[];
   dietaryTags: string[];
+  ingredientFlags: string[];
   cuisineTags: string[];
   dishTags: string[];
   compatibility?: DishCompatibility;

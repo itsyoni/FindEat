@@ -15,7 +15,7 @@ export const LEGAL_URLS = {
 
 export const TERMS_OF_SERVICE: LegalDocument = {
   title: "FindEat Terms of Service",
-  effectiveDate: "July 29, 2026",
+  effectiveDate: "August 11, 2026",
   introduction: [
     'These Terms of Service ("Terms") govern your use of the FindEat mobile application, website, restaurant-management tools, and related services (collectively, the "Service").',
     "By creating an account, accessing, or using the Service, you agree to these Terms. If you do not agree, do not use the Service.",
@@ -103,6 +103,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: "10. Third-party services",
       paragraphs: [
         "The Service may display information from or link to third-party services, maps, websites, app stores, or restaurants. Their services and terms are separate from ours, and FindEat is not responsible for third-party content or practices.",
+        "GIF search and GIF media are provided through GIPHY. When you use GIF features, GIPHY's API Terms of Service and Privacy Policy apply to GIPHY's processing and content.",
       ],
     },
     {
@@ -156,7 +157,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
 
 export const PRIVACY_POLICY: LegalDocument = {
   title: "FindEat Privacy Policy",
-  effectiveDate: "July 23, 2026",
+  effectiveDate: "August 11, 2026",
   introduction: [
     'This Privacy Policy explains how FindEat ("FindEat", "we", "us", or "our") collects, uses, shares, and protects information when you use the FindEat mobile application, website, restaurant-management tools, and related services (collectively, the "Service").',
     "FindEat is based in Israel. This policy applies to users, restaurant representatives, and visitors to our public web pages.",
@@ -182,6 +183,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         "Device type, operating system, language, app version, and basic identifiers needed for app operation.",
         "IP address, request timestamps, server logs, security events, and diagnostic or crash information.",
         "Usage activity, such as pages and features viewed, searches, follows, likes, saves, visits, message-delivery and read status, and notification interactions.",
+        "GIF activity: when you open, search, view, select, send, or receive GIFs through GIPHY-powered features, your device connects directly to GIPHY. GIPHY may receive your IP address, device or request identifiers, language, GIF search terms, request timestamps, and information about the GIFs displayed or selected, as described in GIPHY's Privacy Policy.",
         "Push-notification tokens and notification preferences.",
         "Cookies or similar local-storage technologies on the website to keep you signed in, remember settings, secure sessions, and understand service performance.",
       ],
@@ -227,6 +229,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         "With other users: profile details and content are shown according to your account and post visibility. Messages are shared with their recipients. Public restaurant reviews and aggregated activity may be visible to restaurant representatives.",
         "With collaborators: information in a shared folder, group conversation, or jointly managed restaurant is visible to authorized participants.",
         "With service providers: vendors process data for hosting, databases, media storage, email, maps and place search, push notifications, app distribution, web hosting, security, and support. These include providers such as Railway, Neon, Cloudflare, Resend, Mapbox, Google, Apple, Expo, and Vercel, as applicable.",
+        "With GIPHY: FindEat uses GIPHY to provide GIF search and GIF media in comments and chats. Search and media requests are sent directly from your device to GIPHY, which processes the related technical and usage information under its own Privacy Policy. GIPHY's Privacy Policy is available at https://support.giphy.com/hc/en-us/articles/360032872931-GIPHY-Privacy-Policy.",
         "For legal and safety reasons: information may be disclosed when reasonably necessary to comply with law, respond to lawful requests, investigate fraud or abuse, enforce our Terms, or protect rights and safety.",
         "Business changes: information may be transferred as part of a merger, financing, acquisition, reorganization, or sale of assets, subject to appropriate safeguards.",
       ],

@@ -23,14 +23,65 @@ export const RESTAURANT_WEEKDAYS = [
 
 export type RestaurantWeekday = (typeof RESTAURANT_WEEKDAYS)[number];
 
+export type RestaurantRelativeTimeType =
+  | "SHABBAT_ENTRY"
+  | "SHABBAT_END";
+
+export type RestaurantOpeningTime =
+  | string
+  | {
+      type: "FIXED";
+      time: string;
+    }
+  | {
+      type: RestaurantRelativeTimeType;
+      offsetMinutes: number;
+    };
+
 export type RestaurantOpeningPeriod = {
-  open: string;
-  close: string;
+  open: RestaurantOpeningTime;
+  close: RestaurantOpeningTime;
 };
 
 export type RestaurantOpeningHours = {
   timezone: string;
   weekly: Record<RestaurantWeekday, RestaurantOpeningPeriod[]>;
+};
+
+export type RestaurantResolvedOpeningHours = {
+  timezone: string;
+  weekStartsOn?: string;
+  weekly: Record<
+    RestaurantWeekday,
+    Array<{
+      open: string;
+      close: string;
+      openRule?: { type: RestaurantRelativeTimeType; offsetMinutes: number };
+      closeRule?: { type: RestaurantRelativeTimeType; offsetMinutes: number };
+    }>
+  >;
+};
+
+export type KosherCertification = {
+  status: "NOT_KOSHER" | "CERTIFIED";
+  authority?: string | null;
+  standard?: "REGULAR" | "MEHADRIN" | "OTHER" | null;
+  restaurantType?: "MEAT" | "DAIRY" | "PAREVE" | null;
+  glattMeat?: boolean;
+  certificateUrl?: string | null;
+  expiresAt?: string | null;
+};
+
+export type HalalCertification = {
+  status: "NOT_HALAL" | "OPTIONS" | "HALAL_MEAT" | "CERTIFIED";
+  authority?: string | null;
+  certificateUrl?: string | null;
+  expiresAt?: string | null;
+};
+
+export type RestaurantFoodCertificationDetails = {
+  kosher: KosherCertification;
+  halal: HalalCertification;
 };
 
 export type RestaurantAddressChangeRequest = {
@@ -54,6 +105,7 @@ export type RestaurantPostPreview = {
   authorRestaurantId?: string | null;
   description?: string | null;
   imageUrl?: string | null;
+  videoUrl?: string | null;
   thumbnailUrl?: string | null;
   rating?: number | null;
   author: UserSummary;
@@ -89,8 +141,10 @@ export type ManagedRestaurant = {
   instagram?: string | null;
   bio?: string | null;
   openingHours?: RestaurantOpeningHours | null;
+  resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
   categories: string[];
   foodCertifications?: string[];
+  foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
   setupComplete: boolean;
   missingSetupFields: string[];
   pendingAddressChangeRequest?: RestaurantAddressChangeRequest | null;
@@ -164,7 +218,9 @@ export type Restaurant = {
   website?: string | null;
   instagram?: string | null;
   openingHours?: RestaurantOpeningHours | null;
+  resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
   foodCertifications?: string[];
+  foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
 
   status?: RestaurantStatus;
   source?: RestaurantSource;
@@ -183,8 +239,11 @@ export type Restaurant = {
   savedListCount?: number;
   compatibility?: {
     allergenWarnings: Array<{ tag: string; dishCount: number }>;
+    exclusionWarnings: Array<{ tag: string; dishCount: number }>;
     dietaryMatches: Array<{ tag: string; dishCount: number }>;
     cuisineMatches: Array<{ tag: string; dishCount: number }>;
+    restaurantEligible: boolean;
+    unmetRestaurantRequirements: string[];
   };
 };
 

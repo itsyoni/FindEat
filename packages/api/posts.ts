@@ -84,11 +84,11 @@ export function createPostsApi(api: AxiosInstance) {
     },
 
     async createReview(payload: {
+      clientRequestId?: string;
       restaurantId: string;
       visibility?: PostVisibility;
       coverImageUrl?: string;
       summary?: string;
-      overallRating?: number;
       atmosphereRating?: number;
       serviceRating?: number;
       valueRating?: number;
@@ -196,6 +196,13 @@ export function createPostsApi(api: AxiosInstance) {
       return data;
     },
 
+    async updateTags(id: string, taggedUserIds: string[]) {
+      const { data } = await api.patch<Post>(`/posts/${id}/tags`, {
+        taggedUserIds,
+      });
+      return data;
+    },
+
     async joinReview(id: string) {
       const { data } = await api.post<Post>(
         `/posts/${id}/collaboration/join`,
@@ -249,6 +256,21 @@ export function createPostsApi(api: AxiosInstance) {
     ) {
       const { data } = await api.put<Post>(
         `/posts/${postId}/review/items/${itemId}/contribution`,
+        payload,
+      );
+      return data;
+    },
+
+    async upsertReviewExperienceRatings(
+      postId: string,
+      payload: {
+        atmosphereRating?: number | null;
+        serviceRating?: number | null;
+        valueRating?: number | null;
+      },
+    ) {
+      const { data } = await api.put<Post>(
+        `/posts/${postId}/review/ratings`,
         payload,
       );
       return data;
@@ -334,6 +356,7 @@ export function createPostsApi(api: AxiosInstance) {
     async updateReview(
       id: string,
       payload: {
+        coverImageUrl?: string;
         summary: string;
         items: Array<{ id: string; text: string }>;
         removedItemIds: string[];
@@ -371,10 +394,11 @@ export function createPostsApi(api: AxiosInstance) {
       return data;
     },
 
-    async addComment(id: string, content: string, replyToId?: string) {
+    async addComment(id: string, content: string, replyToId?: string, gifUrl?: string) {
       const { data } = await api.post<Comment>(`/posts/${id}/comments`, {
         content,
         replyToId,
+        gifUrl,
       });
 
       commentsCache.delete(id);

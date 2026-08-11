@@ -14,6 +14,8 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { snapsQueryKey } from "@/hooks/useSnaps";
 import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
 import { api } from "@/lib/api";
+import { usernameLabel } from "@/lib/userIdentity";
+import { cacheProfilePostsForNavigation } from "@/lib/profilePostNavigationCache";
 import { useAuth } from "@/contexts/AuthContext";
 import { PostType } from "@findeat/types/post";
 import {
@@ -30,7 +32,7 @@ import {
   ProhibitIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
@@ -76,6 +78,11 @@ export default function UserProfileScreen() {
     () => filterPostsByType(user?.posts, activeFeed),
     [user, activeFeed],
   );
+
+  useEffect(() => {
+    router.prefetch("/(users)/content-feed");
+    router.prefetch("/(users)/reviews-feed");
+  }, []);
 
   async function toggleFollow() {
     if (!user) return;
@@ -347,7 +354,7 @@ export default function UserProfileScreen() {
               <ProfileDetails profile={user} />
             </View>
             <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              {user.username}
+              {usernameLabel(user.username)}
             </Text>
             <CreatorLevelBadge score={user.creatorScore} />
             <ProfileTagBadge tag={user.selectedProfileTag} />
@@ -475,6 +482,7 @@ export default function UserProfileScreen() {
                 posts={posts}
                 type={activeFeed}
                 onPressPost={(postId) => {
+                  cacheProfilePostsForNavigation(user.id, activeFeed, posts);
                   router.push({
                     pathname:
                       activeFeed === "CONTENT"

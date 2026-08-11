@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { userDisplayName } from "@/lib/userIdentity";
 
 export default function SearchChatMessagesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -105,7 +106,7 @@ export default function SearchChatMessagesScreen() {
           ) : null
         }
         renderItem={({ item }) => {
-          const senderName = item.sentAsRestaurant?.name ?? item.sender.username;
+          const senderName = item.sentAsRestaurant?.name ?? userDisplayName(item.sender);
           const senderImage = item.sentAsRestaurant?.logoUrl ?? item.sender.avatarUrl;
           return (
             <TouchableOpacity

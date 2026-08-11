@@ -19,6 +19,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, ScrollView, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { userDisplayName } from "@/lib/userIdentity";
 
 export default function ChatInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -60,7 +61,7 @@ export default function ChatInfoScreen() {
     ? chat?.title
     : isRestaurant
       ? chat?.restaurant?.name
-      : otherUser?.username;
+      : userDisplayName(otherUser);
   const imageUrl = isGroup
     ? chat?.imageUrl
     : isRestaurant
@@ -70,9 +71,7 @@ export default function ChatInfoScreen() {
     ? t("members", { count: chat?.participants.length ?? 0 })
     : isRestaurant
       ? t("restaurantChat")
-      : otherUser
-        ? otherUser.username
-        : "";
+      : "";
 
   function openProfile() {
     if (!chat) return;
@@ -151,7 +150,7 @@ export default function ChatInfoScreen() {
             ) : null}
             <TouchableOpacity
               onPress={openProfile}
-              className="mt-5 flex-row items-center rounded-2xl bg-white px-5 py-3 dark:bg-[#171719]"
+              className="mt-5 flex-row items-center rounded-2xl bg-[#EEEAE2] px-5 py-3 dark:bg-[#171719]"
             >
               <ProfileIcon size={20} color="#D97706" weight="duotone" />
               <Text className="ml-2 font-bold text-black dark:text-white">

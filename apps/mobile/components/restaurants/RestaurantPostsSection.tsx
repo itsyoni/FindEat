@@ -1,6 +1,7 @@
 import { Restaurant } from '@findeat/types';
-import { ImagesSquareIcon, StarIcon } from 'phosphor-react-native';
-import { ActivityIndicator, Pressable, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ImagesSquareIcon, PlayCircleIcon, StarIcon } from 'phosphor-react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { useAppTheme } from '@/contexts/ThemeContext';
 import Text from '../common/AppText';
@@ -16,6 +17,25 @@ type Props = {
   onLoadMore?: () => void;
   onPressPost: (postId: string) => void;
 };
+
+function RestaurantVideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer({ uri, useCaching: true }, (videoPlayer) => {
+    videoPlayer.loop = false;
+    videoPlayer.muted = true;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      contentFit="cover"
+      nativeControls={false}
+      allowsPictureInPicture={false}
+      surfaceType="textureView"
+    />
+  );
+}
 
 export default function RestaurantPostsSection({ posts, emptyText, loading, loadingMore, hasMore, onLoadMore, onPressPost }: Props) {
   const { isDark } = useAppTheme();
@@ -69,6 +89,13 @@ export default function RestaurantPostsSection({ posts, emptyText, loading, load
               style={{ width: tileSize, height: tileSize }}
               contentFit="cover"
             />
+          ) : post.videoUrl ? (
+            <>
+              <RestaurantVideoPreview uri={post.videoUrl} />
+              <View className="absolute inset-0 items-center justify-center bg-black/15">
+                <PlayCircleIcon size={34} color="#FAF9F6" weight="fill" />
+              </View>
+            </>
           ) : (
             <View className="h-full w-full items-center justify-center bg-gray-900 p-2">
               <Text className="text-center text-xs text-white" numberOfLines={4}>{post.description}</Text>

@@ -1,16 +1,15 @@
 import ChatList from "@/components/chats/ChatList";
 import ChatOptionsBottomSheet from "@/components/chats/ChatOptionsBottomSheet";
+import Avatar from "@/components/common/Avatar";
 import Text from "@/components/common/AppText";
 import SearchBar from "@/components/common/inputs/SearchBar";
-import SearchResultRow from "@/components/search/SearchResultRow";
 import SearchResultsView from "@/components/search/SearchResultsView";
 import { api } from "@/lib/api";
-import { searchChatTargets } from "@/services/search";
 import { Chat } from "@findeat/types/chat";
-import { SearchResultItem } from "@findeat/types/search";
+import type { ConnectionItem, RecentSearchItem, UserSummary } from "@findeat/types";
 import { router, useFocusEffect } from "expo-router";
-import { ArchiveIcon, PlusIcon } from "phosphor-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ArchiveIcon, PlusIcon, UsersThreeIcon } from "phosphor-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type NativeScrollEvent,
@@ -38,8 +37,107 @@ import {
 } from "@/lib/chatDrafts";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { useToast } from "@/contexts/ToastContext";
-import { addRecentSearch, getRecentSearches } from "@/lib/recentSearches";
-import type { RecentSearchItem } from "@findeat/types";
+import { getRecentSearches } from "@/lib/recentSearches";
+import {
+  addRecentChatSearchKey,
+  getRecentChatSearchKeys,
+  saveRecentChatSearchKeys,
+} from "@/lib/chatRecentSearches";
+import { userDisplayName } from "@/lib/userIdentity";
+import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
+
+type ChatSearchTarget = {
+  key: string;
+  chatId?: string;
+  targetUserId?: string;
+  restaurantId?: string;
+  type: Chat["type"];
+  title: string;
+  subtitle?: string;
+  imageUrl?: string | null;
+};
+
+function chatHasStarted(chat: Chat) {
+  return !!chat.lastMessageAt || !!chat.lastMessage?.trim();
+}
+
+function getOtherUser(chat: Chat, userId?: string) {
+  return chat.participants.find((participant) => participant.userId !== userId)
+    ?.user;
+}
+
+function buildChatSearchTargets(
+  chats: Chat[],
+  connections: ConnectionItem[],
+  userId: string | undefined,
+  labels: { group: string; direct: string; restaurant: string; members: (count: number) => string },
+) {
+  const targets = new Map<string, ChatSearchTarget>();
+
+  for (const chat of chats) {
+    if (chat.type === "GROUP") {
+      targets.set(`chat:${chat.id}`, {
+        key: `chat:${chat.id}`,
+        chatId: chat.id,
+        type: "GROUP",
+        title: chat.title ?? labels.group,
+        subtitle: labels.members(chat.participants.length),
+        imageUrl: chat.imageUrl,
+      });
+      continue;
+    }
+
+    if (!chatHasStarted(chat)) continue;
+
+    if (chat.type === "RESTAURANT") {
+      if (!chat.restaurantId) continue;
+      targets.set(`restaurant:${chat.restaurantId}`, {
+        key: `restaurant:${chat.restaurantId}`,
+        chatId: chat.id,
+        restaurantId: chat.restaurantId,
+        type: "RESTAURANT",
+        title: chat.restaurant?.name ?? labels.restaurant,
+        subtitle: labels.restaurant,
+        imageUrl: chat.restaurant?.logoUrl,
+      });
+      continue;
+    }
+
+    const otherUser = getOtherUser(chat, userId);
+    if (!otherUser) continue;
+    targets.set(`user:${otherUser.id}`, {
+      key: `user:${otherUser.id}`,
+      chatId: chat.id,
+      targetUserId: otherUser.id,
+      type: "DIRECT",
+      title: userDisplayName(otherUser),
+      subtitle: otherUser.username
+        ? `@${otherUser.username.replace(/^@/, "")}`
+        : labels.direct,
+      imageUrl: otherUser.avatarUrl,
+    });
+  }
+
+  for (const connection of connections) {
+    const friend = connection.follower as UserSummary | undefined;
+    if (!friend) continue;
+    const key = `user:${friend.id}`;
+    const existing = targets.get(key);
+    targets.set(key, {
+      key,
+      chatId: existing?.chatId,
+      targetUserId: friend.id,
+      type: "DIRECT",
+      title: userDisplayName(friend),
+      subtitle: friend.username
+        ? `@${friend.username.replace(/^@/, "")}`
+        : labels.direct,
+      imageUrl: friend.avatarUrl,
+    });
+  }
+
+  return [...targets.values()];
+}
 
 function sortChats(chats: Chat[], drafts: Record<string, ChatDraft>) {
   return [...chats].sort((left, right) => {
@@ -51,7 +149,7 @@ function sortChats(chats: Chat[], drafts: Record<string, ChatDraft>) {
 }
 
 export default function ChatsScreen() {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const { isDark } = useAppTheme();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -61,7 +159,8 @@ export default function ChatsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
+  const [searchTargets, setSearchTargets] = useState<ChatSearchTarget[]>([]);
+  const [recentSearchKeys, setRecentSearchKeys] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ChatDraft>>({});
   const [optionsChat, setOptionsChat] = useState<Chat | null>(null);
   const [updatingPin, setUpdatingPin] = useState(false);
@@ -72,6 +171,16 @@ export default function ChatsScreen() {
   const lastScrollOffset = useRef(0);
   const scrollDirection = useRef<"up" | "down" | null>(null);
   const directionDistance = useRef(0);
+  const isRtl = i18n.dir() === "rtl";
+
+  const recentSearches = useMemo(
+    () =>
+      recentSearchKeys.flatMap((key) => {
+        const target = searchTargets.find((candidate) => candidate.key === key);
+        return target ? [target] : [];
+      }),
+    [recentSearchKeys, searchTargets],
+  );
 
   const setSearchVisible = useCallback(
     (visible: boolean) => {
@@ -151,12 +260,16 @@ export default function ChatsScreen() {
 
   const loadChats = useCallback(async () => {
     try {
-      const [nextChats, nextArchivedCount, nextDrafts] = await Promise.all([
+      const [nextChats, archivedChats, nextArchivedCount, nextDrafts, connections] = await Promise.all([
         api.chats.list(),
+        api.chats.archived(),
         api.chats.archivedCount(),
         userId
           ? loadChatDrafts(userId)
           : Promise.resolve<Record<string, ChatDraft>>({}),
+        userId
+          ? api.users.friends(userId)
+          : Promise.resolve<ConnectionItem[]>([]),
       ]);
       setDrafts(nextDrafts);
       setChats(
@@ -168,12 +281,55 @@ export default function ChatsScreen() {
         ),
       );
       setArchivedCount(nextArchivedCount);
+      setSearchTargets(
+        buildChatSearchTargets([...nextChats, ...archivedChats], connections, userId, {
+          group: t("chat:group"),
+          direct: t("chat:directChat"),
+          restaurant: t("chat:restaurantChat"),
+          members: (count) => t("chat:members", { count }),
+        }),
+      );
     } catch (error) {
       console.error("Failed to load chats", error);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [t, userId]);
+
+  useEffect(() => {
+    if (!isSearching || !userId) return;
+    if (searchTargets.length === 0) return;
+
+    let active = true;
+    void (async () => {
+      let keys = await getRecentChatSearchKeys(userId);
+
+      // Keep valid chat recents saved by older versions, but never restore a
+      // global user or restaurant that is outside the current chat directory.
+      if (keys.length === 0) {
+        const legacy = await getRecentSearches(userId);
+        keys = legacy.flatMap((item: RecentSearchItem) => {
+          const match = searchTargets.find((target) =>
+            item.type === "USER"
+              ? target.targetUserId === item.id
+              : item.type === "RESTAURANT"
+                ? target.restaurantId === item.id
+                : false,
+          );
+          return match ? [match.key] : [];
+        });
+        if (keys.length > 0) {
+          keys = await saveRecentChatSearchKeys(userId, keys);
+        }
+      }
+
+      if (active) setRecentSearchKeys(keys);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isSearching, searchTargets, userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -190,34 +346,25 @@ export default function ChatsScreen() {
     }
   }
 
-  async function handleSearchSelect(item: SearchResultItem) {
+  async function handleSearchSelect(item: ChatSearchTarget) {
     if (userId) {
-      const updated = await addRecentSearch(userId, item);
-      setRecentSearches(updated);
+      const updated = await addRecentChatSearchKey(userId, item.key);
+      setRecentSearchKeys(updated);
     }
     setIsSearching(false);
 
-    if (item.type === "USER") {
-      router.push({
-        pathname: "/chats/[id]",
-        params: {
-          id: "new-direct",
-          type: "DIRECT",
-          targetUserId: item.id,
-          title: item.title,
-          imageUrl: item.imageUrl ?? "",
-        },
-      });
-
+    if (item.chatId) {
+      router.push({ pathname: "/chats/[id]", params: { id: item.chatId } });
       return;
     }
 
+    if (!item.targetUserId) return;
     router.push({
       pathname: "/chats/[id]",
       params: {
-        id: "new-restaurant",
-        type: "RESTAURANT",
-        restaurantId: item.id,
+        id: "new-direct",
+        type: "DIRECT",
+        targetUserId: item.targetUserId,
         title: item.title,
         imageUrl: item.imageUrl ?? "",
       },
@@ -328,11 +475,64 @@ export default function ChatsScreen() {
         >
           <SearchResultsView
             idleData={recentSearches}
-            searchRequest={searchChatTargets}
+            data={searchTargets}
+            searchFn={(query, item) => {
+              const normalized = query.trim().toLocaleLowerCase();
+              return `${item.title} ${item.subtitle ?? ""}`
+                .toLocaleLowerCase()
+                .includes(normalized);
+            }}
             onCancel={() => setIsSearching(false)}
             onSelect={(item) => void handleSearchSelect(item)}
-            keyExtractor={(item) => `${item.type}-${item.id}`}
-            renderItem={(item) => <SearchResultRow item={item} />}
+            keyExtractor={(item) => item.key}
+            renderItem={(item) => (
+              <View
+                className="relative flex-row items-center p-4"
+                style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+              >
+                {item.type === "GROUP" && !item.imageUrl ? (
+                  <View className="h-13 w-13 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                    <UsersThreeIcon size={25} color="#6B7280" weight="fill" />
+                  </View>
+                ) : (
+                  <Avatar
+                    uri={item.imageUrl}
+                    username={item.title}
+                    size={52}
+                    fallbackType={item.type === "RESTAURANT" ? "restaurant" : "user"}
+                    showSnapIndicator={false}
+                  />
+                )}
+                <View
+                  className="min-w-0 flex-1"
+                  style={isRtl ? { marginRight: 16 } : { marginLeft: 16 }}
+                >
+                  <View
+                    className="flex-row items-center"
+                    style={isRtl ? { flexDirection: "row-reverse" } : undefined}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      className="shrink font-bold text-black dark:text-white"
+                      style={isRtl ? { textAlign: "right" } : undefined}
+                    >
+                      {item.title}
+                    </Text>
+                    {item.type === "RESTAURANT" ? <RestaurantBadge /> : null}
+                  </View>
+                  {item.subtitle ? (
+                    <Text
+                      numberOfLines={1}
+                      className="mt-1 text-sm text-gray-500"
+                      style={isRtl ? { textAlign: "right" } : undefined}
+                    >
+                      {item.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+                <View className="absolute bottom-0 left-4 right-4 h-px bg-gray-200/40 dark:bg-gray-700/35" />
+              </View>
+            )}
           />
         </Animated.View>
       ) : (
@@ -352,7 +552,6 @@ export default function ChatsScreen() {
               onPress={() => {
                 if (loading) return;
                 setIsSearching(true);
-                if (userId) void getRecentSearches(userId).then(setRecentSearches);
               }}
               rightAccessory={
                 <TouchableOpacity

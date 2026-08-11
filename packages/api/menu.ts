@@ -84,6 +84,7 @@ export function createMenuApi(api: AxiosInstance) {
         dietaryTags?: string[];
         cuisineTags?: string[];
         dishTags?: string[];
+        ingredientFlags?: string[];
       },
     ) {
       const { data } = await api.post<Dish>(
@@ -108,6 +109,7 @@ export function createMenuApi(api: AxiosInstance) {
         dietaryTags?: string[];
         cuisineTags?: string[];
         dishTags?: string[];
+        ingredientFlags?: string[];
       },
     ) {
       const { data } = await api.patch<Dish>(

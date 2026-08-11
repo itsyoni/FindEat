@@ -24,6 +24,7 @@ import {
   View,
 } from "react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
 
 export default function GroupDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -230,6 +231,8 @@ export default function GroupDetailsScreen() {
         </View>
 
         <FlatList
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
           data={chat.participants}
           keyExtractor={(item) => item.userId}
           ListHeaderComponent={
@@ -256,8 +259,13 @@ export default function GroupDetailsScreen() {
 
               <View className="ml-4 flex-1">
                 <Text className="font-bold text-black dark:text-white">
-                  {item.user.username}
+                  {userDisplayName(item.user)}
                 </Text>
+                {item.user.displayName?.trim() ? (
+                  <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {usernameLabel(item.user.username)}
+                  </Text>
+                ) : null}
 
                 <Text className="mt-1 text-sm text-gray-500">
                   {t(item.role === "ADMIN" ? "chat:admin" : "chat:member")}

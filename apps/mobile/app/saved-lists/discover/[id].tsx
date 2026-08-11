@@ -135,7 +135,17 @@ export default function DiscoverListPlacesScreen() {
         ]}
       />
 
-      <View className="flex-1" onLayout={(event) => setFeedHeight(event.nativeEvent.layout.height)}>
+      <View
+        className="flex-1"
+        onLayout={(event) => {
+          const nextHeight = event.nativeEvent.layout.height;
+          setFeedHeight((currentHeight) =>
+            selectedPostId && currentHeight > 0
+              ? currentHeight
+              : nextHeight,
+          );
+        }}
+      >
         {activeFeed === "CONTENT" ? (
           feedHeight > 0 ? (
             <ContentFeed

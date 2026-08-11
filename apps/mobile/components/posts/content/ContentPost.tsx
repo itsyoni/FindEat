@@ -11,6 +11,7 @@ import {
 } from "phosphor-react-native";
 import {
   FlatList,
+  Pressable,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -22,6 +23,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import { useTranslation } from "react-i18next";
 import PostVisibilityIcon from "@/components/posts/PostVisibilityIcon";
@@ -36,11 +38,16 @@ import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import ContentVideo from "./ContentVideo";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
 import TaggedUsersBottomSheet from "./TaggedUsersBottomSheet";
 import PostLikesBottomSheet from "@/components/posts/PostLikesBottomSheet";
+import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
+import {
+  setContentFeedMuted,
+  useContentFeedAudio,
+} from "@/hooks/useContentFeedAudio";
 
 const CONTENT_ACTION_ICON_SIZE = 31;
 
@@ -65,6 +72,18 @@ type Props = {
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
+function ContentPaginationDot({ active }: { active: boolean }) {
+  const progress = useSharedValue(active ? 1 : 0);
+  useEffect(() => {
+    progress.set(withTiming(active ? 1 : 0, { duration: 170 }));
+  }, [active, progress]);
+  const style = useAnimatedStyle(() => ({
+    width: 6 + progress.value * 10,
+    opacity: 0.5 + progress.value * 0.5,
+  }));
+  return <Animated.View className="h-1.5 rounded-full bg-white" style={style} />;
+}
+
 export default function ContentPost({
   post,
   height,
@@ -84,7 +103,13 @@ export default function ContentPost({
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [taggedUsersOpen, setTaggedUsersOpen] = useState(false);
   const [likesOpen, setLikesOpen] = useState(false);
+  const [mediaOnly, setMediaOnly] = useState(false);
+  const contentFeedMuted = useContentFeedAudio();
   const likePressStartedAt = useRef(0);
+  const mediaCarouselGesture = useMemo(
+    () => Gesture.Native().disallowInterruption(true),
+    [],
+  );
   const {
     openManageSavedPlace,
     quickSavePlace,
@@ -126,7 +151,7 @@ export default function ContentPost({
 
   const displayName = isRestaurantPost
     ? (post.authorRestaurant?.name ?? "")
-    : (post.author?.username ?? "");
+    : userDisplayName(post.author);
 
   const media =
     content?.media?.length
@@ -297,6 +322,12 @@ export default function ContentPost({
     <View
       style={{ height, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
+      <Pressable
+        style={{ flex: 1 }}
+        delayLongPress={220}
+        onLongPress={videoMedia?.videoUrl ? undefined : () => setMediaOnly(true)}
+        onPressOut={videoMedia?.videoUrl ? undefined : () => setMediaOnly(false)}
+      >
       <Animated.View
         style={[
           {
@@ -341,11 +372,26 @@ export default function ContentPost({
             <ContentVideo
               uri={videoMedia.videoUrl}
               style={{ width: "100%", height: "100%" }}
-              contentFit="contain"
+              contentFit="cover"
               autoPlay={isActive}
               nativeControls={false}
               tapToToggle
               showProgress
+              muted={contentFeedMuted}
+              onMutedChange={setContentFeedMuted}
+              onDoubleTap={handleDoubleTapLike}
+              mediaOnly={mediaOnly}
+              pinchToZoom
+              onLongPress={() => setMediaOnly(true)}
+              onPressOut={() => setMediaOnly(false)}
+              onPinchStart={() => {
+                setMediaOnly(true);
+                onPinchStart?.();
+              }}
+              onPinchEnd={() => {
+                setMediaOnly(false);
+                onPinchEnd?.();
+              }}
             />
           </View>
         ) : singleImageMedia?.imageUrl ? (
@@ -369,10 +415,13 @@ export default function ContentPost({
             />
           </View>
         ) : media.length ? (
+          <GestureDetector gesture={mediaCarouselGesture}>
           <FlatList
             style={{ position: "absolute", inset: 0 }}
             horizontal
             pagingEnabled
+            directionalLockEnabled
+            nestedScrollEnabled
             data={media}
             keyExtractor={(item) => item.id}
             showsHorizontalScrollIndicator={false}
@@ -397,6 +446,7 @@ export default function ContentPost({
               </View>
             )}
           />
+          </GestureDetector>
         ) : (
           <View className="absolute inset-0 items-center justify-center bg-gray-900">
             <Text
@@ -416,24 +466,22 @@ export default function ContentPost({
           </View>
         )}
 
-        {media.length > 1 ? (
+        {!mediaOnly && media.length > 1 ? (
           <View
             pointerEvents="none"
             className="absolute left-0 right-0 z-10 flex-row justify-center gap-1.5"
             style={{ bottom: 8 }}
           >
             {media.map((item, index) => (
-              <View
+              <ContentPaginationDot
                 key={item.id}
-                className={`h-1.5 rounded-full ${
-                  index === activeMediaIndex ? "w-5 bg-white" : "w-1.5 bg-white/50"
-                }`}
+                active={index === activeMediaIndex}
               />
             ))}
           </View>
         ) : null}
 
-        <AnimatedLinearGradient
+        {!mediaOnly ? <AnimatedLinearGradient
           pointerEvents="none"
           colors={[
             "transparent",
@@ -450,9 +498,9 @@ export default function ContentPost({
             },
             gradientAnimatedStyle,
           ]}
-        />
+        /> : null}
 
-        <View className="absolute bottom-8 left-4 right-24">
+        {!mediaOnly ? <View className="absolute bottom-8 left-4 right-24">
           <View className="mb-3 flex-row items-center justify-start gap-3">
             <View className="min-w-0 shrink flex-row items-center gap-3">
               {isRestaurantPost ? (
@@ -499,6 +547,11 @@ export default function ContentPost({
                       Official restaurant
                     </Text>
                   )}
+                  {!isOfficialPost && post.author?.displayName?.trim() ? (
+                    <Text className="mt-0.5 text-xs text-white/75">
+                      {usernameLabel(post.author.username)}
+                    </Text>
+                  ) : null}
                 </View>
               </TouchableOpacity>
             </View>
@@ -552,7 +605,7 @@ export default function ContentPost({
                     {post.taggedUsers.slice(0, 2).map((person, index) => (
                       <View
                         key={person.id}
-                        className="rounded-full border border-white/80"
+                        className="rounded-full"
                         style={{ marginLeft: index === 0 ? 0 : -6 }}
                       >
                         <Avatar
@@ -572,7 +625,7 @@ export default function ContentPost({
                     className="shrink text-xs font-bold text-white"
                   >
                     {post.taggedUsers.length === 1
-                      ? post.taggedUsers[0].username
+                      ? usernameLabel(post.taggedUsers[0].username)
                       : tCommon("taggedPeopleCount", {
                           count: post.taggedUsers.length,
                         })}
@@ -621,9 +674,9 @@ export default function ContentPost({
               hasContentAbove={!!caption || !!post.linkedPosts?.length}
             />
           </View>
-        </View>
+        </View> : null}
 
-        <View className="absolute bottom-8 right-4 w-16 items-center gap-5">
+        {!mediaOnly ? <View className="absolute bottom-8 right-4 w-16 items-center gap-5">
           <TouchableOpacity
             className="w-16 items-center"
             delayLongPress={350}
@@ -730,8 +783,9 @@ export default function ContentPost({
               style={iconShadow}
             />
           </TouchableOpacity>
-        </View>
+        </View> : null}
       </Animated.View>
+      </Pressable>
       <TaggedUsersBottomSheet
         open={taggedUsersOpen}
         users={post.taggedUsers ?? []}

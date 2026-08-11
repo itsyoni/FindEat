@@ -5,6 +5,7 @@ import type { UserRelationship } from "@findeat/types";
 import { View } from "react-native";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import { useTranslation } from "react-i18next";
+import { usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   item: SearchResultItem;
@@ -35,15 +36,16 @@ export default function SearchResultRow({ item }: Props) {
         ? "common:restaurant"
         : "common:dish",
   );
+  const title = item.type === "USER" ? usernameLabel(item.title) : item.title;
 
   return (
     <View
-      className="flex-row items-center border-b border-gray-100 p-4"
+      className="relative flex-row items-center p-4"
       style={isRtl ? { flexDirection: "row-reverse" } : undefined}
     >
       <Avatar
         uri={item.imageUrl}
-        username={item.title}
+        username={title}
         size={52}
         fallbackType={item.type === "RESTAURANT" ? "restaurant" : "user"}
       />
@@ -56,7 +58,7 @@ export default function SearchResultRow({ item }: Props) {
           className="flex-row items-center"
           style={isRtl ? { flexDirection: "row-reverse" } : undefined}
         >
-          <Text style={rtlTextStyle} className="font-bold text-black dark:text-white">{item.title}</Text>
+          <Text style={rtlTextStyle} className="font-bold text-black dark:text-white">{title}</Text>
           {item.type === "RESTAURANT" ? <RestaurantBadge /> : null}
         </View>
 
@@ -75,6 +77,10 @@ export default function SearchResultRow({ item }: Props) {
       <Text style={rtlTextStyle} className="text-xs font-semibold text-gray-400">
         {entityLabel}
       </Text>
+      <View
+        pointerEvents="none"
+        className="absolute bottom-0 left-4 right-4 h-px bg-gray-200/40 dark:bg-gray-700/35"
+      />
     </View>
   );
 }

@@ -110,6 +110,9 @@ export type ReviewParticipant = {
   status: ReviewParticipantStatus;
   joinedAt?: string | null;
   respondedAt?: string | null;
+  atmosphereRating?: number | null;
+  serviceRating?: number | null;
+  valueRating?: number | null;
   createdAt: string;
   updatedAt: string;
   user: UserSummary;

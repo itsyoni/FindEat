@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSnapIndicatorLookup } from "@/contexts/SnapIndicatorContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { userDisplayName } from "@/lib/userIdentity";
 
 type Props = {
   overlay?: boolean;
@@ -28,6 +29,7 @@ export default function SnapsTray({
   const ownSnapIndicator = ownGroup
     ? snapIndicatorFor({ userId: ownGroup.user.id })
     : null;
+  const watchedRingColor = isDark ? "#4B5563" : "#9CA3AF";
   const otherGroups = groups
     .filter((group) => !group.isOwn)
     .sort((first, second) => {
@@ -100,7 +102,7 @@ export default function SnapsTray({
             {ownGroup ? (
               <View
                 style={snapRingStyle(
-                  ownSnapIndicator === "viewed" ? "#9CA3AF" : "#FF5B35",
+                  ownSnapIndicator === "viewed" ? watchedRingColor : "#FF5B35",
                 )}
               >
                 <Avatar
@@ -172,7 +174,7 @@ export default function SnapsTray({
               </View>
             ) : (
               <View
-                style={snapRingStyle(isDark ? "#4B5563" : "#9CA3AF")}
+                style={snapRingStyle(watchedRingColor)}
               >
                 <Avatar
                   uri={group.user.avatarUrl || group.user.avatarThumbnailUrl}
@@ -198,7 +200,7 @@ export default function SnapsTray({
                   : undefined
               }
             >
-              {group.user.username}
+              {userDisplayName(group.user)}
             </Text>
           </TouchableOpacity>
         ))}

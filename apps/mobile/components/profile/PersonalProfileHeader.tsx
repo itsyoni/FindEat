@@ -23,6 +23,7 @@ import { DirectionalForwardIcon } from "@/components/common/icons/DirectionalIco
 import { useSnapIndicator } from "@/contexts/SnapIndicatorContext";
 import { useRef, useState } from "react";
 import ProfileAvatarRing from "./ProfileAvatarRing";
+import { usernameLabel } from "@/lib/userIdentity";
 
 type Props = {
   profile?: Profile | null;
@@ -142,7 +143,7 @@ export default function PersonalProfileHeader({ profile, loading = false, scroll
           <ProfileDetails profile={profile} />
         </View>
         <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          {profile.username}
+          {usernameLabel(profile.username)}
         </Text>
         <CreatorLevelBadge
           score={profile.creatorScore}
