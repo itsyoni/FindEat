@@ -18,6 +18,7 @@ type Props = {
   onAction?: () => void;
   actionLabel?: string;
   actionActive?: boolean;
+  actionDisabled?: boolean;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
   postPreview?: AppNotification['postPreview'];
@@ -30,6 +31,7 @@ export default function NotificationRow({
   onAction,
   actionLabel,
   actionActive,
+  actionDisabled,
   secondaryActionLabel,
   onSecondaryAction,
   postPreview,
@@ -95,6 +97,7 @@ export default function NotificationRow({
 
       {onAction && onSecondaryAction ? null : onAction && isPostAction ? (
         <TouchableOpacity
+          disabled={actionDisabled}
           onPress={(event: GestureResponderEvent) => {
             event.stopPropagation();
             onAction();
@@ -144,14 +147,18 @@ export default function NotificationRow({
             onAction();
           }}
           className={`ml-3 min-w-20 items-center rounded-xl px-3 py-2 ${
-            actionActive
+            actionDisabled
+              ? 'border border-gray-200 bg-gray-100 opacity-70 dark:border-gray-700 dark:bg-gray-800'
+              : actionActive
               ? 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
               : 'bg-black dark:bg-white'
           }`}
         >
           <Text
             className={`text-xs font-bold ${
-              actionActive
+              actionDisabled
+                ? 'text-gray-500 dark:text-gray-400'
+                : actionActive
                 ? 'text-black dark:text-white'
                 : 'text-white dark:text-black'
             }`}

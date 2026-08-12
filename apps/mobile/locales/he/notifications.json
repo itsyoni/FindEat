@@ -13,6 +13,7 @@
   "viewPost": "צפה בפוסט",
   "openChat": "פתיחת הצ׳אט",
   "joinReview": "הצטרפות",
+  "joinedReview": "הצטרפת",
   "approve": "אישור",
   "decline": "דחייה",
   "emptyTitle": "אין התראות עדיין",
@@ -22,6 +23,9 @@
     "COMMENT_LIKE": "{{name}} ועוד {{count}} אהבו את התגובה שלך"
   },
   "types": {
+    "RESTAURANT_DISPUTE": "יש לבדוק את המסעדה בפוסט שלך",
+    "MODERATION_ACTION": "FindEat ביצעה פעולה על התוכן שלך",
+    "APPEAL_DECISION": "הערעור שלך נבדק",
     "FRIEND_POST": "{{name}} שיתף/ה פוסט חדש",
     "POST_TAG": "{{name}} תייג/ה אותך בפוסט",
     "POST_LIKE": "{{name}} אהב/ה את הפוסט שלך",

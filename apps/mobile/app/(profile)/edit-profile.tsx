@@ -14,13 +14,34 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { uploadImage } from "@/lib/uploadImage";
+import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
 import ImageCropPicker from "react-native-image-crop-picker";
 import * as ImagePicker from "expo-image-picker";
+import {
+  CameraView,
+  type CameraType,
+  type FlashMode,
+  useCameraPermissions,
+} from "expo-camera";
 import { router } from "expo-router";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
+import {
+  ArrowsClockwiseIcon,
+  ImagesIcon,
+  LightningIcon,
+  LightningSlashIcon,
+  XIcon,
+} from "phosphor-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -41,6 +62,20 @@ export default function EditProfileScreen() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const previousCompletion = useRef<number | null>(null);
+  const profileCameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [profileCameraOpen, setProfileCameraOpen] = useState(false);
+  const [profileCameraFacing, setProfileCameraFacing] =
+    useState<CameraType>("front");
+  const [profileCameraFlash, setProfileCameraFlash] =
+    useState<FlashMode>("off");
+  const [profileCameraCaptureUri, setProfileCameraCaptureUri] = useState<
+    string | null
+  >(null);
+  const [profileCameraCapturing, setProfileCameraCapturing] = useState(false);
+  const [profileCameraApplying, setProfileCameraApplying] = useState(false);
+  const [profileCameraPickingLibrary, setProfileCameraPickingLibrary] =
+    useState(false);
   const { refreshUser } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
@@ -225,6 +260,122 @@ export default function EditProfileScreen() {
     }
   }
 
+  async function openProfileCamera() {
+    let permission = cameraPermission;
+    if (!permission?.granted && permission?.canAskAgain !== false) {
+      permission = await requestCameraPermission();
+    }
+    setProfileCameraFacing("front");
+    setProfileCameraFlash("off");
+    setProfileCameraCaptureUri(null);
+    setProfileCameraOpen(true);
+  }
+
+  function closeProfileCamera() {
+    if (profileCameraApplying) return;
+    setProfileCameraOpen(false);
+    setProfileCameraCaptureUri(null);
+  }
+
+  async function takeProfileCameraPhoto() {
+    if (!profileCameraRef.current || profileCameraCapturing) return;
+
+    try {
+      setProfileCameraCapturing(true);
+      const photo = await profileCameraRef.current.takePictureAsync({
+        quality: 0.9,
+        mirror: false,
+      });
+      const corrected =
+        profileCameraFacing === "front"
+          ? await normalizeFrontCameraPhoto(photo.uri)
+          : photo;
+      setProfileCameraCaptureUri(corrected.uri);
+    } catch (error) {
+      console.error("Could not capture profile photo", error);
+      Alert.alert(t("common:error"), t("profile:imagePickerError"));
+    } finally {
+      setProfileCameraCapturing(false);
+    }
+  }
+
+  async function chooseProfilePhotoFromCameraGallery() {
+    if (profileCameraPickingLibrary || profileCameraApplying) return;
+
+    try {
+      setProfileCameraPickingLibrary(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        allowsMultipleSelection: false,
+        selectionLimit: 1,
+        defaultTab: "photos",
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets[0]?.uri) return;
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+      );
+      const image = await ImageCropPicker.openCropper({
+        width: 1000,
+        height: 1000,
+        cropping: true,
+        cropperCircleOverlay: true,
+        freeStyleCropEnabled: false,
+        mediaType: "photo",
+        compressImageQuality: 0.8,
+        forceJpg: true,
+        cropperToolbarTitle: t("profile:cropProfilePhoto"),
+        path: result.assets[0].uri,
+      });
+      setNewAvatarUri(
+        image.path.startsWith("/") ? `file://${image.path}` : image.path,
+      );
+      setProfileCameraOpen(false);
+      setProfileCameraCaptureUri(null);
+    } catch (error) {
+      if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
+        console.error("Could not open profile camera gallery", error);
+        Alert.alert(t("common:error"), t("profile:imagePickerError"));
+      }
+    } finally {
+      setProfileCameraPickingLibrary(false);
+    }
+  }
+
+  async function applyProfileCameraPhoto() {
+    if (!profileCameraCaptureUri || profileCameraApplying) return;
+
+    try {
+      setProfileCameraApplying(true);
+      const image = await ImageCropPicker.openCropper({
+        width: 1000,
+        height: 1000,
+        cropping: true,
+        cropperCircleOverlay: true,
+        freeStyleCropEnabled: false,
+        mediaType: "photo",
+        compressImageQuality: 0.8,
+        forceJpg: true,
+        cropperToolbarTitle: t("profile:cropProfilePhoto"),
+        path: profileCameraCaptureUri,
+      });
+      setNewAvatarUri(
+        image.path.startsWith("/") ? `file://${image.path}` : image.path,
+      );
+      setProfileCameraOpen(false);
+      setProfileCameraCaptureUri(null);
+    } catch (error) {
+      if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
+        console.error("Could not crop profile camera photo", error);
+        Alert.alert(t("common:error"), t("profile:imagePickerError"));
+      }
+    } finally {
+      setProfileCameraApplying(false);
+    }
+  }
+
   async function pickImage(
     aspect: [number, number],
     onSelect: (uri: string) => void,
@@ -246,8 +397,38 @@ export default function EditProfileScreen() {
 
     async function openCamera() {
       try {
-        const image = await ImageCropPicker.openCamera(cropOptions);
-        onSelect(image.path);
+        if (isAvatar) {
+          await openProfileCamera();
+          return;
+        }
+
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(t("common:error"), t("profile:imagePickerError"));
+          return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          allowsEditing: false,
+          quality: 0.9,
+          cameraType: isAvatar
+            ? ImagePicker.CameraType.front
+            : ImagePicker.CameraType.back,
+        });
+        if (result.canceled || !result.assets[0]?.uri) return;
+
+        const captured = result.assets[0];
+        // Let the system camera finish dismissing before presenting the
+        // cropper, otherwise iOS can fail to open the crop screen.
+        await new Promise((resolve) =>
+          setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+        );
+        const image = await ImageCropPicker.openCropper({
+          ...cropOptions,
+          path: captured.uri,
+        });
+        onSelect(image.path.startsWith("/") ? `file://${image.path}` : image.path);
       } catch (error) {
         if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
           console.error("Could not open profile camera or crop photo", error);
@@ -353,6 +534,203 @@ export default function EditProfileScreen() {
           onPress: saveProfile,
         },
       ],
+    );
+  }
+
+  if (profileCameraOpen) {
+    const cameraGranted = cameraPermission?.granted === true;
+
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0B0B0A" }}>
+        {cameraGranted ? (
+          <>
+            {profileCameraCaptureUri ? (
+              <ProgressiveImage
+                source={{ uri: profileCameraCaptureUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+              />
+            ) : (
+              <CameraView
+                ref={profileCameraRef}
+                active={!profileCameraPickingLibrary}
+                facing={profileCameraFacing}
+                mirror={false}
+                flash={profileCameraFlash}
+                mode="picture"
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+
+            <SafeAreaView
+              edges={["top", "bottom"]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="box-none"
+            >
+              <View className="flex-1 justify-between px-5 pb-5">
+                <View className="flex-row items-center justify-between">
+                  <TouchableOpacity
+                    accessibilityLabel={t("common:close")}
+                    onPress={closeProfileCamera}
+                    className="h-11 w-11 items-center justify-center"
+                  >
+                    <XIcon size={29} color="#FAF9F6" weight="bold" />
+                  </TouchableOpacity>
+                  <Text className="text-lg font-bold text-[#FAF9F6]">
+                    {t("profile:profilePhoto")}
+                  </Text>
+                  {profileCameraCaptureUri ? (
+                    <View className="h-11 w-11" />
+                  ) : (
+                    <TouchableOpacity
+                      accessibilityLabel={t("profile:toggleFlash")}
+                      onPress={() =>
+                        setProfileCameraFlash((current) =>
+                          current === "off" ? "on" : "off",
+                        )
+                      }
+                      className="h-11 w-11 items-center justify-center"
+                    >
+                      {profileCameraFlash === "off" ? (
+                        <LightningSlashIcon
+                          size={27}
+                          color="#FAF9F6"
+                          weight="bold"
+                        />
+                      ) : (
+                        <LightningIcon
+                          size={27}
+                          color="#F7D786"
+                          weight="fill"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {profileCameraCaptureUri ? (
+                  <View className="flex-row gap-3">
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      disabled={profileCameraApplying}
+                      onPress={() => {
+                        setProfileCameraCaptureUri(null);
+                      }}
+                      className="items-center justify-center rounded-2xl bg-[#242422]/95 px-5 py-4"
+                      style={{ width: 0, flexGrow: 1, flexShrink: 1 }}
+                    >
+                      <Text className="font-bold text-[#FAF9F6]">
+                        {t("profile:retake")}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      disabled={profileCameraApplying}
+                      onPress={() => void applyProfileCameraPhoto()}
+                      className="flex-row items-center justify-center rounded-2xl bg-[#F7D786] px-5 py-4"
+                      style={{ width: 0, flexGrow: 1, flexShrink: 1 }}
+                    >
+                      {profileCameraApplying ? (
+                        <ActivityIndicator color="#171717" />
+                      ) : (
+                        <Text className="font-bold text-[#171717]">
+                          {t("profile:usePhoto")}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View className="flex-row items-center justify-between px-5">
+                    <TouchableOpacity
+                      accessibilityLabel={t("profile:chooseFromLibrary")}
+                      disabled={profileCameraPickingLibrary}
+                      onPress={() =>
+                        void chooseProfilePhotoFromCameraGallery()
+                      }
+                      className="h-12 w-12 items-center justify-center"
+                    >
+                      {profileCameraPickingLibrary ? (
+                        <ActivityIndicator color="#FAF9F6" />
+                      ) : (
+                        <ImagesIcon
+                          size={30}
+                          color="#FAF9F6"
+                          weight="fill"
+                        />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel={t("profile:takePhoto")}
+                      disabled={
+                        profileCameraCapturing || profileCameraPickingLibrary
+                      }
+                      onPress={() => void takeProfileCameraPhoto()}
+                      className="h-20 w-20 items-center justify-center rounded-full border-4 border-[#FAF9F6]"
+                      style={{
+                        opacity:
+                          !profileCameraCapturing &&
+                          !profileCameraPickingLibrary
+                            ? 1
+                            : 0.65,
+                      }}
+                    >
+                      <View className="h-16 w-16 rounded-full bg-[#FAF9F6]" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel={t("profile:flipCamera")}
+                      onPress={() => {
+                        setProfileCameraFacing((current) =>
+                          current === "front" ? "back" : "front",
+                        );
+                      }}
+                      className="h-12 w-12 items-center justify-center"
+                    >
+                      <ArrowsClockwiseIcon
+                        size={30}
+                        color="#FAF9F6"
+                        weight="bold"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </SafeAreaView>
+          </>
+        ) : (
+          <SafeAreaView
+            edges={["top", "bottom"]}
+            style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24 }}
+          >
+            <Text className="text-center text-2xl font-bold text-[#FAF9F6]">
+              {t("profile:cameraPermissionTitle")}
+            </Text>
+            <Text className="mt-3 text-center leading-6 text-[#C9C7C1]">
+              {t("profile:cameraPermission")}
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                void (cameraPermission?.canAskAgain
+                  ? requestCameraPermission()
+                  : Linking.openSettings())
+              }
+              className="mt-7 rounded-2xl bg-[#F7D786] py-4"
+            >
+              <Text className="text-center font-bold text-[#171717]">
+                {t(
+                  cameraPermission?.canAskAgain
+                    ? "profile:allowCamera"
+                    : "profile:openSettings",
+                )}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={closeProfileCamera} className="py-4">
+              <Text className="text-center font-semibold text-[#FAF9F6]">
+                {t("common:cancel")}
+              </Text>
+            </TouchableOpacity>
+          </SafeAreaView>
+        )}
+      </View>
     );
   }
 

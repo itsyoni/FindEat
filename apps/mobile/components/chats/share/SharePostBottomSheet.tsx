@@ -19,6 +19,7 @@ import { TextInput } from "@/components/common";
 import { useToast } from "@/contexts/ToastContext";
 import { userDisplayName } from "@/lib/userIdentity";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   postId: string | null;
@@ -39,6 +40,7 @@ export default function SharePostBottomSheet({
   const { user } = useAuth();
   const { t } = useTranslation("chat");
   const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
   const [targets, setTargets] = useState<ShareTarget[]>([]);
   const [loadedPostId, setLoadedPostId] = useState<string | null>(null);
   const [errorPostId, setErrorPostId] = useState<string | null>(null);
@@ -179,7 +181,12 @@ export default function SharePostBottomSheet({
   }
 
   return (
-    <AppBottomSheet open={!!postId} snapPoints={["68%"]} onClose={closeSheet}>
+    <AppBottomSheet
+      open={!!postId}
+      snapPoints={["68%"]}
+      topInset={insets.top + 12}
+      onClose={closeSheet}
+    >
       <View className="flex-1 px-5 pb-4 dark:bg-gray-900">
         <Text className="mb-1 text-2xl font-bold text-black dark:text-white">
           {t("sharePost")}

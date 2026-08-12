@@ -7,6 +7,9 @@ export const COMMENT_PIN_LIMIT_ERROR = "COMMENT_PIN_LIMIT";
 
 export function useComments(postId?: string | null) {
   const [comments, setComments] = useState<Comment[]>([]);
+  const [rankingLikesByCommentId, setRankingLikesByCommentId] = useState(
+    () => new Map<string, number>(),
+  );
   const [loadedPostId, setLoadedPostId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -43,6 +46,9 @@ export function useComments(postId?: string | null) {
       if (requestId !== requestIdRef.current) return;
 
       setComments(nextComments);
+      setRankingLikesByCommentId(
+        new Map(nextComments.map((comment) => [comment.id, comment.likesCount])),
+      );
       applyCommentContext(context);
       setLoadedPostId(postId);
     } catch (error) {
@@ -77,6 +83,11 @@ export function useComments(postId?: string | null) {
             gifUrl: newComment.gifUrl ?? gifUrl ?? null,
           },
         ]);
+        setRankingLikesByCommentId((current) => {
+          const next = new Map(current);
+          next.set(newComment.id, newComment.likesCount);
+          return next;
+        });
 
         setLoadedPostId(postId);
       } catch (error) {
@@ -174,6 +185,9 @@ export function useComments(postId?: string | null) {
         }
 
         setComments(nextComments);
+        setRankingLikesByCommentId(
+          new Map(nextComments.map((comment) => [comment.id, comment.likesCount])),
+        );
         applyCommentContext(context);
         setLoadedPostId(currentPostId);
       } catch (error) {
@@ -206,7 +220,6 @@ export function useComments(postId?: string | null) {
             : item,
         ),
       );
-
       try {
         const result = nextIsLiked
           ? await api.posts.likeComment(postId, comment.id)
@@ -321,6 +334,10 @@ export function useComments(postId?: string | null) {
 
   return {
     comments: visibleComments,
+    rankingLikesByCommentId:
+      postId && loadedPostId === postId
+        ? rankingLikesByCommentId
+        : new Map<string, number>(),
     loading,
     submitting,
     canCreateAuthorNote:

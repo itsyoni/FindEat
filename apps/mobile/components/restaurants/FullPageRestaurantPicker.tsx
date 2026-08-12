@@ -30,6 +30,11 @@ type Props = {
   onSelect: (restaurant: SelectedRestaurant) => void;
   onBack: () => void;
   headerRight?: ReactNode;
+  preferredLocation?: {
+    latitude: number;
+    longitude: number;
+    confidence?: "HIGH" | "MEDIUM";
+  } | null;
 };
 
 export default function FullPageRestaurantPicker({
@@ -37,6 +42,7 @@ export default function FullPageRestaurantPicker({
   onSelect,
   onBack,
   headerRight,
+  preferredLocation,
 }: Props) {
   const { t, i18n } = useTranslation(["create", "restaurants"]);
   const { isDark } = useAppTheme();
@@ -51,21 +57,36 @@ export default function FullPageRestaurantPicker({
     longitude: number;
   } | null>(null);
   const requestIdRef = useRef(0);
+  const preferredLatitude = preferredLocation?.latitude;
+  const preferredLongitude = preferredLocation?.longitude;
 
   useEffect(() => {
     let active = true;
 
     async function loadNearby() {
       try {
-        const location = await getFreshDeviceLocation();
+        const hasPreferredLocation =
+          typeof preferredLatitude === "number" &&
+          typeof preferredLongitude === "number";
+        const deviceLocation = hasPreferredLocation
+          ? null
+          : await getFreshDeviceLocation();
+        const location = hasPreferredLocation
+          ? { latitude: preferredLatitude, longitude: preferredLongitude }
+          : deviceLocation
+            ? {
+                latitude: deviceLocation.coords.latitude,
+                longitude: deviceLocation.coords.longitude,
+              }
+            : null;
         if (!location) {
           if (active) setLocationUnavailable(true);
           return;
         }
 
         const coordinates = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude: location.latitude,
+          longitude: location.longitude,
           limit: 10,
         };
         if (active) {
@@ -142,7 +163,12 @@ export default function FullPageRestaurantPicker({
     return () => {
       active = false;
     };
-  }, [i18n.language, i18n.resolvedLanguage]);
+  }, [
+    i18n.language,
+    i18n.resolvedLanguage,
+    preferredLatitude,
+    preferredLongitude,
+  ]);
 
   useEffect(() => {
     const cleanQuery = query.trim();
@@ -263,7 +289,9 @@ export default function FullPageRestaurantPicker({
               <Text className="ml-2 text-lg font-bold text-black dark:text-white">
                 {showingSearch
                   ? t("create:searchResults")
-                  : t("create:nearbyPlaces")}
+                  : preferredLocation
+                    ? t("create:suggestedFromPhotos")
+                    : t("create:nearbyPlaces")}
               </Text>
             </View>
             {!showingSearch && nearbyResults.length > 0 && (
@@ -331,17 +359,30 @@ export default function FullPageRestaurantPicker({
                   />
                 </View>
                 {!!(restaurant.address || restaurant.city) && (
-                  <Text numberOfLines={2} className="mt-1 text-sm text-gray-500">
+                  <Text numberOfLines={1} className="mt-1 text-sm text-gray-500">
                     {[restaurant.address, restaurant.city]
                       .filter(Boolean)
                       .join(", ")}
+                    {typeof distance === "number"
+                      ? ` · ${
+                          distance < 1
+                            ? t("create:distanceMeters", {
+                                value: Math.round(distance * 1000),
+                              })
+                            : t("create:distanceKilometers", {
+                                value: distance.toFixed(1),
+                              })
+                        }`
+                      : ""}
                   </Text>
                 )}
               </View>
               {selected && (
                 <CheckCircleIcon size={25} color="#D6A92D" weight="fill" />
               )}
-              {!selected && typeof distance === "number" && (
+              {!selected &&
+                typeof distance === "number" &&
+                !(restaurant.address || restaurant.city) && (
                 <Text className="ml-3 text-xs font-semibold text-gray-400">
                   {distance < 1
                     ? t("create:distanceMeters", {

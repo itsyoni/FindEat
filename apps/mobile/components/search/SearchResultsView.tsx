@@ -25,6 +25,7 @@ type Props<T> = {
   placeholder?: string;
   emptyText?: string;
   headerContent?: ReactNode;
+  idleHeaderContent?: ReactNode;
   initialQuery?: string;
   onQueryChange?: (query: string) => void;
 };
@@ -41,6 +42,7 @@ export default function SearchResultsView<T>({
   placeholder,
   emptyText,
   headerContent,
+  idleHeaderContent,
   initialQuery = "",
   onQueryChange,
 }: Props<T>) {
@@ -123,6 +125,7 @@ export default function SearchResultsView<T>({
       </Animated.View>
 
       {headerContent}
+      {!query.trim() ? idleHeaderContent : null}
 
       {loading ? (
         <SkeletonList />

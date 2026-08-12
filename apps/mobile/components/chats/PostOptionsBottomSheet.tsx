@@ -55,6 +55,8 @@ export default function PostOptionsBottomSheet({
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [reportingRestaurantDispute, setReportingRestaurantDispute] =
+    useState(false);
   const [askingToBlock, setAskingToBlock] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [requestingReviewJoin, setRequestingReviewJoin] = useState(false);
@@ -110,6 +112,7 @@ export default function PostOptionsBottomSheet({
     setDeleting(false);
     setArchiving(false);
     setReporting(false);
+    setReportingRestaurantDispute(false);
     setAskingToBlock(false);
     setBlocking(false);
     setRequestingReviewJoin(false);
@@ -258,6 +261,10 @@ export default function PostOptionsBottomSheet({
   }
 
   function finishReport() {
+    if (reportingRestaurantDispute) {
+      closeSheet();
+      return;
+    }
     if (activePost?.authorId && activePost.author && !activePost.canDelete) {
       setReporting(false);
       setAskingToBlock(true);
@@ -311,11 +318,22 @@ export default function PostOptionsBottomSheet({
         }}
         showsVerticalScrollIndicator={false}
       >
-        {reporting && postId ? (
+        {(reporting || reportingRestaurantDispute) && postId ? (
           <ReportForm
             targetType="POST"
             targetId={postId}
-            onCancel={() => setReporting(false)}
+            fixedReason={
+              reportingRestaurantDispute ? "WRONG_RESTAURANT" : undefined
+            }
+            reportingRestaurantId={
+              reportingRestaurantDispute
+                ? (activePost?.restaurantId ?? undefined)
+                : undefined
+            }
+            onCancel={() => {
+              setReporting(false);
+              setReportingRestaurantDispute(false);
+            }}
             onDone={finishReport}
             doneLabel={
               activePost?.authorId && activePost.author
@@ -801,6 +819,26 @@ export default function PostOptionsBottomSheet({
                 </View>
                 <DirectionalIcon direction="forward" size={18} color="#EF4444" weight="bold" />
               </TouchableOpacity>
+              {activePost?.canDisputeRestaurantAssociation ? (
+                <TouchableOpacity
+                  activeOpacity={0.72}
+                  accessibilityRole="button"
+                  className="mt-3 flex-row items-center rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-900 dark:bg-amber-950/30"
+                  onPress={() => setReportingRestaurantDispute(true)}
+                >
+                  <View className="h-11 w-11 items-center justify-center rounded-full bg-white dark:bg-amber-950/60">
+                    <WarningCircleIcon size={21} color="#D6A92D" weight="fill" />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-base font-bold text-amber-800 dark:text-amber-300">
+                      {t("wrongRestaurantAssociation")}
+                    </Text>
+                    <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                      {t("wrongRestaurantAssociationHint")}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null}
               </>
             )}
 

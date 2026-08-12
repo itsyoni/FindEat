@@ -33,7 +33,10 @@ export type NotificationType =
   | 'REVIEW_JOIN_REQUEST'
   | 'REVIEW_JOIN_REQUEST_APPROVED'
   | 'REVIEW_JOINED'
-  | 'REVIEW_CONTRIBUTION';
+  | 'REVIEW_CONTRIBUTION'
+  | 'RESTAURANT_DISPUTE'
+  | 'MODERATION_ACTION'
+  | 'APPEAL_DECISION';
 
 export type AppNotification = {
   id: string;
@@ -47,6 +50,7 @@ export type AppNotification = {
   body?: string | null;
   aggregationCount?: number;
   postId?: string | null;
+  reviewInvitationStatus?: "INVITED" | "REQUESTED" | "JOINED" | "DECLINED" | null;
   postPreview?: {
     imageUrl?: string | null;
     videoUrl?: string | null;

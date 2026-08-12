@@ -309,7 +309,11 @@
   },
   "writtenReview": "Written review",
   "quickPost": "Quick post",
+  "wrongRestaurantAssociation": "This content isn't about our restaurant",
+  "wrongRestaurantAssociationHint": "Ask the author to check the restaurant association",
   "reportReasons": {
+    "WRONG_RESTAURANT": "Wrong restaurant",
+    "COPYRIGHT_INFRINGEMENT": "Copyright infringement",
     "HATE_SPEECH": "Hate speech",
     "HARASSMENT": "Harassment or bullying",
     "SPAM": "Spam",

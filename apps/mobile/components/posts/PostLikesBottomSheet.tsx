@@ -2,13 +2,21 @@ import AppBottomSheet from "@/components/common/AppBottomSheet";
 import Avatar from "@/components/common/Avatar";
 import Text from "@/components/common/AppText";
 import { api } from "@/lib/api";
-import type { UserSummary } from "@findeat/types";
+import type { UserRelationship, UserSummary } from "@findeat/types";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
+import RelationshipActionButton from "@/components/profile/RelationshipActionButton";
+import {
+  getNextRelationshipAfterToggle,
+  shouldRemoveFollowRelationship,
+} from "@findeat/utils";
+import { useAuth } from "@/contexts/AuthContext";
+
+type LikeUser = UserSummary & { relationship: UserRelationship | null };
 
 type Props = {
   postId: string;
@@ -25,16 +33,73 @@ function PresentedPostLikesBottomSheet({
   postId,
   onClose,
 }: Omit<Props, "open">) {
-  const { t, i18n } = useTranslation("common");
+  const { t, i18n } = useTranslation(["common", "notifications"]);
+  const { user: currentUser } = useAuth();
   const isRtl = i18n.dir() === "rtl";
   const rtlTextStyle = isRtl
     ? ({ textAlign: "right", writingDirection: "rtl" } as const)
     : undefined;
-  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [users, setUsers] = useState<LikeUser[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [updatingUserIds, setUpdatingUserIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  function relationshipLabel(relationship: UserRelationship | null) {
+    switch (relationship) {
+      case "FRIENDS":
+        return t("notifications:friends");
+      case "FOLLOWING":
+        return t("notifications:following");
+      case "FOLLOWED_BY":
+        return t("notifications:followBack");
+      case "REQUESTED":
+        return t("notifications:requested");
+      default:
+        return t("notifications:follow");
+    }
+  }
+
+  async function toggleRelationship(user: LikeUser) {
+    if (updatingUserIds.has(user.id)) return;
+    const previous = user.relationship ?? "NONE";
+    setUpdatingUserIds((current) => new Set(current).add(user.id));
+    setUsers((current) =>
+      current.map((item) =>
+        item.id === user.id
+          ? { ...item, relationship: getNextRelationshipAfterToggle(previous) }
+          : item,
+      ),
+    );
+    try {
+      const result = await api.users.toggleFollow(
+        user.id,
+        shouldRemoveFollowRelationship(previous),
+      );
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === user.id
+            ? { ...item, relationship: result.relationship }
+            : item,
+        ),
+      );
+    } catch {
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === user.id ? { ...item, relationship: previous } : item,
+        ),
+      );
+    } finally {
+      setUpdatingUserIds((current) => {
+        const next = new Set(current);
+        next.delete(user.id);
+        return next;
+      });
+    }
+  }
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
@@ -168,6 +233,18 @@ function PresentedPostLikesBottomSheet({
                     </Text>
                   ) : null}
                 </View>
+                {user.id !== currentUser?.id ? (
+                  <RelationshipActionButton
+                    relationship={user.relationship ?? "NONE"}
+                    label={relationshipLabel(user.relationship)}
+                    className={isRtl ? "mr-3 min-w-24" : "ml-3 min-w-24"}
+                    style={{ opacity: updatingUserIds.has(user.id) ? 0.55 : 1 }}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      void toggleRelationship(user);
+                    }}
+                  />
+                ) : null}
               </TouchableOpacity>
             ))}
 

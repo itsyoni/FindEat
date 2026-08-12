@@ -313,7 +313,11 @@
   },
   "writtenReview": "ביקורת כתובה",
   "quickPost": "פוסט מהיר",
+  "wrongRestaurantAssociation": "התוכן הזה לא קשור למסעדה שלנו",
+  "wrongRestaurantAssociationHint": "בקשה מהמחבר לבדוק את שיוך המסעדה",
   "reportReasons": {
+    "WRONG_RESTAURANT": "מסעדה לא נכונה",
+    "COPYRIGHT_INFRINGEMENT": "הפרת זכויות יוצרים",
     "HATE_SPEECH": "דברי שנאה",
     "HARASSMENT": "הטרדה או בריונות",
     "SPAM": "ספאם",

@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 
 const reasons: ReportReason[] = [
+  "WRONG_RESTAURANT",
+  "COPYRIGHT_INFRINGEMENT",
   "HATE_SPEECH",
   "HARASSMENT",
   "SPAM",
@@ -25,6 +27,8 @@ type Props = {
   onCancel: () => void;
   onDone: () => void;
   doneLabel?: string;
+  fixedReason?: ReportReason;
+  reportingRestaurantId?: string;
 };
 
 export default function ReportForm({
@@ -33,9 +37,11 @@ export default function ReportForm({
   onCancel,
   onDone,
   doneLabel,
+  fixedReason,
+  reportingRestaurantId,
 }: Props) {
   const { t } = useTranslation("common");
-  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [reason, setReason] = useState<ReportReason | null>(fixedReason ?? null);
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -51,6 +57,12 @@ export default function ReportForm({
         targetId,
         reason,
         details: details.trim() || undefined,
+        ...(reportingRestaurantId
+          ? {
+              source: "RESTAURANT_REPORT" as const,
+              reportingRestaurantId,
+            }
+          : {}),
       });
       setSubmitted(true);
     } catch {
@@ -98,7 +110,7 @@ export default function ReportForm({
         </View>
       </View>
 
-      <View className="mt-5 flex-row flex-wrap gap-2">
+      {!fixedReason ? <View className="mt-5 flex-row flex-wrap gap-2">
         {reasons.map((item) => {
           const selected = reason === item;
           return (
@@ -113,7 +125,7 @@ export default function ReportForm({
             </TouchableOpacity>
           );
         })}
-      </View>
+      </View> : null}
 
       <TextInput
         useBottomSheetInput

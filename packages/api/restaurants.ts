@@ -14,6 +14,7 @@ import type {
   SavedPostAttribution,
   SavedRestaurant,
   PlaceSaveStatus,
+  CityFilterLocation,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
@@ -89,6 +90,22 @@ export function createRestaurantsApi(api: AxiosInstance) {
 
     async allWithLocation() {
       const { data } = await api.get<Restaurant[]>("/restaurants");
+      return data;
+    },
+
+    async searchMapAreas(query: string, languageCode?: string) {
+      const { data } = await api.get<CityFilterLocation[]>(
+        "/restaurants/areas/search",
+        { params: { q: query, languageCode } },
+      );
+      return data;
+    },
+
+    async resolveMapArea(city: CityFilterLocation) {
+      const { data } = await api.post<CityFilterLocation>(
+        "/restaurants/areas/resolve",
+        city,
+      );
       return data;
     },
 

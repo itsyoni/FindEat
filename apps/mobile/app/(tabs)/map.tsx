@@ -20,6 +20,7 @@ import {
   RestaurantMapSort,
   PlaceListSummary,
   SelectedRestaurant,
+  CityFilterLocation,
 } from "@findeat/types";
 import type { MapViewMode } from "@findeat/types";
 import type { LocationObject } from "expo-location";
@@ -40,6 +41,8 @@ import {
   FunnelIcon,
   FolderSimpleIcon,
   HeartIcon,
+  MapPinIcon,
+  PlusIcon,
   StorefrontIcon,
   XIcon,
 } from "phosphor-react-native";
@@ -49,12 +52,78 @@ import RestaurantStats from "@/components/restaurants/RestaurantStats";
 import MapRestaurantListCard from "@/components/restaurants/MapRestaurantListCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
+import {
+  addMapRecentSearch,
+  clearMapRecentSearches,
+  getMapRecentSearches,
+  type MapRecentSearch,
+} from "@/lib/mapRecentSearches";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "");
 
 // The marker is 48px wide. Cluster only when markers would substantially
 // overlap, so nearby restaurants remain individually discoverable for longer.
 const MARKER_CLUSTER_RADIUS = 42;
+
+type MapSearchResult = MapRecentSearch;
+
+function markerClusterRadius(zoom: number) {
+  if (zoom >= 20) return 4;
+  if (zoom >= 19) return 8;
+  if (zoom >= 18) return 14;
+  if (zoom >= 17) return 26;
+  return MARKER_CLUSTER_RADIUS;
+}
+
+function pointInRing(
+  longitude: number,
+  latitude: number,
+  ring: [number, number][],
+) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const [x, y] = ring[index];
+    const [previousX, previousY] = ring[previous];
+    const intersects =
+      y > latitude !== previousY > latitude &&
+      longitude <
+        ((previousX - x) * (latitude - y)) / (previousY - y || Number.EPSILON) + x;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInPolygon(
+  longitude: number,
+  latitude: number,
+  polygon: [number, number][][],
+) {
+  if (!polygon[0] || !pointInRing(longitude, latitude, polygon[0])) return false;
+  return !polygon.slice(1).some((hole) => pointInRing(longitude, latitude, hole));
+}
+
+function cityContainsCoordinate(
+  city: CityFilterLocation,
+  longitude: number,
+  latitude: number,
+) {
+  if (city.boundary?.type === "Polygon") {
+    return pointInPolygon(longitude, latitude, city.boundary.coordinates);
+  }
+  if (city.boundary?.type === "MultiPolygon") {
+    return city.boundary.coordinates.some((polygon) =>
+      pointInPolygon(longitude, latitude, polygon),
+    );
+  }
+  const { southwest, northeast } = city.viewport;
+  const longitudeInside =
+    southwest[0] <= northeast[0]
+      ? longitude >= southwest[0] && longitude <= northeast[0]
+      : longitude >= southwest[0] || longitude <= northeast[0];
+  return (
+    longitudeInside && latitude >= southwest[1] && latitude <= northeast[1]
+  );
+}
 
 function projectCoordinate(longitude: number, latitude: number, zoom: number) {
   const worldSize = 256 * 2 ** zoom;
@@ -74,6 +143,7 @@ function projectCoordinate(longitude: number, latitude: number, zoom: number) {
 }
 
 function clusterRestaurants(restaurants: Restaurant[], zoom: number) {
+  const clusterRadius = markerClusterRadius(zoom);
   const points = restaurants.map((restaurant) => ({
     restaurant,
     ...projectCoordinate(
@@ -108,7 +178,7 @@ function clusterRestaurants(restaurants: Restaurant[], zoom: number) {
           current.x - candidate.x,
           current.y - candidate.y,
         );
-        if (distance <= MARKER_CLUSTER_RADIUS) {
+        if (distance <= clusterRadius) {
           remaining.delete(candidateIndex);
           memberIndexes.push(candidateIndex);
           queue.push(candidateIndex);
@@ -152,6 +222,15 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<MapViewMode>("MAP");
   const [isSearching, setIsSearching] = useState(false);
+  const [recentMapSearches, setRecentMapSearches] = useState<MapRecentSearch[]>([]);
+  const [isCitySearching, setIsCitySearching] = useState(false);
+  const [selectedCities, setSelectedCities] = useState<CityFilterLocation[]>([]);
+  const [selectedCluster, setSelectedCluster] = useState<Restaurant[] | null>(
+    null,
+  );
+  const selectedCitiesRef = useRef<CityFilterLocation[]>([]);
+  const areaToFocusRef = useRef<CityFilterLocation | null>(null);
+  const cityLoadRequestRef = useRef(0);
   const [currentMapZoom, setCurrentMapZoom] = useState(13);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [placeLists, setPlaceLists] = useState<PlaceListSummary[]>([]);
@@ -216,6 +295,14 @@ export default function MapScreen() {
     return () => {
       active = false;
     };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const timer = setTimeout(() => {
+      void getMapRecentSearches(user.id).then(setRecentMapSearches);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [user?.id]);
 
   useEffect(() => {
@@ -286,14 +373,40 @@ export default function MapScreen() {
     [restaurants, statusOverrides],
   );
 
+  const visibleRestaurants = useMemo(
+    () =>
+      selectedCities.length === 0
+        ? mapRestaurants
+        : mapRestaurants.filter(
+            (restaurant) =>
+              typeof restaurant.latitude === "number" &&
+              typeof restaurant.longitude === "number" &&
+              selectedCities.some((city) =>
+                cityContainsCoordinate(
+                  city,
+                  restaurant.longitude as number,
+                  restaurant.latitude as number,
+                ),
+              ),
+          ),
+    [mapRestaurants, selectedCities],
+  );
+  const selectedCityRequestKey = selectedCities
+    .map((city) => `${city.googlePlaceId}:${city.latitude}:${city.longitude}`)
+    .join("|");
+
+  useEffect(() => {
+    selectedCitiesRef.current = selectedCities;
+  }, [selectedCities]);
+
   const restaurantsWithLocation = useMemo(
     () =>
-      mapRestaurants.filter(
+      visibleRestaurants.filter(
         (restaurant) =>
           typeof restaurant.latitude === "number" &&
           typeof restaurant.longitude === "number",
       ),
-    [mapRestaurants],
+    [visibleRestaurants],
   );
 
   const restaurantMarkerGroups = useMemo(
@@ -497,7 +610,9 @@ export default function MapScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!filtersHydrated || listId) return undefined;
+      if (!filtersHydrated || listId || selectedCities.length > 0) {
+        return undefined;
+      }
 
       let active = true;
       void (async () => {
@@ -523,6 +638,7 @@ export default function MapScreen() {
       listId,
       loadRestaurants,
       loadUserLocation,
+      selectedCities.length,
     ]),
   );
 
@@ -535,7 +651,19 @@ export default function MapScreen() {
     ),
   );
 
-  function selectRestaurant(restaurant: Restaurant) {
+  function selectRestaurant(
+    restaurant: Restaurant,
+    cameraOptions?: {
+      zoomLevel?: number;
+      padding?: {
+        paddingBottom: number;
+        paddingTop: number;
+        paddingLeft: number;
+        paddingRight: number;
+      };
+    },
+  ) {
+    setSelectedCluster(null);
     const temporaryId = temporaryRestaurantIdRef.current;
     if (temporaryId && temporaryId !== restaurant.id) {
       setRestaurants((current) =>
@@ -562,10 +690,26 @@ export default function MapScreen() {
           restaurant.longitude as number,
           restaurant.latitude as number,
         ],
-        zoomLevel: 15,
+        zoomLevel: cameraOptions?.zoomLevel ?? 15,
+        ...(cameraOptions?.padding ? { padding: cameraOptions.padding } : {}),
         animationDuration: 600,
       });
     }, 100);
+  }
+
+  function selectRestaurantFromCluster(restaurant: Restaurant) {
+    setSelectedCluster(null);
+    requestAnimationFrame(() => {
+      selectRestaurant(restaurant, {
+        zoomLevel: Math.max(currentMapZoom, 17),
+        padding: {
+          paddingBottom: 220,
+          paddingTop: 80,
+          paddingLeft: 40,
+          paddingRight: 40,
+        },
+      });
+    });
   }
 
   async function hydrateSelectedRestaurant(restaurant: Restaurant) {
@@ -603,8 +747,203 @@ export default function MapScreen() {
     [i18n.language, i18n.resolvedLanguage],
   );
 
+  const searchMapAreasForMap = useCallback(
+    (query: string) =>
+      api.restaurants.searchMapAreas(
+        query,
+        i18n.resolvedLanguage ?? i18n.language,
+      ),
+    [i18n.language, i18n.resolvedLanguage],
+  );
+
+  const fitSelectedCities = useCallback((cities: CityFilterLocation[]) => {
+    if (cities.length === 0) return;
+    const west = Math.min(...cities.map((city) => city.viewport.southwest[0]));
+    const south = Math.min(...cities.map((city) => city.viewport.southwest[1]));
+    const east = Math.max(...cities.map((city) => city.viewport.northeast[0]));
+    const north = Math.max(...cities.map((city) => city.viewport.northeast[1]));
+    setTimeout(() => {
+      cameraRef.current?.fitBounds(
+        [east, north],
+        [west, south],
+        [70, 35, 110, 35],
+        650,
+      );
+    }, 120);
+  }, []);
+
+  const loadRestaurantsForCities = useCallback(
+    async (cities: CityFilterLocation[]) => {
+      const requestId = ++cityLoadRequestRef.current;
+      if (cities.length === 0) {
+        await loadRestaurants();
+        return;
+      }
+      setLoading(true);
+      try {
+        const batches = await Promise.all(
+          cities.map((city) =>
+            api.restaurants.discoverForMap({
+              latitude: city.latitude,
+              longitude: city.longitude,
+              radiusKm: 200,
+              limit: 200,
+              listId: selectedListId ?? undefined,
+              filter: mapFilter,
+              sort: mapSort,
+              matchDietary,
+              matchCuisines,
+              hideFlaggedAllergens,
+            }),
+          ),
+        );
+        if (requestId === cityLoadRequestRef.current) {
+          setRestaurants([
+            ...new Map(
+              batches.flat().map((restaurant) => [restaurant.id, restaurant]),
+            ).values(),
+          ]);
+        }
+      } catch (error) {
+        console.error("Could not load restaurants for selected cities", error);
+      } finally {
+        if (requestId === cityLoadRequestRef.current) setLoading(false);
+      }
+    }, [
+      hideFlaggedAllergens,
+      loadRestaurants,
+      mapFilter,
+      mapSort,
+      matchCuisines,
+      matchDietary,
+      selectedListId,
+    ],
+  );
+
+  const selectCity = useCallback(
+    async (city: CityFilterLocation) => {
+      const alreadySelected = selectedCities.some(
+        (selected) => selected.googlePlaceId === city.googlePlaceId,
+      );
+      const next = alreadySelected ? selectedCities : [...selectedCities, city];
+      areaToFocusRef.current = city;
+      if (user?.id) {
+        void addMapRecentSearch(user.id, city).then(setRecentMapSearches);
+      }
+      setSelectedCities(next);
+      setIsCitySearching(false);
+      setIsSearching(false);
+      setViewMode("MAP");
+      if (selectedCities.length === 0) setRadiusKm(null);
+      dismissRestaurantPreview();
+      if (alreadySelected) return;
+
+      try {
+        const resolvedCity = await api.restaurants.resolveMapArea(city);
+        setSelectedCities((current) =>
+          current.map((selected) =>
+            selected.googlePlaceId === resolvedCity.googlePlaceId
+              ? resolvedCity
+              : selected,
+          ),
+        );
+      } catch (error) {
+        // A missing boundary must not prevent city filtering. Google Places'
+        // viewport remains a stable fallback for filtering and camera fitting.
+        console.error("Could not resolve city boundary", error);
+      }
+    }, [dismissRestaurantPreview, selectedCities, user],
+  );
+
+  const removeCity = useCallback(
+    (placeId: string) => {
+      const next = selectedCities.filter(
+        (city) => city.googlePlaceId !== placeId,
+      );
+      setSelectedCities(next);
+      if (next.length > 0) fitSelectedCities(next);
+      else void loadRestaurantsForCities([]);
+    }, [fitSelectedCities, loadRestaurantsForCities, selectedCities],
+  );
+
+  useEffect(() => {
+    if (!selectedCityRequestKey) return;
+    const timer = setTimeout(() => {
+      void loadRestaurantsForCities(selectedCitiesRef.current);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadRestaurantsForCities, selectedCityRequestKey]);
+
+  useEffect(() => {
+    if (loading || isSearching || isCitySearching || viewMode !== "MAP") return;
+    const area = areaToFocusRef.current;
+    if (!area) return;
+    const timer = setTimeout(() => {
+      if (areaToFocusRef.current?.googlePlaceId !== area.googlePlaceId) return;
+      areaToFocusRef.current = null;
+      fitSelectedCities([area]);
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [fitSelectedCities, isCitySearching, isSearching, loading, viewMode]);
+
+  function renderAreaSearchResult(city: CityFilterLocation) {
+    return (
+      <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-900">
+        <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-brand-soft dark:bg-gray-800">
+          <MapPinIcon size={24} color="#FF5B35" weight="fill" />
+        </View>
+        <View className="ml-3 min-w-0 flex-1">
+          <Text numberOfLines={1} className="text-base font-bold text-black dark:text-white">
+            {city.name}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const searchMapForMap = useCallback(
+    async (query: string): Promise<MapSearchResult[]> => {
+      const [areas, restaurants] = await Promise.all([
+        searchMapAreasForMap(query),
+        searchRestaurantsForMap(query),
+      ]);
+      return [...areas, ...restaurants];
+    },
+    [searchMapAreasForMap, searchRestaurantsForMap],
+  );
+
+  function isMapAreaResult(
+    result: MapSearchResult,
+  ): result is CityFilterLocation {
+    return result.source === "AREA";
+  }
+
+  function mapSearchResultKey(result: MapSearchResult) {
+    if (isMapAreaResult(result)) return `area-${result.googlePlaceId}`;
+    return result.source === "FINDEAT"
+      ? `findeat-${result.restaurant.id}`
+      : `google-${result.googlePlaceId}`;
+  }
+
+  function selectMapResult(result: MapSearchResult) {
+    if (isMapAreaResult(result)) {
+      void selectCity(result);
+      return;
+    }
+    void selectMapSearchResult(result);
+  }
+
+  function renderMapSearchResult(result: MapSearchResult) {
+    return isMapAreaResult(result)
+      ? renderAreaSearchResult(result)
+      : renderRestaurantSearchResult(result);
+  }
+
   async function selectMapSearchResult(item: SelectedRestaurant) {
     try {
+      if (user?.id) {
+        void addMapRecentSearch(user.id, item).then(setRecentMapSearches);
+      }
       const restaurant =
         item.source === "FINDEAT"
           ? item.restaurant
@@ -678,6 +1017,7 @@ export default function MapScreen() {
     matchDietary,
     matchCuisines,
     hideFlaggedAllergens,
+    selectedCities.length > 0,
   ].filter(Boolean).length;
   const selectedList = placeLists.find((list) => list.id === selectedListId);
 
@@ -686,7 +1026,24 @@ export default function MapScreen() {
       edges={["top"]}
       style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
-      {isSearching ? (
+      {isCitySearching ? (
+        <Animated.View
+          key="city-search"
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(120)}
+          className="flex-1"
+        >
+          <SearchResultsView
+            searchRequest={searchMapAreasForMap}
+            placeholder={t("map:searchAreas")}
+            emptyText={t("map:noAreasFound")}
+            keyExtractor={(city) => city.googlePlaceId}
+            onCancel={() => setIsCitySearching(false)}
+            onSelect={(city) => void selectCity(city)}
+            renderItem={renderAreaSearchResult}
+          />
+        </Animated.View>
+      ) : isSearching ? (
         <Animated.View
           key="search"
           entering={FadeIn.duration(180)}
@@ -694,17 +1051,34 @@ export default function MapScreen() {
           className="flex-1"
         >
           <SearchResultsView
-            searchRequest={searchRestaurantsForMap}
-            placeholder={t("map:searchRestaurants")}
-            emptyText={t("map:noRestaurantsFound")}
-            keyExtractor={(item) =>
-              item.source === "FINDEAT"
-                ? `findeat-${item.restaurant.id}`
-                : `google-${item.googlePlaceId}`
-            }
+            searchRequest={searchMapForMap}
+            idleData={recentMapSearches}
+            placeholder={t("map:searchMap")}
+            emptyText={t("map:noMapResults")}
+            keyExtractor={mapSearchResultKey}
             onCancel={() => setIsSearching(false)}
-            onSelect={(item) => void selectMapSearchResult(item)}
-            renderItem={renderRestaurantSearchResult}
+            onSelect={selectMapResult}
+            renderItem={renderMapSearchResult}
+            idleHeaderContent={
+              recentMapSearches.length > 0 ? (
+                <View className="flex-row items-center justify-between px-5 pb-2 pt-3">
+                  <Text className="text-base font-bold text-black dark:text-white">
+                    {t("map:recentSearches")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (!user?.id) return;
+                      setRecentMapSearches([]);
+                      void clearMapRecentSearches(user.id);
+                    }}
+                  >
+                    <Text className="text-sm font-bold text-brand">
+                      {t("map:clearRecentSearches")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null
+            }
           />
         </Animated.View>
       ) : (
@@ -738,6 +1112,29 @@ export default function MapScreen() {
               </TouchableOpacity>
             }
           />
+
+          <View className="px-5 pb-3">
+            {selectedCities.length > 0 ? (
+              <FlatList
+                horizontal
+                data={selectedCities}
+                keyExtractor={(city) => city.googlePlaceId}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                renderItem={({ item: city }) => (
+                  <TouchableOpacity
+                    onPress={() => removeCity(city.googlePlaceId)}
+                    className="flex-row items-center rounded-full bg-brand-soft px-3 py-2 dark:bg-[#3A211C]"
+                  >
+                    <Text className="max-w-40 text-sm font-bold text-brand" numberOfLines={1}>
+                      {city.name}
+                    </Text>
+                    <XIcon size={14} color="#FF5B35" weight="bold" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                )}
+              />
+            ) : null}
+          </View>
 
           <Tabs
             activeTab={viewMode}
@@ -777,6 +1174,7 @@ export default function MapScreen() {
                 onPress={() => {
                   bottomSheetRef.current?.close();
                   dismissRestaurantPreview();
+                  setSelectedCluster(null);
                 }}
               >
                 <Mapbox.Camera
@@ -789,6 +1187,36 @@ export default function MapScreen() {
                   ]}
                 />
                 <Mapbox.UserLocation visible />
+
+                {selectedCities.map((city) =>
+                  city.boundary ? (
+                    <Mapbox.ShapeSource
+                      key={`city-boundary-${city.googlePlaceId}`}
+                      id={`city-boundary-${city.googlePlaceId}`}
+                      shape={{
+                        type: "Feature",
+                        properties: { placeId: city.googlePlaceId },
+                        geometry: city.boundary,
+                      }}
+                    >
+                      <Mapbox.FillLayer
+                        id={`city-fill-${city.googlePlaceId}`}
+                        style={{
+                          fillColor: "#FF7658",
+                          fillOpacity: isDark ? 0.2 : 0.14,
+                        }}
+                      />
+                      <Mapbox.LineLayer
+                        id={`city-line-${city.googlePlaceId}`}
+                        style={{
+                          lineColor: "#FF5B35",
+                          lineWidth: 2.2,
+                          lineOpacity: 0.82,
+                        }}
+                      />
+                    </Mapbox.ShapeSource>
+                  ) : null,
+                )}
 
                 {restaurantMarkerGroups.map((group) => {
                   if (group.restaurants.length > 1) {
@@ -804,12 +1232,15 @@ export default function MapScreen() {
                           activeOpacity={0.82}
                           onPress={() => {
                             bottomSheetRef.current?.close();
-                            setSelectedRestaurant(null);
-                            cameraRef.current?.setCamera({
-                              centerCoordinate: group.coordinate,
-                              zoomLevel: Math.min(currentMapZoom + 2, 17),
-                              animationDuration: 450,
-                            });
+                            dismissRestaurantPreview();
+                            setSelectedCluster(group.restaurants);
+                            if (currentMapZoom < 17) {
+                              cameraRef.current?.setCamera({
+                                centerCoordinate: group.coordinate,
+                                zoomLevel: Math.min(currentMapZoom + 2, 17),
+                                animationDuration: 450,
+                              });
+                            }
                           }}
                           className="h-12 w-12 items-center justify-center rounded-full border-[3px] border-white bg-[#212121]"
                           style={{
@@ -846,10 +1277,7 @@ export default function MapScreen() {
                   return (
                     <Mapbox.MarkerView
                       key={restaurant.id}
-                      coordinate={[
-                        restaurant.longitude as number,
-                        restaurant.latitude as number,
-                      ]}
+                      coordinate={group.coordinate}
                       anchor={{ x: 0.5, y: 0.5 }}
                       allowOverlap
                       allowOverlapWithPuck
@@ -857,7 +1285,11 @@ export default function MapScreen() {
                     >
                       <TouchableOpacity
                         activeOpacity={0.85}
-                        onPress={() => selectRestaurant(restaurant)}
+                        onPress={() =>
+                          selectRestaurant(restaurant, {
+                            zoomLevel: Math.max(currentMapZoom, 15),
+                          })
+                        }
                         style={{
                           width: isSelected ? 52 : 48,
                           height: isSelected ? 52 : 48,
@@ -1030,7 +1462,7 @@ export default function MapScreen() {
           ) : (
             <FlatList
               className="bg-canvas dark:bg-black"
-              data={restaurants}
+              data={visibleRestaurants}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -1043,6 +1475,8 @@ export default function MapScreen() {
                         ? t("map:placesInFolder", {
                             name: selectedList.name,
                           })
+                        : selectedCities.length > 0
+                          ? t("map:placesInCities")
                         : t("map:placesNearYou")}
                     </Text>
                     <Text className="mt-1 text-sm text-gray-500">
@@ -1051,7 +1485,7 @@ export default function MapScreen() {
                   </View>
                   <View className="rounded-full bg-[#EEE9DF] px-3 py-2 dark:bg-gray-900">
                     <Text className="text-xs font-bold text-black dark:text-white">
-                      {t("map:placesFound", { count: restaurants.length })}
+                      {t("map:placesFound", { count: visibleRestaurants.length })}
                     </Text>
                   </View>
                 </View>
@@ -1060,7 +1494,11 @@ export default function MapScreen() {
                 <EmptyState
                   icon={StorefrontIcon}
                   title={t("map:noRestaurantsFound")}
-                  description={t("map:noPlacesDescription")}
+                  description={t(
+                    selectedCities.length > 0
+                      ? "map:noPlacesInCitiesDescription"
+                      : "map:noPlacesDescription",
+                  )}
                 />
               }
               renderItem={({ item }) => (
@@ -1079,6 +1517,67 @@ export default function MapScreen() {
           )}
         </Animated.View>
       )}
+
+      <AppBottomSheet
+        open={selectedCluster !== null}
+        onClose={() => setSelectedCluster(null)}
+        snapPoints={[selectedCluster && selectedCluster.length > 4 ? "72%" : "48%"]}
+      >
+        <BottomSheetScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}
+        >
+          <View className="mb-3 flex-row items-end justify-between">
+            <View className="min-w-0 flex-1 pr-3">
+              <Text className="text-xl font-bold text-black dark:text-white">
+                {t("map:restaurantsInCluster")}
+              </Text>
+              <Text className="mt-1 text-sm text-gray-500">
+                {t("map:clusterPlaces", { count: selectedCluster?.length ?? 0 })}
+              </Text>
+            </View>
+          </View>
+
+          <View className="overflow-hidden rounded-2xl border border-black/5 bg-white dark:border-white/10 dark:bg-[#111113]">
+            {(selectedCluster ?? []).map((restaurant, index) => (
+              <TouchableOpacity
+                key={restaurant.id}
+                activeOpacity={0.78}
+                onPress={() => selectRestaurantFromCluster(restaurant)}
+                className={`flex-row items-center px-4 py-3.5 ${
+                  index > 0 ? "border-t border-black/5 dark:border-white/10" : ""
+                }`}
+              >
+                <Avatar
+                  uri={restaurant.logoUrl}
+                  username={restaurant.name}
+                  fallbackType="restaurant"
+                  size={48}
+                />
+                <View className="ml-3 min-w-0 flex-1">
+                  <View className="flex-row items-center">
+                    <Text
+                      numberOfLines={1}
+                      className="shrink text-base font-bold text-black dark:text-white"
+                    >
+                      {restaurant.name}
+                    </Text>
+                    <RestaurantBadge status={restaurant.status} />
+                  </View>
+                  {restaurant.address || restaurant.city ? (
+                    <Text numberOfLines={1} className="mt-1 text-sm text-gray-500">
+                      {[restaurant.address, restaurant.city]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </Text>
+                  ) : null}
+                </View>
+                <MapPinIcon size={20} color="#FF5B35" weight="fill" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </BottomSheetScrollView>
+      </AppBottomSheet>
 
       <AppBottomSheet
         open={filtersOpen}
@@ -1104,6 +1603,8 @@ export default function MapScreen() {
                     DEFAULT_MAP_PREFERENCES.hideFlaggedAllergens,
                   );
                   setSelectedListId(null);
+                  setSelectedCities([]);
+                  void loadRestaurantsForCities([]);
                 }}
                 className="rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800"
               >
@@ -1111,6 +1612,65 @@ export default function MapScreen() {
                   {t("map:resetFilters")}
                 </Text>
               </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View className="mt-5 rounded-2xl bg-gray-100 p-3 dark:bg-gray-800">
+            <View className="flex-row items-center justify-between">
+              <View className="min-w-0 flex-1 pr-3">
+                <Text className="font-bold text-black dark:text-white">
+                  {t("map:locations")}
+                </Text>
+                <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t("map:locationsHint")}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setFiltersOpen(false);
+                  setIsCitySearching(true);
+                }}
+                className="flex-row items-center rounded-full bg-black px-3 py-2.5 dark:bg-white"
+              >
+                <PlusIcon
+                  size={16}
+                  color={isDark ? "#0B0B0A" : "#FAF9F6"}
+                  weight="bold"
+                />
+                <Text className="ml-1.5 text-sm font-bold text-white dark:text-black">
+                  {t("map:addLocation")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedCities.length > 0 ? (
+              <View className="mt-3 flex-row flex-wrap gap-2">
+                {selectedCities.map((area) => (
+                  <TouchableOpacity
+                    key={area.googlePlaceId}
+                    onPress={() => removeCity(area.googlePlaceId)}
+                    className="flex-row items-center rounded-full bg-brand-soft px-3 py-2 dark:bg-[#3A211C]"
+                  >
+                    <Text className="max-w-40 text-sm font-bold text-brand" numberOfLines={1}>
+                      {area.name}
+                    </Text>
+                    <XIcon size={14} color="#FF5B35" weight="bold" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                ))}
+                {selectedCities.length > 1 ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedCities([]);
+                      void loadRestaurantsForCities([]);
+                    }}
+                    className="px-2 py-2"
+                  >
+                    <Text className="text-sm font-bold text-brand">
+                      {t("map:clearLocations")}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             ) : null}
           </View>
 
@@ -1247,22 +1807,26 @@ export default function MapScreen() {
             ))}
           </View>
 
-          <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
-            {t("map:distance")}
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {([null, 10, 50, 100, 200] as (number | null)[]).map((distance) => (
-              <TouchableOpacity
-                key={distance ?? "any"}
-                onPress={() => setRadiusKm(distance)}
-                className={`min-w-[30%] flex-1 items-center rounded-xl px-3 py-3 ${radiusKm === distance ? "bg-black dark:bg-white" : "bg-gray-100 dark:bg-gray-800"}`}
-              >
-                <Text className={`font-bold ${radiusKm === distance ? "text-white dark:text-black" : "text-black dark:text-white"}`}>
-                  {distance === null ? t("map:anyDistance") : `${distance} km`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {selectedCities.length === 0 ? (
+            <>
+              <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
+                {t("map:distance")}
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {([null, 10, 50, 100, 200] as (number | null)[]).map((distance) => (
+                  <TouchableOpacity
+                    key={distance ?? "any"}
+                    onPress={() => setRadiusKm(distance)}
+                    className={`min-w-[30%] flex-1 items-center rounded-xl px-3 py-3 ${radiusKm === distance ? "bg-black dark:bg-white" : "bg-gray-100 dark:bg-gray-800"}`}
+                  >
+                    <Text className={`font-bold ${radiusKm === distance ? "text-white dark:text-black" : "text-black dark:text-white"}`}>
+                      {distance === null ? t("map:anyDistance") : `${distance} km`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          ) : null}
 
           <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
             {t("map:sortBy")}

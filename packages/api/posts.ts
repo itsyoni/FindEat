@@ -6,6 +6,7 @@ import type {
   Post,
   PostType,
   PostVisibility,
+  UserRelationship,
   UserSummary,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
@@ -386,7 +387,9 @@ export function createPostsApi(api: AxiosInstance) {
 
     async likes(id: string, cursor?: string) {
       const { data } = await api.get<{
-        items: UserSummary[];
+        items: Array<
+          UserSummary & { relationship: UserRelationship | null }
+        >;
         nextCursor: string | null;
       }>(`/posts/${id}/likes`, {
         params: { cursor, limit: 30 },

@@ -206,6 +206,7 @@ export type Post = {
   sharesCount: number;
   isLiked: boolean;
   canDelete: boolean;
+  canDisputeRestaurantAssociation?: boolean;
 };
 
 export type FeedPage = {

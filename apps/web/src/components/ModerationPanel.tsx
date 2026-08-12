@@ -11,6 +11,8 @@ import { request } from "../lib/api";
 import { UserIdentity } from "./UserIdentity";
 
 const reasonLabels: Record<ModerationReport["reason"], string> = {
+  WRONG_RESTAURANT: "Wrong restaurant association",
+  COPYRIGHT_INFRINGEMENT: "Copyright infringement",
   HATE_SPEECH: "Hate speech",
   HARASSMENT: "Harassment or bullying",
   SPAM: "Spam",
@@ -25,6 +27,13 @@ export function ModerationPanel() {
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [appeals, setAppeals] = useState<Array<{
+    id: string;
+    reason: string;
+    status: string;
+    user: { username: string; displayName?: string | null; avatarUrl?: string | null };
+    action: { action: string; reason: string; post?: { id: string } | null };
+  }>>([]);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +70,12 @@ export function ModerationPanel() {
       cancelled = true;
     };
   }, [status]);
+
+  useEffect(() => {
+    void request<typeof appeals>("/admin/moderation/appeals?status=PENDING")
+      .then(setAppeals)
+      .catch(() => undefined);
+  }, []);
 
   async function run(reportId: string, action: () => Promise<unknown>) {
     try {
@@ -118,8 +133,25 @@ export function ModerationPanel() {
         <button className="secondary compact" onClick={() => void load()}>Refresh</button>
       </div>
 
+      {appeals.length > 0 ? (
+        <section className="moderation-list">
+          <div className="page-heading"><div><p className="eyebrow">APPEALS</p><h2>Pending appeals</h2></div></div>
+          {appeals.map((appeal) => (
+            <article className="moderation-card" key={appeal.id}>
+              <div className="moderation-reason"><strong>{appeal.action.action.toLowerCase().replaceAll("_", " ")}</strong></div>
+              <p className="moderation-details">“{appeal.reason}”</p>
+              <UserIdentity user={appeal.user} />
+              <div className="moderation-actions">
+                <button className="secondary" onClick={() => void request(`/admin/moderation/appeals/${appeal.id}`, { method: "PATCH", body: JSON.stringify({ status: "REJECTED", resolutionNote: "Original decision upheld" }) }).then(() => setAppeals((items) => items.filter((item) => item.id !== appeal.id)))}>Reject</button>
+                <button onClick={() => void request(`/admin/moderation/appeals/${appeal.id}`, { method: "PATCH", body: JSON.stringify({ status: "APPROVED", resolutionNote: "Decision reversed after appeal" }) }).then(() => setAppeals((items) => items.filter((item) => item.id !== appeal.id)))}>Approve &amp; restore</button>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
       <div className="moderation-filters">
-        {(["PENDING", "RESOLVED", "DISMISSED"] as ReportStatus[]).map((item) => (
+        {(["PENDING", "AWAITING_AUTHOR", "UNDER_REVIEW", "RESOLVED", "DISMISSED"] as ReportStatus[]).map((item) => (
           <button type="button" key={item} aria-pressed={status === item} className={status === item ? "active" : ""} onClick={() => {
             setLoading(true);
             setStatus(item);
@@ -160,6 +192,12 @@ export function ModerationPanel() {
                   </div>
                 ) : null}
                 {report.details ? <p className="moderation-details">“{report.details}”</p> : null}
+                {report.reportingRestaurant ? (
+                  <div className="moderation-people">
+                    <div><span>Disputed by restaurant</span><strong>{report.reportingRestaurant.name}</strong></div>
+                    <div><span>Author response</span><strong>{report.authorResponse?.toLowerCase().replaceAll("_", " ") ?? "Waiting for author"}</strong></div>
+                  </div>
+                ) : null}
                 <div className="moderation-people">
                   <div><span>Reported by</span><UserIdentity user={report.reporter} /></div>
                   {report.reportedUser ? <div><span>Reported account</span><UserIdentity user={report.reportedUser} /></div> : null}
@@ -171,6 +209,20 @@ export function ModerationPanel() {
                       <button disabled={workingId === report.id} className="danger" onClick={() => void removeContent(report)}>
                         <TrashIcon size={16} weight="bold" /> Remove content
                       </button>
+                    ) : null}
+                    {report.post && report.reason === "WRONG_RESTAURANT" ? (
+                      <button
+                        disabled={workingId === report.id}
+                        className="secondary"
+                        onClick={() => {
+                          const restaurantId = window.prompt("New restaurant ID (leave empty to remove the association)");
+                          if (restaurantId === null) return;
+                          void run(report.id, () => request(`/admin/moderation/posts/${report.post!.id}/restaurant`, {
+                            method: "PATCH",
+                            body: JSON.stringify({ restaurantId: restaurantId.trim() || undefined }),
+                          }));
+                        }}
+                      >Correct restaurant</button>
                     ) : null}
                     {report.reportedUser ? (
                       <button disabled={workingId === report.id} className={report.reportedUser.isSuspended ? "secondary" : "danger"} onClick={() => void toggleSuspension(report)}>

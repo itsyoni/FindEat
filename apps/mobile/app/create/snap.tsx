@@ -64,7 +64,11 @@ export default function CreateSnapScreen() {
   const publishStartedRef = useRef(false);
 
   useEffect(() => {
-    if (cameraPermission && !cameraPermission.granted && cameraPermission.canAskAgain) {
+    if (
+      cameraPermission &&
+      !cameraPermission.granted &&
+      cameraPermission.canAskAgain
+    ) {
       void requestCameraPermission();
     }
   }, [cameraPermission, requestCameraPermission]);
@@ -119,7 +123,10 @@ export default function CreateSnapScreen() {
       if (asset.type === "video") {
         const duration = Math.round(asset.duration ?? 0);
         if (!duration || duration > 10_000) {
-          Alert.alert(t("snaps:videoTooLongTitle"), t("snaps:videoTooLongBody"));
+          Alert.alert(
+            t("snaps:videoTooLongTitle"),
+            t("snaps:videoTooLongBody"),
+          );
           return;
         }
         setImageUri(null);
@@ -134,7 +141,8 @@ export default function CreateSnapScreen() {
   }
 
   function publish() {
-    if ((!imageUri && !videoUri) || publishing || publishStartedRef.current) return;
+    if ((!imageUri && !videoUri) || publishing || publishStartedRef.current)
+      return;
 
     setPublishing(true);
     publishStartedRef.current = true;
@@ -197,7 +205,11 @@ export default function CreateSnapScreen() {
         };
         const createdSnap = await api.snaps.create(
           uploadedVideoUrl && pendingVideoDurationMs
-            ? { ...shared, videoUrl: uploadedVideoUrl, durationMs: pendingVideoDurationMs }
+            ? {
+                ...shared,
+                videoUrl: uploadedVideoUrl,
+                durationMs: pendingVideoDurationMs,
+              }
             : { ...shared, imageUrl: uploadedImageUrl! },
         );
         queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) => {
@@ -278,7 +290,11 @@ export default function CreateSnapScreen() {
               contentFit="cover"
             />
           ) : (
-            <Image source={{ uri: imageUri! }} contentFit="cover" style={StyleSheet.absoluteFill} />
+            <Image
+              source={{ uri: imageUri! }}
+              contentFit="cover"
+              style={StyleSheet.absoluteFill}
+            />
           )}
           <View style={[StyleSheet.absoluteFill, styles.previewScrim]} />
           <SafeAreaView edges={["top"]} style={styles.previewHeader}>
@@ -368,7 +384,11 @@ export default function CreateSnapScreen() {
           </KeyboardAvoidingView>
         </>
       ) : !cameraPermission ? (
-        <ActivityIndicator style={styles.cameraLoader} color="#FAF9F6" size="large" />
+        <ActivityIndicator
+          style={styles.cameraLoader}
+          color="#FAF9F6"
+          size="large"
+        />
       ) : !cameraPermission.granted ? (
         <SafeAreaView style={styles.permissionState}>
           <View className="px-5 pt-2">
@@ -386,7 +406,7 @@ export default function CreateSnapScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.permissionContent}
           >
-            <View className="h-20 w-20 items-center justify-center rounded-[24px] bg-[#F7D786]">
+            <View className="h-20 w-20 items-center justify-center rounded-3xl bg-[#F7D786]">
               <CameraIcon size={38} color="#171717" weight="fill" />
             </View>
             <Text className="mt-6 text-center text-[26px] font-bold leading-8 text-[#FAF9F6]">
@@ -455,10 +475,14 @@ export default function CreateSnapScreen() {
               >
                 <XIcon size={29} color="#FAF9F6" weight="bold" />
               </TouchableOpacity>
-              <Text className="text-lg font-bold text-white">{t("snaps:newSnap")}</Text>
+              <Text className="text-lg font-bold text-white">
+                {t("snaps:newSnap")}
+              </Text>
               <TouchableOpacity
                 accessibilityLabel={t("snaps:toggleFlash")}
-                onPress={() => setFlash((current) => (current === "off" ? "on" : "off"))}
+                onPress={() =>
+                  setFlash((current) => (current === "off" ? "on" : "off"))
+                }
                 className="h-11 w-11 items-center justify-center"
               >
                 {flash === "off" ? (
@@ -489,7 +513,9 @@ export default function CreateSnapScreen() {
               <TouchableOpacity
                 accessibilityLabel={t("snaps:flipCamera")}
                 onPress={() =>
-                  setCameraFacing((current) => (current === "back" ? "front" : "back"))
+                  setCameraFacing((current) =>
+                    current === "back" ? "front" : "back",
+                  )
                 }
                 className="h-12 w-12 items-center justify-center"
               >

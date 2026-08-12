@@ -24,6 +24,12 @@ import { api } from "@/lib/api";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { createVideoCover } from "@/lib/createVideoCover";
 import { cropPostImage } from "@/lib/cropPostImage";
+import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
+import {
+  coordinateDistanceKm,
+  coordinatesFromExif,
+  estimateMediaLocation,
+} from "@/lib/imageLocation";
 import {
   clearPostDraft,
   type ContentMediaDraft,
@@ -124,6 +130,20 @@ function preferredPictureSize(sizes: string[]) {
       Math.abs(second.aspectRatio - 4 / 3) * 900;
     return firstScore - secondScore;
   })[0]?.size;
+}
+
+function firstMediaLocation(media: ContentMediaDraft[]) {
+  return estimateMediaLocation(
+    media.map((item) =>
+      typeof item.locationLatitude === "number" &&
+      typeof item.locationLongitude === "number"
+        ? {
+            latitude: item.locationLatitude,
+            longitude: item.locationLongitude,
+          }
+        : null,
+    ),
+  );
 }
 
 export default function CreateContentScreen() {
@@ -463,18 +483,22 @@ export default function CreateContentScreen() {
         quality: 0.8,
         mirror: false,
       });
+      const capturedPhoto =
+        cameraFacing === "front"
+          ? await normalizeFrontCameraPhoto(photo.uri)
+          : photo;
       if (appendingCameraPhoto) {
         const nextMedia = [
           ...media,
           {
             id: `${Date.now()}-camera`,
             type: "IMAGE" as const,
-            uri: photo.uri,
-            originalUri: photo.uri,
-            originalWidth: photo.width,
-            originalHeight: photo.height,
-            width: photo.width,
-            height: photo.height,
+            uri: capturedPhoto.uri,
+            originalUri: capturedPhoto.uri,
+            originalWidth: capturedPhoto.width,
+            originalHeight: capturedPhoto.height,
+            width: capturedPhoto.width,
+            height: capturedPhoto.height,
           },
         ].slice(0, 10);
         setAvailableDraft(null);
@@ -483,7 +507,11 @@ export default function CreateContentScreen() {
         setAppendingCameraPhoto(false);
         setStep("EDIT_MEDIA");
       } else {
-        selectPhoto(photo.uri, photo.width, photo.height);
+        selectPhoto(
+          capturedPhoto.uri,
+          capturedPhoto.width,
+          capturedPhoto.height,
+        );
       }
     } catch (error) {
       console.error("content camera capture failed", error);
@@ -494,6 +522,7 @@ export default function CreateContentScreen() {
   }, [
     appendingCameraPhoto,
     cameraReady,
+    cameraFacing,
     capturing,
     media,
     selectPhoto,
@@ -568,6 +597,7 @@ export default function CreateContentScreen() {
       const remaining = Math.max(1, 10 - existingPhotos.length);
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
+        exif: true,
         allowsMultipleSelection: true,
         allowsEditing: false,
         orderedSelection: true,
@@ -580,16 +610,25 @@ export default function CreateContentScreen() {
       }
       const selected: ContentMediaDraft[] = result.assets
         .slice(0, remaining)
-        .map((asset, index) => ({
-          id: `${asset.assetId ?? "gallery"}-${Date.now()}-${index}`,
-          type: "IMAGE",
-          uri: asset.uri,
-          originalUri: asset.uri,
-          originalWidth: asset.width,
-          originalHeight: asset.height,
-          width: asset.width,
-          height: asset.height,
-        }));
+        .map((asset, index) => {
+          const coordinates = coordinatesFromExif(asset.exif);
+          return {
+            id: `${asset.assetId ?? "gallery"}-${Date.now()}-${index}`,
+            type: "IMAGE",
+            uri: asset.uri,
+            originalUri: asset.uri,
+            originalWidth: asset.width,
+            originalHeight: asset.height,
+            width: asset.width,
+            height: asset.height,
+            ...(coordinates
+              ? {
+                  locationLatitude: coordinates.latitude,
+                  locationLongitude: coordinates.longitude,
+                }
+              : {}),
+          };
+        });
       if (selected.length === 0) return;
       const nextMedia = [...existingPhotos, ...selected].slice(0, 10);
       const firstAddedIndex = Math.min(existingPhotos.length, nextMedia.length - 1);
@@ -1798,27 +1837,64 @@ export default function CreateContentScreen() {
   }
 
   if (step === "RESTAURANT") {
+    const mediaLocation = firstMediaLocation(media);
+    const selectRestaurant = (restaurant: SelectedRestaurant) => {
+      const coordinates =
+        restaurant.source === "FINDEAT"
+          ? {
+              latitude: restaurant.restaurant.latitude,
+              longitude: restaurant.restaurant.longitude,
+            }
+          : {
+              latitude: restaurant.latitude,
+              longitude: restaurant.longitude,
+            };
+      const hasRestaurantLocation =
+        typeof coordinates.latitude === "number" &&
+        typeof coordinates.longitude === "number";
+      const isVeryFar =
+        mediaLocation?.confidence === "HIGH" &&
+        hasRestaurantLocation &&
+        coordinateDistanceKm(mediaLocation, {
+          latitude: coordinates.latitude!,
+          longitude: coordinates.longitude!,
+        }) >= 250;
+      const applySelection = () => {
+        const previousId =
+          selectedRestaurant?.source === "FINDEAT"
+            ? selectedRestaurant.restaurant.id
+            : undefined;
+        const nextId =
+          restaurant.source === "FINDEAT"
+            ? restaurant.restaurant.id
+            : undefined;
+        if (previousId !== nextId) {
+          setLinkedPostId(undefined);
+          setLinkedReviewSnapshot(null);
+        }
+        setSelectedRestaurant(restaurant);
+        setStep("DETAILS");
+      };
+      if (!isVeryFar) {
+        applySelection();
+        return;
+      }
+      Alert.alert(
+        t("farRestaurantTitle"),
+        t("farRestaurantBody"),
+        [
+          { text: t("chooseAnotherRestaurant"), style: "cancel" },
+          { text: t("confirmRestaurant"), onPress: applySelection },
+        ],
+      );
+    };
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <FullPageRestaurantPicker
           selectedRestaurant={selectedRestaurant}
-          onSelect={(restaurant) => {
-            const previousId =
-              selectedRestaurant?.source === "FINDEAT"
-                ? selectedRestaurant.restaurant.id
-                : undefined;
-            const nextId =
-              restaurant?.source === "FINDEAT"
-                ? restaurant.restaurant.id
-                : undefined;
-            if (previousId !== nextId) {
-              setLinkedPostId(undefined);
-              setLinkedReviewSnapshot(null);
-            }
-            setSelectedRestaurant(restaurant);
-            setStep("DETAILS");
-          }}
+          preferredLocation={mediaLocation}
+          onSelect={selectRestaurant}
           onBack={() => setStep("DETAILS")}
         />
       </>

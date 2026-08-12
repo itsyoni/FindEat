@@ -9,5 +9,33 @@ export function createReportsApi(api: AxiosInstance) {
       >("/reports", payload);
       return data;
     },
+    async myRestaurantDisputes() {
+      const { data } = await api.get("/reports/restaurant-disputes/me");
+      return data;
+    },
+    async respondToRestaurantDispute(
+      id: string,
+      payload: {
+        response: "CHANGE_RESTAURANT" | "CONFIRM_CORRECT";
+        restaurantId?: string;
+      },
+    ) {
+      const { data } = await api.patch(
+        `/reports/restaurant-disputes/${id}/respond`,
+        payload,
+      );
+      return data;
+    },
+    async myModerationActions() {
+      const { data } = await api.get("/reports/moderation-actions/me");
+      return data;
+    },
+    async appeal(actionId: string, reason: string) {
+      const { data } = await api.post(
+        `/reports/moderation-actions/${actionId}/appeal`,
+        { reason },
+      );
+      return data;
+    },
   };
 }

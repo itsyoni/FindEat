@@ -739,8 +739,8 @@ export default function ReviewPost({
                     right: 12,
                     top: 12,
                     zIndex: 30,
-                    width: 152,
-                    height: 72,
+                    width: 132,
+                    height: 64,
                   }}
                   contentContainerStyle={{
                     flexGrow: 1,
@@ -772,7 +772,7 @@ export default function ReviewPost({
                             [item.id]: perspective.id,
                           }))
                         }
-                        className="h-14 w-14"
+                        className="h-12 w-12"
                         style={{
                           shadowColor: "#0B0B0A",
                           shadowOpacity: 0.3,
@@ -781,7 +781,7 @@ export default function ReviewPost({
                           elevation: 5,
                         }}
                       >
-                        <View className="h-14 w-14 overflow-hidden rounded-xl border-2 border-[#FAF9F6] bg-gray-800">
+                        <View className="h-12 w-12 overflow-hidden rounded-[10px] border-2 border-[#FAF9F6] bg-gray-800">
                           {perspective.imageUrl ? (
                             <ProgressiveImage
                               source={{ uri: perspective.imageUrl }}
@@ -796,7 +796,7 @@ export default function ReviewPost({
                             uri={perspective.avatarUrl}
                             username={perspective.username}
                             userId={perspective.userId}
-                            size={22}
+                            size={20}
                             showSnapIndicator={false}
                             style={{
                               borderWidth: 2,
@@ -818,8 +818,8 @@ export default function ReviewPost({
                     right: 12,
                     top: 12,
                     zIndex: 30,
-                    width: 152,
-                    height: 72,
+                    width: 132,
+                    height: 64,
                   }}
                   contentContainerStyle={{
                     flexGrow: 1,
@@ -845,7 +845,7 @@ export default function ReviewPost({
                         onPress={() =>
                           setSelectedCoverRatingId(perspective.userId)
                         }
-                        className="h-14 w-14 items-center justify-center overflow-hidden rounded-xl border-2 border-[#FAF9F6] bg-black/60"
+                        className="h-12 w-12 items-center justify-center overflow-hidden rounded-[10px] border-2 border-[#FAF9F6] bg-black/60"
                         style={{
                           shadowColor: "#0B0B0A",
                           shadowOpacity: 0.3,
@@ -862,7 +862,7 @@ export default function ReviewPost({
                           />
                         ) : (
                           <UserIcon
-                            size={30}
+                            size={26}
                             color="#FAF9F6"
                             weight="fill"
                           />

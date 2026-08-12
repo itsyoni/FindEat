@@ -6,12 +6,14 @@ import {
 } from "@/hooks/useComments";
 import type { Comment } from "@findeat/types";
 import {
+  BottomSheetFooter,
+  type BottomSheetFooterProps,
   BottomSheetFlatList,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Platform, TouchableOpacity, View } from "react-native";
+import { Keyboard, Platform, Pressable, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Avatar from "./Avatar";
 import Text from "./AppText";
@@ -40,6 +42,12 @@ import { useToast } from "@/contexts/ToastContext";
 import { getErrorMessage } from "@findeat/utils";
 import GifPickerBottomSheet, { type GifSelection } from "./GifPickerBottomSheet";
 import AdaptiveGif from "./AdaptiveGif";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from "react-native-reanimated";
 
 type Props = {
   postId: string | null;
@@ -66,9 +74,53 @@ type CommentComposerProps = {
   onOpenGif: () => void;
 };
 
-function formatCommentTime(createdAt: string) {
+function CommentLikeButton({
+  comment,
+  onToggle,
+}: {
+  comment: Comment;
+  onToggle: (comment: Comment) => Promise<unknown>;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  function handlePress() {
+    if (!comment.isLiked) {
+      scale.set(1);
+      scale.set(withSequence(withSpring(1.3), withSpring(1)));
+    }
+    void onToggle(comment).catch(console.error);
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      hitSlop={8}
+      className="w-9 items-center pt-1"
+      accessibilityRole="button"
+      accessibilityLabel={comment.isLiked ? "Unlike comment" : "Like comment"}
+    >
+      <Animated.View style={animatedStyle}>
+        <HeartIcon
+          size={21}
+          color={comment.isLiked ? "#FF3040" : "#9CA3AF"}
+          weight={comment.isLiked ? "fill" : "regular"}
+        />
+      </Animated.View>
+      <Text className="mt-1 text-[11px] font-bold text-gray-500 dark:text-gray-400">
+        {comment.likesCount}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function formatCommentTime(createdAt: string, language: string) {
   const date = new Date(createdAt);
   const now = new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  const isHebrew = language.startsWith("he");
 
   const diffInSeconds = Math.max(
     0,
@@ -76,32 +128,45 @@ function formatCommentTime(createdAt: string) {
   );
 
   if (diffInSeconds < 60) {
-    return "עכשיו";
+    return isHebrew ? "עכשיו" : "now";
   }
 
   const diffInMinutes = Math.floor(diffInSeconds / 60);
 
   if (diffInMinutes < 60) {
-    return `לפני ${diffInMinutes} דק׳`;
+    return isHebrew ? `${diffInMinutes} דק׳` : `${diffInMinutes}m`;
   }
 
   const diffInHours = Math.floor(diffInMinutes / 60);
 
   if (diffInHours < 24) {
-    return `לפני ${diffInHours} שע׳`;
+    return isHebrew ? `${diffInHours} שע׳` : `${diffInHours}h`;
   }
 
   const diffInDays = Math.floor(diffInHours / 24);
 
   if (diffInDays < 7) {
-    return `לפני ${diffInDays} ימים`;
+    return isHebrew ? `${diffInDays} ימים` : `${diffInDays}d`;
   }
 
-  return date.toLocaleDateString("he-IL", {
-    day: "numeric",
-    month: "short",
-    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-  });
+  const monthNames = isHebrew
+    ? ["ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יוני", "יולי", "אוג׳", "ספט׳", "אוק׳", "נוב׳", "דצמ׳"]
+    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const year = date.getFullYear() !== now.getFullYear() ? ` ${date.getFullYear()}` : "";
+  return `${date.getDate()} ${monthNames[date.getMonth()]}${year}`;
+}
+
+function findRootCommentId(comments: Comment[], commentId: string) {
+  const commentById = new Map(comments.map((comment) => [comment.id, comment]));
+  let current = commentById.get(commentId);
+  const visited = new Set<string>();
+  while (current?.parentId && !visited.has(current.id)) {
+    visited.add(current.id);
+    const parent = commentById.get(current.parentId);
+    if (!parent) break;
+    current = parent;
+  }
+  return current?.id ?? commentId;
 }
 
 function CommentComposer({
@@ -260,11 +325,12 @@ export default function CommentsBottomSheet({
   onClose,
   onCommentAdded,
 }: Props) {
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
   const {
     comments,
+    rankingLikesByCommentId,
     loading,
     submitting,
     isPostAuthor,
@@ -360,43 +426,116 @@ export default function CommentsBottomSheet({
   const [highlightedCommentId, setHighlightedCommentId] = useState<
     string | null
   >(null);
+  const [replyExpansion, setReplyExpansion] = useState<{
+    postId: string | null;
+    parents: Set<string>;
+  }>(() => ({ postId: null, parents: new Set() }));
+  const expandedReplyParents = useMemo(
+    () =>
+      replyExpansion.postId === postId
+        ? replyExpansion.parents
+        : new Set<string>(),
+    [postId, replyExpansion],
+  );
+  const setExpandedReplyParents = useCallback(
+    (update: (current: Set<string>) => Set<string>) => {
+      setReplyExpansion((current) => ({
+        postId,
+        parents: update(
+          current.postId === postId ? current.parents : new Set<string>(),
+        ),
+      }));
+    },
+    [postId],
+  );
+  const focusedReplyRootId = useMemo(() => {
+    if (!focusedCommentId) return null;
+    const focused = comments.find((comment) => comment.id === focusedCommentId);
+    return focused?.parentId
+      ? findRootCommentId(comments, focusedCommentId)
+      : null;
+  }, [comments, focusedCommentId]);
+  const isReplyThreadExpanded = useCallback(
+    (rootId: string) =>
+      expandedReplyParents.has(rootId) ||
+      (focusedReplyRootId === rootId &&
+        !expandedReplyParents.has(`collapsed:${rootId}`)),
+    [expandedReplyParents, focusedReplyRootId],
+  );
   const authorNote = useMemo(
     () => comments.find((comment) => comment.isAuthorNote && !comment.parentId) ?? null,
     [comments],
   );
 
-  const threadedComments = useMemo(() => {
+  const { threadedComments, repliesByRoot } = useMemo(() => {
     const roots = comments
       .filter((comment) => !comment.parentId && !comment.isAuthorNote)
       .sort((first, second) => {
         const pinnedDifference =
           Number(second.isPinned) - Number(first.isPinned);
         if (pinnedDifference !== 0) return pinnedDifference;
-        if (!first.isPinned || !second.isPinned) return 0;
+        if (first.isPinned && second.isPinned) {
+          const pinnedAtDifference =
+            new Date(second.pinnedAt ?? 0).getTime() -
+            new Date(first.pinnedAt ?? 0).getTime();
+          if (pinnedAtDifference !== 0) return pinnedAtDifference;
+        }
+
+        const likesDifference =
+          (rankingLikesByCommentId.get(second.id) ?? second.likesCount) -
+          (rankingLikesByCommentId.get(first.id) ?? first.likesCount);
+        if (likesDifference !== 0) return likesDifference;
+
         return (
-          new Date(second.pinnedAt ?? 0).getTime() -
-          new Date(first.pinnedAt ?? 0).getTime()
+          new Date(second.createdAt).getTime() -
+          new Date(first.createdAt).getTime()
         );
       });
-    const repliesByParent = new Map<string, Comment[]>();
+    const commentById = new Map(comments.map((comment) => [comment.id, comment]));
+    const rootIdFor = (comment: Comment) => {
+      let current = comment;
+      const visited = new Set<string>();
+      while (current.parentId && !visited.has(current.id)) {
+        visited.add(current.id);
+        const parent = commentById.get(current.parentId);
+        if (!parent) break;
+        current = parent;
+      }
+      return current.id;
+    };
+    const nextRepliesByRoot = new Map<string, Comment[]>();
     comments.forEach((comment) => {
-      if (!comment.parentId) return;
-      const replies = repliesByParent.get(comment.parentId) ?? [];
+      if (!comment.parentId || comment.isAuthorNote) return;
+      const rootId = rootIdFor(comment);
+      const replies = nextRepliesByRoot.get(rootId) ?? [];
       replies.push(comment);
-      repliesByParent.set(comment.parentId, replies);
+      nextRepliesByRoot.set(rootId, replies);
     });
     const arranged = roots.flatMap((root) => [
       root,
-      ...(repliesByParent.get(root.id) ?? []),
+      ...(isReplyThreadExpanded(root.id)
+        ? (nextRepliesByRoot.get(root.id) ?? [])
+        : []),
     ]);
     const arrangedIds = new Set(arranged.map((comment) => comment.id));
-    return [
-      ...arranged,
-      ...comments.filter(
-        (comment) => !comment.isAuthorNote && !arrangedIds.has(comment.id),
-      ),
-    ];
-  }, [comments]);
+    return {
+      threadedComments: [
+        ...arranged,
+        ...comments.filter(
+          (comment) =>
+            !comment.isAuthorNote &&
+            !comment.parentId &&
+            !arrangedIds.has(comment.id),
+        ),
+      ],
+      repliesByRoot: nextRepliesByRoot,
+    };
+  }, [comments, isReplyThreadExpanded, rankingLikesByCommentId]);
+
+  const replyRootId = useCallback(
+    (commentId: string) => findRootCommentId(comments, commentId),
+    [comments],
+  );
 
   const submitAuthorNote = useCallback(async () => {
     const content = authorNoteContent.trim();
@@ -535,6 +674,11 @@ export default function CommentsBottomSheet({
       if (!postId) return;
 
       await addComment(content, replyToId);
+      if (replyToId) {
+        setExpandedReplyParents((existing) =>
+          new Set(existing).add(replyRootId(replyToId)),
+        );
+      }
       onCommentAdded?.(postId);
 
       requestAnimationFrame(() => {
@@ -543,7 +687,7 @@ export default function CommentsBottomSheet({
         });
       });
     },
-    [postId, addComment, onCommentAdded],
+    [postId, addComment, onCommentAdded, replyRootId, setExpandedReplyParents],
   );
 
   const handleGifSelected = useCallback(
@@ -551,6 +695,11 @@ export default function CommentsBottomSheet({
       if (!postId) return;
       try {
         await addComment("", replyingTo?.id, gif.url);
+        if (replyingTo?.id) {
+          setExpandedReplyParents((existing) =>
+            new Set(existing).add(replyRootId(replyingTo.id)),
+          );
+        }
         setGifPickerOpen(false);
         setReplyingTo(null);
         onCommentAdded?.(postId);
@@ -563,7 +712,42 @@ export default function CommentsBottomSheet({
         });
       }
     },
-    [addComment, onCommentAdded, postId, replyingTo, showToast, t],
+    [
+      addComment,
+      onCommentAdded,
+      postId,
+      replyingTo,
+      replyRootId,
+      setExpandedReplyParents,
+      showToast,
+      t,
+    ],
+  );
+
+  const renderCommentFooter = useCallback(
+    (footerProps: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...footerProps} bottomInset={0}>
+        <CommentComposer
+          key={editingComment?.id ?? "comment-composer"}
+          bottomInset={insets.bottom}
+          replyingTo={replyingTo}
+          editingComment={editingComment}
+          onCancelReply={() => setReplyingTo(null)}
+          onCancelEdit={() => setEditingComment(null)}
+          onAddComment={handleAddComment}
+          onUpdateComment={updateComment}
+          onOpenGif={openGifPicker}
+        />
+      </BottomSheetFooter>
+    ),
+    [
+      editingComment,
+      handleAddComment,
+      insets.bottom,
+      openGifPicker,
+      replyingTo,
+      updateComment,
+    ],
   );
 
   const renderComment = useCallback(
@@ -662,8 +846,12 @@ export default function CommentsBottomSheet({
         });
       }
 
+      const canOpenCommentActions =
+        !item.isAuthorNote &&
+        (item.canDelete || item.canModerate || item.canPin);
+
       return (
-      <View
+      <Pressable
         className={`flex-row gap-3 rounded-2xl ${
           item.isAuthorNote
             ? embedded
@@ -674,6 +862,8 @@ export default function CommentsBottomSheet({
               : "mb-5"
         }`}
         style={{ marginLeft: item.parentId ? 44 : 0 }}
+        onLongPress={canOpenCommentActions ? openCommentActions : undefined}
+        delayLongPress={350}
         onStartShouldSetResponderCapture={() => {
           if (!keyboardVisibleRef.current) return false;
           Keyboard.dismiss();
@@ -708,12 +898,6 @@ export default function CommentsBottomSheet({
                 ) : null}
               </View>
             </TouchableOpacity>
-            {!item.isAuthorNote &&
-            (item.canDelete || item.canModerate || item.canPin) ? (
-              <TouchableOpacity onPress={openCommentActions} hitSlop={10}>
-                <DotsThreeIcon size={18} color="#9CA3AF" weight="bold" />
-              </TouchableOpacity>
-            ) : null}
           </View>
 
           {item.isPinned ? (
@@ -780,7 +964,7 @@ export default function CommentsBottomSheet({
             ) : null}
             <View className="ml-auto flex-row items-center">
               <Text className="text-xs text-gray-400">
-                {formatCommentTime(item.createdAt)}
+                {formatCommentTime(item.createdAt, i18n.resolvedLanguage ?? i18n.language)}
               </Text>
               {item.editedAt ? (
                 <Text className="ml-1 text-xs text-gray-400">
@@ -789,31 +973,49 @@ export default function CommentsBottomSheet({
               ) : null}
             </View>
           </View>
-        </View>
-        <TouchableOpacity
-          onPress={() => void toggleCommentLike(item).catch(console.error)}
-          hitSlop={8}
-          className="w-9 items-center pt-1"
-          accessibilityRole="button"
-          accessibilityLabel={item.isLiked ? "Unlike comment" : "Like comment"}
-        >
-          <HeartIcon
-            size={19}
-            color={item.isLiked ? "#EF4444" : "#9CA3AF"}
-            weight={item.isLiked ? "fill" : "regular"}
-          />
-          {item.likesCount > 0 ? (
-            <Text className="mt-1 text-[11px] font-bold text-gray-500 dark:text-gray-400">
-              {item.likesCount}
-            </Text>
+          {!item.parentId && (repliesByRoot.get(item.id)?.length ?? 0) > 0 ? (
+            <TouchableOpacity
+              onPress={() =>
+                setExpandedReplyParents((current) => {
+                  const next = new Set(current);
+                  if (isReplyThreadExpanded(item.id)) {
+                    next.delete(item.id);
+                    if (focusedReplyRootId === item.id) {
+                      next.add(`collapsed:${item.id}`);
+                    }
+                  } else {
+                    next.delete(`collapsed:${item.id}`);
+                    next.add(item.id);
+                  }
+                  return next;
+                })
+              }
+              hitSlop={8}
+              className="mt-3 self-start"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isReplyThreadExpanded(item.id) }}
+            >
+              <Text className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                {t(isReplyThreadExpanded(item.id) ? "hideReplies" : "viewReplies", {
+                  count: repliesByRoot.get(item.id)?.length ?? 0,
+                })}
+              </Text>
+            </TouchableOpacity>
           ) : null}
-        </TouchableOpacity>
-      </View>
+        </View>
+        <CommentLikeButton comment={item} onToggle={toggleCommentLike} />
+      </Pressable>
       );
     },
     [
       deleteComment,
       highlightedCommentId,
+      focusedReplyRootId,
+      isReplyThreadExpanded,
+      repliesByRoot,
+      setExpandedReplyParents,
+      i18n.language,
+      i18n.resolvedLanguage,
       isDark,
       showToast,
       t,
@@ -839,13 +1041,15 @@ export default function CommentsBottomSheet({
     <>
       <AppBottomSheet
         open={!!postId}
-        snapPoints={["70%"]}
+        snapPoints={["70%", "92%"]}
+        maxHeightPercent={0.92}
         onClose={closeSheet}
         androidKeyboardInputMode="adjustPan"
-        keyboardBehavior="extend"
+        keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         enableContentPanningGesture
         dismissKeyboardBeforeBackdropClose
+        footerComponent={renderCommentFooter}
       >
         <View style={{ flex: 1 }}>
         <BottomSheetFlatList
@@ -868,7 +1072,8 @@ export default function CommentsBottomSheet({
         }}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 24,
+          paddingBottom:
+            112 + insets.bottom + (replyingTo || editingComment ? 58 : 0),
           flexGrow: 1,
         }}
         ListHeaderComponent={
@@ -1158,17 +1363,6 @@ export default function CommentsBottomSheet({
             </View>
           )
         }
-        />
-        <CommentComposer
-          key={editingComment?.id ?? "comment-composer"}
-          bottomInset={insets.bottom}
-          replyingTo={replyingTo}
-          editingComment={editingComment}
-          onCancelReply={() => setReplyingTo(null)}
-          onCancelEdit={() => setEditingComment(null)}
-          onAddComment={handleAddComment}
-          onUpdateComment={updateComment}
-          onOpenGif={openGifPicker}
         />
         </View>
       </AppBottomSheet>

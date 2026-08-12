@@ -13,6 +13,7 @@
   "viewPost": "View post",
   "openChat": "Open chat",
   "joinReview": "Join",
+  "joinedReview": "Joined",
   "approve": "Approve",
   "decline": "Decline",
   "emptyTitle": "No notifications yet",
@@ -22,6 +23,9 @@
     "COMMENT_LIKE": "{{name}} and {{count}} more liked your comment"
   },
   "types": {
+    "RESTAURANT_DISPUTE": "Check the restaurant on your post",
+    "MODERATION_ACTION": "FindEat took action on your content",
+    "APPEAL_DECISION": "Your moderation appeal was reviewed",
     "FRIEND_POST": "{{name}} shared a new post",
     "POST_TAG": "{{name}} tagged you in a post",
     "POST_LIKE": "{{name}} liked your post",

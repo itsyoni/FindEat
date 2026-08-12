@@ -41,6 +41,8 @@ export type ContentMediaDraft = {
   width: number;
   height: number;
   durationMs?: number;
+  locationLatitude?: number;
+  locationLongitude?: number;
 };
 
 export type ReviewPostDraft = {

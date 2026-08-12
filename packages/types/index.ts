@@ -2,6 +2,7 @@ export * from "./admin";
 export * from "./auth";
 export * from "./business";
 export * from "./chat";
+export * from "./city";
 export * from "./comment";
 export * from "./creator-impact";
 export * from "./connection";

@@ -35,6 +35,7 @@ type NotificationAction = {
   isPost: boolean;
   preview?: AppNotification['postPreview'];
   run: () => void;
+  disabled?: boolean;
   secondaryLabel?: string;
   runSecondary?: () => void;
 };
@@ -47,6 +48,9 @@ export default function NotificationsScreen() {
   const [relationshipOverrides, setRelationshipOverrides] = useState<
     Record<string, UserRelationship>
   >({});
+  const [joinedReviewIds, setJoinedReviewIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const hasUnreadRef = useRef(false);
   const notifications = useNotifications();
   const items = useMemo(
@@ -131,16 +135,23 @@ export default function NotificationsScreen() {
 
   function notificationAction(item: AppNotification): NotificationAction | null {
     if (item.type === 'REVIEW_INVITE' && item.postId) {
+      const postId = item.postId;
+      const joined =
+        item.reviewInvitationStatus === 'JOINED' || joinedReviewIds.has(postId);
       return {
-        label: t('joinReview'),
-        active: false,
+        label: t(joined ? 'joinedReview' : 'joinReview'),
+        active: joined,
+        disabled: joined,
         isPost: false,
         preview: undefined,
         run: () => {
-          void api.posts.joinReview(item.postId!).then(() => {
+          if (joined) return;
+          void api.posts.joinReview(postId).then(async () => {
+            setJoinedReviewIds((current) => new Set(current).add(postId));
+            await notifications.refetch();
             router.push({
               pathname: '/posts/contribute/[id]',
-              params: { id: item.postId! },
+              params: { id: postId },
             });
           });
         },
@@ -273,6 +284,7 @@ export default function NotificationsScreen() {
                 onAction={action?.run}
                 actionLabel={action?.label}
                 actionActive={action?.active}
+                actionDisabled={action?.disabled}
                 secondaryActionLabel={action?.secondaryLabel}
                 onSecondaryAction={action?.runSecondary}
                 isPostAction={action?.isPost}

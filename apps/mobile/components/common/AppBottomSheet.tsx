@@ -3,8 +3,8 @@ import {
   BottomSheetFooterProps,
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
-import { ReactNode, useCallback, useEffect, useRef } from "react";
-import { Keyboard } from "react-native";
+import { ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
+import { Keyboard, useWindowDimensions } from "react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
 
 type Props = {
@@ -18,6 +18,8 @@ type Props = {
   keyboardBlurBehavior?: "none" | "restore";
   enableContentPanningGesture?: boolean;
   dismissKeyboardBeforeBackdropClose?: boolean;
+  maxHeightPercent?: number;
+  topInset?: number;
   footerComponent?: (
     props: BottomSheetFooterProps,
   ) => React.ReactElement | null;
@@ -35,6 +37,8 @@ export default function AppBottomSheet({
   keyboardBlurBehavior,
   enableContentPanningGesture,
   dismissKeyboardBeforeBackdropClose,
+  maxHeightPercent,
+  topInset,
 }: Props) {
   if (!open) return null;
 
@@ -49,6 +53,8 @@ export default function AppBottomSheet({
       keyboardBlurBehavior={keyboardBlurBehavior}
       enableContentPanningGesture={enableContentPanningGesture}
       dismissKeyboardBeforeBackdropClose={dismissKeyboardBeforeBackdropClose}
+      maxHeightPercent={maxHeightPercent}
+      topInset={topInset}
     >
       {children}
     </PresentedBottomSheet>
@@ -66,8 +72,25 @@ function PresentedBottomSheet({
   keyboardBlurBehavior = "restore",
   enableContentPanningGesture = true,
   dismissKeyboardBeforeBackdropClose = false,
+  maxHeightPercent,
+  topInset,
 }: Omit<Props, "open">) {
   const { isDark } = useAppTheme();
+  const { height: windowHeight } = useWindowDimensions();
+  const boundedMaxHeightPercent = maxHeightPercent
+    ? Math.min(0.95, Math.max(0.5, maxHeightPercent))
+    : null;
+  const boundedSnapPoints = useMemo(() => {
+    if (!boundedMaxHeightPercent) return snapPoints;
+    return (snapPoints ?? ["50%"]).map((point) => {
+      if (typeof point === "number") {
+        return Math.min(point, windowHeight * boundedMaxHeightPercent);
+      }
+      const percentage = Number(point.replace("%", ""));
+      if (!Number.isFinite(percentage)) return point;
+      return `${Math.min(100, percentage / boundedMaxHeightPercent)}%`;
+    });
+  }, [boundedMaxHeightPercent, snapPoints, windowHeight]);
   const modalRef = useRef<BottomSheetModal>(null);
   const backdropCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -140,8 +163,18 @@ function PresentedBottomSheet({
     <BottomSheetModal
       ref={modalRef}
       index={0}
-      snapPoints={snapPoints}
+      snapPoints={boundedSnapPoints}
       enableDynamicSizing={false}
+      maxDynamicContentSize={
+        boundedMaxHeightPercent
+          ? Math.round(windowHeight * boundedMaxHeightPercent)
+          : undefined
+      }
+      topInset={
+        topInset ?? (boundedMaxHeightPercent
+          ? Math.round(windowHeight * (1 - boundedMaxHeightPercent))
+          : 0)
+      }
       enablePanDownToClose
       enableContentPanningGesture={enableContentPanningGesture}
       enableHandlePanningGesture
