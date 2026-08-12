@@ -5,6 +5,7 @@ import { snapsQueryKey } from "@/hooks/useSnaps";
 import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
+import { getVideoDurationMs } from "@/lib/videoDuration";
 import ContentVideo from "@/components/posts/content/ContentVideo";
 import type { SelectedRestaurant, SnapGroup } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -116,13 +117,14 @@ export default function CreateSnapScreen() {
       quality: 0.9,
       allowsEditing: true,
       videoMaxDuration: 10,
+      videoExportPreset: ImagePicker.VideoExportPreset.HighestQuality,
       selectionLimit: 1,
     });
     if (!result.canceled && result.assets[0]?.uri) {
       const asset = result.assets[0];
       if (asset.type === "video") {
-        const duration = Math.round(asset.duration ?? 0);
-        if (!duration || duration > 10_000) {
+        const duration = await getVideoDurationMs(asset.uri);
+        if (duration > 10_250) {
           Alert.alert(
             t("snaps:videoTooLongTitle"),
             t("snaps:videoTooLongBody"),
@@ -131,7 +133,7 @@ export default function CreateSnapScreen() {
         }
         setImageUri(null);
         setVideoUri(asset.uri);
-        setVideoDurationMs(duration);
+        setVideoDurationMs(Math.min(10_000, duration));
       } else {
         setVideoUri(null);
         setVideoDurationMs(null);

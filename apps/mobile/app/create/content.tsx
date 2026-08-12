@@ -23,6 +23,7 @@ import { prependPostToFeedCache } from "@/hooks/useFeed";
 import { api } from "@/lib/api";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { createVideoCover } from "@/lib/createVideoCover";
+import { getVideoDurationMs } from "@/lib/videoDuration";
 import { cropPostImage } from "@/lib/cropPostImage";
 import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
 import {
@@ -596,7 +597,7 @@ export default function CreateContentScreen() {
           : [];
       const remaining = Math.max(1, 10 - existingPhotos.length);
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ["images", "videos"],
         exif: true,
         allowsMultipleSelection: true,
         allowsEditing: false,
@@ -606,6 +607,35 @@ export default function CreateContentScreen() {
         quality: 0.9,
       });
       if (result.canceled) {
+        return;
+      }
+      const selectedVideo = result.assets.find(
+        (asset) => asset.type === "video",
+      );
+      if (selectedVideo) {
+        if (result.assets.length !== 1 || existingPhotos.length > 0) {
+          showToast(t("contentMediaRules"), { kind: "error" });
+          return;
+        }
+        const durationMs = await getVideoDurationMs(selectedVideo.uri);
+        if (durationMs > 10_250) {
+          showToast(t("videoTooLongBody"), { kind: "error" });
+          return;
+        }
+        setMedia([
+          {
+            id: selectedVideo.assetId ?? `${Date.now()}-video`,
+            type: "VIDEO",
+            uri: selectedVideo.uri,
+            width: selectedVideo.width,
+            height: selectedVideo.height,
+            durationMs: Math.min(10_000, durationMs),
+          },
+        ]);
+        setAvailableDraft(null);
+        setAppendingCameraPhoto(false);
+        setPreviewMediaIndex(0);
+        setStep("DETAILS");
         return;
       }
       const selected: ContentMediaDraft[] = result.assets
@@ -810,17 +840,43 @@ export default function CreateContentScreen() {
   const openVideo = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["videos"],
+        mediaTypes: ["images", "videos"],
+        exif: true,
         allowsEditing: true,
         videoMaxDuration: 10,
+        videoExportPreset: ImagePicker.VideoExportPreset.HighestQuality,
         quality: 0.8,
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      // iOS reports video duration as a floating-point millisecond value,
-      // while the API and database store whole milliseconds.
-      const durationMs = Math.ceil(asset.duration ?? 0);
-      if (!durationMs || durationMs > 10_000) {
+      if (asset.type !== "video") {
+        const coordinates = coordinatesFromExif(asset.exif);
+        setMedia([
+          {
+            id: `${asset.assetId ?? "gallery"}-${Date.now()}`,
+            type: "IMAGE",
+            uri: asset.uri,
+            originalUri: asset.uri,
+            originalWidth: asset.width,
+            originalHeight: asset.height,
+            width: asset.width,
+            height: asset.height,
+            ...(coordinates
+              ? {
+                  locationLatitude: coordinates.latitude,
+                  locationLongitude: coordinates.longitude,
+                }
+              : {}),
+          },
+        ]);
+        setAvailableDraft(null);
+        setAppendingCameraPhoto(false);
+        setPreviewMediaIndex(0);
+        setStep("EDIT_MEDIA");
+        return;
+      }
+      const durationMs = await getVideoDurationMs(asset.uri);
+      if (durationMs > 10_250) {
         showToast(t("videoTooLongBody"), { kind: "error" });
         return;
       }
@@ -831,7 +887,7 @@ export default function CreateContentScreen() {
           uri: asset.uri,
           width: asset.width,
           height: asset.height,
-          durationMs,
+          durationMs: Math.min(10_000, durationMs),
         },
       ]);
       setAvailableDraft(null);
@@ -1499,15 +1555,9 @@ export default function CreateContentScreen() {
                     disabled={recording}
                     accessibilityRole="button"
                     accessibilityLabel={
-                      captureMode === "picture"
-                        ? t("choosePhotos")
-                        : t("chooseShortVideo")
+                      t("chooseFromGallery")
                     }
-                    onPress={() =>
-                      void (captureMode === "picture"
-                        ? openGallery()
-                        : openVideo())
-                    }
+                    onPress={() => void openVideo()}
                     className={`h-14 w-14 items-center justify-center rounded-2xl border border-white/25 bg-black/55 ${
                       recording ? "opacity-40" : ""
                     }`}
