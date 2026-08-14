@@ -136,5 +136,17 @@ export function createPlaceListsApi(api: AxiosInstance) {
       );
       return data;
     },
+
+    async addRestaurant(
+      id: string,
+      restaurantId: string,
+      sourcePostId?: string,
+    ) {
+      const { data } = await api.post<PlaceListDetail>(
+        `/place-lists/${id}/restaurants/${restaurantId}`,
+        { sourcePostId },
+      );
+      return data;
+    },
   };
 }

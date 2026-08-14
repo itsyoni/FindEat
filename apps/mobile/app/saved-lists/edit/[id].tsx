@@ -5,6 +5,8 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import { consumePendingListLocation } from "@/lib/listLocationSelection";
+import { getFreshDeviceLocation } from "@/lib/currentLocation";
+import * as Location from "expo-location";
 import type {
   PlaceListDetail,
   PlaceListEventType,
@@ -57,11 +59,19 @@ export default function EditSavedListScreen() {
   const [newCoverUri, setNewCoverUri] = useState<string | null>(null);
   const [eventType, setEventType] = useState<PlaceListEventType | null>(null);
   const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
   const [eventLocation, setEventLocation] = useState("");
   const [eventLocationLatitude, setEventLocationLatitude] = useState<number | null>(null);
   const [eventLocationLongitude, setEventLocationLongitude] = useState<number | null>(null);
+  const [destinationCountryCode, setDestinationCountryCode] = useState<string | null>(null);
+  const [destinationBounds, setDestinationBounds] = useState<PlaceListDetail["destinationBounds"]>(null);
+  const [stayName, setStayName] = useState("");
+  const [stayLatitude, setStayLatitude] = useState<number | null>(null);
+  const [stayLongitude, setStayLongitude] = useState<number | null>(null);
+  const [staySource, setStaySource] = useState<"SEARCH" | "MAP" | "CURRENT_LOCATION" | null>(null);
   const [allowInvites, setAllowInvites] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -75,9 +85,16 @@ export default function EditSavedListScreen() {
         setCoverUrl(value.coverUrl ?? null);
         setEventType(value.eventType ?? null);
         setEventDate(value.eventAt ? new Date(value.eventAt) : null);
+        setEventEndDate(value.eventEndAt ? new Date(value.eventEndAt) : null);
         setEventLocation(value.eventLocation ?? "");
         setEventLocationLatitude(value.eventLocationLatitude ?? null);
         setEventLocationLongitude(value.eventLocationLongitude ?? null);
+        setDestinationCountryCode(value.destinationCountryCode ?? null);
+        setDestinationBounds(value.destinationBounds ?? null);
+        setStayName(value.stayLocation?.name ?? "");
+        setStayLatitude(value.stayLocation?.latitude ?? null);
+        setStayLongitude(value.stayLocation?.longitude ?? null);
+        setStaySource(value.stayLocation?.source ?? null);
         setAllowInvites(value.allowMembersToInvite);
       })
       .catch(() => showToast(t("listLoadError"), { kind: "error" }));
@@ -91,6 +108,27 @@ export default function EditSavedListScreen() {
       setEventLocation(location.placeName);
       setEventLocationLatitude(location.latitude);
       setEventLocationLongitude(location.longitude);
+      setDestinationCountryCode(location.countryCode ?? null);
+      setDestinationBounds(location.bounds ?? null);
+      const stay = consumePendingListLocation(id, "stay");
+      if (stay) {
+        setStayName(stay.placeName);
+        setStayLatitude(stay.latitude);
+        setStayLongitude(stay.longitude);
+        setStaySource(stay.source ?? "SEARCH");
+      }
+    }, [id]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      const stay = consumePendingListLocation(id, "stay");
+      if (!stay) return;
+      setStayName(stay.placeName);
+      setStayLatitude(stay.latitude);
+      setStayLongitude(stay.longitude);
+      setStaySource(stay.source ?? "SEARCH");
     }, [id]),
   );
 
@@ -117,9 +155,19 @@ export default function EditSavedListScreen() {
         coverUrl: nextCoverUrl,
         eventType,
         eventAt: eventType && eventDate ? eventDate.toISOString() : null,
+        eventEndAt: eventType === "TRIP" && eventEndDate ? eventEndDate.toISOString() : null,
         eventLocation: eventLocation.trim() || null,
         eventLocationLatitude,
         eventLocationLongitude,
+        destinationCountryCode,
+        destinationSouthLat: destinationBounds?.south ?? null,
+        destinationWestLng: destinationBounds?.west ?? null,
+        destinationNorthLat: destinationBounds?.north ?? null,
+        destinationEastLng: destinationBounds?.east ?? null,
+        stayName: stayName.trim() || null,
+        stayLatitude,
+        stayLongitude,
+        staySource,
         allowMembersToInvite: allowInvites,
       });
       showToast(t("listUpdated"));
@@ -273,6 +321,35 @@ export default function EditSavedListScreen() {
                   onDismiss={() => setDatePickerOpen(false)}
                 />
               ) : null}
+              {eventType === "TRIP" ? (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setEndDatePickerOpen((current) => !current)}
+                    className="mt-3 flex-row items-center rounded-2xl border border-[#D8D3CA] bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <CalendarBlankIcon size={20} color="#D97706" weight="fill" />
+                    <Text className="ml-3 flex-1 text-black dark:text-white">
+                      {eventEndDate
+                        ? `Until ${new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(eventEndDate)}`
+                        : "Add an end date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {endDatePickerOpen ? (
+                    <DateTimePicker
+                      value={eventEndDate ?? eventDate ?? new Date()}
+                      mode="date"
+                      minimumDate={eventDate ?? new Date()}
+                      display={Platform.OS === "ios" ? "inline" : "default"}
+                      themeVariant={isDark ? "dark" : "light"}
+                      onValueChange={(_, value) => {
+                        setEventEndDate(value);
+                        if (Platform.OS === "android") setEndDatePickerOpen(false);
+                      }}
+                      onDismiss={() => setEndDatePickerOpen(false)}
+                    />
+                  ) : null}
+                </>
+              ) : null}
             </>
           ) : null}
 
@@ -282,7 +359,7 @@ export default function EditSavedListScreen() {
             onPress={() =>
               router.push({
                 pathname: "/saved-lists/location-search",
-                params: { id },
+                params: { id, kind: "destination" },
               })
             }
             className="flex-row items-center rounded-2xl border border-[#D8D3CA] bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
@@ -307,6 +384,58 @@ export default function EditSavedListScreen() {
               <DirectionalIcon direction="forward" size={18} color="#9CA3AF" />
             )}
           </TouchableOpacity>
+
+          {eventType === "TRIP" ? (
+            <View className="mt-5 rounded-2xl bg-amber-50 p-4 dark:bg-amber-950/30">
+              <Text className="font-bold text-black dark:text-white">Your stay</Text>
+              <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Optional. We’ll show how far each place is from where you’re staying.
+              </Text>
+              {stayLatitude != null && stayLongitude != null ? (
+                <View className="mt-3 flex-row items-center">
+                  <MapPinIcon size={18} color="#D97706" weight="fill" />
+                  <Text numberOfLines={1} className="ml-2 min-w-0 flex-1 font-semibold text-black dark:text-white">
+                    {stayName || "Saved stay location"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setStayName("");
+                      setStayLatitude(null);
+                      setStayLongitude(null);
+                      setStaySource(null);
+                    }}
+                    className="h-9 w-9 items-center justify-center"
+                  >
+                    <XIcon size={17} color="#9CA3AF" weight="bold" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View className="mt-3 flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: "/saved-lists/location-search", params: { id, kind: "stay" } })}
+                    className="flex-1 items-center rounded-xl bg-white px-3 py-3 dark:bg-gray-900"
+                  >
+                    <Text className="font-bold text-amber-700 dark:text-amber-300">Search a stay</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      void getFreshDeviceLocation().then(async (position) => {
+                        if (!position) return;
+                        const address = (await Location.reverseGeocodeAsync(position.coords))[0];
+                        setStayName(address?.formattedAddress ?? address?.name ?? "Current location");
+                        setStayLatitude(position.coords.latitude);
+                        setStayLongitude(position.coords.longitude);
+                        setStaySource("CURRENT_LOCATION");
+                      });
+                    }}
+                    className="flex-1 items-center rounded-xl bg-white px-3 py-3 dark:bg-gray-900"
+                  >
+                    <Text className="font-bold text-amber-700 dark:text-amber-300">Use current location</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ) : null}
 
           {list?.accessRole === "OWNER" ? (
             <View className="mt-6 flex-row items-center rounded-2xl bg-white p-4 dark:bg-gray-900">

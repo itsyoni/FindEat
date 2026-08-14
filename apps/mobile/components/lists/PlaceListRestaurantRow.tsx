@@ -17,6 +17,16 @@ export default function PlaceListRestaurantRow({
   const restaurant = item.restaurant;
   const image = restaurant.coverUrl ?? restaurant.logoUrl;
   const location = restaurant.city || restaurant.address;
+  const sourceImage =
+    item.sourcePost?.contentPost?.media?.[0]?.imageUrl ??
+    item.sourcePost?.contentPost?.imageUrl ??
+    item.sourcePost?.reviewPost?.coverImageUrl ??
+    null;
+  const sourceCaption =
+    item.sourcePost?.contentPost?.caption ??
+    item.sourcePost?.reviewPost?.summary ??
+    item.sourcePost?.reviewPost?.title ??
+    null;
 
   return (
     <TouchableOpacity
@@ -55,6 +65,27 @@ export default function PlaceListRestaurantRow({
           >
             {location}
           </Text>
+        ) : null}
+        {item.distanceFromStayKm != null ? (
+          <Text className="mt-1 text-xs font-bold text-amber-600">
+            {item.distanceFromStayKm < 1
+              ? `${Math.round(item.distanceFromStayKm * 1000)} m from your stay`
+              : `${item.distanceFromStayKm.toFixed(1)} km from your stay`}
+          </Text>
+        ) : null}
+        {item.sourcePost ? (
+          <View className="mt-2 flex-row items-center rounded-xl bg-gray-100 p-1.5 dark:bg-gray-800">
+            {sourceImage ? (
+              <ProgressiveImage
+                source={{ uri: sourceImage }}
+                style={{ width: 34, height: 34, borderRadius: 9 }}
+                contentFit="cover"
+              />
+            ) : null}
+            <Text numberOfLines={1} className="ml-2 min-w-0 flex-1 text-xs text-gray-600 dark:text-gray-300">
+              {sourceCaption || "Saved from a post"}
+            </Text>
+          </View>
         ) : null}
       </View>
       <CaretRightIcon size={18} color="#9CA3AF" weight="bold" />

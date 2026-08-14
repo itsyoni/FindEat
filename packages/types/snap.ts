@@ -1,4 +1,5 @@
 import type { UserSummary } from "./user";
+import type { Sound, SoundAttachmentInput } from "./sound";
 
 export type SnapRestaurant = {
   id: string;
@@ -20,6 +21,10 @@ export type Snap = {
   viewsCount?: number;
   user: UserSummary;
   restaurant?: SnapRestaurant | null;
+  sound?: Sound | null;
+  soundStartTimeMs?: number;
+  soundVolume?: number;
+  originalAudioVolume?: number;
 };
 
 export type SnapViewer = {
@@ -34,7 +39,7 @@ export type SnapGroup = {
   hasUnseen: boolean;
 };
 
-type CreateSnapBase = {
+type CreateSnapBase = SoundAttachmentInput & {
   clientRequestId?: string;
   caption?: string;
   restaurantId?: string;

@@ -14,12 +14,21 @@ type Props = {
 export default function PlaceListCard({ list, onPress }: Props) {
   const { t } = useTranslation("common");
   const previews = list.previewImages.slice(0, 4);
+  const title = list.systemType
+    ? t(
+        list.systemType === "WANT_TO_TRY"
+          ? "wantToTry"
+          : list.systemType === "VISITED"
+            ? "visited"
+            : "favorite",
+      )
+    : list.name;
 
   return (
     <TouchableOpacity
       activeOpacity={0.78}
       accessibilityRole="button"
-      accessibilityLabel={list.name}
+      accessibilityLabel={title}
       onPress={onPress}
       className="mb-5 w-[48%]"
     >
@@ -74,7 +83,7 @@ export default function PlaceListCard({ list, onPress }: Props) {
         numberOfLines={1}
         className="mt-2.5 text-base font-bold text-black dark:text-white"
       >
-        {list.name}
+        {title}
       </Text>
       <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
         {t("placesCount", { count: list.itemCount })}

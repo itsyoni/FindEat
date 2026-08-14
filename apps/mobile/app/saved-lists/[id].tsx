@@ -25,6 +25,7 @@ export default function SavedListDetailScreen() {
   const [list, setList] = useState<PlaceListDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [openedAt] = useState(() => Date.now());
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -111,9 +112,17 @@ export default function SavedListDetailScreen() {
           numberOfLines={1}
           className="flex-1 text-center text-xl font-bold text-black dark:text-white"
         >
-          {list?.name ?? t("myLists")}
+          {list?.systemType
+            ? t(
+                list.systemType === "WANT_TO_TRY"
+                  ? "wantToTry"
+                  : list.systemType === "VISITED"
+                    ? "visited"
+                    : "favorite",
+              )
+            : (list?.name ?? t("myLists"))}
         </Text>
-        <TouchableOpacity
+        {list?.systemType ? <View className="h-11 w-11" /> : <TouchableOpacity
           disabled={!list}
           accessibilityRole="button"
           accessibilityLabel={t("listOptions")}
@@ -122,7 +131,7 @@ export default function SavedListDetailScreen() {
           className="h-11 w-11 items-center justify-center"
         >
           <DotsThreeIcon size={26} color={isDark ? "#FAF9F6" : "#171717"} weight="bold" />
-        </TouchableOpacity>
+        </TouchableOpacity>}
       </View>
 
       {loading ? (
@@ -201,6 +210,11 @@ export default function SavedListDetailScreen() {
                             dateStyle: "medium",
                             timeStyle: "short",
                           }).format(new Date(list.eventAt))}
+                          {list.eventEndAt
+                            ? ` – ${new Intl.DateTimeFormat(undefined, {
+                                dateStyle: "medium",
+                              }).format(new Date(list.eventEndAt))}`
+                            : ""}
                         </Text>
                       </View>
                     ) : null}
@@ -213,6 +227,27 @@ export default function SavedListDetailScreen() {
                       </View>
                     ) : null}
                   </View>
+                ) : null}
+                {list.eventType === "TRIP" &&
+                !list.stayLocation &&
+                list.eventAt &&
+                new Date(list.eventAt).getTime() <= openedAt ? (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/saved-lists/edit/[id]",
+                        params: { id: list.id },
+                      })
+                    }
+                    className="mt-3 rounded-2xl bg-violet-50 p-4 dark:bg-violet-950/35"
+                  >
+                    <Text className="font-bold text-violet-900 dark:text-violet-200">
+                      Have you arrived?
+                    </Text>
+                    <Text className="mt-1 text-sm leading-5 text-violet-700 dark:text-violet-300">
+                      Add where you’re staying to see nearby restaurants and distance from your stay.
+                    </Text>
+                  </TouchableOpacity>
                 ) : null}
                 {list.items.length > 0 ? (
                   <TouchableOpacity
@@ -235,7 +270,7 @@ export default function SavedListDetailScreen() {
                     </Text>
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity
+                {!list.systemType ? <TouchableOpacity
                   onPress={() =>
                     router.push({
                       pathname: "/saved-lists/members/[id]",
@@ -262,8 +297,8 @@ export default function SavedListDetailScreen() {
                     </Text>
                   </View>
                   <UsersThreeIcon size={21} color="#D97706" weight="fill" />
-                </TouchableOpacity>
-                {list.canEdit ? (
+                </TouchableOpacity> : null}
+                {list.canEdit && !list.systemType ? (
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => {

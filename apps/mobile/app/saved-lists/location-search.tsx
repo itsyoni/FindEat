@@ -3,6 +3,7 @@ import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import SearchBar from "@/components/common/inputs/SearchBar";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { setPendingListLocation } from "@/lib/listLocationSelection";
+import { api } from "@/lib/api";
 import type { SelectedAddress } from "@findeat/types";
 import { router, useLocalSearchParams } from "expo-router";
 import { MapPinIcon } from "phosphor-react-native";
@@ -16,10 +17,15 @@ type MapboxFeature = {
   place_name: string;
   center: [number, number];
   text?: string;
+  bbox?: [number, number, number, number];
+  countryCode?: string | null;
 };
 
 export default function ListLocationSearchScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, kind = "destination" } = useLocalSearchParams<{
+    id: string;
+    kind?: "destination" | "stay";
+  }>();
   const { t, i18n } = useTranslation("common");
   const { isDark } = useAppTheme();
   const [query, setQuery] = useState("");
@@ -34,11 +40,34 @@ export default function ListLocationSearchScreen() {
 
     let active = true;
     const timeout = setTimeout(async () => {
-      const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
-      if (!token) return;
-
       try {
         setLoading(true);
+        if (kind === "destination") {
+          const areas = await api.restaurants.searchMapAreas(
+            trimmed,
+            i18n.language,
+          );
+          if (active) {
+            setResults(
+              areas.map((area) => ({
+                id: area.googlePlaceId,
+                place_name: area.formattedAddress ?? area.name,
+                center: [area.longitude, area.latitude],
+                text: area.name,
+                countryCode: area.countryCode,
+                bbox: [
+                  area.viewport.southwest[0],
+                  area.viewport.southwest[1],
+                  area.viewport.northeast[0],
+                  area.viewport.northeast[1],
+                ],
+              })),
+            );
+          }
+          return;
+        }
+        const token = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+        if (!token) return;
         const url =
           `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json` +
           `?access_token=${token}&autocomplete=true&limit=8` +
@@ -59,7 +88,7 @@ export default function ListLocationSearchScreen() {
       active = false;
       clearTimeout(timeout);
     };
-  }, [i18n.language, query]);
+  }, [i18n.language, kind, query]);
 
   function selectLocation(feature: MapboxFeature) {
     if (!id) return;
@@ -71,8 +100,18 @@ export default function ListLocationSearchScreen() {
       city: feature.text,
       latitude,
       longitude,
+      countryCode: feature.countryCode ?? null,
+      bounds: feature.bbox
+        ? {
+            west: feature.bbox[0],
+            south: feature.bbox[1],
+            east: feature.bbox[2],
+            north: feature.bbox[3],
+          }
+        : null,
+      source: "SEARCH",
     };
-    setPendingListLocation(id, location);
+    setPendingListLocation(id, location, kind);
     router.back();
   }
 
@@ -83,7 +122,7 @@ export default function ListLocationSearchScreen() {
           <DirectionalIcon direction="back" variant="arrow" size={24} color={isDark ? "#FAF9F6" : "#171717"} />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-black dark:text-white">
-          {t("chooseListLocation")}
+          {kind === "stay" ? "Where are you staying?" : t("chooseListLocation")}
         </Text>
         <View className="h-11 w-11" />
       </View>

@@ -8,6 +8,7 @@ import type {
   ReviewInviteeDraft,
   SelectedReviewDish,
   SelectedRestaurant,
+  SoundSelection,
 } from "@findeat/types";
 
 export type ContentPostDraft = {
@@ -28,6 +29,7 @@ export type ContentPostDraft = {
   linkedPostId?: string;
   selectedRestaurant: SelectedRestaurant | null;
   taggedPeople: ReviewInviteeDraft[];
+  soundSelection?: SoundSelection | null;
   updatedAt: string;
 };
 

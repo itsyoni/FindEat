@@ -53,6 +53,7 @@ import {
   saveRecentSearches,
 } from "@/lib/recentSearches";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useActiveCountry } from "@/contexts/ActiveCountryContext";
 import FollowingSuggestions from "@/components/feed/FollowingSuggestions";
 import DishCard from "@/components/restaurants/DishCard";
 
@@ -71,6 +72,7 @@ export default function HomeScreen() {
   const unread = useNotificationUnreadCount(!!user && !authLoading);
   const insets = useSafeAreaInsets();
   const { isDark } = useAppTheme();
+  const { activeCountry } = useActiveCountry();
 
   const [activeFeed, setActiveFeed] = useState<FeedScope>("EXPLORE");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -280,11 +282,23 @@ export default function HomeScreen() {
   const searchRequest = useCallback(
     (query: string) =>
       searchGlobal(query, {
-        ...(searchLocation ?? {}),
+        ...(activeCountry?.latitude != null && activeCountry.longitude != null
+          ? {
+              latitude: activeCountry.latitude,
+              longitude: activeCountry.longitude,
+            }
+          : (searchLocation ?? {})),
         languageCode: i18n.resolvedLanguage ?? i18n.language,
+        countryCode: activeCountry?.code,
         type: searchType,
       }),
-    [i18n.language, i18n.resolvedLanguage, searchLocation, searchType],
+    [
+      activeCountry,
+      i18n.language,
+      i18n.resolvedLanguage,
+      searchLocation,
+      searchType,
+    ],
   );
 
   function openSearch() {

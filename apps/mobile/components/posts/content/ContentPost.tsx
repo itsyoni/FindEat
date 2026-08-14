@@ -38,6 +38,8 @@ import ExpandablePostCaption from "@/components/posts/ExpandablePostCaption";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import ContentVideo from "./ContentVideo";
+import SoundPlayback from "@/components/sounds/SoundPlayback";
+import SoundLabel from "@/components/sounds/SoundLabel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
@@ -104,6 +106,9 @@ export default function ContentPost({
   const [taggedUsersOpen, setTaggedUsersOpen] = useState(false);
   const [likesOpen, setLikesOpen] = useState(false);
   const [mediaOnly, setMediaOnly] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [soundPlaybackRevision, setSoundPlaybackRevision] = useState(0);
+  const [soundPlaybackOffsetMs, setSoundPlaybackOffsetMs] = useState(0);
   const contentFeedMuted = useContentFeedAudio();
   const likePressStartedAt = useRef(0);
   const mediaCarouselGesture = useMemo(
@@ -378,7 +383,17 @@ export default function ContentPost({
               tapToToggle
               showProgress
               muted={contentFeedMuted}
+              volume={content?.originalAudioVolume ?? 1}
               onMutedChange={setContentFeedMuted}
+              onPlayingChange={setVideoPlaying}
+              onPlaybackEnd={() => {
+                setSoundPlaybackOffsetMs(0);
+                setSoundPlaybackRevision((current) => current + 1);
+              }}
+              onSeek={(seconds) => {
+                setSoundPlaybackOffsetMs(Math.round(seconds * 1000));
+                setSoundPlaybackRevision((current) => current + 1);
+              }}
               onDoubleTap={handleDoubleTapLike}
               mediaOnly={mediaOnly}
               pinchToZoom
@@ -465,6 +480,19 @@ export default function ContentPost({
             </Text>
           </View>
         )}
+
+        <SoundPlayback
+          key={`${content?.sound?.id ?? "none"}-${soundPlaybackRevision}`}
+          sound={content?.sound}
+          startTimeMs={
+            content?.sound
+              ? ((content.soundStartTimeMs ?? 0) + soundPlaybackOffsetMs) %
+                Math.max(1, content.sound.durationMs)
+              : 0
+          }
+          volume={contentFeedMuted ? 0 : (content?.soundVolume ?? 1)}
+          playing={Boolean(content?.sound) && isActive && (videoMedia ? videoPlaying : true)}
+        />
 
         {!mediaOnly && media.length > 1 ? (
           <View
@@ -636,6 +664,20 @@ export default function ContentPost({
           ) : null}
 
           <View>
+            {content?.sound ? (
+              <View className="mb-2">
+                <SoundLabel
+                  sound={content.sound}
+                  tone="overlay"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/create/content",
+                      params: { soundId: content.sound!.id },
+                    })
+                  }
+                />
+              </View>
+            ) : null}
             {!!caption && (
               <>
                 <ExpandablePostCaption

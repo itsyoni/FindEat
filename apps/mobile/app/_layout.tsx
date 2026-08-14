@@ -1,4 +1,5 @@
 import "@/i18n";
+import "@/lib/visitDetection/geofenceTask";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -35,6 +36,9 @@ import PresenceConnection from "@/components/presence/PresenceConnection";
 import { PostUploadProvider } from "@/contexts/PostUploadContext";
 import { SnapIndicatorProvider } from "@/contexts/SnapIndicatorContext";
 import AppErrorBoundary from "@/components/common/AppErrorBoundary";
+import { VisitDetectionProvider } from "@/contexts/VisitDetectionContext";
+import { ActiveCountryProvider } from "@/contexts/ActiveCountryContext";
+import { setAudioModeAsync } from "expo-audio";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -72,6 +76,14 @@ export default function RootLayout() {
     CabinetBlack: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Black.otf"),
   });
 
+  useEffect(() => {
+    void setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: false,
+      interruptionMode: "doNotMix",
+    }).catch(() => undefined);
+  }, []);
+
   if (!fontsLoaded) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -89,23 +101,27 @@ export default function RootLayout() {
               <AppAlertProvider>
                 <QueryClientProvider client={queryClient}>
                   <AuthProvider>
+                    <ActiveCountryProvider>
                     <SnapIndicatorProvider>
                       <ToastProvider>
                         <PostUploadProvider>
-                          <NotificationProvider>
-                            <BottomSheetModalProvider>
-                              <AccessibilityMotionConfig />
-                              <SaveToListsProvider>
-                                <AppErrorBoundary>
-                                  <RootNavigator />
-                                </AppErrorBoundary>
-                              </SaveToListsProvider>
-                              <PortalHost name="pinch-zoom" />
-                            </BottomSheetModalProvider>
-                          </NotificationProvider>
+                          <VisitDetectionProvider>
+                            <NotificationProvider>
+                              <BottomSheetModalProvider>
+                                <AccessibilityMotionConfig />
+                                <SaveToListsProvider>
+                                  <AppErrorBoundary>
+                                    <RootNavigator />
+                                  </AppErrorBoundary>
+                                </SaveToListsProvider>
+                                <PortalHost name="pinch-zoom" />
+                              </BottomSheetModalProvider>
+                            </NotificationProvider>
+                          </VisitDetectionProvider>
                         </PostUploadProvider>
                       </ToastProvider>
                     </SnapIndicatorProvider>
+                    </ActiveCountryProvider>
                   </AuthProvider>
                 </QueryClientProvider>
               </AppAlertProvider>
@@ -186,6 +202,10 @@ function RootNavigator() {
         <Stack.Screen name="create/review" options={{ headerShown: false }} />
         <Stack.Screen name="create/snap" options={{ headerShown: false }} />
         <Stack.Screen
+          name="visit-reminder"
+          options={{ headerShown: false, presentation: "transparentModal" }}
+        />
+        <Stack.Screen
           name="snaps/[userId]"
           options={{
             headerShown: false,
@@ -209,6 +229,7 @@ function RootNavigator() {
         <Stack.Screen name="saved-lists/members/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="saved-lists/location-search" options={{ headerShown: false }} />
         <Stack.Screen name="saved-lists/discover/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="country-picker" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen
           name="chats/[id]"

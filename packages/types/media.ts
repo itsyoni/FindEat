@@ -8,6 +8,7 @@ export type MediaPurpose =
   | "list"
   | "product-update"
   | "snap"
+  | "sound"
   | "other";
 
 export type MediaUploadTicket = {

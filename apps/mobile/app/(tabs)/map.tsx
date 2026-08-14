@@ -2,13 +2,16 @@ import { EmptyState, Skeleton, SkeletonPulse } from "@/components/common";
 import AppBottomSheet from "@/components/common/AppBottomSheet";
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import SearchBar from "@/components/common/inputs/SearchBar";
+import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import Tabs from "@/components/common/Tabs";
 import SearchResultsView from "@/components/search/SearchResultsView";
 import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { getFreshDeviceLocation } from "@/lib/currentLocation";
 import { mergeRestaurantSearchResults } from "@/lib/restaurantSearchResults";
+import { recordVisitDetectionMapUse } from "@/lib/visitDetection/engagement";
 import {
   DEFAULT_MAP_PREFERENCES,
   getMapPreferences,
@@ -21,13 +24,16 @@ import {
   PlaceListSummary,
   SelectedRestaurant,
   CityFilterLocation,
+  RestaurantActivityHeatPoint,
+  RestaurantHotspotActivity,
+  RestaurantHotspotActivityItem,
 } from "@findeat/types";
 import type { MapViewMode } from "@findeat/types";
 import type { LocationObject } from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, TouchableOpacity, View } from "react-native";
+import { FlatList, Switch, TouchableOpacity, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Mapbox from "@rnmapbox/maps";
@@ -41,7 +47,9 @@ import {
   FunnelIcon,
   FolderSimpleIcon,
   HeartIcon,
+  FireIcon,
   MapPinIcon,
+  PlayIcon,
   PlusIcon,
   StorefrontIcon,
   XIcon,
@@ -52,12 +60,14 @@ import RestaurantStats from "@/components/restaurants/RestaurantStats";
 import MapRestaurantListCard from "@/components/restaurants/MapRestaurantListCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
+import { useActiveCountry } from "@/contexts/ActiveCountryContext";
 import {
   addMapRecentSearch,
   clearMapRecentSearches,
   getMapRecentSearches,
   type MapRecentSearch,
 } from "@/lib/mapRecentSearches";
+import { userDisplayName } from "@/lib/userIdentity";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "");
 
@@ -73,6 +83,15 @@ function markerClusterRadius(zoom: number) {
   if (zoom >= 18) return 14;
   if (zoom >= 17) return 26;
   return MARKER_CLUSTER_RADIUS;
+}
+
+function formatActivityDate(value: string, language: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(language.startsWith("he") ? "he-IL" : "en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }
 
 function pointInRing(
@@ -217,6 +236,7 @@ export default function MapScreen() {
   const { t, i18n } = useTranslation(["common", "map", "restaurants"]);
   const { isDark } = useAppTheme();
   const { user } = useAuth();
+  const { activeCountry, refreshDetectedCountry } = useActiveCountry();
   const { statusOverrides } = useSaveToLists();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,6 +273,19 @@ export default function MapScreen() {
   const [hideFlaggedAllergens, setHideFlaggedAllergens] = useState(
     DEFAULT_MAP_PREFERENCES.hideFlaggedAllergens,
   );
+  const [activityHeatmapEnabled, setActivityHeatmapEnabled] = useState(
+    DEFAULT_MAP_PREFERENCES.activityHeatmapEnabled,
+  );
+  const [activityHeatPoints, setActivityHeatPoints] = useState<
+    RestaurantActivityHeatPoint[]
+  >([]);
+  const [hotspotRestaurant, setHotspotRestaurant] = useState<Restaurant | null>(
+    null,
+  );
+  const [hotspotActivity, setHotspotActivity] =
+    useState<RestaurantHotspotActivity | null>(null);
+  const [hotspotLoading, setHotspotLoading] = useState(false);
+  const hotspotRequestRef = useRef<string | null>(null);
   const [filtersHydrated, setFiltersHydrated] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const temporaryRestaurantIdRef = useRef<string | null>(null);
@@ -273,6 +306,10 @@ export default function MapScreen() {
   const userLocationRef = useRef<LocationObject | null>(null);
 
   useEffect(() => {
+    if (user?.id) void recordVisitDetectionMapUse(user.id);
+  }, [user?.id]);
+
+  useEffect(() => {
     let active = true;
 
     if (!user?.id) {
@@ -289,6 +326,7 @@ export default function MapScreen() {
       setMatchDietary(preferences.matchDietary);
       setMatchCuisines(preferences.matchCuisines);
       setHideFlaggedAllergens(preferences.hideFlaggedAllergens);
+      setActivityHeatmapEnabled(preferences.activityHeatmapEnabled);
       setFiltersHydrated(true);
     });
 
@@ -352,10 +390,12 @@ export default function MapScreen() {
       matchDietary,
       matchCuisines,
       hideFlaggedAllergens,
+      activityHeatmapEnabled,
     }).catch((error) => console.error("Could not save map filters:", error));
   }, [
     filtersHydrated,
     hideFlaggedAllergens,
+    activityHeatmapEnabled,
     mapFilter,
     mapSort,
     matchCuisines,
@@ -391,6 +431,50 @@ export default function MapScreen() {
           ),
     [mapRestaurants, selectedCities],
   );
+  const heatmapRestaurantIds = useMemo(
+    () => visibleRestaurants.map((restaurant) => restaurant.id).sort(),
+    [visibleRestaurants],
+  );
+  const heatmapRestaurantIdsKey = heatmapRestaurantIds.join(",");
+
+  useEffect(() => {
+    if (!activityHeatmapEnabled || !heatmapRestaurantIdsKey) return;
+    let active = true;
+    void api.restaurants
+      .activityHeatmap(heatmapRestaurantIds)
+      .then((points) => {
+        if (active) setActivityHeatPoints(points);
+      })
+      .catch((error) =>
+        console.error("Could not load activity heatmap", error),
+      );
+    return () => {
+      active = false;
+    };
+  }, [activityHeatmapEnabled, heatmapRestaurantIds, heatmapRestaurantIdsKey]);
+
+  const activityHeatmapShape = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: (activityHeatmapEnabled ? activityHeatPoints : []).map((point) => ({
+        type: "Feature" as const,
+        id: point.restaurantId,
+        properties: { weight: point.weight },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [point.longitude, point.latitude],
+        },
+      })),
+    }),
+    [activityHeatPoints, activityHeatmapEnabled],
+  );
+  const activityPointByRestaurantId = useMemo(
+    () =>
+      new Map(
+        activityHeatPoints.map((point) => [point.restaurantId, point] as const),
+      ),
+    [activityHeatPoints],
+  );
   const selectedCityRequestKey = selectedCities
     .map((city) => `${city.googlePlaceId}:${city.latitude}:${city.longitude}`)
     .join("|");
@@ -418,8 +502,10 @@ export default function MapScreen() {
     try {
       const latitude = coordinates?.latitude ?? userLocationRef.current?.coords.latitude;
       const longitude = coordinates?.longitude ?? userLocationRef.current?.coords.longitude;
+      const discoveryLatitude = latitude ?? activeCountry?.latitude ?? undefined;
+      const discoveryLongitude = longitude ?? activeCountry?.longitude ?? undefined;
       if (
-        (latitude === undefined || longitude === undefined) &&
+        (discoveryLatitude === undefined || discoveryLongitude === undefined) &&
         !selectedListId
       ) {
         if (
@@ -453,8 +539,17 @@ export default function MapScreen() {
         return;
       }
       const nextRestaurants = await api.restaurants.discoverForMap({
-        ...(latitude !== undefined && longitude !== undefined
-          ? { latitude, longitude }
+        ...(discoveryLatitude !== undefined && discoveryLongitude !== undefined
+          ? { latitude: discoveryLatitude, longitude: discoveryLongitude }
+          : {}),
+        countryCode: activeCountry?.code,
+        ...(activeCountry?.viewport
+          ? {
+              south: activeCountry.viewport.southwest[1],
+              west: activeCountry.viewport.southwest[0],
+              north: activeCountry.viewport.northeast[1],
+              east: activeCountry.viewport.northeast[0],
+            }
           : {}),
         radiusKm: radiusKm ?? undefined,
         limit: 200,
@@ -519,6 +614,7 @@ export default function MapScreen() {
       setLoading(false);
     }
   }, [
+    activeCountry,
     hideFlaggedAllergens,
     mapFilter,
     mapSort,
@@ -584,12 +680,13 @@ export default function MapScreen() {
 
       userLocationRef.current = location;
       setUserLocation(location);
+      void refreshDetectedCountry().catch(() => undefined);
       return location;
     } catch (error) {
       console.error("Could not get current location:", error);
       return null;
     }
-  }, []);
+  }, [refreshDetectedCountry]);
 
   const returnToUserLocation = useCallback(async () => {
     const location = await loadUserLocation();
@@ -616,6 +713,17 @@ export default function MapScreen() {
 
       let active = true;
       void (async () => {
+        if (
+          activeCountry?.viewport &&
+          activeCountry.latitude != null &&
+          activeCountry.longitude != null
+        ) {
+          await loadRestaurants({
+            latitude: activeCountry.latitude,
+            longitude: activeCountry.longitude,
+          });
+          return;
+        }
         const location =
           userLocationRef.current ?? (await loadUserLocation());
         if (!active) return;
@@ -635,6 +743,7 @@ export default function MapScreen() {
       };
     }, [
       filtersHydrated,
+      activeCountry,
       listId,
       loadRestaurants,
       loadUserLocation,
@@ -712,6 +821,42 @@ export default function MapScreen() {
     });
   }
 
+  async function openRestaurantHotspot(restaurant: Restaurant) {
+    setSelectedCluster(null);
+    bottomSheetRef.current?.close();
+    dismissRestaurantPreview();
+    setHotspotRestaurant(restaurant);
+    hotspotRequestRef.current = restaurant.id;
+    setHotspotActivity(null);
+    setHotspotLoading(true);
+    try {
+      const activity = await api.restaurants.hotspotActivity(restaurant.id);
+      if (hotspotRequestRef.current === restaurant.id) {
+        setHotspotActivity(activity);
+      }
+    } catch (error) {
+      console.error("Could not load restaurant hotspot activity", error);
+      if (hotspotRequestRef.current === restaurant.id) {
+        setHotspotActivity({
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          state: "none",
+          items: [],
+        });
+      }
+    } finally {
+      if (hotspotRequestRef.current === restaurant.id) {
+        setHotspotLoading(false);
+      }
+    }
+  }
+
+  function openHotspotActivityItem(item: RestaurantHotspotActivityItem) {
+    if (!item.postId) return;
+    setHotspotRestaurant(null);
+    router.push({ pathname: "/(posts)/[id]", params: { id: item.postId } });
+  }
+
   async function hydrateSelectedRestaurant(restaurant: Restaurant) {
     try {
       const details = await api.restaurants.get(restaurant.id);
@@ -734,17 +879,27 @@ export default function MapScreen() {
     async (query: string) => {
       const location = userLocationRef.current;
       const response = await api.restaurants.search(query, {
-        ...(location
+        ...(activeCountry?.latitude != null && activeCountry.longitude != null
+          ? {
+              latitude: activeCountry.latitude,
+              longitude: activeCountry.longitude,
+            }
+          : location
           ? {
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
             }
           : {}),
         languageCode: i18n.resolvedLanguage ?? i18n.language,
+        countryCode: activeCountry?.code,
       });
       return mergeRestaurantSearchResults(response, query);
     },
-    [i18n.language, i18n.resolvedLanguage],
+    [
+      activeCountry,
+      i18n.language,
+      i18n.resolvedLanguage,
+    ],
   );
 
   const searchMapAreasForMap = useCallback(
@@ -786,7 +941,11 @@ export default function MapScreen() {
             api.restaurants.discoverForMap({
               latitude: city.latitude,
               longitude: city.longitude,
-              radiusKm: 200,
+              south: city.viewport.southwest[1],
+              west: city.viewport.southwest[0],
+              north: city.viewport.northeast[1],
+              east: city.viewport.northeast[0],
+              countryCode: city.countryCode ?? activeCountry?.code,
               limit: 200,
               listId: selectedListId ?? undefined,
               filter: mapFilter,
@@ -817,8 +976,29 @@ export default function MapScreen() {
       matchCuisines,
       matchDietary,
       selectedListId,
+      activeCountry?.code,
     ],
   );
+
+  useEffect(() => {
+    if (!activeCountry?.viewport || selectedCities.length > 0) return;
+    const viewport = activeCountry.viewport;
+    const timer = setTimeout(() => {
+      cameraRef.current?.fitBounds(
+        viewport.northeast,
+        viewport.southwest,
+        [70, 35, 110, 35],
+        650,
+      );
+      void loadRestaurants({
+        latitude: activeCountry.latitude ??
+          (viewport.southwest[1] + viewport.northeast[1]) / 2,
+        longitude: activeCountry.longitude ??
+          (viewport.southwest[0] + viewport.northeast[0]) / 2,
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [activeCountry, loadRestaurants, selectedCities.length]);
 
   const selectCity = useCallback(
     async (city: CityFilterLocation) => {
@@ -1186,13 +1366,11 @@ export default function MapScreen() {
                     userLocation?.coords.latitude ?? 20,
                   ]}
                 />
-                <Mapbox.UserLocation visible />
-
                 {selectedCities.map((city) =>
                   city.boundary ? (
                     <Mapbox.ShapeSource
-                      key={`city-boundary-${city.googlePlaceId}`}
-                      id={`city-boundary-${city.googlePlaceId}`}
+                      key={`city-fill-source-${city.googlePlaceId}`}
+                      id={`city-fill-source-${city.googlePlaceId}`}
                       shape={{
                         type: "Feature",
                         properties: { placeId: city.googlePlaceId },
@@ -1202,16 +1380,113 @@ export default function MapScreen() {
                       <Mapbox.FillLayer
                         id={`city-fill-${city.googlePlaceId}`}
                         style={{
-                          fillColor: "#FF7658",
-                          fillOpacity: isDark ? 0.2 : 0.14,
+                          fillColor: isDark ? "#FF8F72" : "#FF6848",
+                          fillOpacity: isDark ? 0.065 : 0.045,
                         }}
                       />
+                    </Mapbox.ShapeSource>
+                  ) : null,
+                )}
+
+                {activityHeatmapEnabled && activityHeatPoints.length > 0 ? (
+                  <Mapbox.ShapeSource
+                    id="restaurant-activity-heatmap-source"
+                    shape={activityHeatmapShape}
+                  >
+                    <Mapbox.HeatmapLayer
+                      id="restaurant-activity-heatmap"
+                      style={{
+                        heatmapWeight: [
+                          "interpolate",
+                          ["linear"],
+                          ["get", "weight"],
+                          0,
+                          0,
+                          1,
+                          0.45,
+                          4,
+                          1,
+                          10,
+                          1.35,
+                        ],
+                        heatmapIntensity: [
+                          "interpolate",
+                          ["linear"],
+                          ["zoom"],
+                          3,
+                          0.82,
+                          10,
+                          0.94,
+                          14,
+                          1.08,
+                          18,
+                          0.88,
+                        ],
+                        heatmapRadius: [
+                          "interpolate",
+                          ["linear"],
+                          ["zoom"],
+                          3,
+                          28,
+                          9,
+                          36,
+                          13,
+                          30,
+                          16,
+                          23,
+                          18,
+                          18,
+                        ],
+                        heatmapColor: [
+                          "interpolate",
+                          ["linear"],
+                          ["heatmap-density"],
+                          0,
+                          "rgba(255, 199, 68, 0)",
+                          0.18,
+                          "rgba(255, 199, 68, 0.32)",
+                          0.42,
+                          "rgba(255, 143, 55, 0.48)",
+                          0.68,
+                          "rgba(255, 91, 53, 0.62)",
+                          1,
+                          "rgba(193, 42, 42, 0.76)",
+                        ],
+                        heatmapOpacity: [
+                          "interpolate",
+                          ["linear"],
+                          ["zoom"],
+                          2,
+                          0.68,
+                          12,
+                          0.66,
+                          16,
+                          0.55,
+                          20,
+                          0.3,
+                        ],
+                      }}
+                    />
+                  </Mapbox.ShapeSource>
+                ) : null}
+
+                {selectedCities.map((city) =>
+                  city.boundary ? (
+                    <Mapbox.ShapeSource
+                      key={`city-line-source-${city.googlePlaceId}`}
+                      id={`city-line-source-${city.googlePlaceId}`}
+                      shape={{
+                        type: "Feature",
+                        properties: { placeId: city.googlePlaceId },
+                        geometry: city.boundary,
+                      }}
+                    >
                       <Mapbox.LineLayer
                         id={`city-line-${city.googlePlaceId}`}
                         style={{
-                          lineColor: "#FF5B35",
-                          lineWidth: 2.2,
-                          lineOpacity: 0.82,
+                          lineColor: isDark ? "#FF8A6D" : "#E94E2F",
+                          lineWidth: 2.4,
+                          lineOpacity: 0.9,
                         }}
                       />
                     </Mapbox.ShapeSource>
@@ -1264,6 +1539,13 @@ export default function MapScreen() {
                   const isFavorite = !!restaurant.userRestaurant?.favorite;
                   const isVisited = !!restaurant.userRestaurant?.visited;
                   const isWantToTry = !!restaurant.userRestaurant?.wantToTry;
+                  const activityState = activityPointByRestaurantId.get(
+                    restaurant.id,
+                  )?.state;
+                  const showHotspot =
+                    activityHeatmapEnabled &&
+                    activityState === "hot" &&
+                    currentMapZoom >= 14.5;
                   const markerColor = isSelected
                     ? "#111827"
                     : isFavorite
@@ -1283,59 +1565,88 @@ export default function MapScreen() {
                       allowOverlapWithPuck
                       isSelected={isSelected}
                     >
-                      <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() =>
-                          selectRestaurant(restaurant, {
-                            zoomLevel: Math.max(currentMapZoom, 15),
-                          })
-                        }
+                      <View
                         style={{
                           width: isSelected ? 52 : 48,
                           height: isSelected ? 52 : 48,
-                          borderRadius: isSelected ? 26 : 24,
-                          borderWidth: isSelected ? 4 : 3,
-                          borderColor: markerColor,
-                          backgroundColor: isDark ? "#111827" : "#FAF9F6",
-                          padding: 3,
-                          shadowColor: "#0B0B0A",
-                          shadowOpacity: 0.22,
-                          shadowRadius: 4,
-                          shadowOffset: { width: 0, height: 2 },
-                          elevation: 5,
                         }}
                       >
-                        <Avatar
-                          uri={restaurant.logoUrl}
-                          username={restaurant.name}
-                          fallbackType="restaurant"
-                          size={isSelected ? 38 : 36}
-                        />
-                        {(isFavorite || isVisited) && (
-                          <View
-                            pointerEvents="none"
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          onPress={() =>
+                            selectRestaurant(restaurant, {
+                              zoomLevel: Math.max(currentMapZoom, 15),
+                            })
+                          }
+                          style={{
+                            width: isSelected ? 52 : 48,
+                            height: isSelected ? 52 : 48,
+                            borderRadius: isSelected ? 26 : 24,
+                            borderWidth: isSelected ? 4 : 3,
+                            borderColor: markerColor,
+                            backgroundColor: isDark ? "#111827" : "#FAF9F6",
+                            padding: 3,
+                            shadowColor: "#0B0B0A",
+                            shadowOpacity: 0.22,
+                            shadowRadius: 4,
+                            shadowOffset: { width: 0, height: 2 },
+                            elevation: 5,
+                          }}
+                        >
+                          <Avatar
+                            uri={restaurant.logoUrl}
+                            username={restaurant.name}
+                            fallbackType="restaurant"
+                            size={isSelected ? 38 : 36}
+                          />
+                          {(isFavorite || isVisited) && (
+                            <View
+                              pointerEvents="none"
+                              style={{
+                                position: "absolute",
+                                inset: isSelected ? 7 : 6,
+                                borderRadius: isSelected ? 19 : 18,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: isFavorite
+                                  ? "rgba(239, 68, 68, 0.42)"
+                                  : "rgba(34, 197, 94, 0.42)",
+                              }}
+                            >
+                              {isFavorite ? (
+                                <HeartIcon size={19} color="#FAF9F6" weight="fill" />
+                              ) : (
+                                <CheckIcon size={20} color="#FAF9F6" weight="bold" />
+                              )}
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                        {showHotspot ? (
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={t("map:hotRightNow")}
+                            activeOpacity={0.78}
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              void openRestaurantHotspot(restaurant);
+                            }}
+                            className="absolute -right-2 -top-3 h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#FF6B35] dark:border-[#111827]"
                             style={{
-                              position: "absolute",
-                              inset: isSelected ? 7 : 6,
-                              borderRadius: isSelected ? 19 : 18,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              backgroundColor: isFavorite
-                                ? "rgba(239, 68, 68, 0.42)"
-                                : "rgba(34, 197, 94, 0.42)",
+                              shadowColor: "#B3261E",
+                              shadowOpacity: 0.3,
+                              shadowRadius: 4,
+                              shadowOffset: { width: 0, height: 2 },
+                              elevation: 7,
                             }}
                           >
-                            {isFavorite ? (
-                              <HeartIcon size={19} color="#FAF9F6" weight="fill" />
-                            ) : (
-                              <CheckIcon size={20} color="#FAF9F6" weight="bold" />
-                            )}
-                          </View>
-                        )}
-                      </TouchableOpacity>
+                            <FireIcon size={18} color="#FFF8EF" weight="fill" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
                     </Mapbox.MarkerView>
                   );
                 })}
+                <Mapbox.UserLocation visible />
               </Mapbox.MapView>
 
               {selectedRestaurant && (
@@ -1410,6 +1721,29 @@ export default function MapScreen() {
                               .join(", ")}
                           </Text>
                         )}
+                        {activityHeatmapEnabled &&
+                        activityPointByRestaurantId.get(selectedRestaurant.id)
+                          ?.state === "hot" ? (
+                          <TouchableOpacity
+                            onPress={() =>
+                              void openRestaurantHotspot(selectedRestaurant)
+                            }
+                            className="mt-2 self-start flex-row items-center rounded-full bg-[#FFF0E6] px-2.5 py-1.5 dark:bg-[#3A211C]"
+                          >
+                            <FireIcon size={14} color="#FF5B35" weight="fill" />
+                            <Text className="ml-1.5 text-xs font-bold text-brand">
+                              {t("map:hotRightNow")}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : activityHeatmapEnabled &&
+                          activityPointByRestaurantId.get(selectedRestaurant.id)
+                            ?.state === "active" ? (
+                          <View className="mt-2 self-start rounded-full bg-gray-100 px-2.5 py-1.5 dark:bg-gray-800">
+                            <Text className="text-xs font-bold text-gray-600 dark:text-gray-300">
+                              {t("map:activeThisWeek")}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
 
@@ -1580,6 +1914,129 @@ export default function MapScreen() {
       </AppBottomSheet>
 
       <AppBottomSheet
+        open={hotspotRestaurant !== null}
+        onClose={() => {
+          hotspotRequestRef.current = null;
+          setHotspotRestaurant(null);
+          setHotspotActivity(null);
+          setHotspotLoading(false);
+        }}
+        snapPoints={["68%"]}
+        maxHeightPercent={0.92}
+      >
+        <BottomSheetScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        >
+          <View className="mb-4 flex-row items-center">
+            <View className="h-11 w-11 items-center justify-center rounded-full bg-[#FFF0E6] dark:bg-[#3A211C]">
+              <FireIcon size={24} color="#FF5B35" weight="fill" />
+            </View>
+            <View className="ml-3 min-w-0 flex-1">
+              <Text className="text-xl font-bold text-black dark:text-white">
+                {t("map:whatsHappeningHere")}
+              </Text>
+              <Text numberOfLines={1} className="mt-0.5 text-sm text-gray-500">
+                {hotspotRestaurant?.name}
+              </Text>
+            </View>
+          </View>
+
+          {hotspotLoading ? (
+            <View className="gap-3">
+              {[0, 1, 2].map((item) => (
+                <View
+                  key={item}
+                  className="flex-row rounded-2xl bg-gray-100 p-3 dark:bg-gray-800"
+                >
+                  <Skeleton width={82} height={100} radius={14} />
+                  <View className="ml-3 flex-1 gap-3 pt-1">
+                    <Skeleton width="65%" height={14} radius={7} />
+                    <Skeleton width="90%" height={12} radius={6} />
+                    <Skeleton width="72%" height={12} radius={6} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : hotspotActivity?.items.length ? (
+            <View className="gap-3">
+              {hotspotActivity.items.map((item) => {
+                const canOpen = !!item.postId;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={canOpen ? 0.78 : 1}
+                    disabled={!canOpen}
+                    onPress={() => openHotspotActivityItem(item)}
+                    className="flex-row overflow-hidden rounded-2xl border border-black/5 bg-[#FBFAF8] p-3 dark:border-white/10 dark:bg-[#171719]"
+                  >
+                    {item.imageUrl ? (
+                      <ProgressiveImage
+                        source={{ uri: item.imageUrl }}
+                        style={{ width: 80, height: 100 }}
+                        className="rounded-xl bg-gray-200 dark:bg-gray-800"
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View
+                        style={{ width: 80, height: 100 }}
+                        className="items-center justify-center rounded-xl bg-gray-200 dark:bg-gray-800"
+                      >
+                        {item.videoUrl ? (
+                          <PlayIcon size={26} color="#FF5B35" weight="fill" />
+                        ) : (
+                          <StorefrontIcon
+                            size={25}
+                            color="#9CA3AF"
+                            weight="fill"
+                          />
+                        )}
+                      </View>
+                    )}
+                    <View className="ml-3 min-w-0 flex-1 py-0.5">
+                      <View className="flex-row items-center">
+                        <Avatar
+                          uri={item.author.avatarUrl}
+                          username={item.author.username}
+                          userId={item.author.id}
+                          showSnapIndicator={false}
+                          size={28}
+                        />
+                        <Text
+                          numberOfLines={1}
+                          className="ml-2 min-w-0 flex-1 font-bold text-black dark:text-white"
+                        >
+                          {userDisplayName(item.author)}
+                        </Text>
+                      </View>
+                      <Text className="mt-2 text-xs font-bold uppercase tracking-wide text-brand">
+                        {t(`map:activity${item.type}`)} · {formatActivityDate(item.createdAt, i18n.language)}
+                      </Text>
+                      <Text
+                        numberOfLines={2}
+                        className="mt-1.5 text-sm leading-5 text-gray-600 dark:text-gray-300"
+                      >
+                        {item.caption?.trim() || t(`map:activity${item.type}Fallback`)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View className="items-center rounded-2xl bg-gray-100 px-5 py-7 dark:bg-gray-800">
+              <Text className="font-bold text-black dark:text-white">
+                {t("map:noRecentActivity")}
+              </Text>
+              <Text className="mt-1 text-center text-sm text-gray-500">
+                {t("map:noRecentActivityHint")}
+              </Text>
+            </View>
+          )}
+        </BottomSheetScrollView>
+      </AppBottomSheet>
+
+      <AppBottomSheet
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         snapPoints={["88%"]}
@@ -1602,6 +2059,9 @@ export default function MapScreen() {
                   setHideFlaggedAllergens(
                     DEFAULT_MAP_PREFERENCES.hideFlaggedAllergens,
                   );
+                  setActivityHeatmapEnabled(
+                    DEFAULT_MAP_PREFERENCES.activityHeatmapEnabled,
+                  );
                   setSelectedListId(null);
                   setSelectedCities([]);
                   void loadRestaurantsForCities([]);
@@ -1616,6 +2076,23 @@ export default function MapScreen() {
           </View>
 
           <View className="mt-5 rounded-2xl bg-gray-100 p-3 dark:bg-gray-800">
+            <TouchableOpacity
+              onPress={() => {
+                setFiltersOpen(false);
+                router.push("/country-picker");
+              }}
+              className="mb-3 flex-row items-center justify-between rounded-xl bg-white px-3 py-3 dark:bg-gray-900"
+            >
+              <View className="min-w-0 flex-1">
+                <Text className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                  Discovery country
+                </Text>
+                <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                  {activeCountry?.name ?? "Choose a country"}
+                </Text>
+              </View>
+              <DirectionalIcon direction="forward" variant="caret" size={18} color={isDark ? "#F6F3ED" : "#171614"} />
+            </TouchableOpacity>
             <View className="flex-row items-center justify-between">
               <View className="min-w-0 flex-1 pr-3">
                 <Text className="font-bold text-black dark:text-white">
@@ -1644,26 +2121,40 @@ export default function MapScreen() {
             </View>
 
             {selectedCities.length > 0 ? (
-              <View className="mt-3 flex-row flex-wrap gap-2">
-                {selectedCities.map((area) => (
-                  <TouchableOpacity
-                    key={area.googlePlaceId}
-                    onPress={() => removeCity(area.googlePlaceId)}
-                    className="flex-row items-center rounded-full bg-brand-soft px-3 py-2 dark:bg-[#3A211C]"
-                  >
-                    <Text className="max-w-40 text-sm font-bold text-brand" numberOfLines={1}>
-                      {area.name}
-                    </Text>
-                    <XIcon size={14} color="#FF5B35" weight="bold" style={{ marginLeft: 6 }} />
-                  </TouchableOpacity>
-                ))}
+              <View className="mt-3">
+                <FlatList
+                  horizontal
+                  data={selectedCities}
+                  keyExtractor={(area) => area.googlePlaceId}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                  renderItem={({ item: area }) => (
+                    <TouchableOpacity
+                      onPress={() => removeCity(area.googlePlaceId)}
+                      className="flex-row items-center rounded-full bg-brand-soft px-3 py-2 dark:bg-[#3A211C]"
+                    >
+                      <Text
+                        className="max-w-40 text-sm font-bold text-brand"
+                        numberOfLines={1}
+                      >
+                        {area.name}
+                      </Text>
+                      <XIcon
+                        size={14}
+                        color="#FF5B35"
+                        weight="bold"
+                        style={{ marginLeft: 6 }}
+                      />
+                    </TouchableOpacity>
+                  )}
+                />
                 {selectedCities.length > 1 ? (
                   <TouchableOpacity
                     onPress={() => {
                       setSelectedCities([]);
                       void loadRestaurantsForCities([]);
                     }}
-                    className="px-2 py-2"
+                    className="mt-1 self-start px-2 py-2"
                   >
                     <Text className="text-sm font-bold text-brand">
                       {t("map:clearLocations")}
@@ -1672,6 +2163,23 @@ export default function MapScreen() {
                 ) : null}
               </View>
             ) : null}
+          </View>
+
+          <View className="mt-4 flex-row items-center justify-between rounded-2xl bg-gray-100 px-4 py-3.5 dark:bg-gray-800">
+            <View className="min-w-0 flex-1 pr-4">
+              <Text className="font-bold text-black dark:text-white">
+                {t("map:activityHeatmap")}
+              </Text>
+              <Text className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">
+                {t("map:activityHeatmapHint")}
+              </Text>
+            </View>
+            <Switch
+              value={activityHeatmapEnabled}
+              onValueChange={setActivityHeatmapEnabled}
+              trackColor={{ false: "#9CA3AF", true: "#FF8F37" }}
+              thumbColor="#FAF9F6"
+            />
           </View>
 
           <Text className="mb-2 mt-5 font-bold text-black dark:text-white">

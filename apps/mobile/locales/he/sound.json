@@ -1,0 +1,19 @@
+{
+  "addSound": "הוספת צליל",
+  "done": "סיום",
+  "search": "חיפוש צלילים",
+  "noResults": "לא נמצאו צלילים",
+  "selected": "נבחר",
+  "start": "התחלה",
+  "sound": "צליל",
+  "originalAudio": "השמע המקורי",
+  "musicForPost": "מוזיקה לפוסט שלך",
+  "categories": {
+    "forYou": "בשבילך",
+    "trending": "פופולרי",
+    "chill": "רגוע",
+    "food": "אוכל",
+    "fun": "כיף",
+    "cinematic": "קולנועי"
+  }
+}

@@ -1,6 +1,7 @@
 import type { Restaurant } from "./restaurant";
 import type { UserRelationship } from "./profile";
 import type { UserSummary } from "./user";
+import type { Sound } from "./sound";
 
 export type PostType = "CONTENT" | "REVIEW";
 export type FeedScope = "FOLLOWING" | "EXPLORE";
@@ -23,6 +24,11 @@ export type ContentPost = {
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
   media?: ContentPostMedia[];
+  sound?: Sound | null;
+  soundId?: string | null;
+  soundStartTimeMs?: number;
+  soundVolume?: number;
+  originalAudioVolume?: number;
 };
 
 export type ContentPostMedia = {

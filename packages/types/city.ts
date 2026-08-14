@@ -17,7 +17,15 @@ export type CityMultiPolygon = {
 
 export type CityBoundaryGeometry = CityPolygon | CityMultiPolygon;
 
-export type MapAreaType = "CITY" | "NEIGHBORHOOD";
+export type MapAreaType = "CITY" | "NEIGHBORHOOD" | "COUNTRY";
+
+export type ActiveCountry = {
+  code: string;
+  name: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  viewport?: CityViewport | null;
+};
 
 export type CityFilterLocation = {
   source: "AREA";

@@ -9,4 +9,39 @@ export type MapPreferences = {
   matchDietary: boolean;
   matchCuisines: boolean;
   hideFlaggedAllergens: boolean;
+  activityHeatmapEnabled: boolean;
+};
+
+export type RestaurantActivityHeatPoint = {
+  restaurantId: string;
+  latitude: number;
+  longitude: number;
+  weight: number;
+  state: RestaurantActivityState;
+};
+
+export type RestaurantActivityState = "none" | "active" | "hot";
+
+export type RestaurantHotspotActivityItem = {
+  id: string;
+  type: "REVIEW" | "CONTENT" | "SNAP";
+  postId?: string;
+  snapId?: string;
+  createdAt: string;
+  caption: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  author: {
+    id: string;
+    username: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
+};
+
+export type RestaurantHotspotActivity = {
+  restaurantId: string;
+  restaurantName: string;
+  state: RestaurantActivityState;
+  items: RestaurantHotspotActivityItem[];
 };

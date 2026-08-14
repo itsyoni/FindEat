@@ -12,6 +12,7 @@ export const DEFAULT_MAP_PREFERENCES: MapPreferences = {
   matchDietary: false,
   matchCuisines: false,
   hideFlaggedAllergens: false,
+  activityHeatmapEnabled: true,
 };
 
 const MAP_PREFERENCES_VERSION = 2;
@@ -63,6 +64,7 @@ export async function getMapPreferences(userId: string) {
       matchDietary: parsed.matchDietary === true,
       matchCuisines: parsed.matchCuisines === true,
       hideFlaggedAllergens: parsed.hideFlaggedAllergens === true,
+      activityHeatmapEnabled: parsed.activityHeatmapEnabled !== false,
     };
   } catch {
     return DEFAULT_MAP_PREFERENCES;

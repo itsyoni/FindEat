@@ -31,7 +31,7 @@ export default function PlaceListOptionsBottomSheet({
   if (!list) return null;
 
   const actions = [
-    ...(list.canEdit
+    ...(list.canEdit && !list.systemType
       ? [
           {
             key: "edit",
@@ -45,7 +45,7 @@ export default function PlaceListOptionsBottomSheet({
           },
         ]
       : []),
-    {
+    ...(!list.systemType ? [{
       key: "members",
       label: t("listMembers"),
       icon: UsersThreeIcon,
@@ -54,7 +54,7 @@ export default function PlaceListOptionsBottomSheet({
           pathname: "/saved-lists/members/[id]",
           params: { id: list.id },
         }),
-    },
+    }] : []),
   ];
 
   return (
@@ -83,7 +83,7 @@ export default function PlaceListOptionsBottomSheet({
             </TouchableOpacity>
           );
         })}
-        <TouchableOpacity
+        {!list.systemType ? <TouchableOpacity
           onPress={() => {
             onClose();
             if (list.accessRole === "OWNER") onDelete();
@@ -101,7 +101,7 @@ export default function PlaceListOptionsBottomSheet({
           <Text className="ml-3 font-bold text-red-600">
             {t(list.accessRole === "OWNER" ? "deleteList" : "leaveList")}
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> : null}
       </BottomSheetView>
     </AppBottomSheet>
   );

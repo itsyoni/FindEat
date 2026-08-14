@@ -41,6 +41,10 @@ export function createPostsApi(api: AxiosInstance) {
         height: number;
         durationMs?: number;
       }>;
+      soundId?: string;
+      soundStartTimeMs?: number;
+      soundVolume?: number;
+      originalAudioVolume?: number;
     }) {
       const canonicalPayload = {
         ...payload,
@@ -168,6 +172,11 @@ export function createPostsApi(api: AxiosInstance) {
         latitude?: number;
         longitude?: number;
         radiusKm?: number;
+        countryCode?: string;
+        south?: number;
+        west?: number;
+        north?: number;
+        east?: number;
       },
     ) {
       const { data } = await api.get<FeedPage>("/posts/feed", {
@@ -179,6 +188,11 @@ export function createPostsApi(api: AxiosInstance) {
           ...(options?.latitude !== undefined ? { latitude: options.latitude } : {}),
           ...(options?.longitude !== undefined ? { longitude: options.longitude } : {}),
           ...(options?.radiusKm ? { radiusKm: options.radiusKm } : {}),
+          ...(options?.countryCode ? { countryCode: options.countryCode } : {}),
+          ...(options?.south !== undefined ? { south: options.south } : {}),
+          ...(options?.west !== undefined ? { west: options.west } : {}),
+          ...(options?.north !== undefined ? { north: options.north } : {}),
+          ...(options?.east !== undefined ? { east: options.east } : {}),
         },
       });
 

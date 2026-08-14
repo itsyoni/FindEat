@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, HeadsetIcon, LockKeyIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
+import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, HeadsetIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
 import { useCallback, useState } from 'react';
@@ -54,6 +54,7 @@ export default function SettingsScreen() {
         <SettingsSection title={t('settings:howYouUseFindEat')}>
           <SettingsRow icon={<BellIcon size={23} color={color} />} title={t('settings:notifications')} subtitle={t('settings:notificationsSubtitle')} onPress={() => router.push('/settings/notifications')} />
           <SettingsRow icon={<DeviceMobileIcon size={23} color={color} />} title={t('settings:appPermissions')} subtitle={t('settings:appPermissionsSubtitle')} onPress={() => router.push('/settings/permissions')} />
+          <SettingsRow icon={<MapPinIcon size={23} color="#FF5B35" weight="duotone" />} title={t('settings:visitDetection')} subtitle={t('settings:visitDetectionSubtitle')} onPress={() => router.push('/settings/visit-detection')} />
           <SettingsRow icon={<PersonArmsSpreadIcon size={23} color={color} weight="fill" />} title={t('settings:accessibility')} subtitle={t('settings:accessibilitySubtitle')} onPress={() => router.push('/settings/accessibility')} />
           <SettingsRow icon={<ShieldCheckIcon size={23} color={color} />} title={t('settings:privacy')} subtitle={t('settings:privacySubtitle')} onPress={() => router.push('/settings/privacy')} />
           <SettingsRow icon={<MoonIcon size={23} color={color} />} title={t('settings:appearanceLanguage')} subtitle={t('settings:appearanceLanguageSubtitle')} onPress={() => router.push('/settings/appearance')} />

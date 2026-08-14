@@ -259,6 +259,8 @@
   "creatorActionCount": "{{count}} conversions · {{points}} points earned",
   "levelRoadmap": "Level roadmap",
   "levelPointsRequired": "Unlocks at {{count}} points",
+  "visitDetection": "Visit Detection",
+  "visitDetectionSubtitle": "Recognize likely restaurant visits and remind you afterwards",
   "permission": {
     "camera": {
       "title": "Camera",

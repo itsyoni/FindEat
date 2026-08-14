@@ -25,7 +25,11 @@ export function createMenuApi(api: AxiosInstance) {
 
     async searchDishes(
       query: string,
-      options: { latitude?: number; longitude?: number } = {},
+      options: {
+        latitude?: number;
+        longitude?: number;
+        countryCode?: string;
+      } = {},
     ) {
       const { data } = await api.get<DishSearchResult[]>("/menu-items/search", {
         params: { q: query, ...options },

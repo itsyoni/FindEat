@@ -7,7 +7,9 @@ import { AppAlert as Alert } from "@/lib/appAlert";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { getVideoDurationMs } from "@/lib/videoDuration";
 import ContentVideo from "@/components/posts/content/ContentVideo";
-import type { SelectedRestaurant, SnapGroup } from "@findeat/types";
+import SoundPickerModal from "@/components/sounds/SoundPickerModal";
+import SoundPlayback from "@/components/sounds/SoundPlayback";
+import type { SelectedRestaurant, SnapGroup, SoundSelection } from "@findeat/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePostUpload } from "@/contexts/PostUploadContext";
 import { Image } from "expo-image";
@@ -30,6 +32,7 @@ import {
   PaperPlaneTiltIcon,
   XIcon,
   LockIcon,
+  MusicNoteIcon,
 } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -47,6 +50,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CreateSnapScreen() {
   const { t } = useTranslation(["snaps", "common"]);
+  const { t: tSound } = useTranslation("sound");
   const queryClient = useQueryClient();
   const { startPostUpload } = usePostUpload();
   const cameraRef = useRef<CameraView>(null);
@@ -59,6 +63,8 @@ export default function CreateSnapScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [caption, setCaption] = useState("");
+  const [soundSelection, setSoundSelection] = useState<SoundSelection | null>(null);
+  const [soundPickerOpen, setSoundPickerOpen] = useState(false);
   const [restaurant, setRestaurant] = useState<SelectedRestaurant | null>(null);
   const [choosingRestaurant, setChoosingRestaurant] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -152,6 +158,7 @@ export default function CreateSnapScreen() {
     const pendingVideoUri = videoUri;
     const pendingVideoDurationMs = videoDurationMs;
     const pendingCaption = caption.trim() || undefined;
+    const pendingSoundSelection = soundSelection;
     const pendingRestaurant = restaurant;
     const clientRequestId = `snap-${Date.now()}-${Math.random()
       .toString(36)
@@ -204,6 +211,10 @@ export default function CreateSnapScreen() {
           clientRequestId,
           caption: pendingCaption,
           restaurantId: resolvedRestaurantId,
+          soundId: pendingSoundSelection?.sound.id,
+          soundStartTimeMs: pendingSoundSelection?.soundStartTimeMs,
+          soundVolume: pendingSoundSelection?.soundVolume,
+          originalAudioVolume: pendingSoundSelection?.originalAudioVolume,
         };
         const createdSnap = await api.snaps.create(
           uploadedVideoUrl && pendingVideoDurationMs
@@ -290,6 +301,7 @@ export default function CreateSnapScreen() {
               loop
               style={StyleSheet.absoluteFill}
               contentFit="cover"
+              volume={soundSelection?.originalAudioVolume ?? 1}
             />
           ) : (
             <Image
@@ -298,6 +310,12 @@ export default function CreateSnapScreen() {
               style={StyleSheet.absoluteFill}
             />
           )}
+          <SoundPlayback
+            sound={soundSelection?.sound}
+            startTimeMs={soundSelection?.soundStartTimeMs}
+            volume={soundSelection?.soundVolume}
+            playing={!soundPickerOpen}
+          />
           <View style={[StyleSheet.absoluteFill, styles.previewScrim]} />
           <SafeAreaView edges={["top"]} style={styles.previewHeader}>
             <TouchableOpacity
@@ -315,9 +333,18 @@ export default function CreateSnapScreen() {
                 weight="bold"
               />
             </TouchableOpacity>
-            <Text className="ml-3 text-xl font-bold text-white">
+            <Text className="ml-3 flex-1 text-xl font-bold text-white">
               {t("snaps:newSnap")}
             </Text>
+            <TouchableOpacity
+              onPress={() => setSoundPickerOpen(true)}
+              className="h-11 flex-row items-center rounded-full bg-black/45 px-3"
+            >
+              <MusicNoteIcon size={19} color="#F7D786" weight="fill" />
+              <Text numberOfLines={1} className="ml-1.5 max-w-28 font-bold text-white">
+                {soundSelection?.sound.title ?? tSound("addSound")}
+              </Text>
+            </TouchableOpacity>
           </SafeAreaView>
 
           <KeyboardAvoidingView
@@ -527,6 +554,14 @@ export default function CreateSnapScreen() {
           </SafeAreaView>
         </View>
       )}
+      <SoundPickerModal
+        visible={soundPickerOpen}
+        value={soundSelection}
+        hasOriginalAudio={Boolean(videoUri)}
+        onClose={() => setSoundPickerOpen(false)}
+        onChange={setSoundSelection}
+        surface="snap"
+      />
     </View>
   );
 }

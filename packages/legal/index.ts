@@ -157,7 +157,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
 
 export const PRIVACY_POLICY: LegalDocument = {
   title: "FindEat Privacy Policy",
-  effectiveDate: "August 11, 2026",
+  effectiveDate: "August 14, 2026",
   introduction: [
     'This Privacy Policy explains how FindEat ("FindEat", "we", "us", or "our") collects, uses, shares, and protects information when you use the FindEat mobile application, website, restaurant-management tools, and related services (collectively, the "Service").',
     "FindEat is based in Israel. This policy applies to users, restaurant representatives, and visitors to our public web pages.",
@@ -194,7 +194,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         "FindEat requests device access only when it supports a feature you choose to use. You can manage permissions in FindEat settings and your device settings.",
       ],
       bullets: [
-        "Location: with permission, precise or approximate location may be processed to show nearby restaurants, calculate distance, center the map, and improve local suggestions. You can search manually without location access.",
+        "Location: with permission, precise or approximate location may be processed to show nearby restaurants, calculate distance, center the map, and improve local suggestions. If you separately enable Visit Detection, your device may also monitor regions around a limited set of nearby restaurants in the background to recognize a likely visit and remind you afterwards. You can search manually without location access and disable Visit Detection at any time.",
         "Camera: used when you choose to capture a post, review, snap, dish, profile, or restaurant image.",
         "Photos and media library: used when you choose an existing image or video to upload.",
         "Notifications: used to deliver messages, activity, security, restaurant, and product-update notifications according to your choices.",
@@ -209,6 +209,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         "Process restaurant claims and provide restaurant-management tools.",
         "Send verification codes, password resets, service messages, push notifications, and product updates.",
         "Personalize restaurant and dish suggestions using location and voluntarily provided food preferences.",
+        "When you enable Visit Detection, process restaurant-region entry and exit events on your device to decide whether to offer a post or review reminder after a likely visit.",
         "Provide support, respond to reports, moderate content, prevent abuse, and enforce our Terms.",
         "Maintain, troubleshoot, analyze, and improve the Service.",
         "Comply with legal obligations and protect users, FindEat, and third parties.",
@@ -248,6 +249,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         "Snaps are visible for up to 24 hours. Expired snap records and their uploaded media are removed through automated cleanup when the Service is active.",
         "When you permanently delete your account, FindEat removes your profile details, posts, reviews, snaps, uploaded profile and content media, follows, saves, notifications, support requests, and restaurant-management access. Messages are marked deleted and comments are cleared so other users' conversations and threads remain understandable without identifying you.",
         "Temporary copies may remain in backups until they are overwritten. We may retain limited security, fraud-prevention, transaction, or legal records when reasonably necessary or required by law.",
+        "Visit Detection candidates—including the restaurant, approximate entry and exit times, duration, and reminder state—are kept locally on your device. Restaurants you mute from these reminders are stored with your account so the preference follows you across devices. FindEat does not use this feature to store a route history, home, or workplace.",
       ],
     },
     {

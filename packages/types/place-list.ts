@@ -3,6 +3,8 @@ import type { UserSummary } from "./user";
 
 export type PlaceListAccessRole = "OWNER" | "EDITOR" | "VIEWER";
 export type PlaceListMemberRole = "EDITOR" | "VIEWER";
+export type PlaceListSystemType = "WANT_TO_TRY" | "VISITED" | "FAVORITES";
+export type PlaceListStaySource = "SEARCH" | "MAP" | "CURRENT_LOCATION";
 export type PlaceListEventType =
   | "BIRTHDAY"
   | "TRIP"
@@ -25,11 +27,26 @@ export type PlaceListSummary = {
   coverUrl?: string | null;
   coverThumbnailUrl?: string | null;
   isPrivate: boolean;
+  systemType?: PlaceListSystemType | null;
   eventType?: PlaceListEventType | null;
   eventAt?: string | null;
+  eventEndAt?: string | null;
   eventLocation?: string | null;
   eventLocationLatitude?: number | null;
   eventLocationLongitude?: number | null;
+  destinationCountryCode?: string | null;
+  destinationBounds?: {
+    south: number;
+    west: number;
+    north: number;
+    east: number;
+  } | null;
+  stayLocation?: {
+    name?: string | null;
+    latitude: number;
+    longitude: number;
+    source?: PlaceListStaySource | null;
+  } | null;
   allowMembersToInvite: boolean;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +68,26 @@ export type PlaceListDetail = Omit<
   items: Array<{
     id: string;
     addedAt: string;
+    distanceFromStayKm?: number | null;
+    sourcePost?: {
+      id: string;
+      type: "CONTENT" | "REVIEW";
+      contentPost?: {
+        caption?: string | null;
+        imageUrl?: string | null;
+        videoUrl?: string | null;
+        media?: Array<{
+          imageUrl?: string | null;
+          videoUrl?: string | null;
+          type: "IMAGE" | "VIDEO";
+        }>;
+      } | null;
+      reviewPost?: {
+        title?: string | null;
+        summary?: string | null;
+        coverImageUrl?: string | null;
+      } | null;
+    } | null;
     restaurant: Pick<
       Restaurant,
       | "id"
@@ -91,9 +128,19 @@ export type PlaceListWriteInput = {
   coverUrl?: string | null;
   eventType?: PlaceListEventType | null;
   eventAt?: string | null;
+  eventEndAt?: string | null;
   eventLocation?: string | null;
   eventLocationLatitude?: number | null;
   eventLocationLongitude?: number | null;
+  destinationCountryCode?: string | null;
+  destinationSouthLat?: number | null;
+  destinationWestLng?: number | null;
+  destinationNorthLat?: number | null;
+  destinationEastLng?: number | null;
+  stayName?: string | null;
+  stayLatitude?: number | null;
+  stayLongitude?: number | null;
+  staySource?: PlaceListStaySource | null;
   allowMembersToInvite?: boolean;
 };
 

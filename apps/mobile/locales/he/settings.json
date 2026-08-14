@@ -261,6 +261,8 @@
   "creatorActionCount": "{{count}} המרות · {{points}} נקודות שנצברו",
   "levelRoadmap": "מסלול הדרגות",
   "levelPointsRequired": "נפתח ב-{{count}} נקודות",
+  "visitDetection": "זיהוי ביקורים",
+  "visitDetectionSubtitle": "זיהוי ביקורים אפשריים במסעדות ותזכורת לאחר מכן",
   "permission": {
     "camera": {
       "title": "מצלמה",

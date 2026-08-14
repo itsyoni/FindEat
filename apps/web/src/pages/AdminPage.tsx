@@ -13,6 +13,7 @@ import { FlagIcon } from "@phosphor-icons/react/dist/csr/Flag";
 import { MapPinLineIcon } from "@phosphor-icons/react/dist/csr/MapPinLine";
 import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
+import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
 import type {
   AdminDashboardSection,
   AdminUser,
@@ -28,6 +29,7 @@ import { WEB_VERSION } from "../lib/version";
 import { UserIdentity } from "../components/UserIdentity";
 import { ModerationPanel } from "../components/ModerationPanel";
 import { AddressChangeRequestsPanel } from "../components/AddressChangeRequestsPanel";
+import { SoundCatalogAdmin } from "../components/SoundCatalogAdmin";
 import { request } from "../lib/api";
 
 export function AdminPage({
@@ -273,6 +275,15 @@ export function AdminPage({
             <SparkleIcon className="nav-icon" weight="duotone" /> What’s new
           </button>
           <button
+            className={section === "sounds" ? "active" : ""}
+            onClick={() => {
+              onNavigate("sounds");
+              setError("");
+            }}
+          >
+            <MusicNotesIcon className="nav-icon" weight="duotone" /> Sounds
+          </button>
+          <button
             className={section === "admins" ? "active" : ""}
             onClick={() => {
               onNavigate("admins");
@@ -337,6 +348,11 @@ export function AdminPage({
           {(section === "updates" || visitedSections.has("updates")) && (
             <div className="admin-page-slot" hidden={section !== "updates"}>
               <ProductUpdatesAdmin />
+            </div>
+          )}
+          {(section === "sounds" || visitedSections.has("sounds")) && (
+            <div className="admin-page-slot" hidden={section !== "sounds"}>
+              <SoundCatalogAdmin />
             </div>
           )}
           {(section === "settings" || visitedSections.has("settings")) && (

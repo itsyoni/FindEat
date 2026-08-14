@@ -5,6 +5,7 @@ import {
   notificationsQueryKey,
 } from "@/hooks/useNotifications";
 import { API_URL, api } from "@/lib/api";
+import { visitReminderRoute } from "@/lib/visitDetection/routing";
 import type { AppNotification, NotificationsPage } from "@findeat/types";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import { router, usePathname } from "expo-router";
@@ -115,13 +116,18 @@ function mergeNotification(
 }
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: false,
-    shouldSetBadge: true,
-    shouldShowBanner: false,
-    shouldShowList: false,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
+  handleNotification: async (notification) => {
+    const isVisitReminder =
+      notification.request.content.data?.type ===
+      "RESTAURANT_VISIT_REMINDER";
+    return {
+      shouldPlaySound: isVisitReminder,
+      shouldSetBadge: true,
+      shouldShowBanner: isVisitReminder,
+      shouldShowList: isVisitReminder,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    };
+  },
 });
 
 async function hydrateNotificationActor(item: AppNotification) {
@@ -149,6 +155,7 @@ async function hydrateNotificationActor(item: AppNotification) {
 
 function openPushData(data?: Record<string, unknown>) {
   if (!data) return;
+  const visitRoute = visitReminderRoute(data);
   const conversationId = stringPushValue(data.conversationId);
   const postId = stringPushValue(data.postId);
   const commentId = stringPushValue(data.commentId);
@@ -157,7 +164,8 @@ function openPushData(data?: Record<string, unknown>) {
   const type = stringPushValue(data.type);
   const actorId = stringPushValue(data.actorId);
 
-  if (type === "PROFILE_TAG_UNLOCKED") router.push("/settings/profile-tags");
+  if (visitRoute) router.push(visitRoute);
+  else if (type === "PROFILE_TAG_UNLOCKED") router.push("/settings/profile-tags");
   else if (conversationId) router.push(`/chats/${conversationId}`);
   else if (postId)
     router.push({
@@ -188,6 +196,7 @@ export function NotificationProvider({
   const [popup, setPopup] = useState<AppNotification | null>(null);
   const notificationsScreenOpen = useRef(false);
   const pathnameRef = useRef(pathname);
+  const lastHandledResponseIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -406,10 +415,19 @@ export function NotificationProvider({
 
     void registerPushToken();
 
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      const identifier = response.notification.request.identifier;
+      if (lastHandledResponseIdRef.current === identifier) return;
+      lastHandledResponseIdRef.current = identifier;
+      openPushData(response.notification.request.content.data);
+    };
     const responseSubscription =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        openPushData(response.notification.request.content.data);
-      });
+      Notifications.addNotificationResponseReceivedListener(handleResponse);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      handleResponse(response);
+      void Notifications.clearLastNotificationResponseAsync();
+    });
     const receivedSubscription = Notifications.addNotificationReceivedListener(
       async (notification) => {
         const content = notification.request.content;
@@ -468,10 +486,6 @@ export function NotificationProvider({
         }
       },
     );
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) openPushData(response.notification.request.content.data);
-    });
-
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);

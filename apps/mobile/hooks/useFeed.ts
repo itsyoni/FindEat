@@ -6,6 +6,7 @@ import {
   QueryClient,
   useInfiniteQuery,
 } from "@tanstack/react-query";
+import { useActiveCountry } from "@/contexts/ActiveCountryContext";
 
 const feedPageSize = 10;
 
@@ -20,13 +21,26 @@ export const homeFeedQueryKey = (scope: FeedScope) =>
   ] as const;
 
 export function useHomeFeed(scope: FeedScope, enabled = true) {
+  const { activeCountry } = useActiveCountry();
+  const discoveryCountry = scope === "EXPLORE" ? activeCountry : null;
   return useInfiniteQuery({
-    queryKey: homeFeedQueryKey(scope),
+    queryKey: [...homeFeedQueryKey(scope), discoveryCountry?.code],
     queryFn: ({ pageParam }) =>
       api.posts.feed("CONTENT", {
         scope,
         cursor: pageParam,
         limit: feedPageSize,
+        countryCode: discoveryCountry?.code,
+        latitude: discoveryCountry?.latitude ?? undefined,
+        longitude: discoveryCountry?.longitude ?? undefined,
+        ...(discoveryCountry?.viewport
+          ? {
+              south: discoveryCountry.viewport.southwest[1],
+              west: discoveryCountry.viewport.southwest[0],
+              north: discoveryCountry.viewport.northeast[1],
+              east: discoveryCountry.viewport.northeast[0],
+            }
+          : {}),
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -63,6 +77,8 @@ export function useAreaFeed(
     latitude: number;
     longitude: number;
     radiusKm?: number;
+    countryCode?: string | null;
+    bounds?: { south: number; west: number; north: number; east: number } | null;
   } | null,
 ) {
   return useInfiniteQuery({
@@ -74,6 +90,8 @@ export function useAreaFeed(
       area?.latitude,
       area?.longitude,
       area?.radiusKm ?? 25,
+      area?.countryCode,
+      area?.bounds,
     ],
     queryFn: ({ pageParam }) =>
       api.posts.feed(type, {
@@ -82,6 +100,8 @@ export function useAreaFeed(
         latitude: area?.latitude,
         longitude: area?.longitude,
         radiusKm: area?.radiusKm ?? 25,
+        countryCode: area?.countryCode ?? undefined,
+        ...(area?.bounds ?? {}),
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

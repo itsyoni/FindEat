@@ -89,6 +89,7 @@ export async function searchGlobal(
     latitude?: number;
     longitude?: number;
     languageCode?: string;
+    countryCode?: string;
     type?: SearchEntityType;
   } = {},
 ): Promise<SearchResultItem[]> {

@@ -99,6 +99,23 @@ export async function uploadImage(
   return ticket.imageUrl
 }
 
+export async function uploadSound(file: File): Promise<string> {
+  const contentType = file.type === 'audio/x-m4a' ? 'audio/mp4' : file.type
+  if (!['audio/mpeg', 'audio/mp4', 'audio/wav'].includes(contentType)) {
+    throw new Error('Please choose an MP3, M4A, or WAV file')
+  }
+  if (file.size <= 0 || file.size > 50 * 1024 * 1024) {
+    throw new Error('Sound must be smaller than 50 MB')
+  }
+  const ticket = await request<MediaUploadTicket>('/media/upload-url', {
+    method: 'POST',
+    body: JSON.stringify({ contentType, size: file.size, fileName: file.name, purpose: 'sound' }),
+  })
+  const response = await fetch(ticket.uploadUrl, { method: 'PUT', headers: ticket.headers, body: file })
+  if (!response.ok) throw new Error('Could not upload sound. Please try again.')
+  return ticket.mediaUrl ?? ticket.imageUrl
+}
+
 export async function loadRestaurantReviews(
   restaurantId: string,
   refresh = false,

@@ -1,4 +1,4 @@
-import { useEvent } from "expo";
+import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useFocusEffect } from "expo-router";
 import {
@@ -31,6 +31,7 @@ type Props = {
   autoPlay?: boolean;
   nativeControls?: boolean;
   muted?: boolean;
+  volume?: number;
   loop?: boolean;
   tapToToggle?: boolean;
   showProgress?: boolean;
@@ -44,6 +45,9 @@ type Props = {
   onPressOut?: () => void;
   onMutedChange?: (muted: boolean) => void;
   onDoubleTap?: (x: number, y: number) => void;
+  onPlayingChange?: (playing: boolean) => void;
+  onPlaybackEnd?: () => void;
+  onSeek?: (seconds: number) => void;
 };
 
 export default function ContentVideo({
@@ -53,6 +57,7 @@ export default function ContentVideo({
   autoPlay = false,
   nativeControls = false,
   muted = false,
+  volume = 1,
   loop = true,
   tapToToggle = false,
   showProgress = false,
@@ -66,12 +71,16 @@ export default function ContentVideo({
   onPressOut,
   onMutedChange,
   onDoubleTap,
+  onPlayingChange,
+  onPlaybackEnd,
+  onSeek,
 }: Props) {
   const player = useVideoPlayer(
     { uri, useCaching: true },
     (videoPlayer) => {
       videoPlayer.loop = loop;
       videoPlayer.muted = muted;
+      videoPlayer.volume = volume;
       videoPlayer.timeUpdateEventInterval = 0.05;
     },
   );
@@ -85,6 +94,7 @@ export default function ContentVideo({
     isPlaying: player.playing,
   });
   const [manuallyPaused, setManuallyPaused] = useState(false);
+  useEventListener(player, "playToEnd", () => onPlaybackEnd?.());
   const [localMuted, setLocalMuted] = useState(muted);
   const isMuted = onMutedChange ? muted : localMuted;
   const [scrubberWidth, setScrubberWidth] = useState(0);
@@ -110,6 +120,16 @@ export default function ContentVideo({
     // eslint-disable-next-line react-hooks/immutability
     player.muted = isMuted;
   }, [isMuted, player]);
+
+  useEffect(() => {
+    // expo-video exposes volume as an imperative player property.
+    // eslint-disable-next-line react-hooks/immutability
+    player.volume = Math.max(0, Math.min(1, volume));
+  }, [player, volume]);
+
+  useEffect(() => {
+    onPlayingChange?.(isPlaying);
+  }, [isPlaying, onPlayingChange]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
@@ -174,9 +194,9 @@ export default function ContentVideo({
 
   function finishScrub() {
     if (scrubberWidth && player.duration > 0) {
-      player.seekBy(
-        pendingScrubRatioRef.current * player.duration - player.currentTime,
-      );
+      const targetTime = pendingScrubRatioRef.current * player.duration;
+      player.seekBy(targetTime - player.currentTime);
+      onSeek?.(targetTime);
     }
     setScrubProgress(null);
     if (resumeAfterScrubRef.current && shouldAutoPlay) player.play();

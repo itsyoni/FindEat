@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import type { RestaurantPostSection } from "@findeat/types";
 import { getErrorMessage } from "@findeat/utils";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
@@ -23,6 +23,8 @@ import Animated, {
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { recordVisitDetectionRestaurantView } from "@/lib/visitDetection/engagement";
 import RestaurantAboutBottomSheet from "@/components/restaurants/RestaurantAboutBottomSheet";
 import PlaceStatusBookmark, { getPlaceStatusLabelKey } from "@/components/restaurants/PlaceStatusBookmark";
 import { CaretDownIcon } from "phosphor-react-native";
@@ -33,6 +35,7 @@ export default function RestaurantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation(["restaurants", "common"]);
   const { isDark } = useAppTheme();
+  const { user } = useAuth();
   const {
     openManageSavedPlace,
     savedListCounts,
@@ -43,6 +46,10 @@ export default function RestaurantScreen() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.id && id) void recordVisitDetectionRestaurantView(user.id);
+  }, [id, user?.id]);
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;

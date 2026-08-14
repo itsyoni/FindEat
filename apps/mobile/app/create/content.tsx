@@ -12,6 +12,8 @@ import ReviewCreator, {
 import ReviewParticipantsStep from "@/components/review-creator/steps/ReviewParticipantsStep";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import ContentMediaEditor from "@/components/create/ContentMediaEditor";
+import SoundPickerModal from "@/components/sounds/SoundPickerModal";
+import SoundPlayback from "@/components/sounds/SoundPlayback";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -43,6 +45,7 @@ import type {
   PostVisibility,
   ReviewInviteeDraft,
   SelectedRestaurant,
+  SoundSelection,
 } from "@findeat/types";
 import {
   CameraView,
@@ -66,6 +69,7 @@ import {
   TrashIcon,
   UsersThreeIcon,
   XIcon,
+  MusicNoteIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -148,9 +152,10 @@ function firstMediaLocation(media: ContentMediaDraft[]) {
 }
 
 export default function CreateContentScreen() {
-  const { restaurantId, linkedPostId: initialLinkedPostId } =
-    useLocalSearchParams<{ restaurantId?: string; linkedPostId?: string }>();
+  const { restaurantId, linkedPostId: initialLinkedPostId, soundId: initialSoundId } =
+    useLocalSearchParams<{ restaurantId?: string; linkedPostId?: string; soundId?: string }>();
   const { t } = useTranslation("create");
+  const { t: tSound } = useTranslation("sound");
   const { isDark } = useAppTheme();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -181,6 +186,8 @@ export default function CreateContentScreen() {
   const [previewMediaIndex, setPreviewMediaIndex] = useState(0);
   const [appendingCameraPhoto, setAppendingCameraPhoto] = useState(false);
   const [caption, setCaption] = useState("");
+  const [soundSelection, setSoundSelection] = useState<SoundSelection | null>(null);
+  const [soundPickerOpen, setSoundPickerOpen] = useState(false);
   const [visibility, setVisibility] = useState<PostVisibility>("PUBLIC");
   const [linkedPostId, setLinkedPostId] = useState<string | undefined>(
     initialLinkedPostId,
@@ -271,6 +278,7 @@ export default function CreateContentScreen() {
         linkedPostId,
         selectedRestaurant,
         taggedPeople,
+        soundSelection,
       }).catch((error) => console.error("Could not save content draft", error));
     }, 500);
     return () => clearTimeout(timer);
@@ -283,6 +291,7 @@ export default function CreateContentScreen() {
     selectedRestaurant,
     step,
     taggedPeople,
+    soundSelection,
     user?.id,
     visibility,
   ]);
@@ -302,6 +311,7 @@ export default function CreateContentScreen() {
             linkedPostId,
             selectedRestaurant,
             taggedPeople,
+            soundSelection,
           }
         : null;
   }, [
@@ -313,6 +323,7 @@ export default function CreateContentScreen() {
     selectedRestaurant,
     step,
     taggedPeople,
+    soundSelection,
     visibility,
   ]);
 
@@ -375,6 +386,22 @@ export default function CreateContentScreen() {
     };
   }, [draftHydrated, restaurantId, selectedRestaurant]);
 
+  useEffect(() => {
+    if (!initialSoundId || soundSelection) return;
+    let cancelled = false;
+    void api.sounds.find(initialSoundId).then((sound) => {
+      if (!cancelled && sound.isAvailable !== false && sound.audioUrl) {
+        setSoundSelection({
+          sound,
+          soundStartTimeMs: 0,
+          soundVolume: 0.8,
+          originalAudioVolume: 1,
+        });
+      }
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [initialSoundId, soundSelection]);
+
   const selectPhoto = useCallback((uri: string, width = 4, height = 5) => {
     setAvailableDraft(null);
     setMedia([
@@ -406,6 +433,7 @@ export default function CreateContentScreen() {
     setLinkedPostId(availableDraft.linkedPostId);
     setSelectedRestaurant(availableDraft.selectedRestaurant);
     setTaggedPeople(availableDraft.taggedPeople ?? []);
+    setSoundSelection(availableDraft.soundSelection ?? null);
     setStep(
       availableDraft.step === "CAMERA"
         ? "EDIT_MEDIA"
@@ -438,6 +466,7 @@ export default function CreateContentScreen() {
     setLinkedPostId(initialLinkedPostId);
     setSelectedRestaurant(null);
     setTaggedPeople([]);
+    setSoundSelection(null);
     setLinkedReviewSnapshot(null);
     draftSnapshotRef.current = null;
     try {
@@ -937,6 +966,7 @@ export default function CreateContentScreen() {
     const pendingVisibility = visibility;
     const pendingLinkedPostId = linkedPostId;
     const pendingTaggedUserIds = taggedPeople.map((person) => person.id);
+    const pendingSoundSelection = soundSelection;
     const pendingUserId = user?.id;
     const pendingRestaurantCoverUrl =
       selectedRestaurant.source === "FINDEAT"
@@ -1014,6 +1044,10 @@ export default function CreateContentScreen() {
       linkedPostId: pendingLinkedPostId,
       taggedUserIds: pendingTaggedUserIds,
       media: uploadedMedia,
+      soundId: pendingSoundSelection?.sound.id,
+      soundStartTimeMs: pendingSoundSelection?.soundStartTimeMs,
+      soundVolume: pendingSoundSelection?.soundVolume,
+      originalAudioVolume: pendingSoundSelection?.originalAudioVolume,
     });
     reportProgress(0.98);
 
@@ -1090,6 +1124,7 @@ export default function CreateContentScreen() {
         linkedPostId,
         selectedRestaurant,
         taggedPeople,
+        soundSelection,
       });
       showToast(t("draftSaved"));
       router.back();
@@ -1839,6 +1874,7 @@ export default function CreateContentScreen() {
                           autoPlay
                           tapToToggle
                           showProgress
+                          volume={soundSelection?.originalAudioVolume ?? 1}
                         />
                       )}
                     </View>
@@ -1882,6 +1918,12 @@ export default function CreateContentScreen() {
             </View>
           </KeyboardAwareFormScrollView>
         </SafeAreaView>
+        <SoundPlayback
+          sound={soundSelection?.sound}
+          startTimeMs={soundSelection?.soundStartTimeMs}
+          volume={soundSelection?.soundVolume}
+          playing
+        />
       </View>
     );
   }
@@ -2065,6 +2107,7 @@ export default function CreateContentScreen() {
                           autoPlay
                           tapToToggle
                           showProgress
+                          volume={soundSelection?.originalAudioVolume ?? 1}
                         />
                       )}
                     </View>
@@ -2104,6 +2147,27 @@ export default function CreateContentScreen() {
             />
 
             <View className="h-px bg-gray-200 dark:bg-gray-800" />
+
+            <TouchableOpacity
+              onPress={() => setSoundPickerOpen(true)}
+              className="flex-row items-center border-b border-gray-100 py-4 dark:border-gray-800"
+            >
+              <View
+                className="items-center justify-center rounded-full bg-brand/15"
+                style={{ width: detailPickerCircleSize, height: detailPickerCircleSize }}
+              >
+                <MusicNoteIcon size={21} color="#C89C25" weight="fill" />
+              </View>
+              <View className="ml-3 min-w-0 flex-1">
+                <Text className="font-bold text-black dark:text-white">
+                  {soundSelection ? soundSelection.sound.title : tSound("addSound")}
+                </Text>
+                <Text numberOfLines={1} className="mt-1 text-sm text-gray-500">
+                  {soundSelection ? soundSelection.sound.artist : tSound("musicForPost")}
+                </Text>
+              </View>
+              <DirectionalIcon direction="forward" size={20} color="#9CA3AF" weight="bold" />
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setStep("RESTAURANT")}
@@ -2270,6 +2334,19 @@ export default function CreateContentScreen() {
           </View>
         </KeyboardAwareFormScrollView>
       </SafeAreaView>
+      <SoundPickerModal
+        visible={soundPickerOpen}
+        value={soundSelection}
+        hasOriginalAudio={media.some((item) => item.type === "VIDEO")}
+        onClose={() => setSoundPickerOpen(false)}
+        onChange={setSoundSelection}
+      />
+      <SoundPlayback
+        sound={soundSelection?.sound}
+        startTimeMs={soundSelection?.soundStartTimeMs}
+        volume={soundSelection?.soundVolume}
+        playing={!soundPickerOpen}
+      />
     </View>
   );
 }

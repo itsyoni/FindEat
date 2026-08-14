@@ -36,6 +36,8 @@ import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useToast } from "@/contexts/ToastContext";
 import ContentVideo from "@/components/posts/content/ContentVideo";
+import SoundPlayback from "@/components/sounds/SoundPlayback";
+import SoundLabel from "@/components/sounds/SoundLabel";
 import { userDisplayName } from "@/lib/userIdentity";
 import {
   useIsSnapWatched,
@@ -106,6 +108,15 @@ export default function SnapViewerScreen() {
   const currentSnap = currentGroup?.snaps[snapIndex];
   const currentSnapId = currentSnap?.id;
   const currentSnapCount = currentGroup?.snaps.length ?? 0;
+
+  useEffect(() => {
+    if (!currentSnap?.videoUrl) return;
+    const timer = setTimeout(() => {
+      setFailedSnapId(null);
+      setLoadedSnapId(currentSnap.id);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [currentSnap?.id, currentSnap?.videoUrl]);
 
   useLayoutEffect(() => {
     if (groupIndex === null) return;
@@ -584,6 +595,7 @@ export default function SnapViewerScreen() {
           restartOnActivate={false}
           contentFit="cover"
           style={StyleSheet.absoluteFill}
+          volume={currentSnap.originalAudioVolume ?? 1}
         />
       ) : currentSnap.imageUrl ? (
         <Image
@@ -598,6 +610,12 @@ export default function SnapViewerScreen() {
           style={StyleSheet.absoluteFill}
         />
       ) : null}
+      <SoundPlayback
+        sound={currentSnap.sound}
+        startTimeMs={currentSnap.soundStartTimeMs}
+        volume={currentSnap.soundVolume ?? 1}
+        playing={isFocused && !mediaPaused && loadedSnapId === currentSnap.id}
+      />
       {!currentSnap.videoUrl &&
       loadedSnapId !== currentSnap.id &&
       failedSnapId !== currentSnap.id ? (
@@ -736,6 +754,11 @@ export default function SnapViewerScreen() {
           className="px-5"
           style={{ paddingBottom: replyFocused ? 4 : 12 }}
         >
+          {currentSnap.sound ? (
+            <View className="mb-3">
+              <SoundLabel sound={currentSnap.sound} tone="overlay" />
+            </View>
+          ) : null}
           {currentSnap.caption ? (
             <Text className="mb-3 text-base leading-6 text-white">
               {currentSnap.caption}

@@ -15,6 +15,10 @@ import type {
   SavedRestaurant,
   PlaceSaveStatus,
   CityFilterLocation,
+  RestaurantActivityHeatPoint,
+  RestaurantHotspotActivity,
+  MutedVisitRestaurant,
+  VisitDetectionCandidate,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
@@ -23,6 +27,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
     latitude?: number;
     longitude?: number;
     languageCode?: string;
+    countryCode?: string;
   };
 
   return {
@@ -101,6 +106,14 @@ export function createRestaurantsApi(api: AxiosInstance) {
       return data;
     },
 
+    async searchCountries(query: string, languageCode?: string) {
+      const { data } = await api.get<CityFilterLocation[]>(
+        "/restaurants/countries/search",
+        { params: { q: query, languageCode } },
+      );
+      return data;
+    },
+
     async resolveMapArea(city: CityFilterLocation) {
       const { data } = await api.post<CityFilterLocation>(
         "/restaurants/areas/resolve",
@@ -113,6 +126,11 @@ export function createRestaurantsApi(api: AxiosInstance) {
       latitude?: number;
       longitude?: number;
       radiusKm?: number;
+      countryCode?: string;
+      south?: number;
+      west?: number;
+      north?: number;
+      east?: number;
       limit?: number;
       listId?: string;
       filter?: RestaurantMapFilter;
@@ -124,6 +142,54 @@ export function createRestaurantsApi(api: AxiosInstance) {
       const { data } = await api.get<Restaurant[]>("/restaurants/map/discover", {
         params: options,
       });
+      return data;
+    },
+
+    async activityHeatmap(restaurantIds?: string[]) {
+      const { data } = await api.post<RestaurantActivityHeatPoint[]>(
+        "/restaurants/map/activity-heatmap",
+        restaurantIds?.length ? { restaurantIds } : {},
+      );
+      return data;
+    },
+
+    async hotspotActivity(restaurantId: string) {
+      const { data } = await api.get<RestaurantHotspotActivity>(
+        `/restaurants/map/activity/${restaurantId}`,
+      );
+      return data;
+    },
+
+    async visitDetectionCandidates(options: {
+      latitude: number;
+      longitude: number;
+      limit?: number;
+    }) {
+      const { data } = await api.get<VisitDetectionCandidate[]>(
+        "/restaurants/visit-detection/candidates",
+        { params: options },
+      );
+      return data;
+    },
+
+    async mutedVisitRestaurants() {
+      const { data } = await api.get<MutedVisitRestaurant[]>(
+        "/restaurants/visit-detection/muted",
+      );
+      return data;
+    },
+
+    async muteVisitRestaurant(restaurantId: string) {
+      const { data } = await api.post(
+        `/restaurants/visit-detection/muted/${restaurantId}`,
+      );
+      return data;
+    },
+
+    async unmuteVisitRestaurant(restaurantId: string) {
+      const { data } = await api.delete(
+        `/restaurants/visit-detection/muted/${restaurantId}`,
+      );
       return data;
     },
 

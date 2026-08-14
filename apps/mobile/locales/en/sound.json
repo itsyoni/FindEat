@@ -1,0 +1,19 @@
+{
+  "addSound": "Add sound",
+  "done": "Done",
+  "search": "Search sounds",
+  "noResults": "No sounds found",
+  "selected": "Selected",
+  "start": "Start",
+  "sound": "Sound",
+  "originalAudio": "Original audio",
+  "musicForPost": "Music for your post",
+  "categories": {
+    "forYou": "For You",
+    "trending": "Trending",
+    "chill": "Chill",
+    "food": "Food",
+    "fun": "Fun",
+    "cinematic": "Cinematic"
+  }
+}

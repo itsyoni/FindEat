@@ -83,5 +83,6 @@ export type AdminDashboardSection =
   | "ownership"
   | "support"
   | "updates"
+  | "sounds"
   | "admins"
   | "settings";

@@ -11,7 +11,7 @@ void i18n.use(initReactI18next).init({
   lng: "en",
   fallbackLng: "en",
   defaultNS: "common",
-  ns: ["common", "auth", "create", "profile", "settings", "map", "chat", "notifications", "snaps", "restaurants", "collaborativeReview"],
+  ns: ["common", "auth", "create", "profile", "settings", "map", "chat", "notifications", "snaps", "restaurants", "collaborativeReview", "visitDetection", "sound"],
   interpolation: {
     escapeValue: false,
   },

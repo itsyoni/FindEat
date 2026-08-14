@@ -3,7 +3,7 @@
     "name": "FindEat",
     "slug": "mobile",
     "scheme": "findeat",
-    "version": "1.13.15",
+    "version": "1.13.20",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -71,7 +71,11 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "FindEat uses your location to show nearby restaurants and calculate distance."
+          "locationWhenInUsePermission": "FindEat uses your location to show nearby restaurants, calculate distance, and recognize likely restaurant visits when enabled.",
+          "locationAlwaysAndWhenInUsePermission": "When Visit Detection is enabled, FindEat uses region monitoring to recognize likely restaurant visits and remind you afterwards, even when the app is not open.",
+          "locationAlwaysPermission": "When Visit Detection is enabled, FindEat uses region monitoring to recognize likely restaurant visits and remind you afterwards, even when the app is not open.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ]
     ],
