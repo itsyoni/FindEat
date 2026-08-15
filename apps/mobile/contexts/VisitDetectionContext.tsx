@@ -64,6 +64,7 @@ export function VisitDetectionProvider({ children }: { children: React.ReactNode
   const [enabling, setEnabling] = useState(false);
   const [prompt, setPrompt] = useState<"intro" | "disclosure" | null>(null);
   const lastUserIdRef = useRef<string | null>(null);
+  const enablingRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -159,7 +160,8 @@ export function VisitDetectionProvider({ children }: { children: React.ReactNode
   }, [user?.id]);
 
   const enable = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || enablingRef.current) return;
+    enablingRef.current = true;
     setEnabling(true);
     try {
       const next = await enableVisitDetection(user.id, i18n.language);
@@ -169,6 +171,7 @@ export function VisitDetectionProvider({ children }: { children: React.ReactNode
       console.warn("Could not enable visit detection", error);
       Alert.alert(t("permissionErrorTitle"), t("permissionErrorBody"));
     } finally {
+      enablingRef.current = false;
       setEnabling(false);
     }
   }, [i18n.language, t, user?.id]);

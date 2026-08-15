@@ -552,7 +552,9 @@ export default function MapScreen() {
             }
           : {}),
         radiusKm: radiusKm ?? undefined,
-        limit: 200,
+        // With "Any distance", the active country is the search area. A small
+        // discovery cap made valid restaurants elsewhere in the country vanish.
+        limit: radiusKm === null ? 2_000 : 200,
         listId: selectedListId ?? undefined,
         filter: mapFilter,
         sort: mapSort,

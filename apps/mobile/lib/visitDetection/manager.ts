@@ -67,9 +67,9 @@ export async function requestVisitDetectionPermissions() {
 
   let notifications = await Notifications.getPermissionsAsync();
   if (notifications.status !== "granted") {
-    notifications = await Notifications.requestPermissionsAsync({
-      ios: { allowAlert: true, allowBadge: true, allowSound: true },
-    });
+    // Expo selects the current platform's entry from an options object. Passing
+    // an iOS-only object on Android produces an undefined native request.
+    notifications = await Notifications.requestPermissionsAsync();
   }
   if (notifications.status !== "granted") return "UNAVAILABLE" as const;
 
@@ -92,8 +92,7 @@ export async function enableVisitDetection(userId: string, language: string) {
   await saveVisitDetectionPreferences(userId, preferences);
   if (!preferences.enabled) return preferences;
   await setActiveVisitDetectionUser(userId, language);
-  await refreshVisitGeofences(userId, true);
-  return preferences;
+  return refreshVisitGeofences(userId, true);
 }
 
 export async function disableVisitDetection(userId: string) {
@@ -170,22 +169,31 @@ export async function refreshVisitGeofences(userId: string, force = false) {
     longitude: currentLocation.coords.longitude,
   };
   const registered = await getRegisteredVisitRegions(userId);
+  const registeredIsValid =
+    !!registered &&
+    Number.isFinite(registered.refreshedAt) &&
+    Number.isFinite(registered.center?.latitude) &&
+    Number.isFinite(registered.center?.longitude) &&
+    Array.isArray(registered.restaurants);
   const canReuse =
     !force &&
-    registered &&
+    registeredIsValid &&
     Date.now() - registered.refreshedAt <
       VISIT_GEOFENCE_REFRESH_INTERVAL_MS &&
     distanceMeters(center, registered.center) <
       VISIT_GEOFENCE_REFRESH_DISTANCE_METERS;
+  const candidates = canReuse
+    ? registered.restaurants
+    : await api.restaurants.visitDetectionCandidates({
+        ...center,
+        limit: 18,
+      });
   const regions = canReuse
     ? registered
     : {
         refreshedAt: Date.now(),
         center,
-        restaurants: await api.restaurants.visitDetectionCandidates({
-          ...center,
-          limit: 18,
-        }),
+        restaurants: Array.isArray(candidates) ? candidates : [],
       };
   if (!canReuse) await saveRegisteredVisitRegions(userId, regions);
   if (mode === "FULL") {

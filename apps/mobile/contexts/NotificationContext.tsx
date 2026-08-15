@@ -338,13 +338,7 @@ export function NotificationProvider({
         const permission =
           current.status === "granted"
             ? current
-            : await Notifications.requestPermissionsAsync({
-                ios: {
-                  allowAlert: true,
-                  allowBadge: true,
-                  allowSound: true,
-                },
-              });
+            : await Notifications.requestPermissionsAsync();
         if (permission.status !== "granted" || cancelled) return;
 
         const cached = forceRefresh

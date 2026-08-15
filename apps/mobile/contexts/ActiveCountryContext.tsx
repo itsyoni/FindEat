@@ -1,6 +1,7 @@
 import Text from "@/components/common/AppText";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { api } from "@/lib/api";
 import type { ActiveCountry } from "@findeat/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
@@ -77,17 +78,38 @@ export function ActiveCountryProvider({ children }: { children: ReactNode }) {
     )[0];
     const code = result?.isoCountryCode?.toUpperCase();
     if (!code) return;
+    const countryName = result.country?.trim() || code;
+    const shouldResolveCountry =
+      !activeCountry ||
+      activeCountry.code !== code ||
+      !activeCountry.viewport;
+    const resolvedCountry = shouldResolveCountry
+      ? await api.restaurants
+          .searchCountries(countryName)
+          .then((countries) =>
+            countries.find(
+              (country) => country.countryCode?.toUpperCase() === code,
+            ),
+          )
+          .catch(() => undefined)
+      : undefined;
     const detected: ActiveCountry = {
       code,
-      name: result.country?.trim() || code,
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
+      name: resolvedCountry?.country ?? resolvedCountry?.name ?? countryName,
+      latitude: resolvedCountry?.latitude ?? position.coords.latitude,
+      longitude: resolvedCountry?.longitude ?? position.coords.longitude,
+      viewport: resolvedCountry?.viewport,
     };
     if (!activeCountry) {
       await setActiveCountry(detected);
       return;
     }
-    if (activeCountry.code === code) return;
+    if (activeCountry.code === code) {
+      if (!activeCountry.viewport && detected.viewport) {
+        await setActiveCountry({ ...activeCountry, ...detected });
+      }
+      return;
+    }
     const declinedAt = Number(
       await AsyncStorage.getItem(declineKey(user.id, code)),
     );
