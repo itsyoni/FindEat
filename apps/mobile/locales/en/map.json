@@ -44,6 +44,7 @@
   "folder": "Folder",
   "allFolders": "All folders",
   "placesInFolder": "{{name}}",
+  "placesInFolders": "Places in {{count}} folders",
   "folderPlaces_one": "1 place",
   "folderPlaces_other": "{{count}} places",
   "distance": "Distance",

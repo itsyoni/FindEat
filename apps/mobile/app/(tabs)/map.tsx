@@ -4,7 +4,6 @@ import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import SearchBar from "@/components/common/inputs/SearchBar";
-import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import Tabs from "@/components/common/Tabs";
 import SearchResultsView from "@/components/search/SearchResultsView";
 import { api } from "@/lib/api";
@@ -35,9 +34,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Switch, TouchableOpacity, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Mapbox from "@rnmapbox/maps";
 import BottomSheet, {
+  BottomSheetFooter,
+  type BottomSheetFooterProps,
   BottomSheetScrollView,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
@@ -58,6 +62,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import RestaurantStats from "@/components/restaurants/RestaurantStats";
 import MapRestaurantListCard from "@/components/restaurants/MapRestaurantListCard";
+import SystemPlaceListCover from "@/components/lists/SystemPlaceListCover";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
 import { useActiveCountry } from "@/contexts/ActiveCountryContext";
@@ -235,6 +240,7 @@ export default function MapScreen() {
   }>();
   const { t, i18n } = useTranslation(["common", "map", "restaurants"]);
   const { isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { activeCountry, refreshDetectedCountry } = useActiveCountry();
   const { statusOverrides } = useSaveToLists();
@@ -254,7 +260,7 @@ export default function MapScreen() {
   const [currentMapZoom, setCurrentMapZoom] = useState(13);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [placeLists, setPlaceLists] = useState<PlaceListSummary[]>([]);
-  const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const [selectedListIds, setSelectedListIds] = useState<string[]>([]);
   const [mapFilter, setMapFilter] = useState<RestaurantMapFilter>(
     DEFAULT_MAP_PREFERENCES.filter,
   );
@@ -301,6 +307,8 @@ export default function MapScreen() {
   }, [selectedRestaurantState, statusOverrides]);
 
   const cameraRef = useRef<Mapbox.Camera>(null);
+  const hasCenteredOnUserRef = useRef(false);
+  const userMovedMapRef = useRef(false);
 
   const [userLocation, setUserLocation] = useState<LocationObject | null>(null);
   const userLocationRef = useRef<LocationObject | null>(null);
@@ -347,7 +355,7 @@ export default function MapScreen() {
     if (!filtersHydrated || !listId) return;
 
     const timer = setTimeout(() => {
-      setSelectedListId(listId);
+      setSelectedListIds([listId]);
       setMapFilter(DEFAULT_MAP_PREFERENCES.filter);
       setRadiusKm(DEFAULT_MAP_PREFERENCES.radiusKm);
       setMatchDietary(DEFAULT_MAP_PREFERENCES.matchDietary);
@@ -506,7 +514,7 @@ export default function MapScreen() {
       const discoveryLongitude = longitude ?? activeCountry?.longitude ?? undefined;
       if (
         (discoveryLatitude === undefined || discoveryLongitude === undefined) &&
-        !selectedListId
+        selectedListIds.length === 0
       ) {
         if (
           restaurantId &&
@@ -555,7 +563,7 @@ export default function MapScreen() {
         // With "Any distance", the active country is the search area. A small
         // discovery cap made valid restaurants elsewhere in the country vanish.
         limit: radiusKm === null ? 2_000 : 200,
-        listId: selectedListId ?? undefined,
+        listIds: selectedListIds.length > 0 ? selectedListIds : undefined,
         filter: mapFilter,
         sort: mapSort,
         matchDietary,
@@ -624,11 +632,13 @@ export default function MapScreen() {
     matchDietary,
     radiusKm,
     restaurantId,
-    selectedListId,
+    selectedListIds,
   ]);
 
   useEffect(() => {
-    if (!selectedListId || restaurantsWithLocation.length === 0) return;
+    if (selectedListIds.length === 0 || restaurantsWithLocation.length === 0) {
+      return;
+    }
 
     const timer = setTimeout(() => {
       if (restaurantsWithLocation.length === 1) {
@@ -659,7 +669,7 @@ export default function MapScreen() {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [restaurantsWithLocation, selectedListId]);
+  }, [restaurantsWithLocation, selectedListIds]);
 
   const dismissRestaurantPreview = useCallback(() => {
     setSelectedRestaurant(null);
@@ -706,6 +716,55 @@ export default function MapScreen() {
       animationMode: "flyTo",
     });
   }, [dismissRestaurantPreview, loadUserLocation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        !filtersHydrated ||
+        listId ||
+        restaurantId ||
+        selectedCities.length > 0 ||
+        selectedListIds.length > 0
+      ) {
+        return undefined;
+      }
+
+      let active = true;
+      userMovedMapRef.current = false;
+      void loadUserLocation().then((location) => {
+        if (
+          !active ||
+          !location ||
+          hasCenteredOnUserRef.current ||
+          userMovedMapRef.current
+        ) {
+          return;
+        }
+        hasCenteredOnUserRef.current = true;
+        cameraRef.current?.setCamera({
+          centerCoordinate: [
+            location.coords.longitude,
+            location.coords.latitude,
+          ],
+          zoomLevel: 14,
+          animationDuration: 350,
+          animationMode: "easeTo",
+        });
+      });
+
+      return () => {
+        active = false;
+        hasCenteredOnUserRef.current = false;
+      };
+    }, [
+      filtersHydrated,
+      listId,
+      loadUserLocation,
+      restaurantId,
+      selectedCities.length,
+      selectedListIds.length,
+    ]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -949,7 +1008,8 @@ export default function MapScreen() {
               east: city.viewport.northeast[0],
               countryCode: city.countryCode ?? activeCountry?.code,
               limit: 200,
-              listId: selectedListId ?? undefined,
+              listIds:
+                selectedListIds.length > 0 ? selectedListIds : undefined,
               filter: mapFilter,
               sort: mapSort,
               matchDietary,
@@ -977,7 +1037,7 @@ export default function MapScreen() {
       mapSort,
       matchCuisines,
       matchDietary,
-      selectedListId,
+      selectedListIds,
       activeCountry?.code,
     ],
   );
@@ -1194,14 +1254,51 @@ export default function MapScreen() {
         : null);
   const activeFilterCount = [
     mapFilter !== "ALL",
-    selectedListId !== null,
+    selectedListIds.length > 0,
     radiusKm !== null,
     matchDietary,
     matchCuisines,
     hideFlaggedAllergens,
     selectedCities.length > 0,
   ].filter(Boolean).length;
-  const selectedList = placeLists.find((list) => list.id === selectedListId);
+  const selectedLists = placeLists.filter((list) =>
+    selectedListIds.includes(list.id),
+  );
+  const selectedListTitle =
+    selectedLists.length === 1
+      ? selectedLists[0].systemType
+        ? t(
+            selectedLists[0].systemType === "WANT_TO_TRY"
+              ? "common:wantToTry"
+              : selectedLists[0].systemType === "VISITED"
+                ? "common:visited"
+                : "common:favorite",
+          )
+        : selectedLists[0].name
+      : null;
+  const renderFiltersFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter {...props} bottomInset={0}>
+        <View
+          className="border-t border-black/5 px-5 pt-3 dark:border-white/10"
+          style={{
+            paddingBottom: Math.max(insets.bottom, 12),
+            backgroundColor: isDark ? "#111827" : "#FAF9F6",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setFiltersOpen(false)}
+            className="rounded-2xl bg-black py-4 dark:bg-white"
+          >
+            <Text className="text-center font-bold text-white dark:text-black">
+              {t("map:showPlaces")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheetFooter>
+    ),
+    [insets.bottom, isDark, t],
+  );
 
   return (
     <SafeAreaView
@@ -1341,6 +1438,9 @@ export default function MapScreen() {
             <View style={{ flex: 1 }}>
               <Mapbox.MapView
                 style={{ flex: 1 }}
+                onTouchStart={() => {
+                  userMovedMapRef.current = true;
+                }}
                 styleURL={
                   isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street
                 }
@@ -1361,11 +1461,15 @@ export default function MapScreen() {
               >
                 <Mapbox.Camera
                   ref={cameraRef}
-                  zoomLevel={userLocation ? 13 : 1.5}
+                  zoomLevel={userLocation ? 14 : activeCountry ? 5 : 1.5}
                   animationDuration={0}
                   centerCoordinate={[
-                    userLocation?.coords.longitude ?? 0,
-                    userLocation?.coords.latitude ?? 20,
+                    userLocation?.coords.longitude ??
+                      activeCountry?.longitude ??
+                      0,
+                    userLocation?.coords.latitude ??
+                      activeCountry?.latitude ??
+                      20,
                   ]}
                 />
                 {selectedCities.map((city) =>
@@ -1807,10 +1911,14 @@ export default function MapScreen() {
                 <View className="flex-row items-end justify-between px-4 pb-4 pt-5">
                   <View className="flex-1 pr-3">
                     <Text className="text-2xl font-bold text-black dark:text-white">
-                      {selectedList
-                        ? t("map:placesInFolder", {
-                            name: selectedList.name,
-                          })
+                      {selectedLists.length > 0
+                        ? selectedLists.length === 1
+                          ? t("map:placesInFolder", {
+                              name: selectedListTitle,
+                            })
+                          : t("map:placesInFolders", {
+                              count: selectedLists.length,
+                            })
                         : selectedCities.length > 0
                           ? t("map:placesInCities")
                         : t("map:placesNearYou")}
@@ -2042,9 +2150,13 @@ export default function MapScreen() {
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         snapPoints={["88%"]}
+        footerComponent={renderFiltersFooter}
       >
         <BottomSheetScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingBottom: 100 + insets.bottom,
+          }}
         >
           <View className="flex-row items-center justify-between">
             <Text className="text-2xl font-bold text-black dark:text-white">
@@ -2064,7 +2176,7 @@ export default function MapScreen() {
                   setActivityHeatmapEnabled(
                     DEFAULT_MAP_PREFERENCES.activityHeatmapEnabled,
                   );
-                  setSelectedListId(null);
+                  setSelectedListIds([]);
                   setSelectedCities([]);
                   void loadRestaurantsForCities([]);
                 }}
@@ -2078,23 +2190,6 @@ export default function MapScreen() {
           </View>
 
           <View className="mt-5 rounded-2xl bg-gray-100 p-3 dark:bg-gray-800">
-            <TouchableOpacity
-              onPress={() => {
-                setFiltersOpen(false);
-                router.push("/country-picker");
-              }}
-              className="mb-3 flex-row items-center justify-between rounded-xl bg-white px-3 py-3 dark:bg-gray-900"
-            >
-              <View className="min-w-0 flex-1">
-                <Text className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                  Discovery country
-                </Text>
-                <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
-                  {activeCountry?.name ?? "Choose a country"}
-                </Text>
-              </View>
-              <DirectionalIcon direction="forward" variant="caret" size={18} color={isDark ? "#F6F3ED" : "#171614"} />
-            </TouchableOpacity>
             <View className="flex-row items-center justify-between">
               <View className="min-w-0 flex-1 pr-3">
                 <Text className="font-bold text-black dark:text-white">
@@ -2213,54 +2308,105 @@ export default function MapScreen() {
           </Text>
           <View className="gap-2">
             <TouchableOpacity
-              onPress={() => setSelectedListId(null)}
-              className="flex-row items-center justify-between rounded-xl bg-gray-100 px-4 py-3.5 dark:bg-gray-800"
+              onPress={() => setSelectedListIds([])}
+              className={`flex-row items-center rounded-2xl border px-4 py-3.5 ${
+                selectedListIds.length === 0
+                  ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/35"
+                  : "border-transparent bg-gray-100 dark:bg-gray-800"
+              }`}
             >
               <View className="flex-1 flex-row items-center">
                 <FolderSimpleIcon
                   size={20}
-                  color={selectedListId === null ? "#D6A92D" : "#9CA3AF"}
-                  weight={selectedListId === null ? "fill" : "regular"}
+                  color={selectedListIds.length === 0 ? "#D6A92D" : "#9CA3AF"}
+                  weight={selectedListIds.length === 0 ? "fill" : "regular"}
                 />
                 <Text className="ml-3 font-semibold text-black dark:text-white">
                   {t("map:allFolders")}
                 </Text>
               </View>
-              {selectedListId === null ? (
-                <CheckIcon size={18} color={isDark ? "#FAF9F6" : "#111"} weight="bold" />
-              ) : null}
             </TouchableOpacity>
             {placeLists.map((list) => {
-              const selected = selectedListId === list.id;
+              const selected = selectedListIds.includes(list.id);
+              const previewUri =
+                list.coverUrl ??
+                (list.systemType ? undefined : list.previewImages[0]);
+              const folderTitle = list.systemType
+                ? t(
+                    list.systemType === "WANT_TO_TRY"
+                      ? "common:wantToTry"
+                      : list.systemType === "VISITED"
+                        ? "common:visited"
+                        : "common:favorite",
+                  )
+                : list.name;
               return (
                 <TouchableOpacity
                   key={list.id}
-                  onPress={() => setSelectedListId(list.id)}
-                  className="flex-row items-center justify-between rounded-xl bg-gray-100 px-4 py-3.5 dark:bg-gray-800"
+                  onPress={() =>
+                    setSelectedListIds((current) =>
+                      selected
+                        ? current.filter((id) => id !== list.id)
+                        : [...current, list.id],
+                    )
+                  }
+                  activeOpacity={0.78}
+                  className={`flex-row items-center justify-between rounded-2xl border p-3 ${
+                    selected
+                      ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/35"
+                      : "border-transparent bg-gray-100 dark:bg-gray-800"
+                  }`}
+                  style={
+                    selected
+                      ? {
+                          shadowColor: "#B7791F",
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: isDark ? 0.2 : 0.12,
+                          shadowRadius: 9,
+                          elevation: 2,
+                        }
+                      : undefined
+                  }
                 >
                   <View className="min-w-0 flex-1 flex-row items-center">
-                    <FolderSimpleIcon
-                      size={20}
-                      color={selected ? "#D6A92D" : "#9CA3AF"}
-                      weight={selected ? "fill" : "regular"}
-                    />
-                    <Text
-                      numberOfLines={1}
-                      className="ml-3 min-w-0 flex-1 font-semibold text-black dark:text-white"
+                    <View
+                      className="h-11 w-11 overflow-hidden rounded-xl"
                     >
-                      {list.name}
-                    </Text>
-                    <Text className="ml-2 text-xs text-gray-500">
-                      {t("map:folderPlaces", { count: list.itemCount })}
-                    </Text>
+                      {previewUri ? (
+                        <ProgressiveImage
+                          source={{ uri: previewUri }}
+                          thumbnailUrl={list.coverThumbnailUrl}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit="cover"
+                        />
+                      ) : list.systemType ? (
+                        <SystemPlaceListCover type={list.systemType} compact />
+                      ) : (
+                        <View className="flex-1 items-center justify-center bg-amber-100 dark:bg-amber-950/70">
+                          <FolderSimpleIcon
+                            size={22}
+                            color="#D6A92D"
+                            weight="fill"
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <View className="ml-3 min-w-0 flex-1">
+                      <Text
+                        numberOfLines={1}
+                        className={`font-bold ${
+                          selected
+                            ? "text-amber-950 dark:text-amber-100"
+                            : "text-black dark:text-white"
+                        }`}
+                      >
+                        {folderTitle}
+                      </Text>
+                      <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {t("map:folderPlaces", { count: list.itemCount })}
+                      </Text>
+                    </View>
                   </View>
-                  {selected ? (
-                    <CheckIcon
-                      size={18}
-                      color={isDark ? "#FAF9F6" : "#111"}
-                      weight="bold"
-                    />
-                  ) : null}
                 </TouchableOpacity>
               );
             })}
@@ -2356,14 +2502,6 @@ export default function MapScreen() {
             ))}
           </View>
 
-          <TouchableOpacity
-            onPress={() => setFiltersOpen(false)}
-            className="mt-7 rounded-2xl bg-black py-4 dark:bg-white"
-          >
-            <Text className="text-center font-bold text-white dark:text-black">
-              {t("map:showPlaces")}
-            </Text>
-          </TouchableOpacity>
         </BottomSheetScrollView>
       </AppBottomSheet>
     </SafeAreaView>

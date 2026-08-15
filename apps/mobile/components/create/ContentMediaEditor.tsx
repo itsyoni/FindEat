@@ -1,14 +1,24 @@
 import Text from "@/components/common/AppText";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
+import AnimatedGallerySaveIcon from "@/components/common/AnimatedGallerySaveIcon";
+import type { GallerySaveStatus } from "@/hooks/useGallerySaveFeedback";
 import type { ContentMediaDraft } from "@/lib/postDrafts";
+import type { PhotoFilterId } from "@/lib/photoFilters";
+import { AppAlert as Alert } from "@/lib/appAlert";
 import {
   ArrowClockwiseIcon,
   CropIcon,
-  DownloadSimpleIcon,
+  FadersHorizontalIcon,
   PlusIcon,
   TrashIcon,
 } from "phosphor-react-native";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -32,12 +42,14 @@ type Props = {
   media: ContentMediaDraft[];
   selectedIndex: number;
   busy?: boolean;
+  gallerySaveStatus?: GallerySaveStatus;
   onSelect: (index: number) => void;
   onBack: () => void;
   onNext: () => void;
   onAdd: () => void;
   onCrop: () => void;
   onRotate: () => void;
+  onApplyFilter: (filterId: PhotoFilterId) => Promise<void>;
   onSaveToGallery: () => void;
   onDelete: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
@@ -47,12 +59,14 @@ export default function ContentMediaEditor({
   media,
   selectedIndex,
   busy = false,
+  gallerySaveStatus = "idle",
   onSelect,
   onBack,
   onNext,
   onAdd,
   onCrop,
   onRotate,
+  onApplyFilter,
   onSaveToGallery,
   onDelete,
   onReorder,
@@ -67,6 +81,28 @@ export default function ContentMediaEditor({
     fromIndex: number;
     targetIndex: number;
   } | null>(null);
+  const [filterPickerOpen, setFilterPickerOpen] = useState(false);
+  const [FilterPicker, setFilterPicker] = useState<ComponentType<{
+    visible: boolean;
+    imageUri: string;
+    value?: PhotoFilterId;
+    onClose: () => void;
+    onApply: (filterId: PhotoFilterId) => Promise<void>;
+  }> | null>(null);
+
+  async function openFilters() {
+    try {
+      const module = await import("@/components/create/PhotoFilterPickerModal");
+      setFilterPicker(() => module.default);
+      setFilterPickerOpen(true);
+    } catch (error) {
+      console.warn("Photo filters are unavailable in this native build", error);
+      Alert.alert(
+        t("common:photoFiltersUnavailableTitle"),
+        t("common:photoFiltersUnavailableBody"),
+      );
+    }
+  }
 
   function selectMedia(index: number) {
     onSelect(index);
@@ -185,15 +221,27 @@ export default function ContentMediaEditor({
               }
             />
             <EditorTool
-              label={t("common:saveToGallery")}
+              label={t("common:filters")}
               disabled={busy}
-              onPress={onSaveToGallery}
+              onPress={() => void openFilters()}
               icon={
-                <DownloadSimpleIcon
+                <FadersHorizontalIcon
                   size={23}
                   color="#FFFFFFCC"
                   weight="bold"
                   style={editorIconShadow}
+                />
+              }
+            />
+            <EditorTool
+              label={t("common:saveToGallery")}
+              disabled={busy || gallerySaveStatus === "saving"}
+              onPress={onSaveToGallery}
+              icon={
+                <AnimatedGallerySaveIcon
+                  status={gallerySaveStatus}
+                  size={23}
+                  color="#FFFFFFCC"
                 />
               }
             />
@@ -305,6 +353,15 @@ export default function ContentMediaEditor({
           </Text>
         </View>
       </SafeAreaView>
+      {selectedMedia && FilterPicker && filterPickerOpen ? (
+        <FilterPicker
+          visible={filterPickerOpen}
+          imageUri={selectedMedia.filterSourceUri ?? selectedMedia.uri}
+          value={selectedMedia.photoFilter ?? "ORIGINAL"}
+          onClose={() => setFilterPickerOpen(false)}
+          onApply={onApplyFilter}
+        />
+      ) : null}
     </View>
   );
 }

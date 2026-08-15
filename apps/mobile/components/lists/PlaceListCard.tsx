@@ -5,6 +5,7 @@ import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { CalendarBlankIcon, FolderSimpleIcon, UsersThreeIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import SystemPlaceListCover from "./SystemPlaceListCover";
 
 type Props = {
   list: PlaceListSummary;
@@ -40,6 +41,8 @@ export default function PlaceListCard({ list, onPress }: Props) {
             contentFit="cover"
             transition={150}
           />
+        ) : list.systemType ? (
+          <SystemPlaceListCover type={list.systemType} />
         ) : previews.length ? (
           <View className="flex-1 flex-row flex-wrap">
             {Array.from({ length: 4 }, (_, index) => {

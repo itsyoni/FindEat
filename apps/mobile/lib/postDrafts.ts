@@ -10,6 +10,7 @@ import type {
   SelectedRestaurant,
   SoundSelection,
 } from "@findeat/types";
+import type { PhotoFilterId } from "@/lib/photoFilters";
 
 export type ContentPostDraft = {
   step:
@@ -38,6 +39,8 @@ export type ContentMediaDraft = {
   type: "IMAGE" | "VIDEO";
   uri: string;
   originalUri?: string;
+  filterSourceUri?: string;
+  photoFilter?: PhotoFilterId;
   originalWidth?: number;
   originalHeight?: number;
   width: number;
@@ -160,10 +163,12 @@ export async function loadContentPostDraft(userId: string) {
       const uri = await existingImage(item.uri);
       if (!uri) return null;
       const originalUri = await existingImage(item.originalUri);
+      const filterSourceUri = await existingImage(item.filterSourceUri);
       return {
         ...item,
         uri,
         originalUri: originalUri ?? uri,
+        filterSourceUri,
         originalWidth: item.originalWidth ?? item.width,
         originalHeight: item.originalHeight ?? item.height,
       };
@@ -220,10 +225,17 @@ export async function saveContentPostDraft(
             "content",
             `post-media-${index}-original`,
           );
+          const filterSourceUri = await keepDraftImage(
+            item.filterSourceUri,
+            userId,
+            "content",
+            `post-media-${index}-filter-source`,
+          );
           return {
             ...item,
             uri,
             originalUri: originalUri ?? uri,
+            filterSourceUri,
             originalWidth: item.originalWidth ?? item.width,
             originalHeight: item.originalHeight ?? item.height,
           };

@@ -22,6 +22,7 @@ import {
   usePostUpload,
 } from "@/contexts/PostUploadContext";
 import { prependPostToFeedCache } from "@/hooks/useFeed";
+import { useGallerySaveFeedback } from "@/hooks/useGallerySaveFeedback";
 import { api } from "@/lib/api";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { createVideoCover } from "@/lib/createVideoCover";
@@ -32,6 +33,7 @@ import {
   MediaLibraryPermissionError,
   saveImageToGallery,
 } from "@/lib/saveImageToGallery";
+import type { PhotoFilterId } from "@/lib/photoFilters";
 import {
   coordinateDistanceKm,
   coordinatesFromExif,
@@ -202,6 +204,13 @@ export default function CreateContentScreen() {
   const [linkedReviewSnapshot, setLinkedReviewSnapshot] =
     useState<ReviewCreatorSnapshot | null>(null);
   const [editingMedia, setEditingMedia] = useState(false);
+  const {
+    status: gallerySaveStatus,
+    isSaving: savingPhotoToGallery,
+    begin: beginGallerySave,
+    succeed: completeGallerySave,
+    fail: failGallerySave,
+  } = useGallerySaveFeedback();
   const [cameraReady, setCameraReady] = useState(false);
   const [pictureSize, setPictureSize] = useState<string>();
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
@@ -766,6 +775,8 @@ export default function CreateContentScreen() {
                 originalHeight: selected.originalHeight ?? selected.height,
                 width: cropped.width,
                 height: cropped.height,
+                filterSourceUri: undefined,
+                photoFilter: "ORIGINAL",
               }
             : item,
         ),
@@ -780,12 +791,19 @@ export default function CreateContentScreen() {
 
   const saveSelectedPhotoToGallery = useCallback(async () => {
     const selected = media[previewMediaIndex];
-    if (!selected || selected.type !== "IMAGE" || editingMedia) return;
-    setEditingMedia(true);
+    if (
+      !selected ||
+      selected.type !== "IMAGE" ||
+      editingMedia ||
+      savingPhotoToGallery
+    ) return;
+    beginGallerySave();
     try {
       await saveImageToGallery(selected.uri);
+      completeGallerySave();
       showToast(t("common:savedToGallery"), { kind: "success" });
     } catch (error) {
+      failGallerySave();
       showToast(
         t(
           error instanceof MediaLibraryPermissionError
@@ -794,10 +812,66 @@ export default function CreateContentScreen() {
         ),
         { kind: "error" },
       );
-    } finally {
-      setEditingMedia(false);
     }
-  }, [editingMedia, media, previewMediaIndex, showToast, t]);
+  }, [
+    beginGallerySave,
+    completeGallerySave,
+    editingMedia,
+    failGallerySave,
+    media,
+    previewMediaIndex,
+    savingPhotoToGallery,
+    showToast,
+    t,
+  ]);
+
+  const applySelectedPhotoFilter = useCallback(
+    async (filterId: PhotoFilterId) => {
+      const selected = media[previewMediaIndex];
+      if (!selected || selected.type !== "IMAGE" || editingMedia) return;
+      setEditingMedia(true);
+      try {
+        const sourceUri = selected.filterSourceUri ?? selected.uri;
+        const stableSourceUri = userId
+          ? (await persistContentMediaUri(
+              userId,
+              sourceUri,
+              `filter-source-${selected.id}`,
+            )) ?? sourceUri
+          : sourceUri;
+        const { applyPhotoFilter } = await import("@/lib/photoFilters");
+        const filtered = await applyPhotoFilter(stableSourceUri, filterId);
+        const stableFilteredUri = userId
+          ? (await persistContentMediaUri(
+              userId,
+              filtered.uri,
+              `filter-${selected.id}-${filterId.toLowerCase()}-${Date.now()}`,
+            )) ?? filtered.uri
+          : filtered.uri;
+        setMedia((current) =>
+          current.map((item) =>
+            item.id === selected.id
+              ? {
+                  ...item,
+                  uri: stableFilteredUri,
+                  filterSourceUri: stableSourceUri,
+                  photoFilter: filterId,
+                  width: filtered.width ?? item.width,
+                  height: filtered.height ?? item.height,
+                }
+              : item,
+          ),
+        );
+      } catch (error) {
+        console.error("content filter failed", error);
+        showToast(t("imageEditError"), { kind: "error" });
+        throw error;
+      } finally {
+        setEditingMedia(false);
+      }
+    },
+    [editingMedia, media, previewMediaIndex, showToast, t, userId],
+  );
 
   const rotateSelectedPhoto = useCallback(async () => {
     const selected = media[previewMediaIndex];
@@ -827,6 +901,8 @@ export default function CreateContentScreen() {
                 uri: stableUri ?? rotated.uri,
                 width: rotated.width,
                 height: rotated.height,
+                filterSourceUri: undefined,
+                photoFilter: "ORIGINAL",
               }
             : item,
         ),
@@ -1350,6 +1426,7 @@ export default function CreateContentScreen() {
           media={media}
           selectedIndex={previewMediaIndex}
           busy={editingMedia}
+          gallerySaveStatus={gallerySaveStatus}
           onSelect={setPreviewMediaIndex}
           onBack={() => {
             setCameraReady(false);
@@ -1359,6 +1436,7 @@ export default function CreateContentScreen() {
           onAdd={promptAddPhoto}
           onCrop={() => void cropSelectedPhoto()}
           onRotate={() => void rotateSelectedPhoto()}
+          onApplyFilter={applySelectedPhotoFilter}
           onSaveToGallery={() => void saveSelectedPhotoToGallery()}
           onDelete={removePreviewMedia}
           onReorder={reorderPhotos}

@@ -1,9 +1,10 @@
 import Text from "@/components/common/AppText";
+import AnimatedGallerySaveIcon from "@/components/common/AnimatedGallerySaveIcon";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import type { GallerySaveStatus } from "@/hooks/useGallerySaveFeedback";
 import type { ReviewImageSource } from "@/lib/reviewImagePicker";
 import {
   CameraIcon,
-  DownloadSimpleIcon,
   ImagesIcon,
   TrashIcon,
 } from "phosphor-react-native";
@@ -22,7 +23,7 @@ type Props = {
   onChoose: (source: ReviewImageSource) => void;
   onRemove: () => void;
   onSaveToGallery?: () => void;
-  savingToGallery?: boolean;
+  gallerySaveStatus?: GallerySaveStatus;
 };
 
 export default function DishPhotoPickerCard({
@@ -37,7 +38,7 @@ export default function DishPhotoPickerCard({
   onChoose,
   onRemove,
   onSaveToGallery,
-  savingToGallery = false,
+  gallerySaveStatus = "idle",
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
@@ -74,15 +75,14 @@ export default function DishPhotoPickerCard({
           {onSaveToGallery ? (
             <TouchableOpacity
               accessibilityLabel={t("common:saveToGallery")}
-              disabled={disabled || savingToGallery}
+              disabled={disabled || gallerySaveStatus === "saving"}
               onPress={onSaveToGallery}
               className="absolute bottom-3 right-3 h-10 w-10 items-center justify-center rounded-full bg-black/70"
             >
-              {savingToGallery ? (
-                <ActivityIndicator size="small" color="#FAF9F6" />
-              ) : (
-                <DownloadSimpleIcon size={20} color="#FAF9F6" weight="bold" />
-              )}
+              <AnimatedGallerySaveIcon
+                status={gallerySaveStatus}
+                size={20}
+              />
             </TouchableOpacity>
           ) : null}
         </View>

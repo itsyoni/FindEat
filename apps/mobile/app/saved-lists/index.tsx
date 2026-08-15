@@ -8,30 +8,25 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type { PlaceListInvitation, PlaceListSummary } from "@findeat/types";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { FolderSimpleIcon, PlusIcon, UserPlusIcon } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   FlatList,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SavedListsScreen() {
-  const { create } = useLocalSearchParams<{ create?: string }>();
   const { t } = useTranslation("common");
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
   const [lists, setLists] = useState<PlaceListSummary[]>([]);
   const [invitations, setInvitations] = useState<PlaceListInvitation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [showCreate, setShowCreate] = useState(create === "1");
-  const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [searchResponse, setSearchResponse] = useState<{
     query: string;
@@ -80,24 +75,6 @@ export default function SavedListsScreen() {
       clearTimeout(timer);
     };
   }, [query]);
-
-  async function createList() {
-    const trimmed = name.trim();
-    if (!trimmed || creating) return;
-    try {
-      setCreating(true);
-      const created = await api.placeLists.create({ name: trimmed });
-      setLists((current) => [created, ...current]);
-      setName("");
-      setShowCreate(false);
-      setQuery("");
-      showToast(t("listCreated"));
-    } catch {
-      showToast(t("listCreateError"), { kind: "error" });
-    } finally {
-      setCreating(false);
-    }
-  }
 
   const visibleLists = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
@@ -160,48 +137,13 @@ export default function SavedListsScreen() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t("createNewList")}
-            onPress={() => setShowCreate((current) => !current)}
+            onPress={() => router.push("/saved-lists/create")}
             className="h-full aspect-square items-center justify-center rounded-2xl bg-brand"
           >
             <PlusIcon size={23} color="#FAF9F6" weight="bold" />
           </TouchableOpacity>
         }
       />
-
-      {showCreate ? (
-        <View className="mx-5 mb-3 flex-row items-center rounded-2xl border border-amber-200 bg-white p-2 dark:border-amber-900 dark:bg-gray-900">
-          <TextInput
-            autoFocus
-            value={name}
-            onChangeText={setName}
-            placeholder={t("listNamePlaceholder")}
-            placeholderTextColor="#9CA3AF"
-            maxLength={80}
-            returnKeyType="done"
-            onSubmitEditing={() => void createList()}
-            style={{
-              flex: 1,
-              minHeight: 42,
-              paddingHorizontal: 10,
-              color: isDark ? "#FAF9F6" : "#111",
-              fontSize: 16,
-              textAlign: "auto",
-            }}
-          />
-          <TouchableOpacity
-            disabled={!name.trim() || creating}
-            onPress={() => void createList()}
-            className="h-10 min-w-20 items-center justify-center rounded-xl bg-amber-500 px-4"
-            style={{ opacity: !name.trim() || creating ? 0.45 : 1 }}
-          >
-            {creating ? (
-              <ActivityIndicator color="#FAF9F6" />
-            ) : (
-              <Text className="font-bold text-white">{t("create")}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      ) : null}
 
       {loading ? (
         <SkeletonPulse>

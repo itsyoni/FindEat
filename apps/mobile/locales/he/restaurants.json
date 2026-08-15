@@ -1,4 +1,6 @@
 {
+  "bookWith": "הזמנה דרך {{provider}}",
+  "bookTableWith": "הזמנת שולחן דרך {{provider}}",
   "dietaryConflictTitle": "לא מתאים לדרישות האוכל שלך",
   "restaurantDietaryConflict": "המסעדה או התפריט שלה מתנגשים עם: {{restrictions}}.",
   "dishConflictsWith": "מתנגש עם: {{restrictions}}",

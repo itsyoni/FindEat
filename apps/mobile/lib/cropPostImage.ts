@@ -7,7 +7,7 @@ type PostImage = {
 };
 
 type CropPostImageOptions = PostImage & {
-  aspect: "CONTENT" | "REVIEW" | "DISH";
+  aspect: "CONTENT" | "REVIEW" | "DISH" | "SNAP";
   toolbarTitle: string;
 };
 
@@ -18,9 +18,15 @@ export async function cropPostImage({
   aspect,
   toolbarTitle,
 }: CropPostImageOptions): Promise<PostImage | null> {
-  const cropWidth = 1200;
+  const cropWidth = aspect === "SNAP" ? 1080 : 1200;
   const cropHeight =
-    aspect === "CONTENT" ? 1500 : aspect === "DISH" ? 900 : 1200;
+    aspect === "SNAP"
+      ? 1920
+      : aspect === "CONTENT"
+        ? 1500
+        : aspect === "DISH"
+          ? 900
+          : 1200;
 
   try {
     const cropped = await ImageCropPicker.openCropper({

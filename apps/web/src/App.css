@@ -312,6 +312,18 @@ header>div { display:flex; align-items:center; gap:10px; }
 .checklist small { display:block; color:var(--muted); margin-top:3px; }
 .checklist button { border:0; background:none; font-weight:800; }
 .inline-create { display:grid; grid-template-columns:1fr auto; gap:10px; padding:18px; margin-bottom:18px; border:1px solid var(--line); border-radius:18px; background:var(--surface); }
+.menu-add-section-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.menu-section-create-backdrop { position:fixed; z-index:120; inset:0; display:grid; place-items:center; padding:24px; background:#17171770; backdrop-filter:blur(5px); }
+.menu-section-create-dialog { width:min(470px,100%); padding:26px; border:1px solid var(--line); border-radius:24px; background:var(--surface); box-shadow:0 30px 90px #0005; }
+.menu-section-create-header { display:flex; align-items:center; justify-content:space-between; }
+.menu-section-create-icon { display:grid; place-items:center; width:48px; height:48px; border-radius:15px; background:#fff1d1; color:#b86d00; }
+.menu-section-create-close { display:grid; place-items:center; width:40px; height:40px; padding:0; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--ink); }
+.menu-section-create-dialog h3 { margin:20px 0 7px; font-size:25px; letter-spacing:-.025em; }
+.menu-section-create-dialog>p { margin:0 0 24px; color:var(--muted); line-height:1.55; }
+.menu-section-create-dialog label { display:block; margin-bottom:8px; font-size:13px; font-weight:800; }
+.menu-section-create-dialog input { width:100%; min-height:52px; }
+.menu-section-create-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+.menu-section-create-actions button { min-width:120px; }
 .menu-section { margin-bottom:12px; }
 .section-heading { width:100%; display:flex; justify-content:space-between; align-items:center; padding:20px 22px; border:0; border-radius:17px; background:var(--surface); text-align:left; }
 .section-heading.open { border-radius:17px 17px 0 0; }

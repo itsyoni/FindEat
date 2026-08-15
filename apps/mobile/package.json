@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "1.13.23",
+  "version": "1.13.34",
   "scripts": {
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
@@ -33,6 +33,10 @@
   },
   "dependencies": {
     "@bacons/apple-targets": "^5.0.0",
+    "@expo-google-fonts/caveat": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@expo-google-fonts/roboto-mono": "^0.4.2",
+    "@expo-google-fonts/rubik": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@findeat/legal": "*",
     "@gorhom/bottom-sheet": "^5.2.14",
@@ -40,6 +44,7 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "9.1.0",
     "@rnmapbox/maps": "^10.2.10",
+    "@shopify/react-native-skia": "2.6.2",
     "@tailwindcss/postcss": "^4.3.1",
     "@tanstack/react-query": "^5.101.2",
     "axios": "^1.17.0",
@@ -70,6 +75,7 @@
     "expo-task-manager": "~56.0.21",
     "expo-video": "~56.1.4",
     "expo-web-browser": "~56.0.6",
+    "i18n-iso-countries": "^7.14.0",
     "i18next": "^26.3.4",
     "nativewind": "^5.0.0-preview.4",
     "phosphor-react-native": "^3.0.6",

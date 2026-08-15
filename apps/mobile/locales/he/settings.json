@@ -1,4 +1,12 @@
 {
+  "discoveryCountry": "מדינת גילוי",
+  "discoveryCountrySubtitle": "בחירת המדינה לחיפוש במפה ולגילוי מסעדות",
+  "searchCountries": "חיפוש מדינות",
+  "currentCountry": "נוכחית: {{country}}",
+  "allCountries": "כל המדינות",
+  "countryResults": "מדינות",
+  "noCountriesFound": "לא נמצאו מדינות",
+  "countrySelectionError": "לא ניתן לבחור במדינה הזו. נסו שוב.",
   "language": "שפה",
   "back": "חזרה",
   "languageChangeError": "לא ניתן לשנות את שפת האפליקציה. נסה שוב.",

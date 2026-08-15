@@ -139,6 +139,8 @@ export type ManagedRestaurant = {
   phone?: string | null;
   website?: string | null;
   instagram?: string | null;
+  ontopoUrl?: string | null;
+  tabitUrl?: string | null;
   bio?: string | null;
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
@@ -217,6 +219,8 @@ export type Restaurant = {
   phone?: string | null;
   website?: string | null;
   instagram?: string | null;
+  ontopoUrl?: string | null;
+  tabitUrl?: string | null;
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
   foodCertifications?: string[];

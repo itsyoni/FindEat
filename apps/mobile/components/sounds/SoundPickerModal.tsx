@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MusicNoteIcon, PauseIcon, PlayIcon, TrashIcon, XIcon } from "phosphor-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, TextInput, TouchableOpacity, View, type GestureResponderEvent } from "react-native";
 
@@ -78,6 +78,7 @@ export default function SoundPickerModal({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewPlayer = useAudioPlayer(null, { updateInterval: 250 });
   const previewStatus = useAudioPlayerStatus(previewPlayer);
+  const previewRequestRef = useRef(0);
   const sounds = useQuery({
     queryKey: ["sounds", activeCountry?.code, query.trim(), category],
     queryFn: () => api.sounds.list({
@@ -96,7 +97,13 @@ export default function SoundPickerModal({
       return () => clearTimeout(timer);
     }
     else {
-      previewPlayer.pause();
+      previewRequestRef.current += 1;
+      try {
+        previewPlayer.pause();
+      } catch {
+        // The audio hook may already have released its native player while the
+        // modal is being removed. There is nothing left to pause in that case.
+      }
       const timer = setTimeout(() => setPreviewId(null), 0);
       return () => clearTimeout(timer);
     }
@@ -111,7 +118,14 @@ export default function SoundPickerModal({
     return () => clearTimeout(timer);
   }, [query, surface, visible]);
 
-  useEffect(() => () => previewPlayer.pause(), [previewPlayer]);
+  useEffect(
+    () => () => {
+      // Invalidate pending seek/play work. useAudioPlayer owns and releases the
+      // native object, so calling pause from this cleanup can race that release.
+      previewRequestRef.current += 1;
+    },
+    [],
+  );
 
   const selectedSoundId = draft?.sound.id;
   const data = useMemo(() => sounds.data ?? [], [sounds.data]);
@@ -119,21 +133,49 @@ export default function SoundPickerModal({
   function togglePreview(sound: Sound) {
     if (!sound.audioUrl) return;
     if (previewId === sound.id && previewStatus.playing) {
-      previewPlayer.pause();
+      previewRequestRef.current += 1;
+      try {
+        previewPlayer.pause();
+      } catch {
+        setPreviewId(null);
+      }
       return;
     }
-    previewPlayer.pause();
-    previewPlayer.replace(sound.audioUrl);
-    // expo-audio exposes volume as an imperative player property.
-    // eslint-disable-next-line react-hooks/immutability
-    previewPlayer.volume = 0.8;
-    setPreviewId(sound.id);
-    void api.sounds.track({ event: "PREVIEWED", soundId: sound.id, surface }).catch(() => undefined);
-    void previewPlayer.seekTo(0).then(() => previewPlayer.play());
+    const requestId = previewRequestRef.current + 1;
+    previewRequestRef.current = requestId;
+    try {
+      previewPlayer.pause();
+      previewPlayer.replace(sound.audioUrl);
+      // expo-audio exposes volume as an imperative player property.
+      // eslint-disable-next-line react-hooks/immutability
+      previewPlayer.volume = 0.8;
+      setPreviewId(sound.id);
+      void api.sounds.track({ event: "PREVIEWED", soundId: sound.id, surface }).catch(() => undefined);
+      void previewPlayer
+        .seekTo(0)
+        .then(() => {
+          if (previewRequestRef.current !== requestId) return;
+          try {
+            previewPlayer.play();
+          } catch {
+            setPreviewId(null);
+          }
+        })
+        .catch(() => {
+          if (previewRequestRef.current === requestId) setPreviewId(null);
+        });
+    } catch {
+      setPreviewId(null);
+    }
   }
 
   function select(sound: Sound) {
-    previewPlayer.pause();
+    previewRequestRef.current += 1;
+    try {
+      previewPlayer.pause();
+    } catch {
+      // Selection is still valid if the preview player was already released.
+    }
     setPreviewId(null);
     setDraft({ sound, soundStartTimeMs: 0, soundVolume: 0.8, originalAudioVolume: hasOriginalAudio ? 1 : 0 });
     void api.sounds.track({ event: "SELECTED", soundId: sound.id, surface }).catch(() => undefined);
@@ -163,10 +205,34 @@ export default function SoundPickerModal({
           placeholderTextColor={isDark ? "#88857F" : "#77736C"}
           className="mb-3 rounded-2xl bg-black/5 px-4 py-3 text-base text-black dark:bg-white/10 dark:text-white"
         />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, flexShrink: 0, height: 50 }}
+          contentContainerStyle={{
+            gap: 8,
+            height: 50,
+            alignItems: "center",
+            paddingBottom: 2,
+          }}
+        >
           {CATEGORIES.map(([value, label]) => (
-            <TouchableOpacity key={value} onPress={() => setCategory(value)} className={category === value ? "rounded-full bg-[#E9B51B] px-4 py-2" : "rounded-full bg-black/5 px-4 py-2 dark:bg-white/10"}>
-              <Text className="font-semibold text-black dark:text-white">{t(label)}</Text>
+            <TouchableOpacity
+              key={value}
+              onPress={() => setCategory(value)}
+              className={
+                category === value
+                  ? "items-center justify-center rounded-full bg-[#E9B51B] px-4"
+                  : "items-center justify-center rounded-full bg-black/5 px-4 dark:bg-white/10"
+              }
+              style={{ height: 36 }}
+            >
+              <Text
+                className="text-sm font-semibold text-black dark:text-white"
+                style={{ lineHeight: 18, textAlign: "center" }}
+              >
+                {t(label)}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>

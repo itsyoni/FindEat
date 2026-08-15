@@ -12,6 +12,7 @@ import {
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
+import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Platform, Pressable, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -263,16 +264,47 @@ function CommentComposer({
           ) : replyingTo ? (
             <View className="mb-2 flex-row items-center overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
               <View className="h-full w-1 bg-brand" />
-              <View className="min-w-0 flex-1 px-3 py-2">
-                <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                  {t("replyingTo", { username: userDisplayName(replyingTo.user) })}
-                </Text>
-                <Text numberOfLines={1} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  {replyingTo.content}
-                </Text>
+              <View className="min-w-0 flex-1 flex-row items-center gap-3 px-3 py-2">
+                {replyingTo.gifUrl ? (
+                  <Image
+                    source={{ uri: replyingTo.gifUrl }}
+                    contentFit="cover"
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: 9,
+                      backgroundColor: isDark ? "#1F2937" : "#E5E7EB",
+                    }}
+                  />
+                ) : null}
+                <View className="min-w-0 flex-1">
+                  <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                    {t("replyingTo", {
+                      username: userDisplayName(replyingTo.user),
+                    })}
+                  </Text>
+                  {replyingTo.content.trim() ? (
+                    <Text
+                      numberOfLines={1}
+                      className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {replyingTo.content}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
-              <TouchableOpacity onPress={onCancelReply} hitSlop={8} className="h-10 w-10 items-center justify-center">
-                <Text className="text-xl text-gray-500 dark:text-gray-300">×</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("cancel")}
+                onPress={onCancelReply}
+                hitSlop={10}
+                className="h-12 w-12 items-center justify-center"
+              >
+                <XIcon
+                  size={27}
+                  color={isDark ? "#D1D5DB" : "#4B5563"}
+                  weight="bold"
+                />
               </TouchableOpacity>
             </View>
           ) : null}

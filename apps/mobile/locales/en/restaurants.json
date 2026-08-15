@@ -1,4 +1,6 @@
 {
+  "bookWith": "Book with {{provider}}",
+  "bookTableWith": "Book a table with {{provider}}",
   "dietaryConflictTitle": "Doesn’t match your food requirements",
   "restaurantDietaryConflict": "This restaurant or its menu conflicts with: {{restrictions}}.",
   "dishConflictsWith": "Conflicts with: {{restrictions}}",

@@ -2,15 +2,15 @@ import { EmptyState, Skeleton, SkeletonPulse } from "@/components/common";
 import Text from "@/components/common/AppText";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import PlaceListRestaurantRow from "@/components/lists/PlaceListRestaurantRow";
+import SystemPlaceListCover from "@/components/lists/SystemPlaceListCover";
 import PlaceListOptionsBottomSheet from "@/components/lists/PlaceListOptionsBottomSheet";
-import Avatar from "@/components/common/Avatar";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import type { PlaceListDetail } from "@findeat/types";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { CalendarBlankIcon, DotsThreeIcon, FolderSimpleIcon, MapPinIcon, MapTrifoldIcon, PlusIcon, UsersThreeIcon } from "phosphor-react-native";
+import { CalendarBlankIcon, DotsThreeIcon, FolderSimpleIcon, MapPinIcon, MapTrifoldIcon, PlusIcon } from "phosphor-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, TouchableOpacity, View } from "react-native";
@@ -182,11 +182,21 @@ export default function SavedListDetailScreen() {
             list ? (
               <View className="mb-4">
                 <View className="h-48 overflow-hidden rounded-[26px] bg-amber-50 dark:bg-amber-950/40">
-                  {list.coverUrl || list.items[0]?.restaurant.coverUrl || list.items[0]?.restaurant.logoUrl ? (
+                  {list.coverUrl ? (
+                    <ProgressiveImage
+                      source={{
+                        uri: list.coverUrl,
+                      }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      transition={180}
+                    />
+                  ) : list.systemType ? (
+                    <SystemPlaceListCover type={list.systemType} />
+                  ) : list.items[0]?.restaurant.coverUrl || list.items[0]?.restaurant.logoUrl ? (
                     <ProgressiveImage
                       source={{
                         uri:
-                          list.coverUrl ??
                           list.items[0]?.restaurant.coverUrl ??
                           list.items[0]?.restaurant.logoUrl ??
                           "",
@@ -258,6 +268,31 @@ export default function SavedListDetailScreen() {
                     </Text>
                   </TouchableOpacity>
                 ) : null}
+                {list.eventType === "TRIP" ? (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/saved-lists/plan/[id]",
+                        params: { id: list.id },
+                      })
+                    }
+                    className="mt-4 flex-row items-center rounded-[22px] bg-violet-100 px-4 py-4 dark:bg-violet-950/45"
+                  >
+                    <View className="h-11 w-11 items-center justify-center rounded-full bg-violet-200 dark:bg-violet-900">
+                      <CalendarBlankIcon size={22} color={isDark ? "#C4B5FD" : "#6D28D9"} weight="fill" />
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="font-bold text-violet-950 dark:text-violet-100">
+                        {t("planTripByDay")}
+                      </Text>
+                      <Text className="mt-0.5 text-sm text-violet-700 dark:text-violet-300">
+                        {t("planTripByDayHint")}
+                      </Text>
+                    </View>
+                    <DirectionalIcon direction="forward" size={18} color={isDark ? "#C4B5FD" : "#6D28D9"} />
+                  </TouchableOpacity>
+                ) : null}
                 {list.items.length > 0 ? (
                   <TouchableOpacity
                     activeOpacity={0.8}
@@ -279,34 +314,6 @@ export default function SavedListDetailScreen() {
                     </Text>
                   </TouchableOpacity>
                 ) : null}
-                {!list.systemType ? <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: "/saved-lists/members/[id]",
-                      params: { id: list.id },
-                    })
-                  }
-                  className="mt-4 flex-row items-center rounded-2xl bg-white p-3 dark:bg-gray-900"
-                >
-                  <View className="flex-row">
-                    {list.members.slice(0, 4).map((member, index) => (
-                      <View key={member.id} style={{ marginLeft: index ? -8 : 0 }}>
-                        <Avatar uri={member.avatarUrl} username={member.username} size={34} />
-                      </View>
-                    ))}
-                  </View>
-                  <View className="ml-3 flex-1">
-                    <Text className="font-bold text-black dark:text-white">
-                      {list.memberCount > 1
-                        ? t("sharedWithPeople", { count: list.memberCount })
-                        : t("privateList")}
-                    </Text>
-                    <Text className="mt-0.5 text-xs text-gray-500">
-                      {list.canInvite ? t("tapToInviteFriends") : t("listMembers")}
-                    </Text>
-                  </View>
-                  <UsersThreeIcon size={21} color="#D97706" weight="fill" />
-                </TouchableOpacity> : null}
                 {list.canEdit && !list.systemType ? (
                   <TouchableOpacity
                     activeOpacity={0.8}

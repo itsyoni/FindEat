@@ -2,6 +2,25 @@ import "@/i18n";
 import "@/lib/visitDetection/geofenceTask";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useFonts } from "expo-font";
+import {
+  Rubik_400Regular,
+  Rubik_400Regular_Italic,
+  Rubik_700Bold,
+  Rubik_700Bold_Italic,
+} from "@expo-google-fonts/rubik";
+import {
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_400Regular_Italic,
+  PlayfairDisplay_700Bold,
+  PlayfairDisplay_700Bold_Italic,
+} from "@expo-google-fonts/playfair-display";
+import { Caveat_400Regular, Caveat_700Bold } from "@expo-google-fonts/caveat";
+import {
+  RobotoMono_400Regular,
+  RobotoMono_400Regular_Italic,
+  RobotoMono_700Bold,
+  RobotoMono_700Bold_Italic,
+} from "@expo-google-fonts/roboto-mono";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack, router, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -74,6 +93,20 @@ export default function RootLayout() {
     CabinetBold: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Bold.otf"),
     CabinetExtraBold: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Extrabold.otf"),
     CabinetBlack: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Black.otf"),
+    SnapRubikRegular: Rubik_400Regular,
+    SnapRubikItalic: Rubik_400Regular_Italic,
+    SnapRubikBold: Rubik_700Bold,
+    SnapRubikBoldItalic: Rubik_700Bold_Italic,
+    SnapPlayfairRegular: PlayfairDisplay_400Regular,
+    SnapPlayfairItalic: PlayfairDisplay_400Regular_Italic,
+    SnapPlayfairBold: PlayfairDisplay_700Bold,
+    SnapPlayfairBoldItalic: PlayfairDisplay_700Bold_Italic,
+    SnapCaveatRegular: Caveat_400Regular,
+    SnapCaveatBold: Caveat_700Bold,
+    SnapRobotoMonoRegular: RobotoMono_400Regular,
+    SnapRobotoMonoItalic: RobotoMono_400Regular_Italic,
+    SnapRobotoMonoBold: RobotoMono_700Bold,
+    SnapRobotoMonoBoldItalic: RobotoMono_700Bold_Italic,
   });
 
   useEffect(() => {

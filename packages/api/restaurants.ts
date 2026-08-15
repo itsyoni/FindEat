@@ -133,6 +133,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
       east?: number;
       limit?: number;
       listId?: string;
+      listIds?: string[];
       filter?: RestaurantMapFilter;
       sort?: RestaurantMapSort;
       matchDietary?: boolean;
@@ -140,7 +141,10 @@ export function createRestaurantsApi(api: AxiosInstance) {
       hideFlaggedAllergens?: boolean;
     }) {
       const { data } = await api.get<Restaurant[]>("/restaurants/map/discover", {
-        params: options,
+        params: {
+          ...options,
+          listIds: options.listIds?.join(",") || undefined,
+        },
       });
       return data;
     },
@@ -275,7 +279,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
     ) {
       const { data } = await api.get<FeedPage>(
         `/restaurants/${id}/post-feed`,
-        { params: { section, cursor, anchorId, limit: 10 } },
+        { params: { section, cursor, anchorId, limit: 20 } },
       );
       return data;
     },

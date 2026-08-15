@@ -11,6 +11,7 @@ import { HeartIcon } from "@phosphor-icons/react/dist/csr/Heart";
 import { ChartLineUpIcon } from "@phosphor-icons/react/dist/csr/ChartLineUp";
 import { DotsThreeVerticalIcon } from "@phosphor-icons/react/dist/csr/DotsThreeVertical";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
+import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import type { Dish, Menu } from "@findeat/types";
 import { DishEditorModal } from "../components/DishEditorModal";
 import { DishFoodTags } from "../components/DishFoodTags";
@@ -76,6 +77,7 @@ export function MenuPage({
   reload: () => Promise<void>;
 }) {
   const [newTitle, setNewTitle] = useState("");
+  const [createSectionOpen, setCreateSectionOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(menus[0]?.id ?? null);
   const [dishMenu, setDishMenu] = useState<string | null>(null);
   const [dishName, setDishName] = useState("");
@@ -118,6 +120,7 @@ export function MenuPage({
         body: JSON.stringify({ title: newTitle, restaurantId }),
       });
       setNewTitle("");
+      setCreateSectionOpen(false);
       await reload();
     } catch (nextError) {
       setError(
@@ -216,16 +219,75 @@ export function MenuPage({
             Build the menu customers see on your FindEat profile.
           </p>
         </div>
+        <button
+          type="button"
+          className="primary menu-add-section-button"
+          onClick={() => {
+            setError("");
+            setCreateSectionOpen(true);
+          }}
+        >
+          <PlusIcon size={18} weight="bold" aria-hidden="true" />
+          Add section
+        </button>
       </div>
       {error && <p className="error banner">{error}</p>}
-      <form className="inline-create" onSubmit={createMenu}>
-        <input
-          placeholder="New section, e.g. Breakfast"
-          value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
-        />
-        <button className="primary">Add section</button>
-      </form>
+      {createSectionOpen && (
+        <div
+          className="menu-section-create-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setCreateSectionOpen(false);
+          }}
+        >
+          <form
+            className="menu-section-create-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-menu-section-title"
+            onSubmit={createMenu}
+          >
+            <div className="menu-section-create-header">
+              <div className="menu-section-create-icon">
+                <ListDashesIcon size={24} weight="duotone" aria-hidden="true" />
+              </div>
+              <button
+                type="button"
+                className="menu-section-create-close"
+                aria-label="Close"
+                onClick={() => setCreateSectionOpen(false)}
+              >
+                <XIcon size={20} weight="bold" aria-hidden="true" />
+              </button>
+            </div>
+            <h3 id="create-menu-section-title">Create menu section</h3>
+            <p>
+              Group related dishes together so guests can browse your menu easily.
+            </p>
+            <label htmlFor="new-menu-section-title">Section name</label>
+            <input
+              id="new-menu-section-title"
+              autoFocus
+              placeholder="For example, Breakfast"
+              value={newTitle}
+              maxLength={80}
+              onChange={(event) => setNewTitle(event.target.value)}
+            />
+            <div className="menu-section-create-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setCreateSectionOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="primary" disabled={!newTitle.trim()}>
+                Create section
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {menus.length === 0 ? (
         <div className="empty">
           <ListDashesIcon size={34} weight="duotone" aria-hidden="true" />

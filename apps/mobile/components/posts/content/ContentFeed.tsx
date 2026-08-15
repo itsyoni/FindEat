@@ -292,6 +292,14 @@ export default function ContentFeed({
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
         initialScrollIndex={initialIndex}
+        onScrollToIndexFailed={({ index }) => {
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToOffset({
+              offset: Math.max(0, index * height),
+              animated: false,
+            });
+          });
+        }}
         contentContainerStyle={{
           flexGrow: 1,
         }}

@@ -2,10 +2,10 @@ import Avatar from '@/components/common/Avatar';
 import FullScreenImageViewer from '@/components/common/FullScreenImageViewer';
 import { Restaurant } from '@findeat/types';
 import { router } from 'expo-router';
-import { ChatCircleIcon, DotsThreeIcon, MapPinIcon } from 'phosphor-react-native';
+import { CalendarCheckIcon, ChatCircleIcon, DotsThreeIcon, MapPinIcon } from 'phosphor-react-native';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
 import { useTranslation } from 'react-i18next';
-import { TouchableOpacity, View } from 'react-native';
+import { Linking, TouchableOpacity, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../common/AppText';
@@ -79,6 +79,12 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
           ? t('halalOptions')
           : null,
   ].filter((value): value is string => Boolean(value));
+  const reservationLinks = [
+    restaurant.ontopoUrl
+      ? { label: 'Ontopo', url: restaurant.ontopoUrl }
+      : null,
+    restaurant.tabitUrl ? { label: 'Tabit', url: restaurant.tabitUrl } : null,
+  ].filter((value): value is { label: string; url: string } => Boolean(value));
   return (
     <View style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}>
       <View className="relative">
@@ -141,6 +147,30 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
         {restaurant.resolvedOpeningHours ? (
           <View className="mt-2">
             <RestaurantOpeningHoursSummary hours={restaurant.resolvedOpeningHours} />
+          </View>
+        ) : null}
+        {reservationLinks.length ? (
+          <View className="mt-3 flex-row flex-wrap justify-center gap-2 px-5">
+            {reservationLinks.map((reservation) => (
+              <TouchableOpacity
+                key={reservation.label}
+                accessibilityRole="link"
+                accessibilityLabel={t('bookTableWith', { provider: reservation.label })}
+                activeOpacity={0.75}
+                onPress={() => {
+                  const url = /^https?:\/\//i.test(reservation.url)
+                    ? reservation.url
+                    : `https://${reservation.url}`;
+                  void Linking.openURL(url);
+                }}
+                className="flex-row items-center rounded-full bg-amber-100 px-3.5 py-2 dark:bg-amber-950/70"
+              >
+                <CalendarCheckIcon size={17} color="#D97706" weight="fill" />
+                <Text className="ml-1.5 text-sm font-bold text-amber-900 dark:text-amber-100">
+                  {t('bookWith', { provider: reservation.label })}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         ) : null}
         <RestaurantStats

@@ -5,6 +5,7 @@ import type {
   PlaceListMemberRole,
   PlaceListSummary,
   PlaceListWriteInput,
+  PlaceListItineraryAssignment,
   RestaurantPlaceLists,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
@@ -149,6 +150,17 @@ export function createPlaceListsApi(api: AxiosInstance) {
       const { data } = await api.post<PlaceListDetail>(
         `/place-lists/${id}/restaurants/${restaurantId}`,
         { sourcePostId },
+      );
+      return data;
+    },
+
+    async updateItinerary(
+      id: string,
+      assignments: PlaceListItineraryAssignment[],
+    ) {
+      const { data } = await api.put<PlaceListDetail>(
+        `/place-lists/${id}/itinerary`,
+        { assignments },
       );
       return data;
     },

@@ -9,12 +9,30 @@ export type SnapRestaurant = {
   city?: string | null;
 };
 
+export type SnapTextFont =
+  | "MODERN"
+  | "ELEGANT"
+  | "HANDWRITTEN"
+  | "TYPEWRITER";
+
+export type SnapTextOverlay = {
+  text: string;
+  x: number;
+  y: number;
+  font: SnapTextFont;
+  fontSize: number;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+};
+
 export type Snap = {
   id: string;
   imageUrl?: string | null;
   videoUrl?: string | null;
   durationMs?: number | null;
   caption?: string | null;
+  textOverlay?: SnapTextOverlay | null;
   createdAt: string;
   expiresAt: string;
   viewedAt?: string | null;
@@ -43,6 +61,7 @@ type CreateSnapBase = SoundAttachmentInput & {
   clientRequestId?: string;
   caption?: string;
   restaurantId?: string;
+  textOverlay?: SnapTextOverlay;
 };
 
 export type CreateSnapInput = CreateSnapBase &

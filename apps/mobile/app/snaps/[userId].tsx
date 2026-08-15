@@ -43,8 +43,20 @@ import {
   useIsSnapWatched,
   useMarkSnapWatched,
 } from "@/contexts/SnapIndicatorContext";
+import { snapTextStyle } from "@/lib/snapTextStyle";
 
 const SNAP_DURATION_MS = 5000;
+
+function snapTextOverlayWidth(
+  text: string,
+  viewportWidth: number,
+  fontSize: number,
+) {
+  return Math.max(
+    112,
+    Math.min(viewportWidth * 0.8, text.length * fontSize * 0.55 + 44),
+  );
+}
 
 export default function SnapViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -550,6 +562,7 @@ export default function SnapViewerScreen() {
     ageMinutes < 60
       ? t("snaps:minutesAgo", { count: ageMinutes })
       : t("snaps:hoursAgo", { count: Math.floor(ageMinutes / 60) });
+  const snapViewport = Dimensions.get("window");
 
   return (
     <Animated.View
@@ -636,6 +649,31 @@ export default function SnapViewerScreen() {
         </Text>
       ) : null}
       {!mediaOnly ? <View style={[StyleSheet.absoluteFill, styles.scrim]} /> : null}
+      {currentSnap.textOverlay?.text ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            zIndex: 3,
+            left: currentSnap.textOverlay.x * snapViewport.width,
+            top: currentSnap.textOverlay.y * snapViewport.height,
+            width: snapTextOverlayWidth(
+              currentSnap.textOverlay.text,
+              snapViewport.width,
+              currentSnap.textOverlay.fontSize,
+            ),
+          }}
+        >
+          <Text
+            style={[
+              styles.snapTextOverlay,
+              snapTextStyle(currentSnap.textOverlay),
+            ]}
+          >
+            {currentSnap.textOverlay.text}
+          </Text>
+        </View>
+      ) : null}
 
       <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.safeArea}>
       <SafeAreaView
@@ -902,6 +940,16 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  snapTextOverlay: {
+    color: "#FAF9F6",
+    fontFamily: "CabinetBold",
+    fontSize: 28,
+    lineHeight: 34,
+    textAlign: "center",
+    textShadowColor: "rgba(11,11,10,0.8)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 5,
   },
   tapRow: {
     flex: 1,

@@ -68,6 +68,11 @@ export type PlaceListDetail = Omit<
   items: Array<{
     id: string;
     addedAt: string;
+    plannedDate?: string | null;
+    planOrder: number;
+    plannedStartMinutes?: number | null;
+    plannedDurationMinutes: number;
+    addedBy?: UserSummary | null;
     distanceFromStayKm?: number | null;
     sourcePost?: {
       id: string;
@@ -147,4 +152,12 @@ export type PlaceListWriteInput = {
 export type RestaurantPlaceLists = {
   lists: PlaceListSummary[];
   selectedListIds: string[];
+};
+
+export type PlaceListItineraryAssignment = {
+  itemId: string;
+  plannedDate?: string | null;
+  order: number;
+  startMinutes?: number | null;
+  durationMinutes?: number;
 };

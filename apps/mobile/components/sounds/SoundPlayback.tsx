@@ -1,7 +1,7 @@
 import type { Sound } from "@findeat/types";
 import { useActiveCountry } from "@/contexts/ActiveCountryContext";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   sound?: Sound | null;
@@ -30,25 +30,64 @@ export default function SoundPlayback({
   const source = available ? sound?.audioUrl ?? null : null;
   const player = useAudioPlayer(source, { updateInterval: 250, downloadFirst: false });
   const status = useAudioPlayerStatus(player);
+  const playbackRequestRef = useRef(0);
 
   useEffect(() => {
-    // expo-audio exposes volume as an imperative player property.
-    // eslint-disable-next-line react-hooks/immutability
-    player.volume = Math.max(0, Math.min(1, volume));
+    try {
+      // expo-audio exposes volume as an imperative player property.
+      // eslint-disable-next-line react-hooks/immutability
+      player.volume = Math.max(0, Math.min(1, volume));
+    } catch {
+      // The native player can be released during a fast feed transition.
+    }
   }, [player, volume]);
 
   useEffect(() => {
+    const requestId = playbackRequestRef.current + 1;
+    playbackRequestRef.current = requestId;
     if (!source || !playing) {
-      player.pause();
+      try {
+        player.pause();
+      } catch {
+        // The hook already released the underlying native object.
+      }
       return;
     }
-    void player.seekTo(startTimeMs / 1000).then(() => player.play());
-    return () => player.pause();
+    void player
+      .seekTo(startTimeMs / 1000)
+      .then(() => {
+        if (playbackRequestRef.current !== requestId) return;
+        try {
+          player.play();
+        } catch {
+          // Ignore a stale play request after the post left the screen.
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      playbackRequestRef.current += 1;
+      try {
+        player.pause();
+      } catch {
+        // useAudioPlayer may have disposed the native object first.
+      }
+    };
   }, [player, playing, source, startTimeMs]);
 
   useEffect(() => {
     if (!playing || !status.didJustFinish) return;
-    void player.seekTo(startTimeMs / 1000).then(() => player.play());
+    const requestId = playbackRequestRef.current;
+    void player
+      .seekTo(startTimeMs / 1000)
+      .then(() => {
+        if (playbackRequestRef.current !== requestId) return;
+        try {
+          player.play();
+        } catch {
+          // Ignore a loop request for a player that has just been released.
+        }
+      })
+      .catch(() => undefined);
   }, [player, playing, startTimeMs, status.didJustFinish]);
 
   return null;

@@ -18,6 +18,7 @@ import { useRef, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import DishPhotoPickerCard from "../components/DishPhotoPickerCard";
+import { useGallerySaveFeedback } from "@/hooks/useGallerySaveFeedback";
 import PriceInput from "../components/PriceInput";
 import RatingPicker from "../components/RatingPicker";
 import {
@@ -65,7 +66,13 @@ export default function AddDishDetailsStep({
     null,
   );
   const imageSelectionRef = useRef(0);
-  const [savingToGallery, setSavingToGallery] = useState(false);
+  const {
+    status: gallerySaveStatus,
+    isSaving: savingToGallery,
+    begin: beginGallerySave,
+    succeed: completeGallerySave,
+    fail: failGallerySave,
+  } = useGallerySaveFeedback();
 
   async function choosePhoto(source: ReviewImageSource) {
     if (pickingSource) return;
@@ -108,11 +115,13 @@ export default function AddDishDetailsStep({
 
   async function saveDishPhotoToGallery() {
     if (!imageUri || savingToGallery) return;
-    setSavingToGallery(true);
+    beginGallerySave();
     try {
       await saveImageToGallery(imageUri);
+      completeGallerySave();
       showToast(t("common:savedToGallery"), { kind: "success" });
     } catch (error) {
+      failGallerySave();
       showToast(
         t(
           error instanceof MediaLibraryPermissionError
@@ -121,8 +130,6 @@ export default function AddDishDetailsStep({
         ),
         { kind: "error" },
       );
-    } finally {
-      setSavingToGallery(false);
     }
   }
 
@@ -181,7 +188,7 @@ export default function AddDishDetailsStep({
           onChoose={(source) => void choosePhoto(source)}
           onRemove={removePhoto}
           onSaveToGallery={imageUri ? () => void saveDishPhotoToGallery() : undefined}
-          savingToGallery={savingToGallery}
+          gallerySaveStatus={gallerySaveStatus}
         />
 
         <View className="mt-7 gap-7">

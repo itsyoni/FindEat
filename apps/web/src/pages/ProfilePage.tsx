@@ -23,6 +23,8 @@ export function ProfilePage({
     phone: restaurant.phone || "",
     website: restaurant.website || "",
     instagram: restaurant.instagram || "",
+    ontopoUrl: restaurant.ontopoUrl || "",
+    tabitUrl: restaurant.tabitUrl || "",
     bio: restaurant.bio || "",
   });
   const [categoryNames, setCategoryNames] = useState(restaurant.categories || []);
@@ -87,6 +89,8 @@ export function ProfilePage({
         phone: restaurant.phone || "",
         website: restaurant.website || "",
         instagram: restaurant.instagram || "",
+        ontopoUrl: restaurant.ontopoUrl || "",
+        tabitUrl: restaurant.tabitUrl || "",
         bio: restaurant.bio || "",
       };
       const changedFields = Object.fromEntries(
@@ -393,6 +397,30 @@ export function ProfilePage({
               value={form.instagram}
               onChange={(event) =>
                 setForm({ ...form, instagram: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Ontopo reservation link <span className="muted">(optional)</span>
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="https://ontopo.com/..."
+              value={form.ontopoUrl}
+              onChange={(event) =>
+                setForm({ ...form, ontopoUrl: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Tabit reservation link <span className="muted">(optional)</span>
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="https://tabitisrael.co.il/..."
+              value={form.tabitUrl}
+              onChange={(event) =>
+                setForm({ ...form, tabitUrl: event.target.value })
               }
             />
           </label>

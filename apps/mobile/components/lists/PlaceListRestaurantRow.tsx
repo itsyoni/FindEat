@@ -3,13 +3,16 @@ import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import type { PlaceListDetail } from "@findeat/types";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import {
+  CaretDownIcon,
   CaretRightIcon,
+  CaretUpIcon,
   ImagesSquareIcon,
   PlayIcon,
   StorefrontIcon,
 } from "phosphor-react-native";
 import { Pressable, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 
 type ListItem = PlaceListDetail["items"][number];
 
@@ -23,6 +26,7 @@ export default function PlaceListRestaurantRow({
   onPressSourcePost?: () => void;
 }) {
   const { t } = useTranslation("settings");
+  const [sourceExpanded, setSourceExpanded] = useState(false);
   const restaurant = item.restaurant;
   const image = restaurant.coverUrl ?? restaurant.logoUrl;
   const location = restaurant.city || restaurant.address;
@@ -93,61 +97,79 @@ export default function PlaceListRestaurantRow({
 
       {item.sourcePost ? (
         <View className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-          <Text className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            {item.sourcePost.type === "REVIEW"
-              ? t("savedReview")
-              : t("savedContentPost")}
-          </Text>
           <Pressable
             onPress={(event) => {
               event.stopPropagation();
-              onPressSourcePost?.();
+              setSourceExpanded((current) => !current);
             }}
-            className="flex-row items-center gap-3 overflow-hidden rounded-2xl bg-gray-100 p-2 dark:bg-gray-800"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: sourceExpanded }}
+            className="min-h-10 flex-row items-center justify-between rounded-xl px-1"
           >
-            <View className="h-[72px] w-[58px] overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-700">
-              {sourceImage ? (
-                <ProgressiveImage
-                  source={{ uri: sourceImage }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                  transition={150}
-                />
-              ) : (
-                <View className="flex-1 items-center justify-center">
-                  {sourceVideo ? (
-                    <PlayIcon size={24} color="#F59E0B" weight="fill" />
-                  ) : (
-                    <ImagesSquareIcon
-                      size={24}
-                      color="#D97706"
-                      weight="duotone"
-                    />
-                  )}
-                </View>
-              )}
-              {sourceVideo ? (
-                <View className="absolute inset-0 items-center justify-center bg-black/20">
-                  <PlayIcon size={20} color="#FAF9F6" weight="fill" />
-                </View>
-              ) : null}
-            </View>
-            <View className="min-w-0 flex-1">
-              <Text
-                numberOfLines={2}
-                className="text-sm font-semibold text-gray-800 dark:text-gray-100"
-              >
-                {sourceCaption ||
-                  (item.sourcePost.type === "REVIEW"
-                    ? t("savedReview")
-                    : t("savedContentPost"))}
-              </Text>
-              <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {t("openSavedPost")}
-              </Text>
-            </View>
-            <CaretRightIcon size={16} color="#9CA3AF" weight="bold" />
+            <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {item.sourcePost.type === "REVIEW"
+                ? t("savedReview")
+                : t("savedContentPost")}
+            </Text>
+            {sourceExpanded ? (
+              <CaretUpIcon size={17} color="#9CA3AF" weight="bold" />
+            ) : (
+              <CaretDownIcon size={17} color="#9CA3AF" weight="bold" />
+            )}
           </Pressable>
+
+          {sourceExpanded ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onPressSourcePost?.();
+              }}
+              className="mt-1 flex-row items-center gap-3 overflow-hidden rounded-2xl bg-gray-100 p-2 dark:bg-gray-800"
+            >
+              <View className="h-[72px] w-[58px] overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-700">
+                {sourceImage ? (
+                  <ProgressiveImage
+                    source={{ uri: sourceImage }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                ) : (
+                  <View className="flex-1 items-center justify-center">
+                    {sourceVideo ? (
+                      <PlayIcon size={24} color="#F59E0B" weight="fill" />
+                    ) : (
+                      <ImagesSquareIcon
+                        size={24}
+                        color="#D97706"
+                        weight="duotone"
+                      />
+                    )}
+                  </View>
+                )}
+                {sourceVideo ? (
+                  <View className="absolute inset-0 items-center justify-center bg-black/20">
+                    <PlayIcon size={20} color="#FAF9F6" weight="fill" />
+                  </View>
+                ) : null}
+              </View>
+              <View className="min-w-0 flex-1">
+                <Text
+                  numberOfLines={2}
+                  className="text-sm font-semibold text-gray-800 dark:text-gray-100"
+                >
+                  {sourceCaption ||
+                    (item.sourcePost.type === "REVIEW"
+                      ? t("savedReview")
+                      : t("savedContentPost"))}
+                </Text>
+                <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {t("openSavedPost")}
+                </Text>
+              </View>
+              <CaretRightIcon size={16} color="#9CA3AF" weight="bold" />
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </TouchableOpacity>

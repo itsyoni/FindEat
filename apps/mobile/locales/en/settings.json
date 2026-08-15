@@ -1,4 +1,12 @@
 {
+  "discoveryCountry": "Discovery country",
+  "discoveryCountrySubtitle": "Choose the country used for map and restaurant discovery",
+  "searchCountries": "Search countries",
+  "currentCountry": "Current: {{country}}",
+  "allCountries": "All countries",
+  "countryResults": "Countries",
+  "noCountriesFound": "No countries found",
+  "countrySelectionError": "Could not select this country. Please try again.",
   "language": "Language",
   "back": "Back",
   "chooseLanguage": "Choose language",

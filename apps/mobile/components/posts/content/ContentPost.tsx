@@ -837,6 +837,8 @@ export default function ContentPost({
       <TaggedUsersBottomSheet
         open={taggedUsersOpen}
         users={post.taggedUsers ?? []}
+        displayNames
+        showRelationshipActions
         onClose={() => setTaggedUsersOpen(false)}
       />
       <PostLikesBottomSheet

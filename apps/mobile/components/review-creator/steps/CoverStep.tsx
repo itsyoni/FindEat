@@ -24,6 +24,7 @@ import {
   MediaLibraryPermissionError,
   saveImageToGallery,
 } from "@/lib/saveImageToGallery";
+import { useGallerySaveFeedback } from "@/hooks/useGallerySaveFeedback";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -44,7 +45,13 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
   const { user } = useAuth();
   const [pickingSource, setPickingSource] =
     useState<ReviewImageSource | null>(null);
-  const [savingToGallery, setSavingToGallery] = useState(false);
+  const {
+    status: gallerySaveStatus,
+    isSaving: savingToGallery,
+    begin: beginGallerySave,
+    succeed: completeGallerySave,
+    fail: failGallerySave,
+  } = useGallerySaveFeedback();
   const coverSelectionRef = useRef(0);
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
@@ -107,11 +114,13 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
   async function saveCoverToGallery() {
     const uri = draft.coverImageUri ?? draft.coverImageUrl;
     if (!uri || savingToGallery) return;
-    setSavingToGallery(true);
+    beginGallerySave();
     try {
       await saveImageToGallery(uri);
+      completeGallerySave();
       showToast(t("common:savedToGallery"), { kind: "success" });
     } catch (error) {
+      failGallerySave();
       showToast(
         t(
           error instanceof MediaLibraryPermissionError
@@ -120,8 +129,6 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
         ),
         { kind: "error" },
       );
-    } finally {
-      setSavingToGallery(false);
     }
   }
 
@@ -242,7 +249,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
                   ? () => void saveCoverToGallery()
                   : undefined
               }
-              savingToGallery={savingToGallery}
+              gallerySaveStatus={gallerySaveStatus}
             />
           )}
         </View> : null}

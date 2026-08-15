@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { snapsQueryKey } from "@/hooks/useSnaps";
+import type { Snap, SnapGroup } from "@findeat/types";
 
 type PostUploadKind = "content" | "review" | "snap";
 type PostUploadStatus = "uploading" | "completed" | "failed";
@@ -36,7 +37,7 @@ type PostUploadResult =
       afterOpen?: () => void;
       afterUpload?: () => void;
     }
-  | { type: "snap"; userId: string };
+  | { type: "snap"; userId: string; snap: Snap };
 
 type PostUploadRunner = (
   reportProgress: (progress: number) => void,
@@ -61,6 +62,38 @@ type PostUploadContextValue = {
 };
 
 const PostUploadContext = createContext<PostUploadContextValue | null>(null);
+
+function upsertUploadedSnap(current: SnapGroup[] | undefined, snap: Snap) {
+  if (!current) {
+    return [
+      {
+        user: snap.user,
+        snaps: [snap],
+        isOwn: true,
+        hasUnseen: false,
+      },
+    ];
+  }
+  const ownIndex = current.findIndex(
+    (group) => group.isOwn || group.user.id === snap.user.id,
+  );
+  if (ownIndex < 0) {
+    return [
+      {
+        user: snap.user,
+        snaps: [snap],
+        isOwn: true,
+        hasUnseen: false,
+      },
+      ...current,
+    ];
+  }
+  return current.map((group, index) =>
+    index !== ownIndex || group.snaps.some((item) => item.id === snap.id)
+      ? group
+      : { ...group, snaps: [...group.snaps, snap] },
+  );
+}
 
 function boundedProgress(progress: number) {
   return Math.max(0, Math.min(1, progress));
@@ -115,10 +148,20 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
               refetchType: "active",
             });
           } else {
-            void queryClient.invalidateQueries({
-              queryKey: snapsQueryKey,
-              refetchType: "all",
-            });
+            queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) =>
+              upsertUploadedSnap(current, result.snap),
+            );
+            void queryClient
+              .invalidateQueries({
+                queryKey: snapsQueryKey,
+                refetchType: "all",
+              })
+              .finally(() => {
+                queryClient.setQueryData<SnapGroup[]>(
+                  snapsQueryKey,
+                  (current) => upsertUploadedSnap(current, result.snap),
+                );
+              });
           }
           void AccessibilityInfo.announceForAccessibility(
             t(
