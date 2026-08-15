@@ -4,6 +4,7 @@ import type { ContentMediaDraft } from "@/lib/postDrafts";
 import {
   ArrowClockwiseIcon,
   CropIcon,
+  DownloadSimpleIcon,
   PlusIcon,
   TrashIcon,
 } from "phosphor-react-native";
@@ -37,6 +38,7 @@ type Props = {
   onAdd: () => void;
   onCrop: () => void;
   onRotate: () => void;
+  onSaveToGallery: () => void;
   onDelete: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
 };
@@ -51,10 +53,11 @@ export default function ContentMediaEditor({
   onAdd,
   onCrop,
   onRotate,
+  onSaveToGallery,
   onDelete,
   onReorder,
 }: Props) {
-  const { t } = useTranslation("create");
+  const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
   const selectedMedia = media[selectedIndex];
   const foreground = isDark ? "#FAF9F6" : "#171717";
@@ -174,6 +177,19 @@ export default function ContentMediaEditor({
               onPress={onRotate}
               icon={
                 <ArrowClockwiseIcon
+                  size={23}
+                  color="#FFFFFFCC"
+                  weight="bold"
+                  style={editorIconShadow}
+                />
+              }
+            />
+            <EditorTool
+              label={t("common:saveToGallery")}
+              disabled={busy}
+              onPress={onSaveToGallery}
+              icon={
+                <DownloadSimpleIcon
                   size={23}
                   color="#FFFFFFCC"
                   weight="bold"

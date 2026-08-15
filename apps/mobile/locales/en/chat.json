@@ -155,6 +155,7 @@
   "addPoll": "Add a poll",
   "pollHint": "Ask readers a question and see their votes.",
   "pollAlreadyAdded": "Poll already added",
+  "pollCreator": "Creator",
   "createPoll": "Create a poll",
   "pollQuestionPlaceholder": "Ask a question…",
   "pollOptionPlaceholder": "Option {{number}}",

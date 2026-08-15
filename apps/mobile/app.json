@@ -3,7 +3,7 @@
     "name": "FindEat",
     "slug": "mobile",
     "scheme": "findeat",
-    "version": "1.13.21",
+    "version": "1.13.23",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -66,6 +66,16 @@
           "photosPermission": "FindEat uses your photo library so you can choose photos and short videos for posts, reviews, dishes, and your profile.",
           "cameraPermission": "FindEat uses your camera so you can capture photos for posts and reviews.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "FindEat uses your photo library when you choose media for posts, reviews, dishes, Snaps, and your profile.",
+          "savePhotosPermission": "FindEat saves photos to your gallery only when you choose Save to gallery.",
+          "granularPermissions": [
+            "photo"
+          ]
         }
       ],
       [

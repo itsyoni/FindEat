@@ -145,7 +145,7 @@ export default function RestaurantPostFeedScreen() {
           loading={feed.isPending}
           initialIndex={initialIndex}
           height={height}
-          contentTopInset={insets.top}
+          contentTopInset={0}
           refreshing={feed.isRefetching && !feed.isFetchingNextPage}
           onRefresh={refresh}
           onEndReached={() => {

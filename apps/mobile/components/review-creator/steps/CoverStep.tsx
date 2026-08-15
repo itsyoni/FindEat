@@ -20,6 +20,10 @@ import { persistReviewMediaUri } from "@/lib/postDrafts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRef, useState } from "react";
 import DishPhotoPickerCard from "../components/DishPhotoPickerCard";
+import {
+  MediaLibraryPermissionError,
+  saveImageToGallery,
+} from "@/lib/saveImageToGallery";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -40,6 +44,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
   const { user } = useAuth();
   const [pickingSource, setPickingSource] =
     useState<ReviewImageSource | null>(null);
+  const [savingToGallery, setSavingToGallery] = useState(false);
   const coverSelectionRef = useRef(0);
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
@@ -97,6 +102,27 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
     coverSelectionRef.current += 1;
     setPickingSource(null);
     onChange({ coverImageUri: undefined, coverImageUrl: undefined });
+  }
+
+  async function saveCoverToGallery() {
+    const uri = draft.coverImageUri ?? draft.coverImageUrl;
+    if (!uri || savingToGallery) return;
+    setSavingToGallery(true);
+    try {
+      await saveImageToGallery(uri);
+      showToast(t("common:savedToGallery"), { kind: "success" });
+    } catch (error) {
+      showToast(
+        t(
+          error instanceof MediaLibraryPermissionError
+            ? "common:saveToGalleryPermission"
+            : "common:saveToGalleryFailed",
+        ),
+        { kind: "error" },
+      );
+    } finally {
+      setSavingToGallery(false);
+    }
   }
 
   return (
@@ -211,6 +237,12 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
               aspectRatio={1}
               onChoose={(source) => void chooseCoverImage(source)}
               onRemove={removeCoverImage}
+              onSaveToGallery={
+                draft.coverImageUri
+                  ? () => void saveCoverToGallery()
+                  : undefined
+              }
+              savingToGallery={savingToGallery}
             />
           )}
         </View> : null}

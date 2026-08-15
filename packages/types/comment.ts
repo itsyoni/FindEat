@@ -35,6 +35,8 @@ export type CommentContext = {
 export type PostPoll = {
   id: string;
   title: string;
+  createdAt?: string;
+  createdBy?: UserSummary;
   closedAt?: string | null;
   totalVotes: number;
   options: Array<{

@@ -440,11 +440,17 @@ export default function ContentPost({
             data={media}
             keyExtractor={(item) => item.id}
             showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(event) =>
-              setActiveMediaIndex(
-                Math.round(event.nativeEvent.contentOffset.x / width),
-              )
-            }
+            onScroll={(event) => {
+              const nextIndex = Math.max(
+                0,
+                Math.min(
+                  media.length - 1,
+                  Math.round(event.nativeEvent.contentOffset.x / width),
+                ),
+              );
+              setActiveMediaIndex(nextIndex);
+            }}
+            scrollEventThrottle={16}
             renderItem={({ item }) => (
               <View style={{ width, height, backgroundColor: "#080808" }}>
                 {item.imageUrl ? (

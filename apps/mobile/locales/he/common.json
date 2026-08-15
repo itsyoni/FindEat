@@ -209,6 +209,7 @@
   "noListsHint": "אפשר ליצור רשימות לטיולים, שכונות, דייטים או לכל מקום שתרצו לאכול בו.",
   "noPlacesInList": "הרשימה מוכנה למקומות",
   "noPlacesInListHint": "לחצו על סימן השמירה במסעדה או בפוסט כדי להוסיף אותה לכאן.",
+  "noPlacesToAddHint": "עדיין אין מקומות זמינים באזור הזה. נסו להזיז את המפה או לבחור אזור אחר.",
   "listLoadError": "לא ניתן לפתוח את הרשימה. נסה שוב.",
   "listOptions": "אפשרויות רשימה",
   "viewFolderOnMap": "הצגת התיקייה במפה",
@@ -313,6 +314,10 @@
   },
   "writtenReview": "ביקורת כתובה",
   "quickPost": "פוסט מהיר",
+  "saveToGallery": "שמירה לגלריה",
+  "savedToGallery": "התמונה נשמרה בגלריה",
+  "saveToGalleryFailed": "לא הצלחנו לשמור את התמונה. כדאי לנסות שוב.",
+  "saveToGalleryPermission": "יש לאפשר גישה לתמונות כדי לשמור את התמונה בגלריה.",
   "wrongRestaurantAssociation": "התוכן הזה לא קשור למסעדה שלנו",
   "wrongRestaurantAssociationHint": "בקשה מהמחבר לבדוק את שיוך המסעדה",
   "reportReasons": {

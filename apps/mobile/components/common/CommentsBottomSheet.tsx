@@ -24,6 +24,7 @@ import SkeletonList from "./feedback/SkeletonList";
 import {
   CaretDownIcon,
   CaretUpIcon,
+  CheckCircleIcon,
   DotsThreeIcon,
   HeartIcon,
   ChartBarIcon,
@@ -416,7 +417,6 @@ export default function CommentsBottomSheet({
   const [showAuthorNoteComposer, setShowAuthorNoteComposer] = useState(false);
   const [showAuthorToolsSheet, setShowAuthorToolsSheet] = useState(false);
   const [authorNoteExpanded, setAuthorNoteExpanded] = useState(false);
-  const [pollExpanded, setPollExpanded] = useState(false);
   const [authorNoteContent, setAuthorNoteContent] = useState("");
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
@@ -591,7 +591,6 @@ export default function CommentsBottomSheet({
     if (!authorNote) return;
     setShowAuthorToolsSheet(false);
     setAuthorNoteExpanded(false);
-    setPollExpanded(false);
     Alert.alert(t("removeAuthorNoteTitle"), t("removeAuthorNoteDescription"), [
       { text: t("cancel"), style: "cancel" },
       {
@@ -1284,66 +1283,130 @@ export default function CommentsBottomSheet({
             ) : null}
 
             {poll ? (
-              <View
-                className={`${authorNote ? "mt-2" : "mt-4"} rounded-3xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-950/30`}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: pollExpanded }}
-                  onPress={() => setPollExpanded((current) => !current)}
-                  className="flex-row items-center gap-2"
-                >
-                  <ChartBarIcon size={18} color="#7C3AED" weight="fill" />
-                  <Text className="flex-1 text-lg font-bold text-violet-950 dark:text-violet-50">
+              <View className={`${authorNote ? "mt-3" : "mt-5"} flex-row gap-3`}>
+                {poll.createdBy ? (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(users)/[id]",
+                        params: { id: poll.createdBy!.id },
+                      })
+                    }
+                  >
+                    <Avatar
+                      uri={poll.createdBy.avatarUrl}
+                      thumbnailUrl={poll.createdBy.avatarThumbnailUrl}
+                      username={poll.createdBy.username}
+                      userId={poll.createdBy.id}
+                      size={40}
+                    />
+                  </TouchableOpacity>
+                ) : (
+                  <View className="w-10" />
+                )}
+
+                <View className="min-w-0 flex-1">
+                  {poll.createdBy ? (
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(users)/[id]",
+                          params: { id: poll.createdBy!.id },
+                        })
+                      }
+                      className="flex-row items-center"
+                    >
+                      <Text
+                        numberOfLines={1}
+                        className="shrink font-bold text-black dark:text-white"
+                      >
+                        {userDisplayName(poll.createdBy)}
+                      </Text>
+                      <Text className="ml-1.5 text-sm font-bold text-amber-600 dark:text-amber-400">
+                        · {t("pollCreator")}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  <Text className={`${poll.createdBy ? "mt-1" : ""} text-lg font-medium leading-6 text-black dark:text-white`}>
                     {poll.title}
                   </Text>
-                  {pollExpanded ? (
-                    <CaretUpIcon size={18} color="#7C3AED" weight="bold" />
-                  ) : (
-                    <CaretDownIcon size={18} color="#7C3AED" weight="bold" />
-                  )}
-                </TouchableOpacity>
-                {pollExpanded ? (
-                  <>
-                    <View className="mt-3 gap-2">
-                      {poll.options.map((option) => {
-                        const percentage = poll.totalVotes
-                          ? Math.round((option.votesCount / poll.totalVotes) * 100)
-                          : 0;
-                        return (
-                          <TouchableOpacity
-                            key={option.id}
-                            disabled={!!poll.closedAt || !!votingOptionId}
-                            onPress={() => void selectPollOption(option.id)}
-                            className="relative overflow-hidden rounded-2xl border border-violet-200 bg-white px-4 py-3 dark:border-violet-800 dark:bg-gray-900"
-                          >
-                            <View
-                              pointerEvents="none"
-                              className="absolute inset-0"
-                            >
+
+                  <View className="mt-3 gap-2.5">
+                    {poll.options.map((option) => {
+                      const percentage = poll.totalVotes
+                        ? Math.round((option.votesCount / poll.totalVotes) * 100)
+                        : 0;
+                      return (
+                        <TouchableOpacity
+                          key={option.id}
+                          disabled={!!poll.closedAt || !!votingOptionId}
+                          activeOpacity={0.78}
+                          onPress={() => void selectPollOption(option.id)}
+                          className="relative min-h-14 justify-center overflow-hidden rounded-2xl border border-black/10 bg-[#F1EFEB] px-4 py-3.5 dark:border-white/15 dark:bg-[#252527]"
+                          style={{
+                            opacity:
+                              votingOptionId && votingOptionId !== option.id
+                                ? 0.62
+                                : 1,
+                          }}
+                        >
+                          {poll.totalVotes > 0 ? (
+                            <View pointerEvents="none" className="absolute inset-0">
                               <View
-                                className="h-full bg-violet-100 dark:bg-violet-900/60"
+                                className={
+                                  option.isVoted
+                                    ? "h-full bg-amber-200/65 dark:bg-amber-800/35"
+                                    : "h-full bg-black/[0.045] dark:bg-white/[0.06]"
+                                }
                                 style={{ width: `${percentage}%` }}
                               />
                             </View>
-                            <View className="flex-row items-center justify-between">
-                              <Text className={`flex-1 font-bold ${option.isVoted ? "text-violet-700 dark:text-violet-200" : "text-black dark:text-white"}`}>
-                                {option.title}
-                              </Text>
-                              <Text className="ml-3 font-bold text-violet-700 dark:text-violet-200">
+                          ) : null}
+                          <View className="flex-row items-center">
+                            <Text
+                              numberOfLines={2}
+                              className={`min-w-0 flex-1 text-base font-semibold ${
+                                option.isVoted
+                                  ? "text-amber-900 dark:text-amber-100"
+                                  : "text-black dark:text-white"
+                              }`}
+                            >
+                              {option.title}
+                            </Text>
+                            {option.isVoted ? (
+                              <CheckCircleIcon
+                                size={18}
+                                color={isDark ? "#F3C969" : "#B7791F"}
+                                weight="fill"
+                                style={{ marginLeft: 10 }}
+                              />
+                            ) : null}
+                            {poll.totalVotes > 0 ? (
+                              <Text className="ml-2 text-sm font-bold text-gray-600 dark:text-gray-300">
                                 {percentage}%
                               </Text>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                    <Text className="mt-3 text-xs font-semibold text-violet-600 dark:text-violet-300">
+                            ) : null}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <View className="mt-3 flex-row items-center justify-between">
+                    <Text className="text-sm text-gray-400">
+                      {poll.createdAt
+                        ? formatCommentTime(
+                            poll.createdAt,
+                            i18n.resolvedLanguage ?? i18n.language,
+                          )
+                        : ""}
+                    </Text>
+                    <Text className="text-sm text-gray-500 dark:text-gray-400">
                       {t("pollVotes", { count: poll.totalVotes })}
                     </Text>
-                  </>
-                ) : null}
+                  </View>
+                </View>
               </View>
             ) : null}
           </View>

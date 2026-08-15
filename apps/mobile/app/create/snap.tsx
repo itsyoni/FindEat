@@ -6,6 +6,10 @@ import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { getVideoDurationMs } from "@/lib/videoDuration";
+import {
+  MediaLibraryPermissionError,
+  saveImageToGallery,
+} from "@/lib/saveImageToGallery";
 import ContentVideo from "@/components/posts/content/ContentVideo";
 import SoundPickerModal from "@/components/sounds/SoundPickerModal";
 import SoundPlayback from "@/components/sounds/SoundPlayback";
@@ -25,6 +29,7 @@ import { router, Stack } from "expo-router";
 import {
   ArrowsClockwiseIcon,
   CameraIcon,
+  DownloadSimpleIcon,
   ImagesIcon,
   LightningIcon,
   LightningSlashIcon,
@@ -68,7 +73,27 @@ export default function CreateSnapScreen() {
   const [restaurant, setRestaurant] = useState<SelectedRestaurant | null>(null);
   const [choosingRestaurant, setChoosingRestaurant] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [savingToGallery, setSavingToGallery] = useState(false);
   const publishStartedRef = useRef(false);
+
+  async function saveSnapPhotoToGallery() {
+    if (!imageUri || savingToGallery) return;
+    setSavingToGallery(true);
+    try {
+      await saveImageToGallery(imageUri);
+      Alert.alert(t("common:savedToGallery"));
+    } catch (error) {
+      Alert.alert(
+        t(
+          error instanceof MediaLibraryPermissionError
+            ? "common:saveToGalleryPermission"
+            : "common:saveToGalleryFailed",
+        ),
+      );
+    } finally {
+      setSavingToGallery(false);
+    }
+  }
 
   useEffect(() => {
     if (
@@ -336,6 +361,24 @@ export default function CreateSnapScreen() {
             <Text className="ml-3 flex-1 text-xl font-bold text-white">
               {t("snaps:newSnap")}
             </Text>
+            {imageUri ? (
+              <TouchableOpacity
+                accessibilityLabel={t("common:saveToGallery")}
+                disabled={savingToGallery}
+                onPress={() => void saveSnapPhotoToGallery()}
+                className="mr-2 h-11 w-11 items-center justify-center rounded-full bg-black/45"
+              >
+                {savingToGallery ? (
+                  <ActivityIndicator size="small" color="#FAF9F6" />
+                ) : (
+                  <DownloadSimpleIcon
+                    size={21}
+                    color="#FAF9F6"
+                    weight="bold"
+                  />
+                )}
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               onPress={() => setSoundPickerOpen(true)}
               className="h-11 flex-row items-center rounded-full bg-black/45 px-3"

@@ -206,6 +206,7 @@
   "noListsHint": "Create lists for trips, neighborhoods, date nights, or anywhere you want to eat next.",
   "noPlacesInList": "This list is ready for places",
   "noPlacesInListHint": "Tap the bookmark on any restaurant or post to add it here.",
+  "noPlacesToAddHint": "No places are available in this area yet. Try moving the map or choosing another area.",
   "listLoadError": "Could not open this list. Please try again.",
   "listOptions": "List options",
   "viewFolderOnMap": "View folder on map",
@@ -309,6 +310,10 @@
   },
   "writtenReview": "Written review",
   "quickPost": "Quick post",
+  "saveToGallery": "Save to gallery",
+  "savedToGallery": "Saved to your gallery",
+  "saveToGalleryFailed": "Could not save this photo. Please try again.",
+  "saveToGalleryPermission": "Allow photo access to save this image to your gallery.",
   "wrongRestaurantAssociation": "This content isn't about our restaurant",
   "wrongRestaurantAssociationHint": "Ask the author to check the restaurant association",
   "reportReasons": {

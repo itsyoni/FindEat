@@ -20,6 +20,10 @@ import { useTranslation } from "react-i18next";
 import DishPhotoPickerCard from "../components/DishPhotoPickerCard";
 import PriceInput from "../components/PriceInput";
 import RatingPicker from "../components/RatingPicker";
+import {
+  MediaLibraryPermissionError,
+  saveImageToGallery,
+} from "@/lib/saveImageToGallery";
 
 type Props = {
   selectedDish: Pick<Dish, "id" | "name" | "price" | "imageUrl"> | null;
@@ -61,6 +65,7 @@ export default function AddDishDetailsStep({
     null,
   );
   const imageSelectionRef = useRef(0);
+  const [savingToGallery, setSavingToGallery] = useState(false);
 
   async function choosePhoto(source: ReviewImageSource) {
     if (pickingSource) return;
@@ -99,6 +104,26 @@ export default function AddDishDetailsStep({
     imageSelectionRef.current += 1;
     onDraftChange({ imageUri: undefined });
     setPickingSource(null);
+  }
+
+  async function saveDishPhotoToGallery() {
+    if (!imageUri || savingToGallery) return;
+    setSavingToGallery(true);
+    try {
+      await saveImageToGallery(imageUri);
+      showToast(t("common:savedToGallery"), { kind: "success" });
+    } catch (error) {
+      showToast(
+        t(
+          error instanceof MediaLibraryPermissionError
+            ? "common:saveToGalleryPermission"
+            : "common:saveToGalleryFailed",
+        ),
+        { kind: "error" },
+      );
+    } finally {
+      setSavingToGallery(false);
+    }
   }
 
   function handleSave() {
@@ -155,6 +180,8 @@ export default function AddDishDetailsStep({
           disabled={submitting}
           onChoose={(source) => void choosePhoto(source)}
           onRemove={removePhoto}
+          onSaveToGallery={imageUri ? () => void saveDishPhotoToGallery() : undefined}
+          savingToGallery={savingToGallery}
         />
 
         <View className="mt-7 gap-7">

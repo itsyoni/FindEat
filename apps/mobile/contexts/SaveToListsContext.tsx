@@ -272,6 +272,7 @@ export function SaveToListsProvider({ children }: { children: ReactNode }) {
       const listResult = await api.placeLists.setRestaurantLists(
         restaurantId,
         Array.from(selectedIds),
+        savedFromPostId,
       );
       setSavedListCounts((current) => ({
         ...current,

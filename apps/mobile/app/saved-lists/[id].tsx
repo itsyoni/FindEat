@@ -167,6 +167,15 @@ export default function SavedListDetailScreen() {
                   params: { id: item.restaurant.id },
                 })
               }
+              onPressSourcePost={
+                item.sourcePost
+                  ? () =>
+                      router.push({
+                        pathname: "/(posts)/[id]",
+                        params: { id: item.sourcePost!.id },
+                      })
+                  : undefined
+              }
             />
           )}
           ListHeaderComponent={

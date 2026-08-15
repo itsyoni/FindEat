@@ -1,7 +1,12 @@
 import Text from "@/components/common/AppText";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import type { ReviewImageSource } from "@/lib/reviewImagePicker";
-import { CameraIcon, ImagesIcon, TrashIcon } from "phosphor-react-native";
+import {
+  CameraIcon,
+  DownloadSimpleIcon,
+  ImagesIcon,
+  TrashIcon,
+} from "phosphor-react-native";
 import { ActivityIndicator, Image, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -16,6 +21,8 @@ type Props = {
   aspectRatio?: number;
   onChoose: (source: ReviewImageSource) => void;
   onRemove: () => void;
+  onSaveToGallery?: () => void;
+  savingToGallery?: boolean;
 };
 
 export default function DishPhotoPickerCard({
@@ -29,6 +36,8 @@ export default function DishPhotoPickerCard({
   aspectRatio = 4 / 3,
   onChoose,
   onRemove,
+  onSaveToGallery,
+  savingToGallery = false,
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
@@ -62,6 +71,20 @@ export default function DishPhotoPickerCard({
               <TrashIcon size={19} color="#FAF9F6" weight="fill" />
             )}
           </TouchableOpacity>
+          {onSaveToGallery ? (
+            <TouchableOpacity
+              accessibilityLabel={t("common:saveToGallery")}
+              disabled={disabled || savingToGallery}
+              onPress={onSaveToGallery}
+              className="absolute bottom-3 right-3 h-10 w-10 items-center justify-center rounded-full bg-black/70"
+            >
+              {savingToGallery ? (
+                <ActivityIndicator size="small" color="#FAF9F6" />
+              ) : (
+                <DownloadSimpleIcon size={20} color="#FAF9F6" weight="bold" />
+              )}
+            </TouchableOpacity>
+          ) : null}
         </View>
       ) : fallbackImageUrl ? (
         <View style={{ width: "100%", aspectRatio }}>

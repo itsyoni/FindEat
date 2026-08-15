@@ -129,10 +129,14 @@ export function createPlaceListsApi(api: AxiosInstance) {
       return data;
     },
 
-    async setRestaurantLists(restaurantId: string, listIds: string[]) {
+    async setRestaurantLists(
+      restaurantId: string,
+      listIds: string[],
+      sourcePostId?: string,
+    ) {
       const { data } = await api.put<RestaurantPlaceLists>(
         `/place-lists/for-restaurant/${restaurantId}`,
-        { listIds },
+        { listIds, sourcePostId },
       );
       return data;
     },

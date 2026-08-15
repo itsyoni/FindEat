@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   HeartIcon,
   MapTrifoldIcon,
+  PlusIcon,
   StarIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
@@ -19,6 +20,8 @@ type Props = {
   restaurant: Restaurant;
   onOpen: () => void;
   onShowOnMap: () => void;
+  onAdd?: () => void;
+  added?: boolean;
 };
 
 function formatRating(rating?: number | null) {
@@ -37,8 +40,10 @@ export default function MapRestaurantListCard({
   restaurant,
   onOpen,
   onShowOnMap,
+  onAdd,
+  added = false,
 }: Props) {
-  const { t } = useTranslation(["map", "restaurants"]);
+  const { t } = useTranslation(["map", "restaurants", "common"]);
   const { isDark } = useAppTheme();
   const rating = formatRating(restaurant.averageRating);
   const distance = formatDistance(restaurant.distanceKm);
@@ -185,6 +190,24 @@ export default function MapRestaurantListCard({
             </Text>
           )}
         </View>
+
+        {onAdd ? (
+          <TouchableOpacity
+            disabled={added}
+            activeOpacity={0.8}
+            onPress={(event) => {
+              event.stopPropagation();
+              onAdd();
+            }}
+            className="mr-2 flex-row items-center rounded-xl bg-brand px-3 py-2"
+            style={{ opacity: added ? 0.55 : 1 }}
+          >
+            <PlusIcon size={16} color="#FAF9F6" weight="bold" />
+            <Text className="ml-1.5 text-xs font-bold text-white">
+              {added ? t("common:saved") : t("common:addToList")}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.8}

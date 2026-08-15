@@ -10,7 +10,7 @@ import {
   StarIcon,
   UserIcon,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   I18nManager,
@@ -343,9 +343,14 @@ export default function ReviewPost({
   const displayName = isRestaurantPost
     ? post.authorRestaurant?.name
     : userDisplayName(post.author);
-  const joinedCollaborators = (post.reviewParticipants ?? []).filter(
-    (participant) =>
-      participant.status === "JOINED" && participant.userId !== post.authorId,
+  const joinedCollaborators = useMemo(
+    () =>
+      (post.reviewParticipants ?? []).filter(
+        (participant) =>
+          participant.status === "JOINED" &&
+          participant.userId !== post.authorId,
+      ),
+    [post.authorId, post.reviewParticipants],
   );
   const firstCollaborator = joinedCollaborators[0];
   const additionalCollaboratorCount = Math.max(
@@ -365,10 +370,13 @@ export default function ReviewPost({
             collaborator: userDisplayName(firstCollaborator.user),
           })
       : null;
-  const collaborationUsers = [
-    ...(post.author ? [post.author] : []),
-    ...joinedCollaborators.map((participant) => participant.user),
-  ];
+  const collaborationUsers = useMemo(
+    () => [
+      ...(post.author ? [post.author] : []),
+      ...joinedCollaborators.map((participant) => participant.user),
+    ],
+    [joinedCollaborators, post.author],
+  );
   const joinedRatingParticipants = (post.reviewParticipants ?? []).filter(
     (participant) => participant.status === "JOINED",
   );
@@ -557,13 +565,11 @@ export default function ReviewPost({
               activeOpacity={0.82}
               onPress={() => setCollaboratorsOpen(true)}
               style={{
-                width: additionalCollaboratorCount > 0 ? 98 : 70,
-                height: 42,
-                flexDirection: "row",
-                alignItems: "center",
+                width: 52,
+                height: 48,
               }}
             >
-              <View style={{ zIndex: 3 }}>
+              <View style={{ position: "absolute", left: 0, bottom: 0 }}>
                 <Avatar
                   uri={displayAvatar}
                   username={displayName}
@@ -572,29 +578,34 @@ export default function ReviewPost({
                   showSnapIndicator={false}
                 />
               </View>
-              <View style={{ marginLeft: -14, zIndex: 2 }}>
-                <Avatar
-                  uri={firstCollaborator.user.avatarUrl}
-                  username={firstCollaborator.user.username}
-                  userId={firstCollaborator.userId}
-                  size={42}
-                  showSnapIndicator={false}
-                />
+              <View
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: 0,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 13,
+                  padding: 2,
+                  backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
+                }}
+              >
+                {additionalCollaboratorCount === 0 ? (
+                  <Avatar
+                    uri={firstCollaborator.user.avatarUrl}
+                    username={firstCollaborator.user.username}
+                    userId={firstCollaborator.userId}
+                    size={22}
+                    showSnapIndicator={false}
+                  />
+                ) : (
+                  <View className="h-[22px] w-[22px] items-center justify-center rounded-full bg-brand">
+                    <Text className="text-[10px] font-bold text-white">
+                      +{joinedCollaborators.length}
+                    </Text>
+                  </View>
+                )}
               </View>
-              {additionalCollaboratorCount > 0 ? (
-                <View
-                  className="h-[42px] w-[42px] items-center justify-center rounded-full border-2 bg-brand"
-                  style={{
-                    marginLeft: -14,
-                    zIndex: 1,
-                    borderColor: isDark ? "#0B0B0A" : "#FAF9F6",
-                  }}
-                >
-                  <Text className="text-xs font-bold text-white">
-                    +{additionalCollaboratorCount}
-                  </Text>
-                </View>
-              ) : null}
             </TouchableOpacity>
           ) : (
             <SnapAvatarButton
@@ -1139,6 +1150,7 @@ export default function ReviewPost({
         users={collaborationUsers}
         title={tCollaboration("includedPeople")}
         displayNames
+        showRelationshipActions
         onClose={() => setCollaboratorsOpen(false)}
       />
     </View>

@@ -29,6 +29,10 @@ import { getVideoDurationMs } from "@/lib/videoDuration";
 import { cropPostImage } from "@/lib/cropPostImage";
 import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
 import {
+  MediaLibraryPermissionError,
+  saveImageToGallery,
+} from "@/lib/saveImageToGallery";
+import {
   coordinateDistanceKm,
   coordinatesFromExif,
   estimateMediaLocation,
@@ -774,6 +778,27 @@ export default function CreateContentScreen() {
     }
   }, [editingMedia, media, previewMediaIndex, showToast, t, userId]);
 
+  const saveSelectedPhotoToGallery = useCallback(async () => {
+    const selected = media[previewMediaIndex];
+    if (!selected || selected.type !== "IMAGE" || editingMedia) return;
+    setEditingMedia(true);
+    try {
+      await saveImageToGallery(selected.uri);
+      showToast(t("common:savedToGallery"), { kind: "success" });
+    } catch (error) {
+      showToast(
+        t(
+          error instanceof MediaLibraryPermissionError
+            ? "common:saveToGalleryPermission"
+            : "common:saveToGalleryFailed",
+        ),
+        { kind: "error" },
+      );
+    } finally {
+      setEditingMedia(false);
+    }
+  }, [editingMedia, media, previewMediaIndex, showToast, t]);
+
   const rotateSelectedPhoto = useCallback(async () => {
     const selected = media[previewMediaIndex];
     if (!selected || selected.type !== "IMAGE" || editingMedia) return;
@@ -1334,6 +1359,7 @@ export default function CreateContentScreen() {
           onAdd={promptAddPhoto}
           onCrop={() => void cropSelectedPhoto()}
           onRotate={() => void rotateSelectedPhoto()}
+          onSaveToGallery={() => void saveSelectedPhotoToGallery()}
           onDelete={removePreviewMedia}
           onReorder={reorderPhotos}
         />

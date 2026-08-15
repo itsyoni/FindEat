@@ -19,7 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 import Mapbox from "@rnmapbox/maps";
 import { router, useLocalSearchParams } from "expo-router";
-import { MapPinIcon, PlusIcon } from "phosphor-react-native";
+import { MapPinIcon, StorefrontIcon } from "phosphor-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, TouchableOpacity, View } from "react-native";
@@ -218,14 +218,6 @@ export default function DiscoverListPlacesScreen() {
                 centerCoordinate: [list?.eventLocationLongitude ?? 0, list?.eventLocationLatitude ?? 0],
                 zoomLevel: 11,
               }}
-              {...(list?.destinationBounds
-                ? {
-                    maxBounds: {
-                      ne: [list.destinationBounds.east, list.destinationBounds.north] as [number, number],
-                      sw: [list.destinationBounds.west, list.destinationBounds.south] as [number, number],
-                    },
-                  }
-                : {})}
             />
             {restaurants.filter((restaurant) => restaurant.latitude != null && restaurant.longitude != null).map((restaurant) => (
               <Mapbox.PointAnnotation
@@ -262,25 +254,33 @@ export default function DiscoverListPlacesScreen() {
         <FlatList
           data={restaurants}
           keyExtractor={(restaurant) => restaurant.id}
-          contentContainerStyle={{ paddingTop: 14, paddingBottom: 36 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingTop: 14,
+            paddingBottom: 36,
+          }}
           renderItem={({ item }) => (
-            <View>
-              <MapRestaurantListCard
-                restaurant={item}
-                onOpen={() => router.push({ pathname: "/restaurants/[id]", params: { id: item.id } })}
-                onShowOnMap={() => setMode("MAP")}
-              />
-              <TouchableOpacity
-                disabled={savedIds.has(item.id)}
-                onPress={() => void addToTrip(item.id)}
-                className="absolute bottom-7 right-7 flex-row items-center rounded-xl bg-brand px-3 py-2"
-                style={{ opacity: savedIds.has(item.id) ? 0.55 : 1 }}
-              >
-                <PlusIcon size={15} color="#FAF9F6" weight="bold" />
-                <Text className="ml-1 text-xs font-bold text-white">{savedIds.has(item.id) ? "Added" : "Add"}</Text>
-              </TouchableOpacity>
-            </View>
+            <MapRestaurantListCard
+              restaurant={item}
+              onOpen={() => router.push({ pathname: "/restaurants/[id]", params: { id: item.id } })}
+              onShowOnMap={() => setMode("MAP")}
+              onAdd={() => void addToTrip(item.id)}
+              added={savedIds.has(item.id)}
+            />
           )}
+          ListEmptyComponent={
+            <View className="flex-1 items-center justify-center px-8 py-16">
+              <View className="h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/50">
+                <StorefrontIcon size={30} color="#D97706" weight="duotone" />
+              </View>
+              <Text className="mt-4 text-center text-lg font-bold text-black dark:text-white">
+                {t("noResultsFound")}
+              </Text>
+              <Text className="mt-2 text-center leading-5 text-gray-500 dark:text-gray-400">
+                {t("noPlacesToAddHint")}
+              </Text>
+            </View>
+          }
         />
       )}
 
