@@ -13,6 +13,7 @@ export const DEFAULT_MAP_PREFERENCES: MapPreferences = {
   matchCuisines: false,
   hideFlaggedAllergens: false,
   activityHeatmapEnabled: true,
+  badgeKeys: [],
 };
 
 const MAP_PREFERENCES_VERSION = 2;
@@ -31,6 +32,20 @@ const SORTS: RestaurantMapSort[] = [
   "MOST_REVIEWED",
 ];
 const RADII = [10, 50, 100, 200, null];
+const BADGE_KEYS = [
+  "LOVERS_PLACE",
+  "FRIENDS_FAVORITE",
+  "FAMILY_PICK",
+  "CELEBRATION_SPOT",
+  "WORK_FRIENDLY",
+  "ACCESSIBLE_CHOICE",
+  "EASY_PARKING",
+  "WIFI_READY",
+  "OUTDOOR_FAVORITE",
+  "QUIET_SPOT",
+  "PET_FRIENDLY",
+  "LATE_NIGHT_GO_TO",
+] as const;
 
 function storageKey(userId: string) {
   return `findeat_map_preferences_${userId}`;
@@ -65,6 +80,9 @@ export async function getMapPreferences(userId: string) {
       matchCuisines: parsed.matchCuisines === true,
       hideFlaggedAllergens: parsed.hideFlaggedAllergens === true,
       activityHeatmapEnabled: parsed.activityHeatmapEnabled !== false,
+      badgeKeys: (parsed.badgeKeys ?? []).filter((key): key is typeof BADGE_KEYS[number] =>
+        BADGE_KEYS.includes(key as typeof BADGE_KEYS[number]),
+      ),
     };
   } catch {
     return DEFAULT_MAP_PREFERENCES;

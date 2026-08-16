@@ -48,6 +48,8 @@
     "RESTAURANT_CLAIM_REJECTED": "Your restaurant claim was rejected",
     "PLACE_LIST_INVITE": "{{name}} invited you to a shared list",
     "PROFILE_TAG_UNLOCKED": "You unlocked a new profile tag",
+    "CREATOR_LEVEL_UP": "Your creator level increased",
+    "RESTAURANT_BADGE_EARNED": "Your restaurant earned a new community badge",
     "REVIEW_INVITE": "{{name}} invited you to review a meal together",
     "REVIEW_JOIN_REQUEST": "{{name}} asked to join your review",
     "REVIEW_JOIN_REQUEST_APPROVED": "{{name}} approved your request to join their review",

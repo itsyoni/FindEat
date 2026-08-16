@@ -140,5 +140,24 @@
   "viewRestaurant": "הצגת המסעדה",
   "favorited": "במועדפים",
   "favoriteDishes": "מנות מועדפות",
-  "favoriteDishesHint": "המנות המועדפות ששמרת מהמסעדה הזו."
+  "favoriteDishesHint": "המנות המועדפות ששמרת מהמסעדה הזו.",
+  "earnedBadges": "תגי קהילה",
+  "earnedBadgesCount_one": "תג קהילה אחד",
+  "earnedBadgesCount_two": "{{count}} תגי קהילה",
+  "earnedBadgesCount_other": "{{count}} תגי קהילה",
+  "badgeEvidence": "מבוסס על {{count}} ביקורות קהילה",
+  "badges": {
+    "LOVERS_PLACE": { "title": "המקום לאוהבים", "description": "בחירת הקהילה לדייטים וארוחות רומנטיות." },
+    "FRIENDS_FAVORITE": { "title": "המועדף של החברים", "description": "בחירה אמינה למפגש עם חברים וקבוצות." },
+    "FAMILY_PICK": { "title": "בחירה למשפחה", "description": "מומלץ שוב ושוב לארוחות משפחתיות וילדים." },
+    "CELEBRATION_SPOT": { "title": "מקום לחגיגה", "description": "נבחר לימי הולדת ואירועים מיוחדים." },
+    "WORK_FRIENDLY": { "title": "מתאים לעבודה", "description": "מקום נוח לעבודה או לפגישה." },
+    "ACCESSIBLE_CHOICE": { "title": "בחירה נגישה", "description": "הנגישות אושרה על ידי מספר מבקרים." },
+    "EASY_PARKING": { "title": "חניה נוחה", "description": "מבקרים מדווחים באופן עקבי על חניה נוחה בסביבה." },
+    "WIFI_READY": { "title": "Wi-Fi זמין", "description": "מבקרים מאשרים שיש חיבור Wi-Fi שימושי." },
+    "OUTDOOR_FAVORITE": { "title": "אהוב בחוץ", "description": "מוכר בזכות חוויית ישיבה נעימה בחוץ." },
+    "QUIET_SPOT": { "title": "מקום שקט", "description": "בחירת קהילה לביקור רגוע יותר." },
+    "PET_FRIENDLY": { "title": "ידידותי לחיות", "description": "מבקרים מאשרים שנעים להגיע לכאן עם חיות." },
+    "LATE_NIGHT_GO_TO": { "title": "בחירה ללילה", "description": "בחירה מוכחת לאוכל בשעות מאוחרות." }
+  }
 }

@@ -202,6 +202,31 @@ export type ManagedRestaurant = {
   reviewsCount?: number;
   accessRole?: "OWNER" | "MANAGER" | "ADMIN" | null;
   status?: RestaurantStatus;
+  earnedBadges?: RestaurantEarnedBadge[];
+};
+
+export type RestaurantBadgeKey =
+  | "LOVERS_PLACE"
+  | "FRIENDS_FAVORITE"
+  | "FAMILY_PICK"
+  | "CELEBRATION_SPOT"
+  | "WORK_FRIENDLY"
+  | "ACCESSIBLE_CHOICE"
+  | "EASY_PARKING"
+  | "WIFI_READY"
+  | "OUTDOOR_FAVORITE"
+  | "QUIET_SPOT"
+  | "PET_FRIENDLY"
+  | "LATE_NIGHT_GO_TO";
+
+export type RestaurantEarnedBadge = {
+  id: string;
+  key: RestaurantBadgeKey;
+  title: string;
+  description: string;
+  evidenceCount: number;
+  eligibleReviewCount: number;
+  earnedAt: string;
 };
 
 export const RESTAURANT_CATEGORY_OPTIONS = [
@@ -290,6 +315,7 @@ export type Restaurant = {
   reviewsCount?: number;
   distanceKm?: number;
   savedListCount?: number;
+  earnedBadges?: RestaurantEarnedBadge[];
   compatibility?: {
     allergenWarnings: Array<{ tag: string; dishCount: number }>;
     exclusionWarnings: Array<{ tag: string; dishCount: number }>;

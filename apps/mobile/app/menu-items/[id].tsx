@@ -17,6 +17,7 @@ import { AppAlert as Alert } from "@/lib/appAlert";
 import { publishDishFavoriteChange } from "@/lib/dishFavorites";
 import { getMobileCompatibleImageUrl } from "@findeat/utils";
 import { userDisplayName, usernameLabel } from "@/lib/userIdentity";
+import DishPrice from "@/components/restaurants/DishPrice";
 
 export default function MenuItemScreen() {
   const { isDark } = useAppTheme();
@@ -263,13 +264,7 @@ export default function MenuItemScreen() {
                   {dish.favoriteCount ?? 0}
                 </Text>
               </TouchableOpacity>
-              {dish.price != null && (
-                <View className="rounded-full bg-brand-soft px-4 py-2 dark:bg-orange-950/50">
-                  <Text className="text-xl font-bold text-brand dark:text-orange-300">
-                    ₪{dish.price}
-                  </Text>
-                </View>
-              )}
+              <DishPrice dish={dish} large />
             </View>
           </View>
 

@@ -72,7 +72,7 @@ export default function BusinessMenuScreen() {
             )}
 
             <Text className="mt-3 text-sm text-gray-500">
-              {item.items.length} dishes
+              {item.items.length} dishes · {item.sectionType === "DRINKS" ? "Drinks" : "Food"}
             </Text>
 
             <AppButton
@@ -95,6 +95,7 @@ export default function BusinessMenuScreen() {
                     title: item.title,
                     description: item.description ?? "",
                     itemsCount: item.items.length.toString(),
+                    sectionType: item.sectionType,
                   },
                 })
               }

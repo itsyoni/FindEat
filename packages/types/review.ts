@@ -1,5 +1,6 @@
 import type { SelectedRestaurant } from "./restaurant";
 import type { PostVisibility } from "./post";
+import type { ReviewExperienceTag, ReviewRecommendedFor } from "./post";
 import type { UserSummary } from "./user";
 import type { Dish } from "./menu";
 
@@ -54,6 +55,9 @@ export type CreateReviewDraft = {
   coverImageUri?: string;
   coverImageUrl?: string;
   summary: string;
+  visitDate?: string;
+  recommendedFor?: ReviewRecommendedFor;
+  experienceTags: ReviewExperienceTag[];
   atmosphereRating?: number;
   serviceRating?: number;
   valueRating?: number;

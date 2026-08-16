@@ -9,6 +9,7 @@ export const businessPaths: Record<BusinessDashboardSection, string> = {
   dashboard: "/dashboard",
   menu: "/menu",
   reviews: "/reviews",
+  badges: "/badges",
   messages: "/messages",
   notifications: "/home",
   profile: "/restaurant-profile",

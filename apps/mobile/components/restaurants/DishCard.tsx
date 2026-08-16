@@ -7,6 +7,7 @@ import { DishCompatibilityChips } from "./FoodCompatibility";
 import { HeartIcon } from "phosphor-react-native";
 import { getMobileCompatibleImageUrl } from "@findeat/utils";
 import { useState } from "react";
+import DishPrice from "./DishPrice";
 
 type Props = {
   item: Restaurant["menus"][number]["items"][number];
@@ -100,13 +101,7 @@ export default function DishCard({
               {item.name}
             </Text>
 
-            {item.price != null && (
-              <View className="rounded-full bg-brand-soft px-2.5 py-1 dark:bg-orange-950/50">
-                <Text style={rtlTextStyle} className="font-bold text-brand dark:text-orange-300">
-                  ₪{item.price}
-                </Text>
-              </View>
-            )}
+            <DishPrice dish={item} />
           </View>
 
           {contextLabel ? (

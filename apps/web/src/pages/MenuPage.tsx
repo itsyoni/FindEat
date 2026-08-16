@@ -12,7 +12,9 @@ import { ChartLineUpIcon } from "@phosphor-icons/react/dist/csr/ChartLineUp";
 import { DotsThreeVerticalIcon } from "@phosphor-icons/react/dist/csr/DotsThreeVertical";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
-import type { Dish, Menu } from "@findeat/types";
+import { ForkKnifeIcon } from "@phosphor-icons/react/dist/csr/ForkKnife";
+import { MartiniIcon } from "@phosphor-icons/react/dist/csr/Martini";
+import type { Dish, Menu, MenuSectionType } from "@findeat/types";
 import { DishEditorModal } from "../components/DishEditorModal";
 import { DishFoodTags } from "../components/DishFoodTags";
 import { DishInsightsModal } from "../components/DishInsightsModal";
@@ -79,6 +81,7 @@ export function MenuPage({
   reload: () => Promise<void>;
 }) {
   const [newTitle, setNewTitle] = useState("");
+  const [newSectionType, setNewSectionType] = useState<MenuSectionType>("FOOD");
   const [createSectionOpen, setCreateSectionOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(menus[0]?.id ?? null);
   const [dishMenu, setDishMenu] = useState<string | null>(null);
@@ -119,9 +122,14 @@ export function MenuPage({
     try {
       await request("/business/menus", {
         method: "POST",
-        body: JSON.stringify({ title: newTitle, restaurantId }),
+        body: JSON.stringify({
+          title: newTitle,
+          sectionType: newSectionType,
+          restaurantId,
+        }),
       });
       setNewTitle("");
+      setNewSectionType("FOOD");
       setCreateSectionOpen(false);
       await reload();
     } catch (nextError) {
@@ -212,6 +220,27 @@ export function MenuPage({
     await reload();
   }
 
+  async function updateMenuSectionType(
+    menu: Menu,
+    sectionType: MenuSectionType,
+  ) {
+    if (menu.sectionType === sectionType) return;
+    setError("");
+    try {
+      await request(`/business/menus/${menu.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ sectionType }),
+      });
+      await reload();
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Could not update menu section type",
+      );
+    }
+  }
+
   async function deleteMenu(menu: Menu) {
     if (menu.items.length) {
       setError("Delete the dishes in this section first.");
@@ -291,6 +320,27 @@ export function MenuPage({
               maxLength={80}
               onChange={(event) => setNewTitle(event.target.value)}
             />
+            <fieldset className="menu-section-type-picker">
+              <legend>What does this section contain?</legend>
+              <button
+                type="button"
+                className={newSectionType === "FOOD" ? "selected" : ""}
+                onClick={() => setNewSectionType("FOOD")}
+              >
+                <ForkKnifeIcon size={22} weight="duotone" />
+                <span><strong>Food</strong><small>Dishes, desserts, and snacks</small></span>
+                <i><CheckIcon size={14} weight="bold" /></i>
+              </button>
+              <button
+                type="button"
+                className={newSectionType === "DRINKS" ? "selected" : ""}
+                onClick={() => setNewSectionType("DRINKS")}
+              >
+                <MartiniIcon size={22} weight="duotone" />
+                <span><strong>Drinks</strong><small>Cocktails, wine, coffee, and soft drinks</small></span>
+                <i><CheckIcon size={14} weight="bold" /></i>
+              </button>
+            </fieldset>
             <div className="menu-section-create-actions">
               <button
                 type="button"
@@ -320,7 +370,12 @@ export function MenuPage({
               onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
             >
               <div>
-                <h3>{menu.title}</h3>
+                <div className="menu-section-title-row">
+                  <h3>{menu.title}</h3>
+                  <span className={`menu-section-type-badge ${menu.sectionType === "DRINKS" ? "drinks" : "food"}`}>
+                    {menu.sectionType === "DRINKS" ? "Drinks" : "Food"}
+                  </span>
+                </div>
                 <p>
                   {menu.items.length}{" "}
                   {menu.items.length === 1 ? "item" : "items"}
@@ -535,6 +590,22 @@ export function MenuPage({
                       >
                         Rename section
                       </button>
+                      <div className="menu-section-type-toggle" role="group" aria-label={`Type for ${menu.title}`}>
+                        <button
+                          type="button"
+                          className={menu.sectionType !== "DRINKS" ? "selected" : ""}
+                          onClick={() => void updateMenuSectionType(menu, "FOOD")}
+                        >
+                          <ForkKnifeIcon size={14} weight="bold" /> Food
+                        </button>
+                        <button
+                          type="button"
+                          className={menu.sectionType === "DRINKS" ? "selected" : ""}
+                          onClick={() => void updateMenuSectionType(menu, "DRINKS")}
+                        >
+                          <MartiniIcon size={14} weight="bold" /> Drinks
+                        </button>
+                      </div>
                     </div>
                     <button
                       className="text-danger"

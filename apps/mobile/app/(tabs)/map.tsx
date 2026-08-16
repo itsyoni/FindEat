@@ -26,6 +26,7 @@ import {
   RestaurantActivityHeatPoint,
   RestaurantHotspotActivity,
   RestaurantHotspotActivityItem,
+  RestaurantBadgeKey,
 } from "@findeat/types";
 import type { MapViewMode } from "@findeat/types";
 import type { LocationObject } from "expo-location";
@@ -284,6 +285,9 @@ export default function MapScreen() {
   const [hideFlaggedAllergens, setHideFlaggedAllergens] = useState(
     DEFAULT_MAP_PREFERENCES.hideFlaggedAllergens,
   );
+  const [selectedBadgeKeys, setSelectedBadgeKeys] = useState<RestaurantBadgeKey[]>(
+    DEFAULT_MAP_PREFERENCES.badgeKeys,
+  );
   const [activityHeatmapEnabled, setActivityHeatmapEnabled] = useState(
     DEFAULT_MAP_PREFERENCES.activityHeatmapEnabled,
   );
@@ -340,6 +344,7 @@ export default function MapScreen() {
       setMatchCuisines(preferences.matchCuisines);
       setHideFlaggedAllergens(preferences.hideFlaggedAllergens);
       setActivityHeatmapEnabled(preferences.activityHeatmapEnabled);
+      setSelectedBadgeKeys(preferences.badgeKeys);
       setFiltersHydrated(true);
     });
 
@@ -404,11 +409,13 @@ export default function MapScreen() {
       matchCuisines,
       hideFlaggedAllergens,
       activityHeatmapEnabled,
+      badgeKeys: selectedBadgeKeys,
     }).catch((error) => console.error("Could not save map filters:", error));
   }, [
     filtersHydrated,
     hideFlaggedAllergens,
     activityHeatmapEnabled,
+    selectedBadgeKeys,
     mapFilter,
     mapSort,
     matchCuisines,
@@ -583,6 +590,7 @@ export default function MapScreen() {
         matchDietary,
         matchCuisines,
         hideFlaggedAllergens,
+        badgeKeys: selectedBadgeKeys.length ? selectedBadgeKeys : undefined,
       });
 
       const requestedId =
@@ -647,6 +655,7 @@ export default function MapScreen() {
     radiusKm,
     restaurantId,
     selectedListIds,
+    selectedBadgeKeys,
   ]);
 
   useEffect(() => {
@@ -1029,6 +1038,7 @@ export default function MapScreen() {
               matchDietary,
               matchCuisines,
               hideFlaggedAllergens,
+              badgeKeys: selectedBadgeKeys.length ? selectedBadgeKeys : undefined,
             }),
           ),
         );
@@ -1052,6 +1062,7 @@ export default function MapScreen() {
       matchCuisines,
       matchDietary,
       selectedListIds,
+      selectedBadgeKeys,
       activeCountry?.code,
     ],
   );
@@ -1274,6 +1285,7 @@ export default function MapScreen() {
     matchCuisines,
     hideFlaggedAllergens,
     selectedCities.length > 0,
+    selectedBadgeKeys.length > 0,
   ].filter(Boolean).length;
   const selectedLists = placeLists.filter((list) =>
     selectedListIds.includes(list.id),
@@ -2225,6 +2237,7 @@ export default function MapScreen() {
                     DEFAULT_MAP_PREFERENCES.activityHeatmapEnabled,
                   );
                   setSelectedListIds([]);
+                  setSelectedBadgeKeys([]);
                   setSelectedCities([]);
                   void loadRestaurantsForCities([]);
                 }}
@@ -2455,6 +2468,53 @@ export default function MapScreen() {
                       </Text>
                     </View>
                   </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text className="mb-2 mt-6 font-bold text-black dark:text-white">
+            {t("map:communityBadges")}
+          </Text>
+          <Text className="mb-3 text-sm leading-5 text-gray-500 dark:text-gray-400">
+            {t("map:communityBadgesHint")}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {([
+              "LOVERS_PLACE",
+              "FRIENDS_FAVORITE",
+              "FAMILY_PICK",
+              "CELEBRATION_SPOT",
+              "WORK_FRIENDLY",
+              "ACCESSIBLE_CHOICE",
+              "EASY_PARKING",
+              "WIFI_READY",
+              "OUTDOOR_FAVORITE",
+              "QUIET_SPOT",
+              "PET_FRIENDLY",
+              "LATE_NIGHT_GO_TO",
+            ] as RestaurantBadgeKey[]).map((badgeKey) => {
+              const selected = selectedBadgeKeys.includes(badgeKey);
+              return (
+                <TouchableOpacity
+                  key={badgeKey}
+                  onPress={() =>
+                    setSelectedBadgeKeys((current) =>
+                      selected
+                        ? current.filter((key) => key !== badgeKey)
+                        : [...current, badgeKey],
+                    )
+                  }
+                  className={`flex-row items-center rounded-full border px-3.5 py-2.5 ${
+                    selected
+                      ? "border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/35"
+                      : "border-transparent bg-gray-100 dark:bg-gray-800"
+                  }`}
+                >
+                  {selected ? <CheckIcon size={14} color="#D6A92D" weight="bold" /> : null}
+                  <Text className={`${selected ? "ml-1.5" : ""} font-semibold text-[#171716] dark:text-[#F7F6F2]`}>
+                    {t(`restaurants:badges.${badgeKey}.title`)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}

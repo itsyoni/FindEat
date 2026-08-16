@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
+import type { MenuSectionType } from "@findeat/types";
+import MenuSectionTypeSelector from "@/components/business/MenuSectionTypeSelector";
 
 export default function EditMenuSectionScreen() {
   const params = useLocalSearchParams<{
@@ -13,10 +15,14 @@ export default function EditMenuSectionScreen() {
     title?: string;
     description?: string;
     itemsCount?: string;
+    sectionType?: MenuSectionType;
   }>();
 
   const [title, setTitle] = useState(params.title ?? "");
   const [description, setDescription] = useState(params.description ?? "");
+  const [sectionType, setSectionType] = useState<MenuSectionType>(
+    params.sectionType === "DRINKS" ? "DRINKS" : "FOOD",
+  );
   const [loading, setLoading] = useState(false);
 
   const itemsCount = Number(params.itemsCount ?? 0);
@@ -33,6 +39,7 @@ export default function EditMenuSectionScreen() {
       await api.menu.updateMenu(params.id, {
         title: title.trim(),
         description: description.trim() || null,
+        sectionType,
       });
 
       router.back();
@@ -108,6 +115,8 @@ export default function EditMenuSectionScreen() {
             multiline
             textAlignVertical="top"
           />
+
+          <MenuSectionTypeSelector value={sectionType} onChange={setSectionType} />
 
           <AppButton
             title={loading ? "Saving..." : "Save changes"}

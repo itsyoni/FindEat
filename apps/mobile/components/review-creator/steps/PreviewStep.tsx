@@ -279,6 +279,31 @@ export default function PreviewStep({
               {draft.summary}
             </Text>
           )}
+          {draft.recommendedFor || draft.visitDate || draft.experienceTags?.length ? (
+            <View className="mt-4 flex-row flex-wrap gap-2">
+              {draft.recommendedFor ? (
+                <View className="rounded-full bg-[#FAF9F6] px-3 py-2 dark:bg-[#20201E]">
+                  <Text className="text-xs font-semibold text-[#171716] dark:text-[#F7F6F2]">
+                    {t(`create:visitOccasions.${draft.recommendedFor}`)}
+                  </Text>
+                </View>
+              ) : null}
+              {draft.visitDate ? (
+                <View className="rounded-full bg-[#FAF9F6] px-3 py-2 dark:bg-[#20201E]">
+                  <Text className="text-xs font-semibold text-[#171716] dark:text-[#F7F6F2]">
+                    {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(draft.visitDate))}
+                  </Text>
+                </View>
+              ) : null}
+              {(draft.experienceTags ?? []).map((tag) => (
+                <View key={tag} className="rounded-full bg-[#FAF9F6] px-3 py-2 dark:bg-[#20201E]">
+                  <Text className="text-xs font-semibold text-[#171716] dark:text-[#F7F6F2]">
+                    {t(`create:experienceTags.${tag}`)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         {draft.items.length > 0 && (

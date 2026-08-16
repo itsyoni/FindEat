@@ -8,6 +8,7 @@ function notificationCopy(notification: AppNotification) {
   switch (notification.type) {
     case 'RESTAURANT_FOLLOW': return `${actor} followed your restaurant`
     case 'RESTAURANT_REVIEW': return `${actor} published a new review`
+    case 'RESTAURANT_BADGE_EARNED': return notification.title || 'Your restaurant earned a new badge'
     case 'POST_LIKE': return (notification.aggregationCount ?? 1) > 1
       ? `${actor} and ${(notification.aggregationCount ?? 1) - 1} more liked an official post`
       : `${actor} liked an official post`
@@ -51,6 +52,7 @@ export function NotificationsPopover({ restaurant, notifications, loading, onNav
   function openNotification(notification: AppNotification) {
     if (notification.type === 'MESSAGE' || notification.type === 'MESSAGE_MENTION') onNavigate('messages')
     if (notification.type === 'RESTAURANT_REVIEW') onNavigate('reviews')
+    if (notification.type === 'RESTAURANT_BADGE_EARNED') onNavigate('badges')
     onClose()
   }
 
@@ -77,7 +79,7 @@ export function NotificationsPopover({ restaurant, notifications, loading, onNav
     {clearError && <p className="notifications-clear-error">{clearError}</p>}
     {loading ? <div className="notifications-popover-state">Loading notifications…</div> : notifications.length === 0 ? <div className="notifications-popover-state"><BellSlashIcon size={30} weight="duotone" aria-hidden="true" /><strong>No updates yet</strong><p>Followers, reviews, post activity, and messages will appear here.</p></div> : <div className="restaurant-notification-list">
       {notifications.map((notification) => {
-        const canOpen = notification.type === 'MESSAGE' || notification.type === 'MESSAGE_MENTION' || notification.type === 'RESTAURANT_REVIEW'
+        const canOpen = notification.type === 'MESSAGE' || notification.type === 'MESSAGE_MENTION' || notification.type === 'RESTAURANT_REVIEW' || notification.type === 'RESTAURANT_BADGE_EARNED'
         return <button className={`restaurant-notification-row ${notification.readAt ? '' : 'unread'}`} key={notification.id} type="button" disabled={!canOpen} onClick={() => openNotification(notification)}>
           <div className="notification-avatar">{notification.actor?.avatarUrl ? <img src={notification.actor.avatarUrl} alt="" /> : <span>{(notification.actor?.username || restaurant.name).charAt(0).toUpperCase()}</span>}</div>
           <div className="notification-copy"><strong>{notificationCopy(notification)}</strong>{notification.body && <p>{notification.body}</p>}<small>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(notification.createdAt))}</small></div>

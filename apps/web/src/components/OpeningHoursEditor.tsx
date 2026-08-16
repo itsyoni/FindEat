@@ -100,9 +100,22 @@ function CustomDropdown({
   ariaLabel: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedValue, setHighlightedValue] = useState(value);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const highlightedValueRef = useRef(value);
   const typeahead = useRef("");
   const typeaheadTimer = useRef<number | null>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
+
+  function highlight(valueToHighlight: string) {
+    highlightedValueRef.current = valueToHighlight;
+    setHighlightedValue(valueToHighlight);
+    window.requestAnimationFrame(() => {
+      [...(dropdownRef.current?.querySelectorAll<HTMLButtonElement>("[data-option-value]") ?? [])]
+        .find((button) => button.dataset.optionValue === valueToHighlight)
+        ?.scrollIntoView({ block: "nearest" });
+    });
+  }
 
   useEffect(
     () => () => {
@@ -113,43 +126,87 @@ function CustomDropdown({
     [],
   );
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleTypeahead = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, [contenteditable='true']")) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsOpen(false);
+        dropdownRef.current
+          ?.querySelector<HTMLButtonElement>(".custom-dropdown-trigger")
+          ?.focus();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onChange(highlightedValueRef.current);
+        setIsOpen(false);
+        dropdownRef.current
+          ?.querySelector<HTMLButtonElement>(".custom-dropdown-trigger")
+          ?.focus();
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const currentIndex = Math.max(
+          0,
+          options.findIndex(
+            (option) => option.value === highlightedValueRef.current,
+          ),
+        );
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex = Math.min(
+          options.length - 1,
+          Math.max(0, currentIndex + direction),
+        );
+        if (options[nextIndex]) highlight(options[nextIndex].value);
+        return;
+      }
+      if (
+        event.key.length !== 1 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        !/[\p{L}\p{N}]/u.test(event.key)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      typeahead.current += event.key.toLocaleLowerCase();
+      if (typeaheadTimer.current !== null) {
+        window.clearTimeout(typeaheadTimer.current);
+      }
+      typeaheadTimer.current = window.setTimeout(() => {
+        typeahead.current = "";
+      }, 800);
+      let match = options.find((option) =>
+        `${option.label} ${option.meta ?? ""}`
+          .toLocaleLowerCase()
+          .startsWith(typeahead.current),
+      );
+      if (!match) {
+        typeahead.current = event.key.toLocaleLowerCase();
+        match = options.find((option) =>
+          `${option.label} ${option.meta ?? ""}`
+            .toLocaleLowerCase()
+            .startsWith(typeahead.current),
+        );
+      }
+      if (match) highlight(match.value);
+    };
+    window.addEventListener("keydown", handleTypeahead);
+    return () => window.removeEventListener("keydown", handleTypeahead);
+  }, [isOpen, onChange, options]);
+
   return (
     <div
+      ref={dropdownRef}
       className={`custom-dropdown ${isOpen ? "open" : ""}`}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setIsOpen(false);
-        }
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          setIsOpen(false);
-          event.currentTarget.querySelector<HTMLButtonElement>(".custom-dropdown-trigger")?.focus();
-          return;
-        }
-        if (event.key.length === 1 && /[\p{L}\p{N}]/u.test(event.key)) {
-          typeahead.current += event.key.toLocaleLowerCase();
-          if (typeaheadTimer.current !== null) {
-            window.clearTimeout(typeaheadTimer.current);
-          }
-          typeaheadTimer.current = window.setTimeout(() => {
-            typeahead.current = "";
-          }, 700);
-          const match = options.find((option) =>
-            `${option.label} ${option.meta ?? ""}`
-              .toLocaleLowerCase()
-              .startsWith(typeahead.current),
-          );
-          if (match) {
-            event.preventDefault();
-            const dropdown = event.currentTarget;
-            onChange(match.value);
-            window.requestAnimationFrame(() => {
-              [...dropdown.querySelectorAll<HTMLButtonElement>("[data-option-value]")]
-                .find((button) => button.dataset.optionValue === match.value)
-                ?.scrollIntoView({ block: "nearest" });
-            });
-          }
         }
       }}
     >
@@ -159,7 +216,12 @@ function CustomDropdown({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() =>
+          setIsOpen((open) => {
+            if (!open) highlight(value);
+            return !open;
+          })
+        }
       >
         <span className="custom-dropdown-label">{selected?.label}</span>
         {selected?.meta ? <span className="custom-dropdown-meta">{selected.meta}</span> : null}
@@ -170,11 +232,13 @@ function CustomDropdown({
           {options.map((option) => (
             <button
               type="button"
-              className={option.value === value ? "selected" : ""}
+              className={`${option.value === value ? "selected" : ""} ${option.value === highlightedValue ? "highlighted" : ""}`}
               key={option.value}
               role="option"
               aria-selected={option.value === value}
               data-option-value={option.value}
+              onFocus={() => highlight(option.value)}
+              onMouseEnter={() => highlight(option.value)}
               onClick={() => {
                 onChange(option.value);
                 setIsOpen(false);
@@ -449,14 +513,20 @@ export function OpeningHoursEditor({
     ...RESTAURANT_WEEKDAYS.slice(0, firstDayIndex),
   ];
   const dishCount = menus.reduce((count, menu) => count + menu.items.length, 0);
+  const foodSectionCount = menus.filter(
+    (menu) => menu.sectionType !== "DRINKS",
+  ).length;
+  const drinksSectionCount = menus.filter(
+    (menu) => menu.sectionType === "DRINKS",
+  ).length;
   const happyHourTargetOptions: DropdownOption[] = [
     { value: "ALL_MENU", label: "Entire menu" },
-    { value: "FOOD", label: "Food only" },
-    { value: "DRINKS", label: "Drinks only" },
+    { value: "FOOD", label: "All food", meta: `${foodSectionCount} sections` },
+    { value: "DRINKS", label: "All drinks", meta: `${drinksSectionCount} sections` },
     ...menus.map((menu) => ({
       value: `SECTION:${menu.id}`,
       label: menu.title,
-      meta: `${menu.items.length} dish${menu.items.length === 1 ? "" : "es"}`,
+      meta: `${menu.sectionType === "DRINKS" ? "Drinks" : "Food"} · ${menu.items.length} item${menu.items.length === 1 ? "" : "s"}`,
     })),
     ...(dishCount > 0
       ? [{ value: "DISHES", label: "Specific dishes", meta: `${dishCount} available` }]

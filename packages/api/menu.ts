@@ -1,4 +1,10 @@
-import type { Dish, DishDetails, DishSearchResult, Menu } from "@findeat/types";
+import type {
+  Dish,
+  DishDetails,
+  DishSearchResult,
+  Menu,
+  MenuSectionType,
+} from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
 export function createMenuApi(api: AxiosInstance) {
@@ -8,7 +14,11 @@ export function createMenuApi(api: AxiosInstance) {
       return data;
     },
 
-    async createMenu(payload: { title: string; description?: string | null }) {
+    async createMenu(payload: {
+      title: string;
+      description?: string | null;
+      sectionType?: MenuSectionType;
+    }) {
       const { data } = await api.post<Menu>("/business/menus", payload);
       return data;
     },
@@ -62,7 +72,11 @@ export function createMenuApi(api: AxiosInstance) {
 
     async updateMenu(
       id: string,
-      payload: { title?: string; description?: string | null },
+      payload: {
+        title?: string;
+        description?: string | null;
+        sectionType?: MenuSectionType;
+      },
     ) {
       const { data } = await api.patch<Menu>(`/business/menus/${id}`, payload);
       return data;

@@ -27,7 +27,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { recordVisitDetectionRestaurantView } from "@/lib/visitDetection/engagement";
 import RestaurantAboutBottomSheet from "@/components/restaurants/RestaurantAboutBottomSheet";
 import PlaceStatusBookmark, { getPlaceStatusLabelKey } from "@/components/restaurants/PlaceStatusBookmark";
-import { CaretDownIcon } from "phosphor-react-native";
+import { CaretDownIcon, MedalIcon } from "phosphor-react-native";
+import RestaurantBadgesBottomSheet from "@/components/restaurants/RestaurantBadgesBottomSheet";
 
 type RestaurantTab = RestaurantPostSection | "MENU";
 
@@ -46,6 +47,7 @@ export default function RestaurantScreen() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [badgesOpen, setBadgesOpen] = useState(false);
 
   useEffect(() => {
     if (user?.id && id) void recordVisitDetectionRestaurantView(user.id);
@@ -279,6 +281,18 @@ export default function RestaurantScreen() {
             />
           </View>
         </TouchableOpacity>
+        {(restaurant.earnedBadges?.length ?? 0) > 0 ? (
+          <TouchableOpacity
+            onPress={() => setBadgesOpen(true)}
+            className="mt-3 self-start flex-row items-center rounded-full border border-amber-200 bg-amber-50 px-3.5 py-2.5 dark:border-amber-900 dark:bg-amber-950/35"
+          >
+            <MedalIcon size={18} color="#D08A00" weight="fill" />
+            <Text className="ml-2 font-bold text-amber-900 dark:text-amber-100">
+              {t("restaurants:earnedBadgesCount", { count: restaurant.earnedBadges?.length ?? 0 })}
+            </Text>
+            <CaretDownIcon size={14} color="#D08A00" weight="bold" style={{ marginLeft: 7 }} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <RestaurantCompatibilitySummary compatibility={restaurant.compatibility} />
@@ -357,6 +371,11 @@ export default function RestaurantScreen() {
         restaurant={restaurant}
         open={aboutOpen}
         onClose={() => setAboutOpen(false)}
+      />
+      <RestaurantBadgesBottomSheet
+        open={badgesOpen}
+        onClose={() => setBadgesOpen(false)}
+        badges={restaurant.earnedBadges ?? []}
       />
       <ReportBottomSheet
         open={reportOpen}

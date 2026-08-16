@@ -6,6 +6,8 @@ import type {
   Post,
   PostType,
   PostVisibility,
+  ReviewExperienceTag,
+  ReviewRecommendedFor,
   UserRelationship,
   UserSummary,
 } from "@findeat/types";
@@ -94,6 +96,9 @@ export function createPostsApi(api: AxiosInstance) {
       visibility?: PostVisibility;
       coverImageUrl?: string;
       summary?: string;
+      visitDate?: string;
+      recommendedFor?: ReviewRecommendedFor;
+      experienceTags?: ReviewExperienceTag[];
       atmosphereRating?: number;
       serviceRating?: number;
       valueRating?: number;

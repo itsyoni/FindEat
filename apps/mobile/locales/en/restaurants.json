@@ -140,5 +140,23 @@
   "viewRestaurant": "View restaurant",
   "favorited": "Favorited",
   "favoriteDishes": "Favorite dishes",
-  "favoriteDishesHint": "Your saved favorites from this restaurant."
+  "favoriteDishesHint": "Your saved favorites from this restaurant.",
+  "earnedBadges": "Community badges",
+  "earnedBadgesCount_one": "1 community badge",
+  "earnedBadgesCount_other": "{{count}} community badges",
+  "badgeEvidence": "Based on {{count}} community reviews",
+  "badges": {
+    "LOVERS_PLACE": { "title": "Lovers' place", "description": "A community favorite for dates and romantic meals." },
+    "FRIENDS_FAVORITE": { "title": "Friends favorite", "description": "A reliable choice for catching up with friends and groups." },
+    "FAMILY_PICK": { "title": "Family pick", "description": "Frequently recommended for family meals and children." },
+    "CELEBRATION_SPOT": { "title": "Celebration spot", "description": "Chosen for birthdays and special occasions." },
+    "WORK_FRIENDLY": { "title": "Work friendly", "description": "A practical place to work or meet." },
+    "ACCESSIBLE_CHOICE": { "title": "Accessible choice", "description": "Accessibility has been confirmed by multiple visitors." },
+    "EASY_PARKING": { "title": "Easy parking", "description": "Visitors consistently report convenient parking nearby." },
+    "WIFI_READY": { "title": "Wi-Fi ready", "description": "Visitors confirm that useful Wi-Fi is available." },
+    "OUTDOOR_FAVORITE": { "title": "Outdoor favorite", "description": "Known for an enjoyable outdoor seating experience." },
+    "QUIET_SPOT": { "title": "Quiet spot", "description": "A community-confirmed choice for a calmer visit." },
+    "PET_FRIENDLY": { "title": "Pet friendly", "description": "Visitors consistently welcome bringing pets here." },
+    "LATE_NIGHT_GO_TO": { "title": "Late-night go-to", "description": "A proven choice for eating later in the evening." }
+  }
 }

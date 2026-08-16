@@ -44,6 +44,7 @@ const initialDraft: CreateReviewDraft = {
   visibility: "PUBLIC",
   restaurant: null,
   summary: "",
+  experienceTags: [],
   items: [],
   participants: [],
 };
@@ -106,6 +107,7 @@ export default function ReviewCreator({
     initialSnapshot
       ? {
           ...initialSnapshot.draft,
+          experienceTags: initialSnapshot.draft.experienceTags ?? [],
           visibility: embeddedFlow
             ? initialVisibility
             : initialSnapshot.draft.visibility,
@@ -168,6 +170,7 @@ export default function ReviewCreator({
               setDraft({
                 ...savedDraft.draft,
                 participants: savedDraft.draft.participants ?? [],
+                experienceTags: savedDraft.draft.experienceTags ?? [],
               });
               setSelectedMenuDish(savedDraft.selectedMenuDish ?? null);
               setPendingDish(savedDraft.pendingDish ?? null);
@@ -507,6 +510,9 @@ export default function ReviewCreator({
           visibility: pendingDraft.visibility,
           coverImageUrl,
           summary: pendingDraft.summary.trim() || undefined,
+          visitDate: pendingDraft.visitDate,
+          recommendedFor: pendingDraft.recommendedFor,
+          experienceTags: pendingDraft.experienceTags,
           atmosphereRating: pendingDraft.atmosphereRating,
           serviceRating: pendingDraft.serviceRating,
           valueRating: pendingDraft.valueRating,

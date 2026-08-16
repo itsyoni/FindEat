@@ -15,10 +15,10 @@ import type {
   UserRelationship,
 } from '@findeat/types';
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { BellIcon } from 'phosphor-react-native';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,7 +51,7 @@ export default function NotificationsScreen() {
   const [joinedReviewIds, setJoinedReviewIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const hasUnreadRef = useRef(false);
+  const screenFocusedRef = useRef(false);
   const notifications = useNotifications();
   const items = useMemo(
     () => notifications.data?.pages.flatMap((page) => page.items) ?? [],
@@ -60,36 +60,57 @@ export default function NotificationsScreen() {
 
   const hasUnread = items.some((item) => !item.readAt);
 
-  useEffect(() => {
-    hasUnreadRef.current = hasUnread;
-  }, [hasUnread]);
+  const markAllReadLocally = useCallback(() => {
+    const readAt = new Date().toISOString();
+    void queryClient.cancelQueries({
+      queryKey: notificationUnreadQueryKey,
+      exact: true,
+    });
+    queryClient.setQueryData(notificationUnreadQueryKey, { count: 0 });
+    queryClient.setQueriesData(
+      { queryKey: notificationsQueryKey, exact: true },
+      (current: InfiniteData<NotificationsPage> | undefined) =>
+        current
+          ? {
+              ...current,
+              pages: current.pages.map((page) => ({
+                ...page,
+                items: page.items.map((item) => ({
+                  ...item,
+                  readAt: item.readAt ?? readAt,
+                })),
+              })),
+            }
+          : current,
+    );
+  }, [queryClient]);
 
-  useEffect(() => {
-    return () => {
-      if (!hasUnreadRef.current) return;
-
-      void api.notifications.markAllRead().catch((error) =>
+  const markAllRead = useCallback(() => {
+    markAllReadLocally();
+    void api.notifications
+      .markAllRead()
+      .then(markAllReadLocally)
+      .catch((error) =>
         console.error('mark notifications read failed', error),
       );
-      queryClient.setQueryData(notificationUnreadQueryKey, { count: 0 });
-      queryClient.setQueriesData(
-        { queryKey: notificationsQueryKey, exact: true },
-        (current: InfiniteData<NotificationsPage> | undefined) =>
-          current
-            ? {
-                ...current,
-                pages: current.pages.map((page) => ({
-                  ...page,
-                  items: page.items.map((item) => ({
-                    ...item,
-                    readAt: item.readAt ?? new Date().toISOString(),
-                  })),
-                })),
-              }
-            : current,
-      );
-    };
-  }, [queryClient]);
+  }, [markAllReadLocally]);
+
+  useFocusEffect(
+    useCallback(() => {
+      screenFocusedRef.current = true;
+      markAllRead();
+
+      return () => {
+        screenFocusedRef.current = false;
+      };
+    }, [markAllRead]),
+  );
+
+  // The list request can finish after the focus callback and contain the old
+  // unread snapshot. Clear that result too while this screen is still active.
+  useEffect(() => {
+    if (screenFocusedRef.current && hasUnread) markAllRead();
+  }, [hasUnread, markAllRead]);
 
   function openActor(item: AppNotification) {
     if (item.type === 'PLACE_LIST_INVITE' || item.placeListId) {

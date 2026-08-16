@@ -1,4 +1,4 @@
-import type { RestaurantMapFilter, RestaurantMapSort } from "./restaurant";
+import type { RestaurantBadgeKey, RestaurantMapFilter, RestaurantMapSort } from "./restaurant";
 
 export type MapViewMode = "MAP" | "LIST";
 
@@ -10,6 +10,7 @@ export type MapPreferences = {
   matchCuisines: boolean;
   hideFlaggedAllergens: boolean;
   activityHeatmapEnabled: boolean;
+  badgeKeys: RestaurantBadgeKey[];
 };
 
 export type RestaurantActivityHeatPoint = {

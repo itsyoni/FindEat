@@ -48,6 +48,8 @@
     "RESTAURANT_CLAIM_REJECTED": "הבקשה שלך למסעדה נדחתה",
     "PLACE_LIST_INVITE": "{{name}} הזמין/ה אותך לרשימה משותפת",
     "PROFILE_TAG_UNLOCKED": "פתחת תג פרופיל חדש",
+    "CREATOR_LEVEL_UP": "עלית דרגה כיוצר/ת",
+    "RESTAURANT_BADGE_EARNED": "המסעדה שלך זכתה בתג קהילה חדש",
     "REVIEW_INVITE": "{{name}} הזמין/ה אותך לכתוב ביקורת משותפת",
     "REVIEW_JOIN_REQUEST": "{{name}} ביקש/ה להצטרף לביקורת שלך",
     "REVIEW_JOIN_REQUEST_APPROVED": "{{name}} אישר/ה את בקשתך להצטרף לביקורת",

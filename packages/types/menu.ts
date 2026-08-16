@@ -102,6 +102,8 @@ export type Dish = {
   name: string;
   description?: string | null;
   price?: number | null;
+  discountedPrice?: number | null;
+  activeDiscountPercent?: number | null;
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
   category?: string | null;
@@ -156,9 +158,12 @@ export type DishSearchResult = Dish & {
   distanceKm?: number | null;
 };
 
+export type MenuSectionType = "FOOD" | "DRINKS";
+
 export type Menu = {
   id: string;
   title: string;
   description?: string | null;
+  sectionType?: MenuSectionType;
   items: Dish[];
 };

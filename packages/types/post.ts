@@ -13,7 +13,23 @@ export type ReviewRecommendedFor =
   | "FAMILY"
   | "SOLO"
   | "BUSINESS"
-  | "QUICK_BITE";
+  | "QUICK_BITE"
+  | "CELEBRATION"
+  | "TRAVEL"
+  | "LATE_NIGHT";
+
+export type ReviewExperienceTag =
+  | "ACCESSIBLE"
+  | "EASY_PARKING"
+  | "WIFI"
+  | "OUTDOOR_SEATING"
+  | "QUIET"
+  | "KID_FRIENDLY"
+  | "PET_FRIENDLY"
+  | "WORK_FRIENDLY"
+  | "GROUP_FRIENDLY"
+  | "ROMANTIC"
+  | "LATE_NIGHT";
 
 export type ContentPost = {
   postId: string;
@@ -144,6 +160,7 @@ export type ReviewPost = {
 
   wouldReturn?: boolean | null;
   recommendedFor?: ReviewRecommendedFor | null;
+  experienceTags?: ReviewExperienceTag[];
 
   items: ReviewItem[];
 };

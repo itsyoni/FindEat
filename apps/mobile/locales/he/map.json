@@ -69,6 +69,8 @@
   "matchDietary": "יש אפשרויות שמתאימות לצרכים התזונתיים שלי",
   "matchCuisines": "מתאים למטבחים האהובים עליי",
   "hideFlaggedAllergens": "הסתרת מקומות עם אלרגנים שסומנו עבורי",
+  "communityBadges": "תגי קהילה",
+  "communityBadgesHint": "הצגת מקומות שזכו באחד מהתגים שנבחרו, לפי משוב חוזר מביקורות ציבוריות.",
   "filterALL": "הכל",
   "filterSAVED": "שמורים",
   "filterWANT_TO_TRY": "רוצה לנסות",

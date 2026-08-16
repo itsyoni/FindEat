@@ -31,10 +31,11 @@ export async function storeAuthSession(session: AuthSession) {
 }
 
 export async function storeAuthTokens(tokens: AuthTokens) {
-  await Promise.all([
-    AsyncStorage.setItem(TOKEN_KEY, tokens.accessToken),
-    SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken),
-  ]);
+  // The refresh token is the durable recovery credential. Persist it before
+  // the short-lived access token so a reload cannot leave the app holding the
+  // new access token together with a refresh token the server already rotated.
+  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  await AsyncStorage.setItem(TOKEN_KEY, tokens.accessToken);
 }
 
 export async function storeSessionUser(user: User) {
@@ -82,10 +83,8 @@ export function refreshStoredSession(apiUrl: string) {
         { refreshToken },
         { timeout: 15_000 },
       );
-      await Promise.all([
-        AsyncStorage.setItem(TOKEN_KEY, data.accessToken),
-        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refreshToken),
-      ]);
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refreshToken);
+      await AsyncStorage.setItem(TOKEN_KEY, data.accessToken);
       listeners.onAccessToken?.(data.accessToken);
       return data.accessToken;
     } catch (error) {

@@ -26,6 +26,7 @@ export function notificationHref(item: AppNotification): Href | null {
     return '/settings/moderation-actions';
   }
   if (item.type === 'PROFILE_TAG_UNLOCKED') return '/settings/profile-tags';
+  if (item.type === 'CREATOR_LEVEL_UP') return '/settings/creator-levels';
   if (item.type === 'FOLLOW_REQUEST') return '/settings/follow-requests';
   if (item.type === 'PLACE_LIST_INVITE') return '/saved-lists';
   if (item.placeListId) return `/saved-lists/${item.placeListId}`;

@@ -1,7 +1,8 @@
 import Text from "@/components/common/AppText";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import { CreateReviewDraft } from "@findeat/types/review";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { ThemedSafeAreaView, TextInput } from "@/components/common";
 import RatingPicker from "../components/RatingPicker";
@@ -9,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
 import Avatar from "@/components/common/Avatar";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import { UsersThreeIcon } from "phosphor-react-native";
+import { CalendarBlankIcon, CheckIcon, UsersThreeIcon } from "phosphor-react-native";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import {
   pickReviewImage,
@@ -39,12 +40,13 @@ type Props = {
 };
 
 export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft, savingDraft, onChooseParticipants, derivedCover = false, compactLinkedFlow = false }: Props) {
-  const { t } = useTranslation(["create", "common"]);
+  const { t, i18n } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
   const { user } = useAuth();
   const [pickingSource, setPickingSource] =
     useState<ReviewImageSource | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const {
     status: gallerySaveStatus,
     isSaving: savingToGallery,
@@ -57,6 +59,30 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
     draft.restaurant?.source === "FINDEAT"
       ? draft.restaurant.restaurant.name
       : draft.restaurant?.name;
+  const occasions = [
+    "DATE",
+    "FRIENDS",
+    "FAMILY",
+    "SOLO",
+    "BUSINESS",
+    "QUICK_BITE",
+    "CELEBRATION",
+    "TRAVEL",
+    "LATE_NIGHT",
+  ] as const;
+  const experienceTags = [
+    "ACCESSIBLE",
+    "EASY_PARKING",
+    "WIFI",
+    "OUTDOOR_SEATING",
+    "QUIET",
+    "KID_FRIENDLY",
+    "PET_FRIENDLY",
+    "WORK_FRIENDLY",
+    "GROUP_FRIENDLY",
+    "ROMANTIC",
+    "LATE_NIGHT",
+  ] as const;
 
   async function chooseCoverImage(source: ReviewImageSource) {
     if (pickingSource) return;
@@ -212,7 +238,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
 
         {!compactLinkedFlow ? <View className="mt-7">
           <View className="mb-3 flex-row items-center justify-between">
-            <Text className="text-lg font-bold text-black dark:text-white">
+            <Text className="text-lg font-bold text-[#171716] dark:text-[#F7F6F2]">
               {t("placePhoto")}
             </Text>
             <Text className="text-sm font-semibold text-gray-400">
@@ -263,7 +289,7 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
               {t("optional")}
             </Text>
           </View>
-          <Text className="mb-3 font-bold text-black dark:text-white">
+          <Text className="mb-3 font-bold text-[#171716] dark:text-[#F7F6F2]">
             {t("reviewNote")}
           </Text>
           <TextInput
@@ -274,6 +300,110 @@ export default function CoverStep({ draft, onChange, onBack, onNext, onSaveDraft
             multiline
             textAlignVertical="top"
           />
+        </View>
+
+        <View className="mt-8 border-t border-gray-200 pt-7 dark:border-gray-800">
+          <View className="mb-1 flex-row items-center justify-between">
+            <Text className="text-lg font-bold text-black dark:text-white">
+              {t("visitContext")}
+            </Text>
+            <Text className="text-sm font-semibold text-gray-400">
+              {t("optional")}
+            </Text>
+          </View>
+          <Text className="mb-5 text-sm leading-5 text-gray-500 dark:text-gray-400">
+            {t("visitContextHint")}
+          </Text>
+
+          <Text className="mb-3 font-bold text-black dark:text-white">
+            {t("reasonForVisit")}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {occasions.map((occasion) => {
+              const selected = draft.recommendedFor === occasion;
+              return (
+                <TouchableOpacity
+                  key={occasion}
+                  onPress={() =>
+                    onChange({ recommendedFor: selected ? undefined : occasion })
+                  }
+                  className={`flex-row items-center rounded-full border px-3.5 py-2.5 ${
+                    selected
+                      ? "border-brand bg-brand/15"
+                      : "border-gray-200 bg-[#FAF9F6] dark:border-gray-700 dark:bg-[#171716]"
+                  }`}
+                >
+                  {selected ? <CheckIcon size={14} color="#D4A72C" weight="bold" /> : null}
+                  <Text className={`${selected ? "ml-1.5 text-brand" : ""} font-semibold text-[#171716] dark:text-[#F7F6F2]`}>
+                    {t(`visitOccasions.${occasion}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text className="mb-3 mt-6 font-bold text-[#171716] dark:text-[#F7F6F2]">
+            {t("visitDate")}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setDatePickerOpen(true)}
+            className="flex-row items-center rounded-2xl border border-gray-200 bg-[#FAF9F6] px-4 py-3.5 dark:border-gray-700 dark:bg-[#171716]"
+          >
+            <CalendarBlankIcon size={21} color={isDark ? "#D1D5DB" : "#4B5563"} />
+            <Text className="ml-3 flex-1 font-semibold text-[#171716] dark:text-[#F7F6F2]">
+              {draft.visitDate
+                ? new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(draft.visitDate))
+                : t("addVisitDate")}
+            </Text>
+            {draft.visitDate ? (
+              <TouchableOpacity onPress={() => onChange({ visitDate: undefined })} hitSlop={10}>
+                <Text className="font-bold text-gray-500">{t("common:remove")}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </TouchableOpacity>
+          {datePickerOpen ? (
+            <DateTimePicker
+              value={draft.visitDate ? new Date(draft.visitDate) : new Date()}
+              mode="date"
+              maximumDate={new Date()}
+              display={Platform.OS === "ios" ? "inline" : "default"}
+              onChange={(event, date) => {
+                if (Platform.OS !== "ios") setDatePickerOpen(false);
+                if (event.type === "set" && date) onChange({ visitDate: date.toISOString() });
+              }}
+            />
+          ) : null}
+
+          <Text className="mb-3 mt-6 font-bold text-[#171716] dark:text-[#F7F6F2]">
+            {t("goodToKnow")}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {experienceTags.map((tag) => {
+              const selected = (draft.experienceTags ?? []).includes(tag);
+              return (
+                <TouchableOpacity
+                  key={tag}
+                  onPress={() =>
+                    onChange({
+                      experienceTags: selected
+                        ? (draft.experienceTags ?? []).filter((item) => item !== tag)
+                        : [...(draft.experienceTags ?? []), tag],
+                    })
+                  }
+                  className={`flex-row items-center rounded-full border px-3.5 py-2.5 ${
+                    selected
+                      ? "border-brand bg-brand/15"
+                      : "border-gray-200 bg-[#FAF9F6] dark:border-gray-700 dark:bg-[#171716]"
+                  }`}
+                >
+                  {selected ? <CheckIcon size={14} color="#D4A72C" weight="bold" /> : null}
+                  <Text className={`${selected ? "ml-1.5 text-brand" : ""} font-semibold text-[#171716] dark:text-[#F7F6F2]`}>
+                    {t(`experienceTags.${tag}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         <View className="mt-8 border-t border-gray-200 pt-7 dark:border-gray-800">

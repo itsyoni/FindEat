@@ -67,6 +67,8 @@
   "matchDietary": "Has options matching my dietary needs",
   "matchCuisines": "Matches my favorite cuisines",
   "hideFlaggedAllergens": "Hide places with allergens flagged for me",
+  "communityBadges": "Community badges",
+  "communityBadgesHint": "Show places that earned any of the selected badges from repeated public review feedback.",
   "filterALL": "All",
   "filterSAVED": "Saved",
   "filterWANT_TO_TRY": "Want to try",

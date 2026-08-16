@@ -6,10 +6,13 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { router } from "expo-router";
 import { useState } from "react";
+import type { MenuSectionType } from "@findeat/types";
+import MenuSectionTypeSelector from "@/components/business/MenuSectionTypeSelector";
 
 export default function CreateMenuScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [sectionType, setSectionType] = useState<MenuSectionType>("FOOD");
   const [loading, setLoading] = useState(false);
 
   async function createMenu() {
@@ -24,6 +27,7 @@ export default function CreateMenuScreen() {
       await api.menu.createMenu({
         title: title.trim(),
         description: description.trim() || undefined,
+        sectionType,
       });
 
       router.back();
@@ -65,6 +69,8 @@ export default function CreateMenuScreen() {
           multiline
           textAlignVertical="top"
         />
+
+        <MenuSectionTypeSelector value={sectionType} onChange={setSectionType} />
 
         <AppButton
           title={loading ? "Creating..." : "Create menu"}

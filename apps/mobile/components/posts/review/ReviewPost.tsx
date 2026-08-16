@@ -151,6 +151,7 @@ export default function ReviewPost({
   const { t } = useTranslation("restaurants");
   const { t: tCommon, i18n } = useTranslation("common");
   const { t: tCollaboration } = useTranslation("collaborativeReview");
+  const { t: tCreate } = useTranslation("create");
   const isRtl = i18n.language.startsWith("he");
   const actionColor = isDark ? "#E5E7EB" : "#212121";
   const { width } = useWindowDimensions();
@@ -1128,6 +1129,32 @@ export default function ReviewPost({
               )}
             </>
           )}
+          {activeSlide?.type === "COVER" &&
+          (review?.recommendedFor || review?.visitDate || review?.experienceTags?.length) ? (
+            <View className="mt-2 flex-row flex-wrap gap-2">
+              {review.recommendedFor ? (
+                <View className="rounded-full bg-gray-100 px-3 py-1.5 dark:bg-gray-800">
+                  <Text className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {tCreate(`visitOccasions.${review.recommendedFor}`)}
+                  </Text>
+                </View>
+              ) : null}
+              {review.visitDate ? (
+                <View className="rounded-full bg-gray-100 px-3 py-1.5 dark:bg-gray-800">
+                  <Text className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" }).format(new Date(review.visitDate))}
+                  </Text>
+                </View>
+              ) : null}
+              {(review.experienceTags ?? []).map((tag) => (
+                <View key={tag} className="rounded-full bg-gray-100 px-3 py-1.5 dark:bg-gray-800">
+                  <Text className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                    {tCreate(`experienceTags.${tag}`)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <PostConnectionCard
             sourceType="REVIEW"
             linkedPosts={post.linkedPosts}

@@ -6,6 +6,7 @@ import { HouseIcon } from "@phosphor-icons/react/dist/csr/House";
 import { ListDashesIcon } from "@phosphor-icons/react/dist/csr/ListDashes";
 import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { StarIcon } from "@phosphor-icons/react/dist/csr/Star";
+import { MedalIcon } from "@phosphor-icons/react/dist/csr/Medal";
 import { StorefrontIcon } from "@phosphor-icons/react/dist/csr/Storefront";
 import { HeadsetIcon } from "@phosphor-icons/react/dist/csr/Headset";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
@@ -42,6 +43,7 @@ import { MessagesPage } from "./MessagesPage";
 import { OverviewPage } from "./OverviewPage";
 import { ProfilePage } from "./ProfilePage";
 import { ReviewsPage } from "./ReviewsPage";
+import { BadgesPage } from "./BadgesPage";
 import { OwnerSupportPage } from "./OwnerSupportPage";
 import { SettingsPage } from "./SettingsPage";
 import { ErrorPage } from "../components/ErrorPage";
@@ -82,8 +84,29 @@ function RestaurantSwitcher({
   onSelect: (restaurantId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [highlightedRestaurantId, setHighlightedRestaurantId] = useState(
+    restaurant.id,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef(new Map<string, HTMLButtonElement>());
+  const highlightedRestaurantIdRef = useRef(restaurant.id);
+  const typeaheadRef = useRef("");
+  const typeaheadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchable = restaurants.length > 1;
+
+  function highlightRestaurant(restaurantId: string) {
+    highlightedRestaurantIdRef.current = restaurantId;
+    setHighlightedRestaurantId(restaurantId);
+  }
+
+  function toggleRestaurantSwitcher() {
+    if (!switchable) return;
+    if (!open) {
+      highlightRestaurant(restaurant.id);
+      typeaheadRef.current = "";
+    }
+    setOpen(!open);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -92,17 +115,81 @@ function RestaurantSwitcher({
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     }
 
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
     document.addEventListener("mousedown", closeOnOutsidePress);
-    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.removeEventListener("mousedown", closeOnOutsidePress);
-      document.removeEventListener("keydown", closeOnEscape);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleTypeahead(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+
+      const currentIndex = Math.max(
+        0,
+        restaurants.findIndex(
+          (item) => item.id === highlightedRestaurantIdRef.current,
+        ),
+      );
+
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex =
+          (currentIndex + direction + restaurants.length) % restaurants.length;
+        highlightRestaurant(restaurants[nextIndex].id);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onSelect(highlightedRestaurantIdRef.current);
+        setOpen(false);
+        return;
+      }
+
+      if (event.key.length !== 1 || !event.key.trim()) return;
+      typeaheadRef.current += event.key.toLocaleLowerCase();
+      if (typeaheadTimerRef.current) clearTimeout(typeaheadTimerRef.current);
+      typeaheadTimerRef.current = setTimeout(() => {
+        typeaheadRef.current = "";
+      }, 800);
+
+      const query = typeaheadRef.current;
+      const match = restaurants.find((item) =>
+        [item.name, item.city ?? ""].some((word) =>
+          word.toLocaleLowerCase().startsWith(query),
+        ),
+      ) ?? restaurants.find((item) =>
+        `${item.name} ${item.city ?? ""}`.toLocaleLowerCase().includes(query),
+      );
+      if (match) {
+        event.preventDefault();
+        highlightRestaurant(match.id);
+      }
+    }
+
+    window.addEventListener("keydown", handleTypeahead);
+    return () => {
+      window.removeEventListener("keydown", handleTypeahead);
+      if (typeaheadTimerRef.current) clearTimeout(typeaheadTimerRef.current);
+    };
+  }, [onSelect, open, restaurant.id, restaurants]);
+
+  useEffect(() => {
+    if (!open) return;
+    optionRefs.current
+      .get(highlightedRestaurantId)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [highlightedRestaurantId, open]);
 
   function restaurantSubtitle(item: ManagedRestaurant) {
     if (item.accessRole === "ADMIN") return "Admin access";
@@ -116,7 +203,7 @@ function RestaurantSwitcher({
         className={`restaurant-chip ${switchable ? "switchable" : ""} ${open ? "open" : ""}`}
         aria-haspopup={switchable ? "listbox" : undefined}
         aria-expanded={switchable ? open : undefined}
-        onClick={() => switchable && setOpen((current) => !current)}
+        onClick={toggleRestaurantSwitcher}
       >
         {restaurant.logoUrl ? (
           <img src={restaurant.logoUrl} alt="" />
@@ -155,8 +242,13 @@ function RestaurantSwitcher({
                   type="button"
                   role="option"
                   aria-selected={selected}
-                  className={selected ? "selected" : ""}
+                  className={`${selected ? "selected" : ""} ${highlightedRestaurantId === item.id ? "highlighted" : ""}`.trim()}
                   key={item.id}
+                  ref={(node) => {
+                    if (node) optionRefs.current.set(item.id, node);
+                    else optionRefs.current.delete(item.id);
+                  }}
+                  onMouseEnter={() => highlightRestaurant(item.id)}
                   onClick={() => {
                     onSelect(item.id);
                     setOpen(false);
@@ -622,6 +714,13 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <StarIcon className="nav-icon" weight="duotone" /> Reviews
           </AppLink>
           <AppLink
+            to={businessPaths.badges}
+            className={section === "badges" ? "active" : ""}
+          >
+            <MedalIcon className="nav-icon" weight="duotone" /> Badges
+            {(restaurant.earnedBadges?.length ?? 0) > 0 && <small className="nav-count">{restaurant.earnedBadges?.length}</small>}
+          </AppLink>
+          <AppLink
             to={businessPaths.messages}
             className={section === "messages" ? "active" : ""}
           >
@@ -773,6 +872,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         {(section === "reviews" || visitedSections.has("reviews")) && (
           <div className="dashboard-page-slot" hidden={section !== "reviews"}>
             <ReviewsPage reviews={reviews} />
+          </div>
+        )}
+        {(section === "badges" || visitedSections.has("badges")) && (
+          <div className="dashboard-page-slot" hidden={section !== "badges"}>
+            <BadgesPage restaurant={restaurant} />
           </div>
         )}
         {(section === "messages" || visitedSections.has("messages")) && (

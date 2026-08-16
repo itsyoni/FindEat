@@ -167,6 +167,7 @@ function openPushData(data?: Record<string, unknown>) {
 
   if (visitRoute) router.push(visitRoute);
   else if (type === "PROFILE_TAG_UNLOCKED") router.push("/settings/profile-tags");
+  else if (type === "CREATOR_LEVEL_UP") router.push("/settings/creator-levels");
   else if (conversationId) router.push(`/chats/${conversationId}`);
   else if (postId)
     router.push({
@@ -298,10 +299,30 @@ export function NotificationProvider({
         .flatMap((page) => page.items)
         .find((existing) => isSameNotification(existing, item));
 
+      const notificationsOpen = notificationsScreenOpen.current;
+      const visibleItem = notificationsOpen
+        ? { ...item, readAt: item.readAt ?? new Date().toISOString() }
+        : item;
+
       queryClient.setQueryData<InfiniteData<NotificationsPage>>(
         notificationsQueryKey,
-        (cached) => mergeNotification(cached, item),
+        (cached) => mergeNotification(cached, visibleItem),
       );
+
+      if (notificationsOpen) {
+        queryClient.setQueryData(notificationUnreadQueryKey, { count: 0 });
+        void api.notifications
+          .markRead(item.id)
+          .then(() => {
+            queryClient.setQueryData(notificationUnreadQueryKey, { count: 0 });
+          })
+          .catch((error) =>
+            console.warn("mark live notification read failed", error),
+          );
+        setPopup(null);
+        return;
+      }
+
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
       queryClient.setQueryData<{ count: number }>(
         notificationUnreadQueryKey,
@@ -318,11 +339,6 @@ export function NotificationProvider({
         item.conversationId &&
         pathnameRef.current === `/chats/${item.conversationId}`
       ) {
-        setPopup(null);
-        return;
-      }
-
-      if (notificationsScreenOpen.current) {
         setPopup(null);
         return;
       }

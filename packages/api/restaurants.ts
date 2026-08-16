@@ -16,6 +16,8 @@ import type {
   PlaceSaveStatus,
   CityFilterLocation,
   RestaurantActivityHeatPoint,
+  RestaurantBadgeKey,
+  RestaurantEarnedBadge,
   RestaurantHotspotActivity,
   MutedVisitRestaurant,
   VisitDetectionCandidate,
@@ -139,13 +141,22 @@ export function createRestaurantsApi(api: AxiosInstance) {
       matchDietary?: boolean;
       matchCuisines?: boolean;
       hideFlaggedAllergens?: boolean;
+      badgeKeys?: RestaurantBadgeKey[];
     }) {
       const { data } = await api.get<Restaurant[]>("/restaurants/map/discover", {
         params: {
           ...options,
           listIds: options.listIds?.join(",") || undefined,
+          badgeKeys: options.badgeKeys?.join(",") || undefined,
         },
       });
+      return data;
+    },
+
+    async badges(restaurantId: string) {
+      const { data } = await api.get<RestaurantEarnedBadge[]>(
+        `/restaurants/${restaurantId}/badges`,
+      );
       return data;
     },
 
