@@ -48,10 +48,30 @@ export type RestaurantWeeklySchedule = Record<
   RestaurantOpeningPeriod[]
 >;
 
+export type RestaurantHappyHourAppliesTo =
+  | "ALL_MENU"
+  | "FOOD"
+  | "DRINKS"
+  | "MENU_SECTIONS"
+  | "DISHES";
+
+export type RestaurantHappyHourPeriod = RestaurantOpeningPeriod & {
+  discountPercent: number;
+  appliesTo: RestaurantHappyHourAppliesTo;
+  menuSectionIds?: string[];
+  dishIds?: string[];
+};
+
+export type RestaurantHappyHoursSchedule = Record<
+  RestaurantWeekday,
+  RestaurantHappyHourPeriod[]
+>;
+
 export type RestaurantOpeningHours = {
   timezone: string;
+  firstDayOfWeek?: RestaurantWeekday;
   weekly: RestaurantWeeklySchedule;
-  happyHours?: RestaurantWeeklySchedule;
+  happyHours?: RestaurantHappyHoursSchedule;
 };
 
 export type RestaurantResolvedOpeningHours = {
@@ -68,9 +88,23 @@ export type RestaurantResolvedOpeningHours = {
   >;
   happyHours?: Record<
     RestaurantWeekday,
-    Array<{ open: string; close: string }>
+    Array<{
+      open: string;
+      close: string;
+      discountPercent: number;
+      appliesTo: RestaurantHappyHourAppliesTo;
+      menuSectionIds?: string[];
+      dishIds?: string[];
+    }>
   >;
   isHappyHourNow?: boolean;
+  activeHappyHour?: {
+    discountPercent: number;
+    appliesTo: RestaurantHappyHourAppliesTo;
+    menuSectionIds?: string[];
+    dishIds?: string[];
+    endsAt: string;
+  } | null;
 };
 
 export type KosherCertification = {
@@ -156,6 +190,7 @@ export type ManagedRestaurant = {
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
   isHappyHourNow?: boolean;
+  activeHappyHour?: RestaurantResolvedOpeningHours["activeHappyHour"];
   categories: string[];
   foodCertifications?: string[];
   foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
@@ -236,6 +271,7 @@ export type Restaurant = {
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
   isHappyHourNow?: boolean;
+  activeHappyHour?: RestaurantResolvedOpeningHours["activeHappyHour"];
   foodCertifications?: string[];
   foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
 

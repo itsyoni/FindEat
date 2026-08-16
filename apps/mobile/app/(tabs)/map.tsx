@@ -63,6 +63,9 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import RestaurantBadge from "@/components/restaurants/RestaurantBadge";
 import RestaurantStats from "@/components/restaurants/RestaurantStats";
 import MapRestaurantListCard from "@/components/restaurants/MapRestaurantListCard";
+import HappyHourBadge, {
+  getActiveHappyHour,
+} from "@/components/restaurants/HappyHourBadge";
 import SystemPlaceListCover from "@/components/lists/SystemPlaceListCover";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaveToLists } from "@/contexts/SaveToListsContext";
@@ -248,6 +251,7 @@ export default function MapScreen() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<MapViewMode>("MAP");
+  const [listSearchQuery, setListSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [recentMapSearches, setRecentMapSearches] = useState<MapRecentSearch[]>([]);
   const [isCitySearching, setIsCitySearching] = useState(false);
@@ -440,6 +444,15 @@ export default function MapScreen() {
           ),
     [mapRestaurants, selectedCities],
   );
+  const listRestaurants = useMemo(() => {
+    const query = listSearchQuery.trim().toLocaleLowerCase();
+    if (!query) return visibleRestaurants;
+    return visibleRestaurants.filter((restaurant) =>
+      [restaurant.name, restaurant.address, restaurant.city]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLocaleLowerCase().includes(query)),
+    );
+  }, [listSearchQuery, visibleRestaurants]);
   const heatmapRestaurantIds = useMemo(
     () => visibleRestaurants.map((restaurant) => restaurant.id).sort(),
     [visibleRestaurants],
@@ -1369,9 +1382,13 @@ export default function MapScreen() {
           className="flex-1"
         >
           <SearchBar
-            editable={false}
+            editable={viewMode === "LIST"}
+            value={viewMode === "LIST" ? listSearchQuery : ""}
+            onChangeText={setListSearchQuery}
             placeholder={t("common:search")}
-            onPress={() => { if (!loading) setIsSearching(true); }}
+            onPress={() => {
+              if (!loading && viewMode === "MAP") setIsSearching(true);
+            }}
             rightAccessory={
               <TouchableOpacity
                 onPress={() => setFiltersOpen(true)}
@@ -1653,6 +1670,7 @@ export default function MapScreen() {
                     activityHeatmapEnabled &&
                     activityState === "hot" &&
                     currentMapZoom >= 14.5;
+                  const activeHappyHour = getActiveHappyHour(restaurant);
                   const markerColor = isSelected
                     ? "#111827"
                     : isFavorite
@@ -1752,7 +1770,13 @@ export default function MapScreen() {
                         {restaurant.isHappyHourNow ? (
                           <View
                             pointerEvents="none"
-                            accessibilityLabel={t("map:happyHourNow")}
+                            accessibilityLabel={
+                              activeHappyHour?.endsAt
+                                ? t("map:happyHourUntil", {
+                                    time: activeHappyHour.endsAt,
+                                  })
+                                : t("map:happyHour")
+                            }
                             className="absolute -left-2 -top-3 h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#E6A700] dark:border-[#111827]"
                             style={{
                               shadowColor: "#7A5100",
@@ -1868,11 +1892,8 @@ export default function MapScreen() {
                           </View>
                         ) : null}
                         {selectedRestaurant.isHappyHourNow ? (
-                          <View className="mt-2 self-start flex-row items-center rounded-full bg-[#FFF2C7] px-2.5 py-1.5 dark:bg-[#3B2C0A]">
-                            <CheersIcon size={14} color="#C18400" weight="fill" />
-                            <Text className="ml-1.5 text-xs font-bold text-[#8B5E00] dark:text-[#FFD56A]">
-                              {t("map:happyHourNow")}
-                            </Text>
+                          <View className="mt-2 self-start">
+                            <HappyHourBadge restaurant={selectedRestaurant} />
                           </View>
                         ) : null}
                       </View>
@@ -1927,7 +1948,7 @@ export default function MapScreen() {
           ) : (
             <FlatList
               className="bg-canvas dark:bg-black"
-              data={visibleRestaurants}
+              data={listRestaurants}
               keyExtractor={(item) => item.id}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -1954,7 +1975,7 @@ export default function MapScreen() {
                   </View>
                   <View className="rounded-full bg-[#EEE9DF] px-3 py-2 dark:bg-gray-900">
                     <Text className="text-xs font-bold text-black dark:text-white">
-                      {t("map:placesFound", { count: visibleRestaurants.length })}
+                      {t("map:placesFound", { count: listRestaurants.length })}
                     </Text>
                   </View>
                 </View>
@@ -1964,9 +1985,11 @@ export default function MapScreen() {
                   icon={StorefrontIcon}
                   title={t("map:noRestaurantsFound")}
                   description={t(
-                    selectedCities.length > 0
-                      ? "map:noPlacesInCitiesDescription"
-                      : "map:noPlacesDescription",
+                    listSearchQuery.trim()
+                      ? "map:noMapResults"
+                      : selectedCities.length > 0
+                        ? "map:noPlacesInCitiesDescription"
+                        : "map:noPlacesDescription",
                   )}
                 />
               }

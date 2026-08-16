@@ -31,7 +31,7 @@ import {
   StorefrontIcon,
   TrashIcon,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -314,10 +314,25 @@ export default function TripPlannerScreen() {
     events: {},
   });
   const [savingReminder, setSavingReminder] = useState(false);
+  const daySwitcherRef = useRef<ScrollView>(null);
+  const daySwitcherWidthRef = useRef(0);
+  const dayLayoutsRef = useRef(
+    new Map<string, { x: number; width: number }>(),
+  );
   const dayPickerGesture = useMemo(
     () => Gesture.Native().disallowInterruption(true),
     [],
   );
+
+  const scrollDayIntoView = useCallback((day: string, animated = true) => {
+    const layout = dayLayoutsRef.current.get(day);
+    const viewportWidth = daySwitcherWidthRef.current;
+    if (!layout || viewportWidth <= 0) return;
+    daySwitcherRef.current?.scrollTo({
+      x: Math.max(0, layout.x + layout.width / 2 - viewportWidth / 2),
+      animated,
+    });
+  }, []);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -339,6 +354,10 @@ export default function TripPlannerScreen() {
     void loadTripReminders(user.id, list.id).then(setReminderSettings);
   }, [list?.id, user?.id]);
   const days = useMemo(() => tripDays(list?.eventAt, list?.eventEndAt), [list?.eventAt, list?.eventEndAt]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => scrollDayIntoView(selectedDay));
+    return () => cancelAnimationFrame(frame);
+  }, [scrollDayIntoView, selectedDay]);
   const visibleItems = useMemo(
     () => (list?.items ?? [])
       .filter((item) => dateKey(item.plannedDate) === selectedDay)
@@ -703,10 +722,15 @@ export default function TripPlannerScreen() {
               }}
             >
               <ScrollView
+                ref={daySwitcherRef}
                 horizontal
                 nestedScrollEnabled
                 showsHorizontalScrollIndicator={false}
                 style={{ flex: 1 }}
+                onLayout={(event) => {
+                  daySwitcherWidthRef.current = event.nativeEvent.layout.width;
+                  scrollDayIntoView(selectedDay, false);
+                }}
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   gap: 8,
@@ -719,6 +743,15 @@ export default function TripPlannerScreen() {
               return (
                 <TouchableOpacity
                   key={day}
+                  onLayout={(event) => {
+                    dayLayoutsRef.current.set(day, {
+                      x: event.nativeEvent.layout.x,
+                      width: event.nativeEvent.layout.width,
+                    });
+                    if (day === selectedDay) {
+                      scrollDayIntoView(day, false);
+                    }
+                  }}
                   onPress={() => selectTripDay(day)}
                   className="min-w-[78px] rounded-2xl px-4 py-2.5"
                   style={{ backgroundColor: selected ? "#D97706" : isDark ? "#1F1F1D" : "#EEEAE3" }}

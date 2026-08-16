@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import {
   RESTAURANT_CATEGORY_OPTIONS,
   type ManagedRestaurant,
+  type Menu,
   type RestaurantOpeningHours,
   type RestaurantFoodCertificationDetails,
 } from "@findeat/types";
@@ -13,9 +14,11 @@ import { ImageCropDialog } from "../components/ImageCropDialog";
 
 export function ProfilePage({
   restaurant,
+  menus,
   onSaved,
 }: {
   restaurant: ManagedRestaurant;
+  menus: Menu[];
   onSaved: () => Promise<void>;
 }) {
   const [form, setForm] = useState({
@@ -293,7 +296,11 @@ export function ProfilePage({
             </section>
           </div>
         </fieldset>
-        <OpeningHoursEditor value={openingHours} onChange={setOpeningHours} />
+        <OpeningHoursEditor
+          value={openingHours}
+          menus={menus}
+          onChange={setOpeningHours}
+        />
         <label className="full">
           Restaurant address
           <input

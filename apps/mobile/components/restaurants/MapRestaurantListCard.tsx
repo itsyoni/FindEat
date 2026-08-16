@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import RestaurantBadge from "./RestaurantBadge";
+import HappyHourBadge from "./HappyHourBadge";
 
 type Props = {
   restaurant: Restaurant;
@@ -167,6 +168,9 @@ export default function MapRestaurantListCard({
                   {distance}
                 </Text>
               </View>
+            ) : null}
+            {restaurant.isHappyHourNow ? (
+              <HappyHourBadge restaurant={restaurant} compact />
             ) : null}
           </View>
         </View>

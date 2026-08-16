@@ -794,6 +794,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <ProfilePage
               key={restaurant.id}
               restaurant={restaurant}
+              menus={menus}
               onSaved={load}
             />
           </div>

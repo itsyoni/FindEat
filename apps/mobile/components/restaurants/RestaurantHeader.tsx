@@ -12,6 +12,7 @@ import Text from '../common/AppText';
 import RestaurantFollowButton from './RestaurantFollowButton';
 import RestaurantStats from './RestaurantStats';
 import RestaurantBadge from './RestaurantBadge';
+import HappyHourBadge from './HappyHourBadge';
 import { useState } from 'react';
 import { Skeleton, SkeletonPulse } from '../common';
 import ParallaxProfileCover from '../profile/ParallaxProfileCover';
@@ -147,6 +148,11 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
         {restaurant.resolvedOpeningHours ? (
           <View className="mt-2">
             <RestaurantOpeningHoursSummary hours={restaurant.resolvedOpeningHours} />
+          </View>
+        ) : null}
+        {restaurant.isHappyHourNow ? (
+          <View className="mt-3">
+            <HappyHourBadge restaurant={restaurant} />
           </View>
         ) : null}
         {reservationLinks.length ? (
