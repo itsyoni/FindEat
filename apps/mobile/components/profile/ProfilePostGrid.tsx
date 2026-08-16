@@ -6,6 +6,7 @@ import {
   ImagesSquareIcon,
   PlayCircleIcon,
   StarIcon,
+  RepeatIcon,
 } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -224,6 +225,12 @@ export default function ProfilePostGrid({
             {contentMedia.length > 1 ? (
               <View className="absolute right-2 top-2 rounded-full bg-black/65 p-1.5">
                 <ImagesSquareIcon size={15} color="#FAF9F6" weight="fill" />
+              </View>
+            ) : null}
+            {post.repostedBy ? (
+              <View className="absolute bottom-2 left-2 flex-row items-center gap-1 rounded-full bg-black/70 px-2 py-1">
+                <RepeatIcon size={12} color="#FAF9F6" weight="bold" />
+                <Text className="text-[10px] font-bold text-white">{t("reposted")}</Text>
               </View>
             ) : null}
           </Pressable>

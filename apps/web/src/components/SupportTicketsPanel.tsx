@@ -21,6 +21,7 @@ const statusLabels: Record<SupportTicketStatus, string> = {
 
 const categoryLabels = {
   BUG: "App problem",
+  FEATURE_REQUEST: "Feature suggestion",
   ACCOUNT: "Account",
   RESTAURANT: "Restaurant",
   CONTENT: "Post or review",
@@ -28,7 +29,7 @@ const categoryLabels = {
   OTHER: "Other",
 };
 
-export function SupportTicketsPanel() {
+export function SupportTicketsPanel({ mode = "support" }: { mode?: "support" | "feedback" }) {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof statuses)[number]>("OPEN");
@@ -38,11 +39,19 @@ export function SupportTicketsPanel() {
   const [reply, setReply] = useState("");
   const [status, setStatus] = useState<SupportTicketStatus>("OPEN");
 
-  const filtered = useMemo(
-    () => tickets.filter((ticket) => filter === "ALL" || ticket.status === filter),
-    [filter, tickets],
+  const relevantTickets = useMemo(
+    () => tickets.filter((ticket) =>
+      mode === "feedback"
+        ? ticket.category === "BUG" || ticket.category === "FEATURE_REQUEST"
+        : ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST",
+    ),
+    [mode, tickets],
   );
-  const selected = tickets.find((ticket) => ticket.id === selectedId) ?? null;
+  const filtered = useMemo(
+    () => relevantTickets.filter((ticket) => filter === "ALL" || ticket.status === filter),
+    [filter, relevantTickets],
+  );
+  const selected = relevantTickets.find((ticket) => ticket.id === selectedId) ?? null;
 
   async function load() {
     setLoading(true);
@@ -52,10 +61,15 @@ export function SupportTicketsPanel() {
         cache: "reload",
       });
       setTickets(next);
+      const relevant = next.filter((ticket) =>
+        mode === "feedback"
+          ? ticket.category === "BUG" || ticket.category === "FEATURE_REQUEST"
+          : ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST",
+      );
       setSelectedId((current) =>
-        current && next.some((ticket) => ticket.id === current)
+        current && relevant.some((ticket) => ticket.id === current)
           ? current
-          : next.find((ticket) => ticket.status === "OPEN")?.id ?? next[0]?.id ?? null,
+          : relevant.find((ticket) => ticket.status === "OPEN")?.id ?? relevant[0]?.id ?? null,
       );
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Could not load support tickets");
@@ -70,7 +84,12 @@ export function SupportTicketsPanel() {
       .then((next) => {
         if (!active) return;
         setTickets(next);
-        const first = next.find((ticket) => ticket.status === "OPEN") ?? next[0];
+        const relevant = next.filter((ticket) =>
+          mode === "feedback"
+            ? ticket.category === "BUG" || ticket.category === "FEATURE_REQUEST"
+            : ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST",
+        );
+        const first = relevant.find((ticket) => ticket.status === "OPEN") ?? relevant[0];
         setSelectedId(first?.id ?? null);
         setReply(first?.adminReply ?? "");
         setStatus(first?.status ?? "OPEN");
@@ -82,7 +101,7 @@ export function SupportTicketsPanel() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [mode]);
 
   function selectTicket(ticket: SupportTicket) {
     setSelectedId(ticket.id);
@@ -111,9 +130,9 @@ export function SupportTicketsPanel() {
     <>
       <div className="page-heading support-heading">
         <div>
-          <p className="eyebrow">CUSTOMER CARE</p>
-          <h2>Help and support</h2>
-          <p className="muted">Review requests from FindEat users and keep every response in one place.</p>
+          <p className="eyebrow">{mode === "feedback" ? "PRODUCT FEEDBACK" : "CUSTOMER CARE"}</p>
+          <h2>{mode === "feedback" ? "Bugs and feature suggestions" : "Help and support"}</h2>
+          <p className="muted">{mode === "feedback" ? "Review reported problems and ideas submitted by FindEat users." : "Review requests from FindEat users and keep every response in one place."}</p>
         </div>
         <button className="secondary support-refresh" onClick={() => void load()} disabled={loading}>
           <ArrowClockwiseIcon size={18} weight="bold" /> Refresh
@@ -124,7 +143,7 @@ export function SupportTicketsPanel() {
         {statuses.map((item) => (
           <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>
             {item === "ALL" ? "All" : statusLabels[item]}
-            <span>{tickets.filter((ticket) => item === "ALL" || ticket.status === item).length}</span>
+            <span>{relevantTickets.filter((ticket) => item === "ALL" || ticket.status === item).length}</span>
           </button>
         ))}
       </div>
@@ -168,6 +187,22 @@ export function SupportTicketsPanel() {
                 <small>User message</small>
                 <p>{selected.message}</p>
               </div>
+              {selected.attachments?.length ? (
+                <div className="support-attachments">
+                  <small>Attachments</small>
+                  <div>
+                    {selected.attachments.map((attachment, index) =>
+                      attachment.type === "VIDEO" ? (
+                        <video key={`${attachment.url}-${index}`} src={attachment.url} controls preload="metadata" />
+                      ) : (
+                        <a key={`${attachment.url}-${index}`} href={attachment.url} target="_blank" rel="noreferrer">
+                          <img src={attachment.url} alt={`Bug report attachment ${index + 1}`} />
+                        </a>
+                      ),
+                    )}
+                  </div>
+                </div>
+              ) : null}
               <label className="support-reply">
                 <span>Reply to the user</span>
                 <textarea value={reply} onChange={(event) => setReply(event.target.value)} maxLength={5000} placeholder="Write a helpful response…" />

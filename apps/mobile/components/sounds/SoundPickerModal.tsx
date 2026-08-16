@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import type { Sound, SoundSelection } from "@findeat/types";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { preload, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MusicNoteIcon, PauseIcon, PlayIcon, TrashIcon, XIcon } from "phosphor-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -76,6 +76,7 @@ export default function SoundPickerModal({
   const [category, setCategory] = useState("For You");
   const [draft, setDraft] = useState<SoundSelection | null>(value);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
   const previewPlayer = useAudioPlayer(null, { updateInterval: 250 });
   const previewStatus = useAudioPlayerStatus(previewPlayer);
   const previewRequestRef = useRef(0);
@@ -104,7 +105,10 @@ export default function SoundPickerModal({
         // The audio hook may already have released its native player while the
         // modal is being removed. There is nothing left to pause in that case.
       }
-      const timer = setTimeout(() => setPreviewId(null), 0);
+      const timer = setTimeout(() => {
+        setPreviewId(null);
+        setPreviewLoadingId(null);
+      }, 0);
       return () => clearTimeout(timer);
     }
   }, [previewPlayer, surface, value, visible]);
@@ -130,14 +134,46 @@ export default function SoundPickerModal({
   const selectedSoundId = draft?.sound.id;
   const data = useMemo(() => sounds.data ?? [], [sounds.data]);
 
+  useEffect(() => {
+    if (!visible) return;
+    const previewSources = data
+      .slice(0, 8)
+      .map((sound) => sound.audioUrl)
+      .filter((source): source is string => Boolean(source));
+    void Promise.allSettled(previewSources.map((source) => preload(source)));
+  }, [data, visible]);
+
+  useEffect(() => {
+    if (!previewLoadingId) return;
+    if (previewStatus.playing) {
+      const timer = setTimeout(() => setPreviewLoadingId(null), 0);
+      return () => clearTimeout(timer);
+    } else if (previewStatus.error) {
+      const timer = setTimeout(() => {
+        setPreviewId(null);
+        setPreviewLoadingId(null);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [previewLoadingId, previewStatus.error, previewStatus.playing]);
+
   function togglePreview(sound: Sound) {
     if (!sound.audioUrl) return;
-    if (previewId === sound.id && previewStatus.playing) {
-      previewRequestRef.current += 1;
-      try {
-        previewPlayer.pause();
-      } catch {
-        setPreviewId(null);
+    if (previewId === sound.id) {
+      if (previewLoadingId === sound.id || previewStatus.playing) {
+        previewRequestRef.current += 1;
+        try {
+          previewPlayer.pause();
+        } catch {
+          setPreviewId(null);
+        }
+        setPreviewLoadingId(null);
+      } else {
+        try {
+          previewPlayer.play();
+        } catch {
+          setPreviewId(null);
+        }
       }
       return;
     }
@@ -150,22 +186,12 @@ export default function SoundPickerModal({
       // eslint-disable-next-line react-hooks/immutability
       previewPlayer.volume = 0.8;
       setPreviewId(sound.id);
+      setPreviewLoadingId(sound.id);
       void api.sounds.track({ event: "PREVIEWED", soundId: sound.id, surface }).catch(() => undefined);
-      void previewPlayer
-        .seekTo(0)
-        .then(() => {
-          if (previewRequestRef.current !== requestId) return;
-          try {
-            previewPlayer.play();
-          } catch {
-            setPreviewId(null);
-          }
-        })
-        .catch(() => {
-          if (previewRequestRef.current === requestId) setPreviewId(null);
-        });
+      previewPlayer.play();
     } catch {
       setPreviewId(null);
+      setPreviewLoadingId(null);
     }
   }
 
@@ -177,6 +203,7 @@ export default function SoundPickerModal({
       // Selection is still valid if the preview player was already released.
     }
     setPreviewId(null);
+    setPreviewLoadingId(null);
     setDraft({ sound, soundStartTimeMs: 0, soundVolume: 0.8, originalAudioVolume: hasOriginalAudio ? 1 : 0 });
     void api.sounds.track({ event: "SELECTED", soundId: sound.id, surface }).catch(() => undefined);
   }
@@ -283,7 +310,7 @@ export default function SoundPickerModal({
                 </View>
                 {selectedSoundId === item.id ? <Text className="font-bold text-[#C99500]">{t("selected")}</Text> : null}
                 <TouchableOpacity onPress={() => togglePreview(item)} className="h-11 w-11 items-center justify-center rounded-full bg-black/5 dark:bg-white/10">
-                  {previewId === item.id && previewStatus.playing ? <PauseIcon size={20} color={isDark ? "#F5F2EC" : "#24231F"} weight="fill" /> : <PlayIcon size={20} color={isDark ? "#F5F2EC" : "#24231F"} weight="fill" />}
+                  {previewLoadingId === item.id ? <ActivityIndicator size="small" color="#D5A400" /> : previewId === item.id && previewStatus.playing ? <PauseIcon size={20} color={isDark ? "#F5F2EC" : "#24231F"} weight="fill" /> : <PlayIcon size={20} color={isDark ? "#F5F2EC" : "#24231F"} weight="fill" />}
                 </TouchableOpacity>
               </TouchableOpacity>
             )}

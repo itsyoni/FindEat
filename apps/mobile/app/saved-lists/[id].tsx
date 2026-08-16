@@ -4,6 +4,7 @@ import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import PlaceListRestaurantRow from "@/components/lists/PlaceListRestaurantRow";
 import SystemPlaceListCover from "@/components/lists/SystemPlaceListCover";
 import PlaceListOptionsBottomSheet from "@/components/lists/PlaceListOptionsBottomSheet";
+import FolderRestaurantCollage from "@/components/lists/FolderRestaurantCollage";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
@@ -193,23 +194,38 @@ export default function SavedListDetailScreen() {
                     />
                   ) : list.systemType ? (
                     <SystemPlaceListCover type={list.systemType} />
-                  ) : list.items[0]?.restaurant.coverUrl || list.items[0]?.restaurant.logoUrl ? (
-                    <ProgressiveImage
-                      source={{
-                        uri:
-                          list.items[0]?.restaurant.coverUrl ??
-                          list.items[0]?.restaurant.logoUrl ??
-                          "",
-                      }}
-                      style={{ width: "100%", height: "100%" }}
-                      contentFit="cover"
-                      transition={180}
-                    />
+                  ) : list.items.length ? (
+                    <FolderRestaurantCollage items={list.items} />
                   ) : (
                     <View className="flex-1 items-center justify-center">
                       <FolderSimpleIcon size={54} color="#D97706" weight="duotone" />
                     </View>
                   )}
+                  {!list.systemType ? (
+                    <>
+                      <View
+                        pointerEvents="none"
+                        className="absolute inset-0 bg-[#171512]/45"
+                      />
+                      <View
+                        pointerEvents="none"
+                        className="absolute inset-0 items-center justify-center px-6"
+                      >
+                        <Text
+                          numberOfLines={2}
+                          weight="bold"
+                          className="text-center text-2xl leading-8 text-[#FAF9F6]"
+                          style={{
+                            textShadowColor: "rgba(11,10,9,0.76)",
+                            textShadowOffset: { width: 0, height: 2 },
+                            textShadowRadius: 7,
+                          }}
+                        >
+                          {list.name}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null}
                 </View>
                 {list.description ? (
                   <Text className="mt-4 text-sm leading-5 text-gray-600 dark:text-gray-300">

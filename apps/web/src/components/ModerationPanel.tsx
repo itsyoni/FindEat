@@ -9,6 +9,8 @@ import type {
 } from "@findeat/types";
 import { request } from "../lib/api";
 import { UserIdentity } from "./UserIdentity";
+import { confirmAction } from "../lib/appConfirm";
+import { promptAction } from "../lib/appPrompt";
 
 const reasonLabels: Record<ModerationReport["reason"], string> = {
   WRONG_RESTAURANT: "Wrong restaurant association",
@@ -99,21 +101,33 @@ export function ModerationPanel() {
     );
   }
 
-  function removeContent(report: ModerationReport) {
+  async function removeContent(report: ModerationReport) {
     const target = report.post
       ? `/admin/moderation/posts/${report.post.id}`
       : report.comment
         ? `/admin/moderation/comments/${report.comment.id}`
         : null;
-    if (!target || !window.confirm("Remove this content permanently?")) return;
+    if (!target || !(await confirmAction({
+      title: "Remove this content permanently?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Remove content",
+      tone: "destructive",
+    }))) return;
     return run(report.id, () => request(target, { method: "DELETE" }));
   }
 
-  function toggleSuspension(report: ModerationReport) {
+  async function toggleSuspension(report: ModerationReport) {
     if (!report.reportedUser) return;
     const suspended = !report.reportedUser.isSuspended;
     const verb = suspended ? "suspend" : "restore";
-    if (!window.confirm(`${verb[0]?.toUpperCase()}${verb.slice(1)} ${report.reportedUser.username}?`)) return;
+    if (!(await confirmAction({
+      title: `${verb[0]?.toUpperCase()}${verb.slice(1)} ${report.reportedUser.username}?`,
+      message: suspended
+        ? "They will lose access until an admin restores the account."
+        : "Their access to FindEat will be restored.",
+      confirmLabel: suspended ? "Suspend user" : "Restore user",
+      tone: suspended ? "warning" : "default",
+    }))) return;
     return run(report.id, () =>
       request(`/admin/moderation/users/${report.reportedUser!.id}`, {
         method: "PATCH",
@@ -214,8 +228,13 @@ export function ModerationPanel() {
                       <button
                         disabled={workingId === report.id}
                         className="secondary"
-                        onClick={() => {
-                          const restaurantId = window.prompt("New restaurant ID (leave empty to remove the association)");
+                        onClick={async () => {
+                          const restaurantId = await promptAction({
+                            title: "Correct restaurant association",
+                            message: "Enter the new restaurant ID, or leave it empty to remove the association.",
+                            placeholder: "Restaurant ID",
+                            confirmLabel: "Update restaurant",
+                          });
                           if (restaurantId === null) return;
                           void run(report.id, () => request(`/admin/moderation/posts/${report.post!.id}/restaurant`, {
                             method: "PATCH",

@@ -13,12 +13,10 @@ import type {
   PlaceListEventType,
 } from "@findeat/types";
 import { uploadImage } from "@/lib/uploadImage";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
-  CalendarBlankIcon,
   CameraIcon,
   MapPinIcon,
   TrashIcon,
@@ -28,7 +26,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Platform,
   Switch,
   TextInput,
   TouchableOpacity,
@@ -49,6 +46,7 @@ export default function EditSavedListScreen() {
   const [eventType, setEventType] = useState<PlaceListEventType | null>(null);
   const [eventDate, setEventDate] = useState<Date | null>(null);
   const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
+  const [customDateMode, setCustomDateMode] = useState<"SINGLE" | "RANGE">("SINGLE");
   const [eventLocation, setEventLocation] = useState("");
   const [eventLocationLatitude, setEventLocationLatitude] = useState<number | null>(null);
   const [eventLocationLongitude, setEventLocationLongitude] = useState<number | null>(null);
@@ -75,6 +73,7 @@ export default function EditSavedListScreen() {
         setEventType(value.eventType ?? null);
         setEventDate(value.eventAt ? new Date(value.eventAt) : null);
         setEventEndDate(value.eventEndAt ? new Date(value.eventEndAt) : null);
+        setCustomDateMode(value.eventEndAt ? "RANGE" : "SINGLE");
         setEventLocation(value.eventLocation ?? "");
         setEventLocationLatitude(value.eventLocationLatitude ?? null);
         setEventLocationLongitude(value.eventLocationLongitude ?? null);
@@ -132,7 +131,16 @@ export default function EditSavedListScreen() {
   }
 
   async function save() {
-    if (!list || !name.trim() || saving) return;
+    const rangeRequired =
+      eventType === "TRIP" ||
+      (eventType === "CUSTOM" && customDateMode === "RANGE");
+    if (
+      !list ||
+      !name.trim() ||
+      (eventType && !eventDate) ||
+      (rangeRequired && !eventEndDate) ||
+      saving
+    ) return;
     setSaving(true);
     try {
       const nextCoverUrl = newCoverUri
@@ -143,7 +151,12 @@ export default function EditSavedListScreen() {
         description: description.trim() || null,
         coverUrl: nextCoverUrl,
         eventAt: eventType && eventDate ? eventDate.toISOString() : null,
-        eventEndAt: eventType === "TRIP" && eventEndDate ? eventEndDate.toISOString() : null,
+        eventEndAt:
+          (eventType === "TRIP" ||
+            (eventType === "CUSTOM" && customDateMode === "RANGE")) &&
+          eventEndDate
+            ? eventEndDate.toISOString()
+            : null,
         eventLocation: eventLocation.trim() || null,
         eventLocationLatitude,
         eventLocationLongitude,
@@ -168,6 +181,14 @@ export default function EditSavedListScreen() {
   }
 
   const coverPreview = newCoverUri ?? coverUrl;
+  const usesDateRange =
+    eventType === "TRIP" ||
+    (eventType === "CUSTOM" && customDateMode === "RANGE");
+  const canSave = Boolean(
+    list &&
+      name.trim() &&
+      (!eventType || (eventDate && (!usesDateRange || eventEndDate))),
+  );
 
   return (
     <SafeAreaView
@@ -182,10 +203,10 @@ export default function EditSavedListScreen() {
           {t("editList")}
         </Text>
         <TouchableOpacity
-          disabled={!list || !name.trim() || saving}
+          disabled={!canSave || saving}
           onPress={() => void save()}
           className="min-w-11 px-1 py-3"
-          style={{ opacity: !list || !name.trim() || saving ? 0.45 : 1 }}
+          style={{ opacity: !canSave || saving ? 0.45 : 1 }}
         >
           {saving ? (
             <ActivityIndicator color="#D97706" />
@@ -261,45 +282,81 @@ export default function EditSavedListScreen() {
 
           {eventType ? (
             <>
-              {eventType === "TRIP" ? (
+              {eventType === "CUSTOM" ? (
+                <View className="mt-4">
+                  <Text className="mb-2 text-sm font-bold text-gray-500">
+                    {t("eventDateFormat")}
+                  </Text>
+                  <View className="flex-row rounded-2xl bg-[#F4F1EC] p-1 dark:bg-gray-900">
+                    {(["SINGLE", "RANGE"] as const).map((mode) => {
+                      const selected = customDateMode === mode;
+                      return (
+                        <TouchableOpacity
+                          key={mode}
+                          onPress={() => {
+                            setCustomDateMode(mode);
+                            setDatePickerOpen(false);
+                            if (mode === "SINGLE") setEventEndDate(null);
+                          }}
+                          className="h-11 flex-1 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: selected ? "#D97706" : "transparent" }}
+                        >
+                          <Text
+                            weight="bold"
+                            style={{ color: selected ? "#FAF9F6" : isDark ? "#FAF9F6" : "#171717" }}
+                          >
+                            {t(mode === "SINGLE" ? "fixedDate" : "eventDateRange")}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+              {usesDateRange ? (
                 <TouchableOpacity
                   onPress={() => setDateRangeOpen(true)}
-                  className="mt-4 flex-row items-center rounded-2xl border border-[#D8D3CA] bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                  className="mt-4 flex-row gap-3 rounded-2xl border border-[#D8D3CA] bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  <CalendarBlankIcon size={20} color="#D97706" weight="fill" />
-                  <Text className="ml-3 flex-1 text-black dark:text-white">
-                    {eventDate && eventEndDate
-                      ? `${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(eventDate)} – ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(eventEndDate)}`
-                      : t("eventDateRange")}
-                  </Text>
+                  <View className="min-h-14 flex-1 justify-center px-1">
+                    <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      {t("startDate")}
+                    </Text>
+                    <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                      {eventDate
+                        ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(eventDate)
+                        : t("selectDate")}
+                    </Text>
+                  </View>
+                  <View className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <View className="min-h-14 flex-1 justify-center px-1">
+                    <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      {t("endDate")}
+                    </Text>
+                    <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                      {eventEndDate
+                        ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(eventEndDate)
+                        : t("selectDate")}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   onPress={() => setDatePickerOpen((current) => !current)}
-                  className="mt-4 flex-row items-center rounded-2xl border border-[#D8D3CA] bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                  className="mt-4 rounded-2xl border border-[#D8D3CA] bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  <CalendarBlankIcon size={20} color="#D97706" weight="fill" />
-                  <Text className="ml-3 flex-1 text-black dark:text-white">
-                    {eventDate
-                      ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(eventDate)
-                      : t("chooseEventDate")}
-                  </Text>
+                  <View className="min-h-14 justify-center px-1">
+                    <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      {t("day")}
+                    </Text>
+                    <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                      {eventDate
+                        ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(eventDate)
+                        : t("selectDate")}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               )}
-              {eventType !== "TRIP" && datePickerOpen ? (
-                <DateTimePicker
-                  value={eventDate ?? new Date()}
-                  mode="date"
-                  minimumDate={new Date()}
-                  display={Platform.OS === "ios" ? "inline" : "default"}
-                  themeVariant={isDark ? "dark" : "light"}
-                  onValueChange={(_, value) => {
-                    setEventDate(value);
-                    if (Platform.OS === "android") setDatePickerOpen(false);
-                  }}
-                  onDismiss={() => setDatePickerOpen(false)}
-                />
-              ) : null}
             </>
           ) : null}
 
@@ -407,11 +464,21 @@ export default function EditSavedListScreen() {
         visible={dateRangeOpen}
         startDate={eventDate}
         endDate={eventEndDate}
+        title={eventType === "CUSTOM" ? t("selectEventDates") : undefined}
         onChange={(start, end) => {
           setEventDate(start);
           setEventEndDate(end);
         }}
         onClose={() => setDateRangeOpen(false)}
+      />
+      <DateRangePickerModal
+        visible={datePickerOpen}
+        selectionMode="single"
+        title={t("chooseEventDate")}
+        startDate={eventDate}
+        endDate={null}
+        onChange={(day) => setEventDate(day)}
+        onClose={() => setDatePickerOpen(false)}
       />
     </SafeAreaView>
   );

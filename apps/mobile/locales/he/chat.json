@@ -159,6 +159,7 @@
   "pollHint": "שאלו את הקוראים שאלה וצפו בתוצאות.",
   "pollAlreadyAdded": "כבר נוסף סקר",
   "pollCreator": "יוצר/ת",
+  "commentCollaborator": "שותף/ה",
   "createPoll": "יצירת סקר",
   "pollQuestionPlaceholder": "מה השאלה שלך?",
   "pollOptionPlaceholder": "אפשרות {{number}}",

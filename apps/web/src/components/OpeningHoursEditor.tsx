@@ -6,6 +6,7 @@ import {
   type RestaurantWeekday,
 } from "@findeat/types";
 import { ClockIcon } from "@phosphor-icons/react/dist/csr/Clock";
+import { CheersIcon } from "@phosphor-icons/react/dist/csr/Cheers";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import { createEmptyOpeningHours } from "./openingHours";
@@ -96,6 +97,32 @@ export function OpeningHoursEditor({
     );
   }
 
+  const happyHours =
+    openingHours.happyHours ?? createEmptyOpeningHours().happyHours!;
+
+  function setHappyHours(
+    day: RestaurantWeekday,
+    periods: RestaurantOpeningPeriod[],
+  ) {
+    onChange({
+      ...openingHours,
+      happyHours: { ...happyHours, [day]: periods },
+    });
+  }
+
+  function updateHappyHour(
+    day: RestaurantWeekday,
+    index: number,
+    patch: Partial<RestaurantOpeningPeriod>,
+  ) {
+    setHappyHours(
+      day,
+      happyHours[day].map((period, periodIndex) =>
+        periodIndex === index ? { ...period, ...patch } : period,
+      ),
+    );
+  }
+
   return (
     <fieldset className="opening-hours-editor full">
       <legend>
@@ -172,6 +199,69 @@ export function OpeningHoursEditor({
           );
         })}
       </div>
+
+      <section className="happy-hours-section">
+        <div className="happy-hours-heading">
+          <div className="happy-hours-icon">
+            <CheersIcon size={20} weight="duotone" />
+          </div>
+          <div>
+            <strong>Happy hours</strong>
+            <p className="muted">
+              Add recurring promotion times. While one is active, guests see a
+              cheers badge on the restaurant map marker.
+            </p>
+          </div>
+        </div>
+
+        <div className="happy-hours-days">
+          {RESTAURANT_WEEKDAYS.map((day) => {
+            const periods = happyHours[day];
+            return (
+              <div className="happy-hours-day" key={`happy-${day}`}>
+                <strong>{dayLabels[day]}</strong>
+                <div className="opening-hours-periods">
+                  {periods.map((period, index) => {
+                    const open = typeof period.open === "string" ? period.open : "16:00";
+                    const close = typeof period.close === "string" ? period.close : "19:00";
+                    return (
+                      <div className="opening-hours-period" key={`happy-${day}-${index}`}>
+                        <div className="happy-hours-time-fields">
+                          <label>
+                            Starts
+                            <input type="time" value={open} onChange={(event) => updateHappyHour(day, index, { open: event.target.value })} required />
+                          </label>
+                          <label>
+                            Ends
+                            <input type="time" value={close} onChange={(event) => updateHappyHour(day, index, { close: event.target.value })} required />
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          className="icon-action"
+                          aria-label={`Remove ${dayLabels[day]} happy hour`}
+                          onClick={() => setHappyHours(day, periods.filter((_, itemIndex) => itemIndex !== index))}
+                        >
+                          <TrashIcon size={17} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {periods.length < 4 && (
+                    <button
+                      type="button"
+                      className="add-hours-period"
+                      onClick={() => setHappyHours(day, [...periods, { open: "16:00", close: "19:00" }])}
+                    >
+                      <PlusIcon size={15} weight="bold" /> Add happy hour
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       <button
         type="button"
         className="remove-opening-hours"

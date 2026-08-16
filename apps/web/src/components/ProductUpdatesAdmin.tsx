@@ -8,6 +8,7 @@ import { SparkleIcon } from "@phosphor-icons/react/dist/csr/Sparkle";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import type { ProductUpdate, ProductUpdateAudienceMember } from "@findeat/types";
 import { request, uploadImage } from "../lib/api";
+import { confirmAction } from "../lib/appConfirm";
 
 type UpdateDraft = {
   title: string;
@@ -146,7 +147,12 @@ export function ProductUpdatesAdmin() {
   }
 
   async function remove(update: ProductUpdate) {
-    if (!window.confirm(`Delete “${update.title}”? This also deletes its view history.`)) return;
+    if (!(await confirmAction({
+      title: `Delete “${update.title}”?`,
+      message: "The announcement and its complete view history will be deleted.",
+      confirmLabel: "Delete update",
+      tone: "destructive",
+    }))) return;
     setError("");
     try {
       await request(`/admin/product-updates/${update.id}`, { method: "DELETE" });

@@ -90,10 +90,26 @@ export default function ContentMediaEditor({
     onApply: (filterId: PhotoFilterId) => Promise<void>;
   }> | null>(null);
 
+  useEffect(() => {
+    let mounted = true;
+    void import("@/components/create/PhotoFilterPickerModal")
+      .then((module) => {
+        if (mounted) setFilterPicker(() => module.default);
+      })
+      .catch(() => {
+        // The action still shows the rebuild explanation on unsupported builds.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   async function openFilters() {
     try {
-      const module = await import("@/components/create/PhotoFilterPickerModal");
-      setFilterPicker(() => module.default);
+      if (!FilterPicker) {
+        const module = await import("@/components/create/PhotoFilterPickerModal");
+        setFilterPicker(() => module.default);
+      }
       setFilterPickerOpen(true);
     } catch (error) {
       console.warn("Photo filters are unavailable in this native build", error);

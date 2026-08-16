@@ -16,24 +16,28 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   ScrollView,
+  StatusBar,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  initialWindowMetrics,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 function FilteredPreview({
-  uri,
   filterId,
   width,
   height,
+  image,
 }: {
-  uri: string;
   filterId: PhotoFilterId;
   width: number;
   height: number;
+  image: ReturnType<typeof useImage>;
 }) {
-  const image = useImage(uri);
   return (
     <Canvas style={{ width, height }}>
       {image ? (
@@ -66,6 +70,7 @@ export default function PhotoFilterPickerModal({
   onApply: (filterId: PhotoFilterId) => Promise<void>;
 }) {
   const { isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation("common");
   const [selected, setSelected] = useState<PhotoFilterId>(value);
   const [applying, setApplying] = useState(false);
@@ -84,6 +89,17 @@ export default function PhotoFilterPickerModal({
 
   const foreground = isDark ? "#F5F2EC" : "#24231F";
   const surface = isDark ? "#121210" : "#FBFAF8";
+  const image = useImage(imageUri);
+  const reportedTopInset = Math.max(
+    insets.top,
+    initialWindowMetrics?.insets.top ?? 0,
+    Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0,
+  );
+  const topInset = reportedTopInset || (Platform.OS === "ios" ? 44 : 0);
+  const bottomInset = Math.max(
+    insets.bottom,
+    initialWindowMetrics?.insets.bottom ?? 0,
+  );
 
   return (
     <Modal
@@ -93,8 +109,14 @@ export default function PhotoFilterPickerModal({
       onShow={() => setSelected(value)}
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, backgroundColor: surface }}>
-        <SafeAreaView style={{ flex: 1 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: surface,
+          paddingTop: topInset,
+          paddingBottom: bottomInset,
+        }}
+      >
           <View className="flex-row items-center px-4 py-2">
             <TouchableOpacity
               disabled={applying}
@@ -138,10 +160,10 @@ export default function PhotoFilterPickerModal({
           >
             {previewSize.width > 0 && previewSize.height > 0 ? (
               <FilteredPreview
-                uri={imageUri}
                 filterId={selected}
                 width={previewSize.width}
                 height={previewSize.height}
+                image={image}
               />
             ) : null}
           </View>
@@ -168,10 +190,10 @@ export default function PhotoFilterPickerModal({
                       }}
                     >
                       <FilteredPreview
-                        uri={imageUri}
                         filterId={filter.id}
                         width={62}
                         height={78}
+                        image={image}
                       />
                     </View>
                     <Text
@@ -186,7 +208,6 @@ export default function PhotoFilterPickerModal({
               })}
             </ScrollView>
           </View>
-        </SafeAreaView>
       </View>
     </Modal>
   );

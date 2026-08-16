@@ -19,6 +19,7 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -94,7 +95,6 @@ export default function ContentVideo({
     isPlaying: player.playing,
   });
   const [manuallyPaused, setManuallyPaused] = useState(false);
-  useEventListener(player, "playToEnd", () => onPlaybackEnd?.());
   const [localMuted, setLocalMuted] = useState(muted);
   const isMuted = onMutedChange ? muted : localMuted;
   const [scrubberWidth, setScrubberWidth] = useState(0);
@@ -114,6 +114,8 @@ export default function ContentVideo({
   const translateY = useSharedValue(0);
   const videoWidth = useSharedValue(0);
   const videoHeight = useSharedValue(0);
+  const scrubTouchStartX = useSharedValue(0);
+  const scrubTouchStartY = useSharedValue(0);
 
   useEffect(() => {
     // Keep every mounted feed player aligned with the shared audio choice.
@@ -126,6 +128,13 @@ export default function ContentVideo({
     // eslint-disable-next-line react-hooks/immutability
     player.volume = Math.max(0, Math.min(1, volume));
   }, [player, volume]);
+
+  useEffect(() => {
+    // Let the native player own looping. Manual replay calls race native end
+    // events on both AVPlayer and ExoPlayer.
+    // eslint-disable-next-line react-hooks/immutability
+    player.loop = loop;
+  }, [loop, player]);
 
   useEffect(() => {
     onPlayingChange?.(isPlaying);
@@ -154,6 +163,10 @@ export default function ContentVideo({
 
   const shouldAutoPlay = autoPlay && isScreenFocused && appIsActive && !paused;
 
+  useEventListener(player, "playToEnd", () => {
+    onPlaybackEnd?.();
+  });
+
   useEffect(() => {
     if (shouldAutoPlay) {
       if (restartOnActivate && !wasAutoPlayingRef.current && player.currentTime > 0) {
@@ -178,17 +191,17 @@ export default function ContentVideo({
     return Math.max(0, Math.min(1, locationX / scrubberWidth));
   }
 
-  function beginScrub(event: GestureResponderEvent) {
+  function beginScrub(locationX: number) {
     if (!scrubberWidth || player.duration <= 0) return;
-    pendingScrubRatioRef.current = scrubRatio(event.nativeEvent.locationX);
+    pendingScrubRatioRef.current = scrubRatio(locationX);
     resumeAfterScrubRef.current = player.playing;
     player.pause();
     setScrubProgress(pendingScrubRatioRef.current);
   }
 
-  function moveScrub(event: GestureResponderEvent) {
+  function moveScrub(locationX: number) {
     if (!scrubberWidth || player.duration <= 0) return;
-    pendingScrubRatioRef.current = scrubRatio(event.nativeEvent.locationX);
+    pendingScrubRatioRef.current = scrubRatio(locationX);
     setScrubProgress(pendingScrubRatioRef.current);
   }
 
@@ -251,6 +264,45 @@ export default function ContentVideo({
       setLocalMuted(nextMuted);
     }
   }
+
+  // These callbacks run only after a native gesture event. Reading playback
+  // refs there is intentional and does not happen during React rendering.
+  /* eslint-disable react-hooks/refs */
+  const scrubberPanGesture = Gesture.Pan()
+    .enabled(showProgress)
+    .manualActivation(true)
+    .onTouchesDown((event) => {
+      const touch = event.allTouches[0] ?? event.changedTouches[0];
+      if (!touch) return;
+      scrubTouchStartX.set(touch.absoluteX);
+      scrubTouchStartY.set(touch.absoluteY);
+    })
+    .onTouchesMove((event, manager) => {
+      const touch = event.allTouches[0] ?? event.changedTouches[0];
+      if (!touch) return;
+      const deltaX = touch.absoluteX - scrubTouchStartX.get();
+      const deltaY = touch.absoluteY - scrubTouchStartY.get();
+      if (Math.abs(deltaX) < 7 && Math.abs(deltaY) < 7) return;
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+        manager.activate();
+      } else {
+        manager.fail();
+      }
+    })
+    .onStart((event) => runOnJS(beginScrub)(event.x))
+    .onUpdate((event) => runOnJS(moveScrub)(event.x))
+    .onEnd(() => runOnJS(finishScrub)());
+  const scrubberTapGesture = Gesture.Tap()
+    .enabled(showProgress)
+    .onEnd((event) => {
+      runOnJS(beginScrub)(event.x);
+      runOnJS(finishScrub)();
+    });
+  const scrubberGesture = Gesture.Race(
+    scrubberPanGesture,
+    scrubberTapGesture,
+  );
+  /* eslint-enable react-hooks/refs */
 
   const pinchGesture = Gesture.Pinch()
     .enabled(pinchToZoom)
@@ -334,6 +386,7 @@ export default function ContentVideo({
         </View>
       ) : null}
       {showProgress && !mediaOnly ? (
+        <GestureDetector gesture={scrubberGesture}>
         <View
           accessibilityRole="adjustable"
           accessibilityValue={{
@@ -344,15 +397,6 @@ export default function ContentVideo({
           onLayout={(event) => {
             setScrubberWidth(event.nativeEvent.layout.width);
           }}
-          onStartShouldSetResponder={() => showProgress}
-          onStartShouldSetResponderCapture={() => showProgress}
-          onMoveShouldSetResponder={() => showProgress}
-          onMoveShouldSetResponderCapture={() => showProgress}
-          onResponderTerminationRequest={() => false}
-          onResponderGrant={beginScrub}
-          onResponderMove={moveScrub}
-          onResponderRelease={finishScrub}
-          onResponderTerminate={finishScrub}
           style={styles.scrubberTouchArea}
         >
           <View pointerEvents="none" style={styles.progressTrack}>
@@ -366,6 +410,7 @@ export default function ContentVideo({
             </View>
           </View>
         </View>
+        </GestureDetector>
       ) : null}
       </Pressable>
     </GestureDetector>

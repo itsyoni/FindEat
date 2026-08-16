@@ -8,7 +8,7 @@ import { API_URL, api } from "@/lib/api";
 import { visitReminderRoute } from "@/lib/visitDetection/routing";
 import type { AppNotification, NotificationsPage } from "@findeat/types";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
-import { router, usePathname } from "expo-router";
+import { router, usePathname, useRootNavigationState } from "expo-router";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
@@ -117,14 +117,15 @@ function mergeNotification(
 
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const isVisitReminder =
-      notification.request.content.data?.type ===
-      "RESTAURANT_VISIT_REMINDER";
+    const notificationType = notification.request.content.data?.type;
+    const isLocalReminder =
+      notificationType === "RESTAURANT_VISIT_REMINDER" ||
+      notificationType === "TRIP_PLAN_REMINDER";
     return {
-      shouldPlaySound: isVisitReminder,
+      shouldPlaySound: isLocalReminder,
       shouldSetBadge: true,
-      shouldShowBanner: isVisitReminder,
-      shouldShowList: isVisitReminder,
+      shouldShowBanner: isLocalReminder,
+      shouldShowList: isLocalReminder,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     };
   },
@@ -174,6 +175,8 @@ function openPushData(data?: Record<string, unknown>) {
     });
   else if (restaurantId) router.push(`/restaurants/${restaurantId}`);
   else if (type === "PLACE_LIST_INVITE") router.push("/saved-lists");
+  else if (type === "TRIP_PLAN_REMINDER" && placeListId)
+    router.push({ pathname: "/saved-lists/plan/[id]", params: { id: placeListId } });
   else if (placeListId) router.push(`/saved-lists/${placeListId}`);
   else if (actorId)
     router.push({ pathname: "/(users)/[id]", params: { id: actorId } });
@@ -188,12 +191,17 @@ export function NotificationProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, token } = useAuth();
+  const { user, token, isLoading: authIsLoading } = useAuth();
   const userId = user?.id;
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const rootNavigationState = useRootNavigationState();
   const insets = useSafeAreaInsets();
   const [popup, setPopup] = useState<AppNotification | null>(null);
+  const [pendingPushData, setPendingPushData] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const notificationsScreenOpen = useRef(false);
   const pathnameRef = useRef(pathname);
   const lastHandledResponseIdRef = useRef<string | null>(null);
@@ -201,6 +209,44 @@ export function NotificationProvider({
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      const identifier = response.notification.request.identifier;
+      if (lastHandledResponseIdRef.current === identifier) return;
+      lastHandledResponseIdRef.current = identifier;
+      setPendingPushData(response.notification.request.content.data ?? null);
+    };
+
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener(handleResponse);
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!response) return;
+        handleResponse(response);
+        return Notifications.clearLastNotificationResponseAsync();
+      })
+      .catch((error) =>
+        console.warn("Could not restore notification response", error),
+      );
+
+    return () => responseSubscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (authIsLoading) return;
+
+    if (!userId) {
+      setPendingPushData(null);
+      return;
+    }
+
+    if (!rootNavigationState?.key || !pendingPushData) return;
+    openPushData(pendingPushData);
+    setPendingPushData(null);
+  }, [authIsLoading, pendingPushData, rootNavigationState?.key, userId]);
 
   useEffect(() => {
     if (!popup) return;
@@ -409,19 +455,6 @@ export function NotificationProvider({
 
     void registerPushToken();
 
-    const handleResponse = (response: Notifications.NotificationResponse) => {
-      const identifier = response.notification.request.identifier;
-      if (lastHandledResponseIdRef.current === identifier) return;
-      lastHandledResponseIdRef.current = identifier;
-      openPushData(response.notification.request.content.data);
-    };
-    const responseSubscription =
-      Notifications.addNotificationResponseReceivedListener(handleResponse);
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!response) return;
-      handleResponse(response);
-      void Notifications.clearLastNotificationResponseAsync();
-    });
     const receivedSubscription = Notifications.addNotificationReceivedListener(
       async (notification) => {
         const content = notification.request.content;
@@ -483,7 +516,6 @@ export function NotificationProvider({
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
-      responseSubscription.remove();
       receivedSubscription.remove();
       pushTokenSubscription.remove();
       appStateSubscription.remove();

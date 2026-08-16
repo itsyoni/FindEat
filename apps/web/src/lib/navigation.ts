@@ -23,6 +23,7 @@ export const adminPaths: Record<AdminDashboardSection, string> = {
   moderation: "/admin/moderation",
   ownership: "/admin/ownership",
   support: "/admin/support",
+  feedback: "/admin/feedback",
   updates: "/admin/whats-new",
   sounds: "/admin/sounds",
   admins: "/admin/admins",

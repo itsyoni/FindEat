@@ -1,10 +1,16 @@
 import { Alert as NativeAlert } from "react-native";
 import type { AlertButton, AlertOptions } from "react-native";
 
-export type AppAlertTone = "default" | "success" | "warning";
+export type AppAlertTone =
+  | "default"
+  | "info"
+  | "success"
+  | "warning"
+  | "destructive";
 
 export type AppAlertOptions = AlertOptions & {
   tone?: AppAlertTone;
+  illustration?: "auto" | "guide" | "none";
 };
 
 export type AppAlertRequest = {
@@ -30,7 +36,11 @@ export const AppAlert = {
     options?: AppAlertOptions,
   ) {
     if (!handler) {
-      const { tone: _tone, ...nativeOptions } = options ?? {};
+      const {
+        tone: _tone,
+        illustration: _illustration,
+        ...nativeOptions
+      } = options ?? {};
       NativeAlert.alert(title, message, buttons, nativeOptions);
       return;
     }

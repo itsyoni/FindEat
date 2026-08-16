@@ -52,6 +52,7 @@ import {
   FolderSimpleIcon,
   HeartIcon,
   FireIcon,
+  CheersIcon,
   MapPinIcon,
   PlayIcon,
   PlusIcon,
@@ -1748,6 +1749,22 @@ export default function MapScreen() {
                             <FireIcon size={18} color="#FFF8EF" weight="fill" />
                           </TouchableOpacity>
                         ) : null}
+                        {restaurant.isHappyHourNow ? (
+                          <View
+                            pointerEvents="none"
+                            accessibilityLabel={t("map:happyHourNow")}
+                            className="absolute -left-2 -top-3 h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#E6A700] dark:border-[#111827]"
+                            style={{
+                              shadowColor: "#7A5100",
+                              shadowOpacity: 0.28,
+                              shadowRadius: 4,
+                              shadowOffset: { width: 0, height: 2 },
+                              elevation: 7,
+                            }}
+                          >
+                            <CheersIcon size={18} color="#FFF8EF" weight="fill" />
+                          </View>
+                        ) : null}
                       </View>
                     </Mapbox.MarkerView>
                   );
@@ -1847,6 +1864,14 @@ export default function MapScreen() {
                           <View className="mt-2 self-start rounded-full bg-gray-100 px-2.5 py-1.5 dark:bg-gray-800">
                             <Text className="text-xs font-bold text-gray-600 dark:text-gray-300">
                               {t("map:activeThisWeek")}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {selectedRestaurant.isHappyHourNow ? (
+                          <View className="mt-2 self-start flex-row items-center rounded-full bg-[#FFF2C7] px-2.5 py-1.5 dark:bg-[#3B2C0A]">
+                            <CheersIcon size={14} color="#C18400" weight="fill" />
+                            <Text className="ml-1.5 text-xs font-bold text-[#8B5E00] dark:text-[#FFD56A]">
+                              {t("map:happyHourNow")}
                             </Text>
                           </View>
                         ) : null}

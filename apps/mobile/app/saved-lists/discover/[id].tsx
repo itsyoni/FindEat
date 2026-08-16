@@ -7,6 +7,7 @@ import SharePostBottomSheet from "@/components/chats/share/SharePostBottomSheet"
 import ContentFeed from "@/components/posts/content/ContentFeed";
 import MapRestaurantListCard from "@/components/restaurants/MapRestaurantListCard";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import {
   updatePostInFeedCache,
   updateRestaurantStatusInFeedCache,
@@ -33,6 +34,7 @@ export default function DiscoverListPlacesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation("common");
   const { isDark } = useAppTheme();
+  const { showToast } = useToast();
   const queryClient = useQueryClient();
   const camera = useRef<Mapbox.Camera>(null);
   const [list, setList] = useState<PlaceListDetail | null>(null);
@@ -101,6 +103,12 @@ export default function DiscoverListPlacesScreen() {
       updateRestaurantStatusInFeedCache(queryClient, restaurantId, {
         wantToTry: true,
       });
+      showToast(
+        t("placeAddedToFolder", {
+          name: list?.name ?? t("savedPlaces"),
+        }),
+        { kind: "success" },
+      );
     } catch {
       Alert.alert(t("savePlaceError"));
     }
@@ -186,6 +194,8 @@ export default function DiscoverListPlacesScreen() {
               onToggleLike={(postId, liked) => void toggleLike(postId, liked)}
               onOpenComments={setSelectedPostId}
               onToggleWantToTry={(postId, restaurantId) => void addToTrip(restaurantId, postId)}
+              useExternalBookmarkHandler
+              externalSavedRestaurantIds={savedIds}
               onDeletePost={(postId) => void deletePost(postId)}
               onOpenSharePost={setSharePostId}
               onOpenPostOptions={setOptionsPostId}

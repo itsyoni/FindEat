@@ -418,8 +418,10 @@ export default function CreateSnapScreen() {
 
   async function openSnapFilters() {
     try {
-      const module = await import("@/components/create/PhotoFilterPickerModal");
-      setFilterPicker(() => module.default);
+      if (!FilterPicker) {
+        const module = await import("@/components/create/PhotoFilterPickerModal");
+        setFilterPicker(() => module.default);
+      }
       setFilterPickerOpen(true);
     } catch (error) {
       console.warn("Photo filters are unavailable in this native build", error);
@@ -429,6 +431,20 @@ export default function CreateSnapScreen() {
       );
     }
   }
+
+  useEffect(() => {
+    let mounted = true;
+    void import("@/components/create/PhotoFilterPickerModal")
+      .then((module) => {
+        if (mounted) setFilterPicker(() => module.default);
+      })
+      .catch(() => {
+        // The action still shows the rebuild explanation on unsupported builds.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -940,14 +956,22 @@ export default function CreateSnapScreen() {
                     }
                   />
                   <SnapEditorTool
-                    label={tSound("sound")}
+                    label={soundSelection?.sound.title ?? tSound("sound")}
                     onPress={() => setSoundPickerOpen(true)}
                     icon={
-                      <MusicNoteIcon
-                        size={25}
-                        color={soundSelection ? "#F7D786" : "#FAF9F6"}
-                        weight={soundSelection ? "fill" : "bold"}
-                      />
+                      soundSelection?.sound.artworkUrl ? (
+                        <Image
+                          source={{ uri: soundSelection.sound.artworkUrl }}
+                          style={{ width: 27, height: 27, borderRadius: 13.5 }}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <MusicNoteIcon
+                          size={25}
+                          color={soundSelection ? "#F7D786" : "#FAF9F6"}
+                          weight={soundSelection ? "fill" : "bold"}
+                        />
+                      )
                     }
                   />
                   <SnapEditorTool
@@ -1028,7 +1052,7 @@ export default function CreateSnapScreen() {
                 )}
                 onPress={() => setToolsExpanded((current) => !current)}
                 className="mt-1 h-11 w-11 items-center justify-center"
-                style={styles.toolShadow}
+                style={[styles.toolShadow, styles.toolRailEndButton]}
               >
                 <CaretDownIcon
                   size={23}
@@ -1341,6 +1365,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.7,
     shadowRadius: 5,
     elevation: 7,
+  },
+  toolRailEndButton: {
+    alignSelf: "flex-end",
   },
   previewKeyboardArea: {
     flex: 1,

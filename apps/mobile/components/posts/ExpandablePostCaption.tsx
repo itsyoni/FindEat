@@ -38,12 +38,6 @@ export default function ExpandablePostCaption({
     lineHeight: 22,
     ...textStyle,
   };
-  const fullWidthStyle: TextStyle = {
-    ...directionStyle,
-    alignSelf: "stretch",
-    width: "100%",
-  };
-
   function measureText(event: NativeSyntheticEvent<TextLayoutEventData>) {
     const lines = event.nativeEvent.lines;
     const nextLineCount = Math.max(lines.length, 1);
@@ -75,47 +69,69 @@ export default function ExpandablePostCaption({
       : "text-sm font-bold text-black dark:text-white";
   const authorPrefix = authorName?.trim().replace(/^@+/, "") || null;
 
-  const captionContent = (interactive = false) => (
-    <>
-      {authorPrefix ? (
-        <Text
-          weight="bold"
-          style={{ writingDirection: "ltr" }}
-          onPress={interactive ? onAuthorPress : undefined}
-          accessibilityRole={interactive && onAuthorPress ? "link" : undefined}
-        >
-          {authorPrefix}{" "}
-        </Text>
-      ) : null}
-      {text}
-    </>
-  );
+  const author = (interactive = false) =>
+    authorPrefix ? (
+      <Text
+        numberOfLines={1}
+        weight="bold"
+        className={captionClass}
+        style={{
+          maxWidth: "42%",
+          flexShrink: 0,
+          textAlign: "left",
+          writingDirection: "auto",
+        }}
+        onPress={interactive ? onAuthorPress : undefined}
+        accessibilityRole={interactive && onAuthorPress ? "link" : undefined}
+      >
+        {authorPrefix}
+      </Text>
+    ) : null;
 
   return (
     <View className="relative">
-      <Text
+      <View
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        onTextLayout={measureText}
-        className={captionClass}
         style={[
-          fullWidthStyle,
           {
             position: "absolute",
+            flexDirection: "row",
+            direction: "ltr",
+            alignItems: "flex-start",
+            gap: authorPrefix ? 5 : 0,
+            width: "100%",
             opacity: 0,
             zIndex: -1,
           },
         ]}
       >
-        {captionContent()}
-      </Text>
+        {author()}
+        <Text
+          onTextLayout={measureText}
+          className={`flex-1 ${captionClass}`}
+          style={directionStyle}
+        >
+          {text}
+        </Text>
+      </View>
 
       {expanded ? (
         <View>
-          <Text className={captionClass} style={fullWidthStyle}>
-            {captionContent(true)}
-          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              direction: "ltr",
+              alignItems: "flex-start",
+              gap: authorPrefix ? 5 : 0,
+            }}
+          >
+            {author(true)}
+            <Text className={`flex-1 ${captionClass}`} style={directionStyle}>
+              {text}
+            </Text>
+          </View>
           {canExpand ? (
             <TouchableOpacity
               activeOpacity={0.75}
@@ -129,19 +145,22 @@ export default function ExpandablePostCaption({
         </View>
       ) : (
         <View
-          className="flex-row items-center gap-2"
+          className="flex-row items-center"
           style={{
             flexDirection: "row",
+            direction: "ltr",
+            gap: authorPrefix ? 5 : 0,
             minHeight: 22,
           }}
         >
+          {author(true)}
           <Text
             numberOfLines={1}
             ellipsizeMode="tail"
             className={`flex-1 ${captionClass}`}
             style={directionStyle}
           >
-            {captionContent(true)}
+            {text}
           </Text>
           {canExpand ? (
             <TouchableOpacity activeOpacity={0.75} onPress={toggleExpanded}>

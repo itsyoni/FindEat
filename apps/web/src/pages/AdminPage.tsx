@@ -14,6 +14,7 @@ import { MapPinLineIcon } from "@phosphor-icons/react/dist/csr/MapPinLine";
 import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
+import { LightbulbIcon } from "@phosphor-icons/react/dist/csr/Lightbulb";
 import type {
   AdminDashboardSection,
   AdminUser,
@@ -31,6 +32,7 @@ import { ModerationPanel } from "../components/ModerationPanel";
 import { AddressChangeRequestsPanel } from "../components/AddressChangeRequestsPanel";
 import { SoundCatalogAdmin } from "../components/SoundCatalogAdmin";
 import { request } from "../lib/api";
+import { confirmAction } from "../lib/appConfirm";
 
 export function AdminPage({
   claims,
@@ -75,7 +77,12 @@ export function AdminPage({
   async function decide(claimId: string, decision: "approve" | "reject") {
     if (
       decision === "reject" &&
-      !window.confirm("Reject this restaurant claim?")
+      !(await confirmAction({
+        title: "Reject this restaurant claim?",
+        message: "The claimant will be notified that their request was rejected.",
+        confirmLabel: "Reject claim",
+        tone: "warning",
+      }))
     )
       return;
     setWorkingId(claimId);
@@ -266,6 +273,15 @@ export function AdminPage({
             <HeadsetIcon className="nav-icon" weight="duotone" /> Support
           </button>
           <button
+            className={section === "feedback" ? "active" : ""}
+            onClick={() => {
+              onNavigate("feedback");
+              setError("");
+            }}
+          >
+            <LightbulbIcon className="nav-icon" weight="duotone" /> Feedback
+          </button>
+          <button
             className={section === "updates" ? "active" : ""}
             onClick={() => {
               onNavigate("updates");
@@ -321,7 +337,7 @@ export function AdminPage({
           </div>
           <AccountAvatar account={account} />
         </header>
-        <div className={`admin-content ${section === "support" ? "support-admin-content" : ""}`}>
+        <div className={`admin-content ${section === "support" || section === "feedback" ? "support-admin-content" : ""}`}>
           {(section === "addresses" || visitedSections.has("addresses")) && (
             <div className="admin-page-slot" hidden={section !== "addresses"}>
               <AddressChangeRequestsPanel />
@@ -343,6 +359,14 @@ export function AdminPage({
               hidden={section !== "support"}
             >
               <SupportTicketsPanel />
+            </div>
+          )}
+          {(section === "feedback" || visitedSections.has("feedback")) && (
+            <div
+              className="admin-page-slot admin-support-slot"
+              hidden={section !== "feedback"}
+            >
+              <SupportTicketsPanel mode="feedback" />
             </div>
           )}
           {(section === "updates" || visitedSections.has("updates")) && (

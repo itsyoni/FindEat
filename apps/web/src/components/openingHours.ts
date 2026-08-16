@@ -17,6 +17,15 @@ export function createEmptyOpeningHours(): RestaurantOpeningHours {
       SATURDAY: [],
       SUNDAY: [],
     },
+    happyHours: {
+      MONDAY: [],
+      TUESDAY: [],
+      WEDNESDAY: [],
+      THURSDAY: [],
+      FRIDAY: [],
+      SATURDAY: [],
+      SUNDAY: [],
+    },
   };
 }
 
@@ -33,5 +42,11 @@ export function normalizeOpeningHours(
         Array.isArray(value.weekly[day]) ? value.weekly[day] : [],
       ]),
     ) as RestaurantOpeningHours["weekly"],
+    happyHours: Object.fromEntries(
+      RESTAURANT_WEEKDAYS.map((day) => [
+        day,
+        Array.isArray(value.happyHours?.[day]) ? value.happyHours[day] : [],
+      ]),
+    ) as NonNullable<RestaurantOpeningHours["happyHours"]>,
   };
 }

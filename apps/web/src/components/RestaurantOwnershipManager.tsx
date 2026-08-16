@@ -12,6 +12,7 @@ import type {
   RestaurantOwnershipUser,
 } from "@findeat/types";
 import { request } from "../lib/api";
+import { confirmAction } from "../lib/appConfirm";
 
 type OwnerAction =
   | { kind: "add"; restaurantId: string }
@@ -164,7 +165,12 @@ export function RestaurantOwnershipManager() {
     const warning = removingLastOwner
       ? `Remove ${owner.user.username} from ${restaurant.name}? This is the final owner, so the restaurant will become unclaimed.`
       : `Remove ${owner.user.username} as an owner of ${restaurant.name}?`;
-    if (!window.confirm(warning)) return;
+    if (!(await confirmAction({
+      title: "Remove restaurant owner?",
+      message: warning,
+      confirmLabel: "Remove owner",
+      tone: "destructive",
+    }))) return;
 
     const actionKey = `remove:${restaurant.id}:${owner.user.id}`;
     setWorkingId(actionKey);

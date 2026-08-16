@@ -2,16 +2,21 @@ import Text from "@/components/common/AppText";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import DateRangePickerModal from "@/components/lists/DateRangePickerModal";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
+import { uploadImage } from "@/lib/uploadImage";
+import * as ImagePicker from "expo-image-picker";
 import type { PlaceListEventType } from "@findeat/types";
 import { router, Stack } from "expo-router";
 import {
   CalendarBlankIcon,
+  CameraIcon,
   CheckCircleIcon,
   FolderSimpleIcon,
   FolderSimplePlusIcon,
+  TrashIcon,
 } from "phosphor-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -41,23 +46,39 @@ export default function CreateSavedListScreen() {
   const { showToast } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [coverUri, setCoverUri] = useState<string | null>(null);
   const [eventType, setEventType] = useState<PlaceListEventType | null>(null);
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [customDateMode, setCustomDateMode] = useState<"SINGLE" | "RANGE">("SINGLE");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
   async function createList() {
     const trimmedName = name.trim();
-    if (!trimmedName || (eventType === "TRIP" && (!startDate || !endDate)) || creating) return;
+    const usesDateRange =
+      eventType === "TRIP" ||
+      (eventType === "CUSTOM" && customDateMode === "RANGE");
+    if (
+      !trimmedName ||
+      (eventType && !startDate) ||
+      (usesDateRange && !endDate) ||
+      creating
+    ) return;
     setCreating(true);
     try {
+      const coverUrl = coverUri ? await uploadImage(coverUri, "list") : null;
       const created = await api.placeLists.create({
         name: trimmedName,
         description: description.trim() || null,
+        coverUrl,
         eventType,
         eventAt: eventType && startDate ? startDate.toISOString() : null,
-        eventEndAt: eventType && endDate ? endDate.toISOString() : null,
+        eventEndAt:
+          eventType && usesDateRange && endDate
+            ? endDate.toISOString()
+            : null,
       });
       showToast(t("listCreated"));
       router.replace({
@@ -72,9 +93,38 @@ export default function CreateSavedListScreen() {
   }
 
   const ink = isDark ? "#FAF9F6" : "#171717";
+  const usesDateRange =
+    eventType === "TRIP" ||
+    (eventType === "CUSTOM" && customDateMode === "RANGE");
   const canCreate = Boolean(
-    name.trim() && (eventType !== "TRIP" || (startDate && endDate)),
+    name.trim() &&
+      (!eventType || (startDate && (!usesDateRange || endDate))),
   );
+
+  function selectEventType(type: PlaceListEventType) {
+    setEventType(type);
+    setDatePickerOpen(false);
+    if (type !== "TRIP" && type !== "CUSTOM") {
+      setEndDate(null);
+    }
+  }
+
+  async function pickCover() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        allowsMultipleSelection: false,
+        aspect: [16, 9],
+        quality: 0.86,
+      });
+      if (!result.canceled && result.assets[0]?.uri) {
+        setCoverUri(result.assets[0].uri);
+      }
+    } catch {
+      showToast(t("coverPhotoError"), { kind: "error" });
+    }
+  }
 
   return (
     <SafeAreaView
@@ -115,6 +165,53 @@ export default function CreateSavedListScreen() {
         </View>
 
         <Text className="mb-2 text-sm font-bold text-black dark:text-white">
+          {t("folderCover")}
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t(coverUri ? "changeCover" : "addListCover")}
+          activeOpacity={0.84}
+          onPress={() => void pickCover()}
+          className="h-44 overflow-hidden rounded-[24px] border border-[#E5E1DB] bg-amber-50 dark:border-[#30302E] dark:bg-amber-950/40"
+        >
+          {coverUri ? (
+            <ProgressiveImage
+              source={{ uri: coverUri }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <CameraIcon size={34} color="#D97706" weight="duotone" />
+              <Text className="mt-2 font-bold text-amber-700 dark:text-amber-300">
+                {t("addListCover")}
+              </Text>
+            </View>
+          )}
+          {coverUri ? (
+            <View className="absolute bottom-3 left-3 flex-row items-center rounded-full bg-[#171512]/65 px-3 py-2">
+              <CameraIcon size={16} color="#FAF9F6" weight="fill" />
+              <Text className="ml-1.5 text-xs font-bold text-[#FAF9F6]">
+                {t("changeCover")}
+              </Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+        {coverUri ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("removeCover")}
+            onPress={() => setCoverUri(null)}
+            className="mt-2 flex-row items-center justify-center py-2"
+          >
+            <TrashIcon size={16} color="#DC2626" weight="bold" />
+            <Text className="ml-1.5 text-sm font-bold text-red-600">
+              {t("removeCover")}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <Text className="mb-2 mt-5 text-sm font-bold text-black dark:text-white">
           {t("listName")}
         </Text>
         <TextInput
@@ -232,7 +329,7 @@ export default function CreateSavedListScreen() {
                     key={type}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: selected }}
-                    onPress={() => setEventType(type)}
+                    onPress={() => selectEventType(type)}
                     className="rounded-full px-3.5 py-2"
                     style={{
                       backgroundColor: selected
@@ -252,35 +349,89 @@ export default function CreateSavedListScreen() {
                 );
               })}
             </View>
-            <Text className="mb-3 text-sm font-bold text-black dark:text-white">
-              {t("eventDateRange")}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setDateRangeOpen(true)}
-              className="flex-row gap-3 rounded-2xl border border-[#D8D3CA] bg-white p-3 dark:border-gray-700 dark:bg-[#222220]"
-            >
-              <View className="min-h-14 flex-1 justify-center px-1">
-                <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                  {t("startDate")}
+            {eventType === "CUSTOM" ? (
+              <View>
+                <Text className="mb-2 text-sm font-bold text-black dark:text-white">
+                  {t("eventDateFormat")}
                 </Text>
-                <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
-                  {startDate
-                    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(startDate)
-                    : t("selectDate")}
-                </Text>
+                <View className="flex-row rounded-2xl bg-white p-1 dark:bg-[#222220]">
+                  {(["SINGLE", "RANGE"] as const).map((mode) => {
+                    const selected = customDateMode === mode;
+                    return (
+                      <TouchableOpacity
+                        key={mode}
+                        onPress={() => {
+                          setCustomDateMode(mode);
+                          setDatePickerOpen(false);
+                          if (mode === "SINGLE") setEndDate(null);
+                        }}
+                        className="h-11 flex-1 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: selected ? "#D97706" : "transparent" }}
+                      >
+                        <Text weight="bold" style={{ color: selected ? "#FAF9F6" : ink }}>
+                          {t(mode === "SINGLE" ? "fixedDate" : "eventDateRange")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
-              <View className="w-px bg-gray-200 dark:bg-gray-700" />
-              <View className="min-h-14 flex-1 justify-center px-1">
-                <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                  {t("endDate")}
+            ) : null}
+
+            {usesDateRange ? (
+              <>
+                <Text className="mb-3 text-sm font-bold text-black dark:text-white">
+                  {t("eventDateRange")}
                 </Text>
-                <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
-                  {endDate
-                    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(endDate)
-                    : t("selectDate")}
+                <TouchableOpacity
+                  onPress={() => setDateRangeOpen(true)}
+                  className="flex-row gap-3 rounded-2xl border border-[#D8D3CA] bg-white p-3 dark:border-gray-700 dark:bg-[#222220]"
+                >
+                  <View className="min-h-14 flex-1 justify-center px-1">
+                    <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      {t("startDate")}
+                    </Text>
+                    <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                      {startDate
+                        ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(startDate)
+                        : t("selectDate")}
+                    </Text>
+                  </View>
+                  <View className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <View className="min-h-14 flex-1 justify-center px-1">
+                    <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      {t("endDate")}
+                    </Text>
+                    <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                      {endDate
+                        ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(endDate)
+                        : t("selectDate")}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text className="text-sm font-bold text-black dark:text-white">
+                  {t("fixedDate")}
                 </Text>
-              </View>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setDatePickerOpen((current) => !current)}
+                  className="rounded-2xl border border-[#D8D3CA] bg-white p-3 dark:border-gray-700 dark:bg-[#222220]"
+                >
+                  <View className="min-h-14 justify-center px-1">
+                    <Text className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      {t("day")}
+                    </Text>
+                    <Text numberOfLines={1} className="mt-1 font-bold text-black dark:text-white">
+                      {startDate
+                        ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(startDate)
+                        : t("selectDate")}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         ) : null}
 
@@ -333,11 +484,21 @@ export default function CreateSavedListScreen() {
         visible={dateRangeOpen}
         startDate={startDate}
         endDate={endDate}
+        title={eventType === "CUSTOM" ? t("selectEventDates") : undefined}
         onChange={(start, end) => {
           setStartDate(start);
           setEndDate(end);
         }}
         onClose={() => setDateRangeOpen(false)}
+      />
+      <DateRangePickerModal
+        visible={datePickerOpen}
+        selectionMode="single"
+        title={t("chooseEventDate")}
+        startDate={startDate}
+        endDate={null}
+        onChange={(day) => setStartDate(day)}
+        onClose={() => setDatePickerOpen(false)}
       />
     </SafeAreaView>
   );

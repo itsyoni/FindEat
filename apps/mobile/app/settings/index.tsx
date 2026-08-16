@@ -8,7 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useActiveCountry } from '@/contexts/ActiveCountryContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GlobeHemisphereWestIcon, HeadsetIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
+import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
 import { useCallback, useState } from 'react';
@@ -63,6 +63,8 @@ export default function SettingsScreen() {
           <SettingsRow icon={<MoonIcon size={23} color={color} />} title={t('settings:appearanceLanguage')} subtitle={t('settings:appearanceLanguageSubtitle')} onPress={() => router.push('/settings/appearance')} />
         </SettingsSection>
         <SettingsSection title={t('settings:helpSupportSection')}>
+          <SettingsRow icon={<BugIcon size={23} color="#E4573D" weight="duotone" />} title={t('settings:reportBug')} subtitle={t('settings:reportBugSubtitle')} onPress={() => router.push('/settings/report-bug')} />
+          <SettingsRow icon={<LightbulbIcon size={23} color="#D1A928" weight="duotone" />} title={t('settings:suggestFeature')} subtitle={t('settings:suggestFeatureSubtitle')} onPress={() => router.push('/settings/suggest-feature')} />
           <SettingsRow icon={<HeadsetIcon size={23} color={color} />} title={t('settings:helpSupport')} subtitle={t('settings:helpSupportSubtitle')} onPress={() => router.push('/settings/help-support')} />
           <SettingsRow icon={<SparkleIcon size={23} color={color} />} title={t('settings:whatsNew')} subtitle={t('settings:whatsNewSubtitle')} onPress={() => router.push('/settings/whats-new')} />
           <SettingsRow icon={<FileTextIcon size={23} color={color} />} title={t('settings:termsOfService')} subtitle={t('settings:termsOfServiceSubtitle')} onPress={() => router.push('/settings/terms-of-service')} />

@@ -919,9 +919,30 @@ export default function CommentsBottomSheet({
               onPress={() => router.push({ pathname: "/(users)/[id]", params: { id: item.user.id } })}
             >
               <View className="min-w-0 shrink">
-                <Text className="font-bold text-black dark:text-white">
-                  {userDisplayName(item.user)}
-                </Text>
+                <View
+                  className="min-w-0 flex-row items-center"
+                  style={{ flexDirection: "row", direction: "ltr" }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="min-w-0 shrink font-bold text-black dark:text-white"
+                    style={{ textAlign: "left", writingDirection: "auto" }}
+                  >
+                    {userDisplayName(item.user)}
+                  </Text>
+                  {item.authorRole ? (
+                    <>
+                      <Text className="mx-1 text-sm text-gray-400">·</Text>
+                      <Text className="shrink-0 text-sm font-bold text-amber-600 dark:text-amber-400">
+                        {t(
+                        item.authorRole === "CREATOR"
+                          ? "pollCreator"
+                          : "commentCollaborator",
+                        )}
+                      </Text>
+                    </>
+                  ) : null}
+                </View>
                 {item.user.displayName?.trim() ? (
                   <Text className="text-xs text-gray-500 dark:text-gray-400">
                     {usernameLabel(item.user.username)}
@@ -1347,10 +1368,12 @@ export default function CommentsBottomSheet({
                         })
                       }
                       className="flex-row items-center"
+                      style={{ flexDirection: "row", direction: "ltr" }}
                     >
                       <Text
                         numberOfLines={1}
                         className="shrink font-bold text-black dark:text-white"
+                        style={{ textAlign: "left", writingDirection: "auto" }}
                       >
                         {userDisplayName(poll.createdBy)}
                       </Text>
@@ -1364,7 +1387,7 @@ export default function CommentsBottomSheet({
                     {poll.title}
                   </Text>
 
-                  <View className="mt-3 gap-2.5">
+                  <View className="mt-1.5 gap-2.5">
                     {poll.options.map((option) => {
                       const percentage = poll.totalVotes
                         ? Math.round((option.votesCount / poll.totalVotes) * 100)
@@ -1425,7 +1448,13 @@ export default function CommentsBottomSheet({
                     })}
                   </View>
 
-                  <View className="mt-3 flex-row items-center justify-between">
+                  <View
+                    className="mt-3 flex-row items-center justify-between"
+                    style={{ flexDirection: "row", direction: "ltr" }}
+                  >
+                    <Text className="text-sm text-gray-500 dark:text-gray-400">
+                      {t("pollVotes", { count: poll.totalVotes })}
+                    </Text>
                     <Text className="text-sm text-gray-400">
                       {poll.createdAt
                         ? formatCommentTime(
@@ -1433,9 +1462,6 @@ export default function CommentsBottomSheet({
                             i18n.resolvedLanguage ?? i18n.language,
                           )
                         : ""}
-                    </Text>
-                    <Text className="text-sm text-gray-500 dark:text-gray-400">
-                      {t("pollVotes", { count: poll.totalVotes })}
                     </Text>
                   </View>
                 </View>

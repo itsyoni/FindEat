@@ -15,7 +15,10 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { uploadImage } from "@/lib/uploadImage";
 import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
-import ImageCropPicker from "react-native-image-crop-picker";
+import {
+  openNativeImageCropper,
+  prepareImageForNativeCrop,
+} from "@/lib/nativeImageCrop";
 import * as ImagePicker from "expo-image-picker";
 import {
   CameraView,
@@ -37,7 +40,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Linking,
-  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -90,6 +92,10 @@ export default function EditProfileScreen() {
   });
 
   const displayedAvatar = newAvatarUri || avatarUrl;
+
+  function closeEditProfile() {
+    router.dismissTo("/(tabs)/profile");
+  }
 
   const hasChanges =
     username !== original.username ||
@@ -247,7 +253,7 @@ export default function EditProfileScreen() {
       });
 
       await refreshUser();
-      router.back();
+      closeEditProfile();
     } catch (error) {
       console.error(error);
 
@@ -314,10 +320,13 @@ export default function EditProfileScreen() {
       });
       if (result.canceled || !result.assets[0]?.uri) return;
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+      const asset = result.assets[0];
+      const cropSource = await prepareImageForNativeCrop(
+        asset.uri,
+        asset.width,
+        asset.height,
       );
-      const image = await ImageCropPicker.openCropper({
+      const image = await openNativeImageCropper({
         width: 1000,
         height: 1000,
         cropping: true,
@@ -327,7 +336,7 @@ export default function EditProfileScreen() {
         compressImageQuality: 0.8,
         forceJpg: true,
         cropperToolbarTitle: t("profile:cropProfilePhoto"),
-        path: result.assets[0].uri,
+        path: cropSource,
       });
       setNewAvatarUri(
         image.path.startsWith("/") ? `file://${image.path}` : image.path,
@@ -349,7 +358,7 @@ export default function EditProfileScreen() {
 
     try {
       setProfileCameraApplying(true);
-      const image = await ImageCropPicker.openCropper({
+      const image = await openNativeImageCropper({
         width: 1000,
         height: 1000,
         cropping: true,
@@ -421,12 +430,14 @@ export default function EditProfileScreen() {
         const captured = result.assets[0];
         // Let the system camera finish dismissing before presenting the
         // cropper, otherwise iOS can fail to open the crop screen.
-        await new Promise((resolve) =>
-          setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+        const cropSource = await prepareImageForNativeCrop(
+          captured.uri,
+          captured.width,
+          captured.height,
         );
-        const image = await ImageCropPicker.openCropper({
+        const image = await openNativeImageCropper({
           ...cropOptions,
-          path: captured.uri,
+          path: cropSource,
         });
         onSelect(image.path.startsWith("/") ? `file://${image.path}` : image.path);
       } catch (error) {
@@ -449,15 +460,15 @@ export default function EditProfileScreen() {
         });
         if (result.canceled || !result.assets[0]) return;
 
-        // The system gallery resolves before its native dismissal animation
-        // has fully completed. Presenting the cropper immediately can make
-        // iOS silently ignore it, so wait for that controller to close first.
-        await new Promise((resolve) =>
-          setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+        const asset = result.assets[0];
+        const cropSource = await prepareImageForNativeCrop(
+          asset.uri,
+          asset.width,
+          asset.height,
         );
-        const image = await ImageCropPicker.openCropper({
+        const image = await openNativeImageCropper({
           ...cropOptions,
-          path: result.assets[0].uri,
+          path: cropSource,
         });
         onSelect(
           image.path.startsWith("/") ? `file://${image.path}` : image.path,
@@ -485,25 +496,30 @@ export default function EditProfileScreen() {
       }
     }
 
-    Alert.alert(t("profile:chooseImage"), t("profile:chooseImageDescription"), [
-      {
-        text: t("profile:takePhoto"),
-        onPress: openCamera,
-      },
-      {
-        text: t("profile:chooseFromLibrary"),
-        onPress: openLibrary,
-      },
-      {
-        text: t("profile:removeProfilePicture"),
-        style: "destructive",
-        onPress: removeProfilePicture,
-      },
-      {
-        text: t("common:cancel"),
-        style: "cancel",
-      },
-    ]);
+    Alert.alert(
+      t("profile:chooseImage"),
+      t("profile:chooseImageDescription"),
+      [
+        {
+          text: t("profile:takePhoto"),
+          onPress: openCamera,
+        },
+        {
+          text: t("profile:chooseFromLibrary"),
+          onPress: openLibrary,
+        },
+        {
+          text: t("profile:removeProfilePicture"),
+          style: "destructive",
+          onPress: removeProfilePicture,
+        },
+        {
+          text: t("common:cancel"),
+          style: "cancel",
+        },
+      ],
+      { tone: "default", illustration: "none" },
+    );
   }
 
   async function pickAvatar() {
@@ -512,7 +528,7 @@ export default function EditProfileScreen() {
 
   function handleBack() {
     if (!hasChanges) {
-      router.back();
+      closeEditProfile();
       return;
     }
 
@@ -527,7 +543,7 @@ export default function EditProfileScreen() {
         {
           text: t("profile:discard"),
           style: "destructive",
-          onPress: () => router.back(),
+          onPress: closeEditProfile,
         },
         {
           text: t("common:save"),

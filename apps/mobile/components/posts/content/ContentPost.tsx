@@ -8,8 +8,10 @@ import {
   HeartIcon,
   ShareFatIcon,
   DotsThreeIcon,
+  RepeatIcon,
 } from "phosphor-react-native";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   TouchableOpacity,
@@ -50,6 +52,10 @@ import {
   setContentFeedMuted,
   useContentFeedAudio,
 } from "@/hooks/useContentFeedAudio";
+import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/contexts/ToastContext";
+import { updatePostInFeedCache } from "@/hooks/useFeed";
 
 const CONTENT_ACTION_ICON_SIZE = 31;
 
@@ -70,6 +76,8 @@ type Props = {
     restaurantId: string,
     isWantToTry: boolean,
   ) => void;
+  useExternalBookmarkHandler?: boolean;
+  savedToExternalList?: boolean;
 };
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
@@ -95,6 +103,9 @@ export default function ContentPost({
   onOpenComments,
   onOpenSharePost,
   onOpenPostOptions,
+  onToggleWantToTry,
+  useExternalBookmarkHandler = false,
+  savedToExternalList = false,
   onPinchStart,
   onPinchEnd,
 }: Props) {
@@ -102,11 +113,18 @@ export default function ContentPost({
   const { t: tCommon, i18n } = useTranslation("common");
   const { width } = useWindowDimensions();
   const { isDark } = useAppTheme();
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [taggedUsersOpen, setTaggedUsersOpen] = useState(false);
   const [likesOpen, setLikesOpen] = useState(false);
   const [mediaOnly, setMediaOnly] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [reposting, setReposting] = useState(false);
+  const [repostOverride, setRepostOverride] = useState<{
+    postId: string;
+    value: boolean;
+  } | null>(null);
   const [soundPlaybackRevision, setSoundPlaybackRevision] = useState(0);
   const [soundPlaybackOffsetMs, setSoundPlaybackOffsetMs] = useState(0);
   const contentFeedMuted = useContentFeedAudio();
@@ -128,9 +146,44 @@ export default function ContentPost({
   const isWantToTry = !!userRestaurant?.wantToTry;
   const isVisited = !!userRestaurant?.visited;
   const isFavorite = !!userRestaurant?.favorite;
-  const savedListCount = post.restaurant
+  const knownSavedListCount = post.restaurant
     ? (savedListCounts[post.restaurant.id] ?? post.restaurantSavedListCount ?? 0)
     : 0;
+  const savedListCount = savedToExternalList
+    ? Math.max(1, knownSavedListCount)
+    : knownSavedListCount;
+
+  const isReposted =
+    repostOverride?.postId === post.id
+      ? repostOverride.value
+      : Boolean(post.isReposted);
+
+  async function toggleRepost() {
+    if (!post.canRepost || reposting) return;
+    try {
+      setReposting(true);
+      const nextPost = isReposted
+        ? await api.posts.removeRepost(post.id)
+        : await api.posts.repost(post.id);
+      const nextReposted = Boolean(nextPost.isReposted);
+      setRepostOverride({ postId: post.id, value: nextReposted });
+      updatePostInFeedCache(queryClient, (cachedPost) =>
+        cachedPost.id === post.id
+          ? { ...cachedPost, isReposted: nextReposted }
+          : cachedPost,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["user-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["post"] }),
+      ]);
+      showToast(tCommon(nextReposted ? "postReposted" : "repostRemoved"));
+    } catch {
+      showToast(tCommon("repostError"), { kind: "error" });
+    } finally {
+      setReposting(false);
+    }
+  }
 
   function openAuthorProfile() {
     if (isOfficialPost && post.restaurant) {
@@ -293,6 +346,11 @@ export default function ContentPost({
   function handleWantToTry() {
     if (!post.restaurant?.id) return;
 
+    if (useExternalBookmarkHandler) {
+      onToggleWantToTry(post.id, post.restaurant.id, isWantToTry);
+      return;
+    }
+
     if (!isWantToTry && !isVisited && !isFavorite && savedListCount === 0) {
       void quickSavePlace(post.restaurant.id, post.id);
       return;
@@ -386,10 +444,6 @@ export default function ContentPost({
               volume={content?.originalAudioVolume ?? 1}
               onMutedChange={setContentFeedMuted}
               onPlayingChange={setVideoPlaying}
-              onPlaybackEnd={() => {
-                setSoundPlaybackOffsetMs(0);
-                setSoundPlaybackRevision((current) => current + 1);
-              }}
               onSeek={(seconds) => {
                 setSoundPlaybackOffsetMs(Math.round(seconds * 1000));
                 setSoundPlaybackRevision((current) => current + 1);
@@ -535,6 +589,14 @@ export default function ContentPost({
         /> : null}
 
         {!mediaOnly ? <View className="absolute bottom-8 left-4 right-24">
+          {post.repostedBy ? (
+            <View className="mb-2 flex-row items-center gap-1.5">
+              <RepeatIcon size={14} color="#FAF9F6" weight="bold" />
+              <Text className="text-xs font-semibold text-white/85">
+                {tCommon("repostedBy", { name: userDisplayName(post.repostedBy) })}
+              </Text>
+            </View>
+          ) : null}
           <View className="mb-3 flex-row items-center justify-start gap-3">
             <View className="min-w-0 shrink flex-row items-center gap-3">
               {isRestaurantPost ? (
@@ -666,6 +728,35 @@ export default function ContentPost({
                   </Text>
                 </TouchableOpacity>
               ) : null}
+
+              {post.canRepost ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={tCommon(isReposted ? "removeRepost" : "repost")}
+                  disabled={reposting}
+                  activeOpacity={0.8}
+                  className="ml-2 flex-row items-center rounded-full bg-[#00000080] px-3 py-2"
+                  onPress={() => void toggleRepost()}
+                  style={{ opacity: reposting ? 0.6 : 1 }}
+                >
+                  {reposting ? (
+                    <ActivityIndicator size="small" color="#F7D786" />
+                  ) : (
+                    <RepeatIcon
+                      size={15}
+                      color={isReposted ? "#F7D786" : "#FAF9F6"}
+                      weight="bold"
+                    />
+                  )}
+                  <Text
+                    numberOfLines={1}
+                    className="ml-1.5 text-xs font-bold"
+                    style={{ color: isReposted ? "#F7D786" : "#FAF9F6" }}
+                  >
+                    {tCommon(isReposted ? "reposted" : "repost")}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : null}
 
@@ -691,6 +782,8 @@ export default function ContentPost({
                   text={caption}
                   isRtl={captionIsRtl}
                   tone="overlay"
+                  authorName={displayName}
+                  onAuthorPress={openAuthorProfile}
                   onExpansionChange={handleCaptionExpansion}
                 />
                 {!!content?.captionEditedAt && (

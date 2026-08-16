@@ -18,6 +18,8 @@ import { DishFoodTags } from "../components/DishFoodTags";
 import { DishInsightsModal } from "../components/DishInsightsModal";
 import { foodTagLabel } from "../lib/foodTags";
 import { request, uploadImage } from "../lib/api";
+import { confirmAction } from "../lib/appConfirm";
+import { promptAction } from "../lib/appPrompt";
 
 function DishRowFoodTags({
   allergens = [],
@@ -184,13 +186,24 @@ export function MenuPage({
   }
 
   async function deleteDish(id: string) {
-    if (!window.confirm("Delete this dish?")) return;
+    if (!(await confirmAction({
+      title: "Delete this dish?",
+      message: "This dish will be removed from the restaurant menu.",
+      confirmLabel: "Delete dish",
+      tone: "destructive",
+    }))) return;
     await request(`/business/menus/dishes/${id}`, { method: "DELETE" });
     await reload();
   }
 
   async function editMenu(menu: Menu) {
-    const title = window.prompt("Section name", menu.title);
+    const title = await promptAction({
+      title: "Rename menu section",
+      message: "Choose the title guests will see on the restaurant menu.",
+      initialValue: menu.title,
+      placeholder: "Section name",
+      confirmLabel: "Save name",
+    });
     if (title === null || !title.trim()) return;
     await request(`/business/menus/${menu.id}`, {
       method: "PATCH",
@@ -204,7 +217,12 @@ export function MenuPage({
       setError("Delete the dishes in this section first.");
       return;
     }
-    if (!window.confirm(`Delete “${menu.title}”?`)) return;
+    if (!(await confirmAction({
+      title: `Delete “${menu.title}”?`,
+      message: "This menu section will be removed permanently.",
+      confirmLabel: "Delete section",
+      tone: "destructive",
+    }))) return;
     await request(`/business/menus/${menu.id}`, { method: "DELETE" });
     await reload();
   }

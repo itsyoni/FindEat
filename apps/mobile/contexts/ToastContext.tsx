@@ -83,6 +83,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           message={toast.message}
           kind={toast.kind}
           actionLabel={toast.actionLabel}
+          onDismiss={hideToast}
           onAction={
             toast.onAction
               ? () => {

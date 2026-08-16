@@ -23,12 +23,16 @@ export default function DateRangePickerModal({
   visible,
   startDate,
   endDate,
+  selectionMode = "range",
+  title,
   onChange,
   onClose,
 }: {
   visible: boolean;
   startDate: Date | null;
   endDate: Date | null;
+  selectionMode?: "single" | "range";
+  title?: string;
   onChange: (start: Date, end: Date | null) => void;
   onClose: () => void;
 }) {
@@ -48,9 +52,14 @@ export default function DateRangePickerModal({
   }, [month]);
   const today = startOfDay(new Date());
   const ink = isDark ? "#F5F2EC" : "#1B1A18";
+  const isSingleDate = selectionMode === "single";
 
   function pick(day: Date) {
     if (day < today) return;
+    if (isSingleDate) {
+      onChange(day, null);
+      return;
+    }
     if (!startDate || endDate || day < startDate) {
       onChange(day, null);
       return;
@@ -59,17 +68,28 @@ export default function DateRangePickerModal({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onShow={() => setMonth(startDate ?? new Date())}
+      onRequestClose={onClose}
+    >
       <Pressable className="flex-1 justify-end bg-black/45" onPress={onClose}>
         <Pressable onPress={() => undefined}>
           <SafeAreaView
             edges={["bottom"]}
-            className="rounded-t-[30px] px-5 pb-4 pt-4"
-            style={{ backgroundColor: isDark ? "#171716" : "#F7F4EF" }}
+            className="rounded-t-[30px]"
+            style={{
+              backgroundColor: isDark ? "#171716" : "#F7F4EF",
+              paddingHorizontal: 24,
+              paddingTop: 20,
+              paddingBottom: 20,
+            }}
           >
             <View className="mb-4 flex-row items-center">
               <Text className="flex-1 text-xl font-bold text-black dark:text-white">
-                {t("selectTripDates")}
+                {title ?? t("selectTripDates")}
               </Text>
               <TouchableOpacity onPress={onClose} className="h-10 w-10 items-center justify-center">
                 <XIcon size={22} color={ink} weight="bold" />
@@ -107,8 +127,16 @@ export default function DateRangePickerModal({
               {days.map((day, index) => {
                 if (!day) return <View key={`empty-${index}`} style={{ width: "14.2857%", height: 46 }} />;
                 const disabled = day < today;
-                const selected = sameDay(startDate, day) || sameDay(endDate, day);
-                const within = Boolean(startDate && endDate && day > startDate && day < endDate);
+                const selected =
+                  sameDay(startDate, day) ||
+                  (!isSingleDate && sameDay(endDate, day));
+                const within = Boolean(
+                  !isSingleDate &&
+                    startDate &&
+                    endDate &&
+                    day > startDate &&
+                    day < endDate,
+                );
                 return (
                   <TouchableOpacity
                     key={day.toISOString()}
@@ -139,25 +167,33 @@ export default function DateRangePickerModal({
 
             <View className="mt-4 flex-row gap-3">
               <View className="flex-1 rounded-2xl bg-white px-4 py-3 dark:bg-[#242422]">
-                <Text className="text-xs font-bold text-gray-500">START</Text>
+                <Text className="text-xs font-bold uppercase text-gray-500">
+                  {t(isSingleDate ? "day" : "startDate")}
+                </Text>
                 <Text className="mt-1 font-bold text-black dark:text-white">
                   {startDate ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(startDate) : t("selectDate")}
                 </Text>
               </View>
-              <View className="flex-1 rounded-2xl bg-white px-4 py-3 dark:bg-[#242422]">
-                <Text className="text-xs font-bold text-gray-500">END</Text>
-                <Text className="mt-1 font-bold text-black dark:text-white">
-                  {endDate ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(endDate) : t("selectDate")}
-                </Text>
-              </View>
+              {!isSingleDate ? (
+                <View className="flex-1 rounded-2xl bg-white px-4 py-3 dark:bg-[#242422]">
+                  <Text className="text-xs font-bold uppercase text-gray-500">
+                    {t("endDate")}
+                  </Text>
+                  <Text className="mt-1 font-bold text-black dark:text-white">
+                    {endDate ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(endDate) : t("selectDate")}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <TouchableOpacity
-              disabled={!startDate || !endDate}
+              disabled={!startDate || (!isSingleDate && !endDate)}
               onPress={onClose}
               className="mt-4 h-14 items-center justify-center rounded-2xl bg-amber-500"
-              style={{ opacity: startDate && endDate ? 1 : 0.45 }}
+              style={{ opacity: startDate && (isSingleDate || endDate) ? 1 : 0.45 }}
             >
-              <Text className="font-bold text-white">{t("useDateRange")}</Text>
+              <Text className="font-bold text-white">
+                {t(isSingleDate ? "useDate" : "useDateRange")}
+              </Text>
             </TouchableOpacity>
           </SafeAreaView>
         </Pressable>

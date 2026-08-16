@@ -21,6 +21,7 @@ const categoryLabels: Record<SupportTicketCategory, string> = {
   ACCOUNT: "Account and access",
   CONTENT: "Posts and reviews",
   BUG: "Technical problem",
+  FEATURE_REQUEST: "Feature suggestion",
   SAFETY: "Safety",
   OTHER: "Something else",
 };

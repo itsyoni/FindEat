@@ -84,7 +84,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     CabinetThin: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Thin.otf"),
     CabinetExtraLight: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Extralight.otf"),
     CabinetLight: require("../assets/fonts/CabinetGrotesk/CabinetGrotesk-Light.otf"),
@@ -117,7 +117,7 @@ export default function RootLayout() {
     }).catch(() => undefined);
   }, []);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator />

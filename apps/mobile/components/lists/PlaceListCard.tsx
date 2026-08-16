@@ -68,6 +68,31 @@ export default function PlaceListCard({ list, onPress }: Props) {
             <FolderSimpleIcon size={44} color="#D97706" weight="duotone" />
           </View>
         )}
+        {!list.systemType ? (
+          <>
+            <View
+              pointerEvents="none"
+              className="absolute inset-0 bg-[#171512]/45"
+            />
+            <View
+              pointerEvents="none"
+              className="absolute inset-0 items-center justify-center px-4"
+            >
+              <Text
+                numberOfLines={2}
+                weight="bold"
+                className="text-center text-lg leading-6 text-[#FAF9F6]"
+                style={{
+                  textShadowColor: "rgba(11,10,9,0.72)",
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 5,
+                }}
+              >
+                {title}
+              </Text>
+            </View>
+          </>
+        ) : null}
         {list.eventType ? (
           <View className="absolute left-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/55">
             <CalendarBlankIcon size={17} color="#FAF9F6" weight="fill" />
@@ -82,13 +107,17 @@ export default function PlaceListCard({ list, onPress }: Props) {
           </View>
         ) : null}
       </View>
+      {list.systemType ? (
+        <Text
+          numberOfLines={1}
+          className="mt-2.5 text-base font-bold text-black dark:text-white"
+        >
+          {title}
+        </Text>
+      ) : null}
       <Text
-        numberOfLines={1}
-        className="mt-2.5 text-base font-bold text-black dark:text-white"
+        className={`${list.systemType ? "mt-0.5" : "mt-2.5"} text-sm text-gray-500 dark:text-gray-400`}
       >
-        {title}
-      </Text>
-      <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
         {t("placesCount", { count: list.itemCount })}
       </Text>
       {list.eventAt ? (

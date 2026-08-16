@@ -1,5 +1,6 @@
 export type SupportTicketCategory =
   | "BUG"
+  | "FEATURE_REQUEST"
   | "ACCOUNT"
   | "RESTAURANT"
   | "CONTENT"
@@ -25,6 +26,7 @@ export type SupportTicket = {
   category: SupportTicketCategory;
   subject: string;
   message: string;
+  attachments?: Array<{ type: "IMAGE" | "VIDEO"; url: string }> | null;
   status: SupportTicketStatus;
   adminReply?: string | null;
   handledById?: string | null;
@@ -44,4 +46,7 @@ export type SupportTicket = {
 export type CreateSupportTicketInput = Pick<
   SupportTicket,
   "category" | "subject" | "message"
-> & { restaurantId?: string };
+> & {
+  restaurantId?: string;
+  attachments?: Array<{ type: "IMAGE" | "VIDEO"; url: string }>;
+};

@@ -82,6 +82,7 @@ export type AdminDashboardSection =
   | "moderation"
   | "ownership"
   | "support"
+  | "feedback"
   | "updates"
   | "sounds"
   | "admins"

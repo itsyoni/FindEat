@@ -83,6 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cachedUser) {
         setToken(savedSession.accessToken);
         setUser(cachedUser);
+        // A cached signed-in session is enough to render the app. Validate it
+        // in the background instead of holding the launch screen on a network
+        // request (notably when the app is opened from a push notification).
+        setIsLoading(false);
       }
 
       if (savedSession.accessToken && !savedSession.refreshToken) {
@@ -107,6 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (!cachedUser) {
         setToken(null);
         setUser(null);
+      } else {
+        console.warn(
+          "[Startup] Session validation failed; using the cached session",
+          isAxiosError(error) ? error.message : error,
+        );
       }
     } finally {
       setIsLoading(false);

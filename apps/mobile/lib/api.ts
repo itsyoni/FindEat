@@ -19,4 +19,8 @@ export const apiClient = createApiClient(
   () => refreshStoredSession(API_URL),
 );
 
+// A stalled mobile connection must not hold session restoration—and therefore
+// the launch screen—forever. Upload transfers use their own request clients.
+apiClient.defaults.timeout = 20_000;
+
 export const api = createApiFromClient(apiClient);

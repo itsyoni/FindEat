@@ -72,6 +72,7 @@ export type PlaceListDetail = Omit<
     planOrder: number;
     plannedStartMinutes?: number | null;
     plannedDurationMinutes: number;
+    plannedColor?: string;
     addedBy?: UserSummary | null;
     distanceFromStayKm?: number | null;
     sourcePost?: {
@@ -160,4 +161,5 @@ export type PlaceListItineraryAssignment = {
   order: number;
   startMinutes?: number | null;
   durationMinutes?: number;
+  color?: string;
 };

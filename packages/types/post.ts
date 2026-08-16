@@ -195,6 +195,10 @@ export type Post = {
   linkedPosts?: LinkedPost[];
   reviewParticipants?: ReviewParticipant[];
   taggedUsers?: UserSummary[];
+  canRepost?: boolean;
+  isReposted?: boolean;
+  repostedAt?: string | null;
+  repostedBy?: UserSummary | null;
   canContribute?: boolean;
   collaborationStatus?: ReviewParticipantStatus | null;
 

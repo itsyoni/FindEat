@@ -213,6 +213,7 @@
     "STREET_FOOD_SCHOLAR": "Publish reviews containing {{count}} restaurant menu dishes tagged Street Food.",
     "DISH_DETECTIVE": "Publish reviews covering {{count}} dishes. Custom dishes count toward this tag too."
   },
+  "reposted": "Reposted",
   "creatorLevels": {
     "FOOD_SCOUT": "Food Scout",
     "TASTE_HUNTER": "Taste Hunter",

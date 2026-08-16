@@ -156,6 +156,7 @@
   "pollHint": "Ask readers a question and see their votes.",
   "pollAlreadyAdded": "Poll already added",
   "pollCreator": "Creator",
+  "commentCollaborator": "Collab",
   "createPoll": "Create a poll",
   "pollQuestionPlaceholder": "Ask a question…",
   "pollOptionPlaceholder": "Option {{number}}",

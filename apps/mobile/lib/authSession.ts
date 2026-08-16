@@ -77,9 +77,11 @@ export function refreshStoredSession(apiUrl: string) {
     if (!refreshToken) return null;
 
     try {
-      const { data } = await axios.post<AuthTokens>(`${apiUrl}/auth/refresh`, {
-        refreshToken,
-      });
+      const { data } = await axios.post<AuthTokens>(
+        `${apiUrl}/auth/refresh`,
+        { refreshToken },
+        { timeout: 15_000 },
+      );
       await Promise.all([
         AsyncStorage.setItem(TOKEN_KEY, data.accessToken),
         SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refreshToken),

@@ -17,6 +17,7 @@ import {
   UserPlusIcon,
   EyeSlashIcon,
   ChatSlashIcon,
+  RepeatIcon,
 } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -60,6 +61,8 @@ export default function PostOptionsBottomSheet({
   const [askingToBlock, setAskingToBlock] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [requestingReviewJoin, setRequestingReviewJoin] = useState(false);
+  const [reposting, setReposting] = useState(false);
+  const [untagging, setUntagging] = useState(false);
   const [privacyUpdating, setPrivacyUpdating] = useState<
     "likes" | "comments" | null
   >(null);
@@ -116,9 +119,60 @@ export default function PostOptionsBottomSheet({
     setAskingToBlock(false);
     setBlocking(false);
     setRequestingReviewJoin(false);
+    setReposting(false);
+    setUntagging(false);
     setPrivacyUpdating(null);
     setBlockError("");
     onClose();
+  }
+
+  async function refreshPostSurfaces() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["feed"] }),
+      queryClient.invalidateQueries({ queryKey: ["profile"] }),
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] }),
+      queryClient.invalidateQueries({ queryKey: ["post"] }),
+    ]);
+  }
+
+  async function toggleRepost() {
+    if (!activePost || reposting) return;
+    try {
+      setReposting(true);
+      const nextPost = activePost.isReposted
+        ? await api.posts.removeRepost(activePost.id)
+        : await api.posts.repost(activePost.id);
+      setPost(nextPost);
+      await refreshPostSurfaces();
+      showToast(t(activePost.isReposted ? "repostRemoved" : "postReposted"));
+    } catch {
+      showToast(t("repostError"), { kind: "error" });
+    } finally {
+      setReposting(false);
+    }
+  }
+
+  function confirmUntag() {
+    if (!activePost || untagging) return;
+    Alert.alert(t("untagPostTitle"), t("untagPostDescription"), [
+      { text: t("cancel"), style: "cancel" },
+      { text: t("untagMe"), style: "destructive", onPress: () => void untagMe() },
+    ]);
+  }
+
+  async function untagMe() {
+    if (!activePost || untagging) return;
+    try {
+      setUntagging(true);
+      await api.posts.untagMe(activePost.id);
+      await refreshPostSurfaces();
+      closeSheet();
+      showToast(t("untaggedFromPost"));
+    } catch {
+      showToast(t("untagPostError"), { kind: "error" });
+    } finally {
+      setUntagging(false);
+    }
   }
 
   function confirmArchive() {
@@ -304,7 +358,9 @@ export default function PostOptionsBottomSheet({
                 ? activePost?.canContribute && Platform.OS === "android"
                   ? "72%"
                   : "48%"
-                : "34%",
+                : activePost?.canRepost
+                  ? "58%"
+                  : "34%",
       ]}
       onClose={closeSheet}
     >
@@ -706,6 +762,45 @@ export default function PostOptionsBottomSheet({
               </>
             ) : (
               <>
+              {activePost?.type === "CONTENT" && activePost.canRepost ? (
+                <>
+                  <TouchableOpacity
+                    disabled={reposting}
+                    activeOpacity={0.72}
+                    accessibilityRole="button"
+                    className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
+                    onPress={() => void toggleRepost()}
+                  >
+                    <View className="h-11 w-11 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/40">
+                      {reposting ? <ActivityIndicator color="#FF5B35" /> : <RepeatIcon size={21} color="#FF5B35" weight="bold" />}
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-base font-bold text-black dark:text-white">
+                        {t(activePost.isReposted ? "removeRepost" : "repost")}
+                      </Text>
+                      <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                        {t(activePost.isReposted ? "removeRepostHint" : "repostHint")}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    disabled={untagging}
+                    activeOpacity={0.72}
+                    accessibilityRole="button"
+                    className="mb-3 flex-row items-center rounded-2xl border border-red-100 bg-red-50 px-4 py-3.5 dark:border-red-950 dark:bg-red-950/30"
+                    onPress={confirmUntag}
+                  >
+                    <View className="h-11 w-11 items-center justify-center rounded-full bg-white dark:bg-red-950/60">
+                      {untagging ? <ActivityIndicator color="#EF4444" /> : <UserMinusIcon size={21} color="#EF4444" weight="fill" />}
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-base font-bold text-red-500">{t("untagMe")}</Text>
+                      <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{t("untagMeHint")}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              ) : null}
               {activePost?.type === "REVIEW" && activePost.canContribute ? (
                 <>
                   <TouchableOpacity

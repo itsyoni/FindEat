@@ -43,9 +43,15 @@ export type RestaurantOpeningPeriod = {
   close: RestaurantOpeningTime;
 };
 
+export type RestaurantWeeklySchedule = Record<
+  RestaurantWeekday,
+  RestaurantOpeningPeriod[]
+>;
+
 export type RestaurantOpeningHours = {
   timezone: string;
-  weekly: Record<RestaurantWeekday, RestaurantOpeningPeriod[]>;
+  weekly: RestaurantWeeklySchedule;
+  happyHours?: RestaurantWeeklySchedule;
 };
 
 export type RestaurantResolvedOpeningHours = {
@@ -60,6 +66,11 @@ export type RestaurantResolvedOpeningHours = {
       closeRule?: { type: RestaurantRelativeTimeType; offsetMinutes: number };
     }>
   >;
+  happyHours?: Record<
+    RestaurantWeekday,
+    Array<{ open: string; close: string }>
+  >;
+  isHappyHourNow?: boolean;
 };
 
 export type KosherCertification = {
@@ -144,6 +155,7 @@ export type ManagedRestaurant = {
   bio?: string | null;
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
+  isHappyHourNow?: boolean;
   categories: string[];
   foodCertifications?: string[];
   foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
@@ -223,6 +235,7 @@ export type Restaurant = {
   tabitUrl?: string | null;
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
+  isHappyHourNow?: boolean;
   foodCertifications?: string[];
   foodCertificationDetails?: RestaurantFoodCertificationDetails | null;
 

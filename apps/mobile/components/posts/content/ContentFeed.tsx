@@ -50,6 +50,8 @@ type Props = {
   loading?: boolean;
   emptyComponent?: ReactElement | null;
   active?: boolean;
+  useExternalBookmarkHandler?: boolean;
+  externalSavedRestaurantIds?: ReadonlySet<string>;
 };
 
 const contentViewabilityConfig = { itemVisiblePercentThreshold: 60 };
@@ -76,6 +78,8 @@ export default function ContentFeed({
   loading = false,
   emptyComponent,
   active = true,
+  useExternalBookmarkHandler = false,
+  externalSavedRestaurantIds,
 }: Props) {
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
   const [visiblePostIndex, setVisiblePostIndex] = useState(initialIndex);
@@ -319,6 +323,11 @@ export default function ContentFeed({
             onToggleLike={onToggleLike}
             onOpenComments={onOpenComments}
             onToggleWantToTry={onToggleWantToTry}
+            useExternalBookmarkHandler={useExternalBookmarkHandler}
+            savedToExternalList={
+              !!item.restaurant?.id &&
+              externalSavedRestaurantIds?.has(item.restaurant.id)
+            }
             onOpenSharePost={onOpenSharePost}
             onOpenPostOptions={onOpenPostOptions}
             onPinchStart={() => setIsPinchingMedia(true)}

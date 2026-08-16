@@ -218,6 +218,21 @@ export function createPostsApi(api: AxiosInstance) {
       return data;
     },
 
+    async repost(id: string) {
+      const { data } = await api.post<Post>(`/posts/${id}/repost`);
+      return data;
+    },
+
+    async removeRepost(id: string) {
+      const { data } = await api.delete<Post>(`/posts/${id}/repost`);
+      return data;
+    },
+
+    async untagMe(id: string) {
+      const { data } = await api.delete<{ ok: boolean }>(`/posts/${id}/tag/me`);
+      return data;
+    },
+
     async joinReview(id: string) {
       const { data } = await api.post<Post>(
         `/posts/${id}/collaboration/join`,
