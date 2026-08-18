@@ -78,13 +78,82 @@ export type BusinessDashboardSection =
   | "admin";
 
 export type AdminDashboardSection =
+  | "overview"
   | "claims"
   | "addresses"
   | "moderation"
   | "ownership"
   | "support"
-  | "feedback"
+  | "bugs"
+  | "features"
   | "updates"
   | "sounds"
   | "admins"
   | "settings";
+
+export type AdminDashboardOverview = {
+  generatedAt: string;
+  queryDurationMs: number;
+  health: {
+    database: "OPERATIONAL";
+    activePushTokens: number;
+    notifications24h: number;
+    pushesSent24h: number;
+    pushDeliveryRate24h: number | null;
+  };
+  users: {
+    total: number;
+    verified: number;
+    active7d: number;
+    onlineNow: number;
+    suspended: number;
+    new24h: number;
+    new7d: number;
+    previous7d: number;
+    new30d: number;
+  };
+  content: {
+    posts: number;
+    contentPosts: number;
+    reviews: number;
+    posts24h: number;
+    posts7d: number;
+    previousPosts7d: number;
+    activeSnaps: number;
+    snaps7d: number;
+    comments7d: number;
+    likes7d: number;
+    messages7d: number;
+  };
+  restaurants: {
+    total: number;
+    claimed: number;
+    withoutOwner: number;
+    new7d: number;
+  };
+  queues: {
+    pendingClaims: number;
+    pendingAddressChanges: number;
+    openSupport: number;
+    openBugs: number;
+    openFeatures: number;
+    pendingReports: number;
+    pendingAppeals: number;
+  };
+};
+
+export type AdminActivityItem = {
+  id: string;
+  type:
+    | "SUPPORT"
+    | "BUG"
+    | "FEATURE"
+    | "CLAIM"
+    | "ADDRESS"
+    | "REPORT"
+    | "APPEAL";
+  title: string;
+  body: string;
+  createdAt: string;
+  section: AdminDashboardSection;
+};

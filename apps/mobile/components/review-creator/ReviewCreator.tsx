@@ -206,12 +206,17 @@ export default function ReviewCreator({
     const hasDraftContent =
       draft.restaurant !== null ||
       !!draft.coverImageUri ||
+      !!draft.coverImageUrl ||
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
       draft.participants.length > 0 ||
+      draft.visitDate !== undefined ||
+      draft.recommendedFor !== undefined ||
+      draft.experienceTags.length > 0 ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
-      draft.valueRating !== undefined;
+      draft.valueRating !== undefined ||
+      draft.totalPrice !== undefined;
     if (!hasDraftContent) return;
 
     const timer = setTimeout(() => {
@@ -235,12 +240,17 @@ export default function ReviewCreator({
     const hasDraftContent =
       draft.restaurant !== null ||
       !!draft.coverImageUri ||
+      !!draft.coverImageUrl ||
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
       draft.participants.length > 0 ||
+      draft.visitDate !== undefined ||
+      draft.recommendedFor !== undefined ||
+      draft.experienceTags.length > 0 ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
-      draft.valueRating !== undefined;
+      draft.valueRating !== undefined ||
+      draft.totalPrice !== undefined;
     draftSnapshotRef.current =
       draftHydrated &&
       hasDraftContent &&
@@ -315,12 +325,17 @@ export default function ReviewCreator({
     return (
       draft.restaurant !== null ||
       !!draft.coverImageUri ||
+      !!draft.coverImageUrl ||
       !!draft.summary.trim() ||
       draft.items.length > 0 ||
       draft.participants.length > 0 ||
+      draft.visitDate !== undefined ||
+      draft.recommendedFor !== undefined ||
+      draft.experienceTags.length > 0 ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined ||
+      draft.totalPrice !== undefined ||
       !!pendingDish
     );
   }
@@ -356,6 +371,10 @@ export default function ReviewCreator({
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined ||
+      draft.totalPrice !== undefined ||
+      draft.visitDate !== undefined ||
+      draft.recommendedFor !== undefined ||
+      draft.experienceTags.length > 0 ||
       !!pendingDish;
 
     if (!hasReviewDetails) {
@@ -516,6 +535,7 @@ export default function ReviewCreator({
           atmosphereRating: pendingDraft.atmosphereRating,
           serviceRating: pendingDraft.serviceRating,
           valueRating: pendingDraft.valueRating,
+          totalPrice: pendingDraft.totalPrice,
           linkedPostId: linkedContent?.postId ?? pendingDraft.linkedPostId,
           participantIds: pendingDraft.participants.map(
             (participant) => participant.id,

@@ -10,6 +10,7 @@ import { MedalIcon } from "@phosphor-icons/react/dist/csr/Medal";
 import { StorefrontIcon } from "@phosphor-icons/react/dist/csr/Storefront";
 import { HeadsetIcon } from "@phosphor-icons/react/dist/csr/Headset";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
+import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
@@ -192,7 +193,6 @@ function RestaurantSwitcher({
   }, [highlightedRestaurantId, open]);
 
   function restaurantSubtitle(item: ManagedRestaurant) {
-    if (item.accessRole === "ADMIN") return "Admin access";
     return item.city || (item.status === "CLAIMED" ? "Claimed restaurant" : "Restaurant");
   }
 
@@ -211,7 +211,12 @@ function RestaurantSwitcher({
           <span>{restaurant.name.charAt(0).toUpperCase()}</span>
         )}
         <div>
-          <strong>{restaurant.name}</strong>
+          <div className="restaurant-name-row">
+            <strong>{restaurant.name}</strong>
+            {restaurant.accessRole === "ADMIN" ? (
+              <span className="restaurant-access-pill">Admin access</span>
+            ) : null}
+          </div>
           <small>
             {switchable
               ? `${restaurants.length} restaurants`
@@ -260,7 +265,12 @@ function RestaurantSwitcher({
                     <span>{item.name.charAt(0).toUpperCase()}</span>
                   )}
                   <div>
-                    <strong>{item.name}</strong>
+                    <div className="restaurant-name-row">
+                      <strong>{item.name}</strong>
+                      {item.accessRole === "ADMIN" ? (
+                        <span className="restaurant-access-pill">Admin access</span>
+                      ) : null}
+                    </div>
                     <small>{restaurantSubtitle(item)}</small>
                   </div>
                   {selected ? (
@@ -523,11 +533,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     if (loading || !account) return;
     if (isAdmin && !restaurant && !isAdminRoute) {
-      navigateTo(adminPaths.claims, true);
+      navigateTo(adminPaths.overview, true);
       return;
     }
     if (isAdminRoute && !routedAdminSection) {
-      navigateTo(adminPaths.claims, true);
+      navigateTo(adminPaths.overview, true);
       return;
     }
     if (!isAdminRoute && !routedBusinessSection) {
@@ -546,6 +556,14 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   const itemCount = useMemo(
     () => menus.reduce((total, menu) => total + menu.items.length, 0),
     [menus],
+  );
+  const messageUnreadCount = useMemo(
+    () =>
+      conversations.reduce(
+        (total, conversation) => total + conversation.unreadCount,
+        0,
+      ),
+    [conversations],
   );
   const openRestaurantNotifications = () => {
     if (!restaurant) return;
@@ -707,23 +725,6 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             {(restaurant.earnedBadges?.length ?? 0) > 0 && <small className="nav-count">{restaurant.earnedBadges?.length}</small>}
           </AppLink>
           <AppLink
-            to={businessPaths.messages}
-            className={section === "messages" ? "active" : ""}
-          >
-            <ChatCircleDotsIcon className="nav-icon" weight="duotone" /> Messages{" "}
-            {conversations.reduce(
-              (total, conversation) => total + conversation.unreadCount,
-              0,
-            ) > 0 && (
-              <small className="nav-count">
-                {conversations.reduce(
-                  (total, conversation) => total + conversation.unreadCount,
-                  0,
-                )}
-              </small>
-            )}
-          </AppLink>
-          <AppLink
             to={businessPaths.profile}
             className={section === "profile" ? "active" : ""}
           >
@@ -735,15 +736,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           >
             <HeadsetIcon className="nav-icon" weight="duotone" /> Help and support
           </AppLink>
-          <AppLink
-            to={businessPaths.settings}
-            className={section === "settings" ? "active" : ""}
-          >
-            <GearSixIcon className="nav-icon" weight="duotone" /> Settings
-          </AppLink>
           {isAdmin && (
             <AppLink
-              to={adminPaths.claims}
+              to={adminPaths.overview}
               className={isAdminRoute ? "active" : ""}
             >
               <ShieldCheckIcon className="nav-icon" weight="duotone" /> Admin{" "}
@@ -752,28 +747,27 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           )}
         </nav>
         <div className="aside-footer">
-          <p>Official posts stay mobile</p>
-          <small>
-            Use the FindEat app to create and publish official content.
-          </small>
-          <button onClick={onLogout}>Sign out</button>
+          <div className="sidebar-account">
+            <AccountAvatar account={account} />
+            <div>
+              <strong>{account.username}</strong>
+              <small>{account.email}</small>
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <SignOutIcon size={18} weight="duotone" aria-hidden="true" />
+            </button>
+          </div>
           <small className="web-version">Web v{WEB_VERSION}</small>
         </div>
       </aside>
       <main className="content">
         <header>
           <div className="header-identity-group">
-            <div className="account-summary header-account-summary">
-              <AccountAvatar account={account} />
-              <div className="account-summary-copy">
-                <div className="account-summary-name">
-                  <strong>{account.username}</strong>
-                  {restaurant.accessRole === "ADMIN" ? (
-                    <span className="account-access-pill">Admin access</span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
             <div className="header-restaurant-switcher">
               <RestaurantSwitcher
                 restaurant={restaurant}
@@ -783,6 +777,18 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             </div>
           </div>
           <div className="top-actions">
+            <AppLink
+              to={businessPaths.messages}
+              className={`notifications-trigger messages-trigger ${section === "messages" ? "active" : ""}`}
+              aria-label="Open messages"
+              title="Messages"
+              onClick={() => setNotificationsOpen(false)}
+            >
+              <ChatCircleDotsIcon size={21} weight="duotone" aria-hidden="true" />
+              {messageUnreadCount > 0 ? (
+                <b>{messageUnreadCount > 99 ? "99+" : messageUnreadCount}</b>
+              ) : null}
+            </AppLink>
             <div className="notifications-menu">
               <button
                 className={`notifications-trigger ${notificationsOpen ? "active" : ""}`}
@@ -813,6 +819,15 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
                 />
               )}
             </div>
+            <AppLink
+              to={businessPaths.settings}
+              className={`notifications-trigger settings-trigger ${section === "settings" ? "active" : ""}`}
+              aria-label="Open settings"
+              title="Settings"
+              onClick={() => setNotificationsOpen(false)}
+            >
+              <GearSixIcon size={21} weight="duotone" aria-hidden="true" />
+            </AppLink>
           </div>
         </header>
         {(section === "overview" || visitedSections.has("overview")) && (

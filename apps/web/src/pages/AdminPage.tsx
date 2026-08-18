@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
@@ -15,7 +15,12 @@ import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
 import { LightbulbIcon } from "@phosphor-icons/react/dist/csr/Lightbulb";
+import { BugIcon } from "@phosphor-icons/react/dist/csr/Bug";
+import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
+import { GaugeIcon } from "@phosphor-icons/react/dist/csr/Gauge";
+import { BellIcon } from "@phosphor-icons/react/dist/csr/Bell";
 import type {
+  AdminActivityItem,
   AdminDashboardSection,
   AdminUser,
   BusinessAccount,
@@ -31,6 +36,8 @@ import { UserIdentity } from "../components/UserIdentity";
 import { ModerationPanel } from "../components/ModerationPanel";
 import { AddressChangeRequestsPanel } from "../components/AddressChangeRequestsPanel";
 import { SoundCatalogAdmin } from "../components/SoundCatalogAdmin";
+import { AdminOverviewPage } from "../components/AdminOverviewPage";
+import { AdminNotificationsPopover } from "../components/AdminNotificationsPopover";
 import { request } from "../lib/api";
 import { confirmAction } from "../lib/appConfirm";
 
@@ -61,6 +68,10 @@ export function AdminPage({
   const [searched, setSearched] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [adminActivity, setAdminActivity] = useState<AdminActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [activityUnreadCount, setActivityUnreadCount] = useState(0);
   const [visitedSections, setVisitedSections] = useState<
     Set<AdminDashboardSection>
   >(() => new Set([section]));
@@ -73,6 +84,47 @@ export function AdminPage({
       return new Set([...current, section]);
     });
   }, [section]);
+
+  const loadAdminActivity = useCallback(async () => {
+    try {
+      const items = await request<AdminActivityItem[]>("/admin/activity", {
+        cache: "reload",
+      });
+      setAdminActivity(items);
+      const lastSeen = localStorage.getItem(`findeat-admin-activity-seen:${account.id}`);
+      const lastSeenAt = lastSeen ? new Date(lastSeen).getTime() : 0;
+      setActivityUnreadCount(
+        items.filter((item) => new Date(item.createdAt).getTime() > lastSeenAt)
+          .length,
+      );
+    } catch (nextError) {
+      console.error("Could not load admin notifications", nextError);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [account.id]);
+
+  useEffect(() => {
+    // Admin activity is loaded from the server and then kept fresh by polling.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAdminActivity();
+    const interval = window.setInterval(() => void loadAdminActivity(), 60_000);
+    return () => window.clearInterval(interval);
+  }, [loadAdminActivity]);
+
+  function toggleAdminNotifications() {
+    if (notificationsOpen) {
+      setNotificationsOpen(false);
+      return;
+    }
+    localStorage.setItem(
+      `findeat-admin-activity-seen:${account.id}`,
+      new Date().toISOString(),
+    );
+    setActivityUnreadCount(0);
+    setNotificationsOpen(true);
+    void loadAdminActivity();
+  }
 
   async function decide(claimId: string, decision: "approve" | "reject") {
     if (
@@ -190,13 +242,6 @@ export function AdminPage({
             <small>Admin workspace</small>
           </div>
         </div>
-        <div className="admin-chip">
-          <ShieldCheckIcon size={22} weight="duotone" aria-hidden="true" />
-          <div>
-            <strong>Platform administration</strong>
-            <small>Restricted access</small>
-          </div>
-        </div>
         <div className="mobile-nav-bar admin-mobile-nav-bar">
           <div className="mobile-nav-title">
             <ShieldCheckIcon size={20} weight="duotone" aria-hidden="true" />
@@ -226,6 +271,15 @@ export function AdminPage({
               <ArrowLeftIcon className="nav-icon" weight="duotone" /> Restaurant dashboard
             </button>
           )}
+          <button
+            className={section === "overview" ? "active" : ""}
+            onClick={() => {
+              onNavigate("overview");
+              setError("");
+            }}
+          >
+            <GaugeIcon className="nav-icon" weight="duotone" /> Dashboard
+          </button>
           <button
             className={section === "claims" ? "active" : ""}
             onClick={() => {
@@ -273,13 +327,22 @@ export function AdminPage({
             <HeadsetIcon className="nav-icon" weight="duotone" /> Support
           </button>
           <button
-            className={section === "feedback" ? "active" : ""}
+            className={section === "bugs" ? "active" : ""}
             onClick={() => {
-              onNavigate("feedback");
+              onNavigate("bugs");
               setError("");
             }}
           >
-            <LightbulbIcon className="nav-icon" weight="duotone" /> Feedback
+            <BugIcon className="nav-icon" weight="duotone" /> Bug reports
+          </button>
+          <button
+            className={section === "features" ? "active" : ""}
+            onClick={() => {
+              onNavigate("features");
+              setError("");
+            }}
+          >
+            <LightbulbIcon className="nav-icon" weight="duotone" /> Feature suggestions
           </button>
           <button
             className={section === "updates" ? "active" : ""}
@@ -309,23 +372,23 @@ export function AdminPage({
             <UsersThreeIcon className="nav-icon" weight="duotone" /> Admins{" "}
             <small className="nav-count neutral">{admins.length}</small>
           </button>
-          <button
-            className={section === "settings" ? "active" : ""}
-            onClick={() => {
-              onNavigate("settings");
-              setError("");
-            }}
-          >
-            <GearSixIcon className="nav-icon" weight="duotone" /> Settings
-          </button>
         </nav>
         <div className="aside-footer">
-          <p>Admin access</p>
-          <small>
-            Only trusted users should be able to approve claims or manage other
-            admins.
-          </small>
-          <button onClick={onLogout}>Sign out</button>
+          <div className="sidebar-account">
+            <AccountAvatar account={account} />
+            <div>
+              <strong>{account.username}</strong>
+              <small>{account.email}</small>
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <SignOutIcon size={18} weight="duotone" aria-hidden="true" />
+            </button>
+          </div>
           <small className="web-version">Web v{WEB_VERSION}</small>
         </div>
       </aside>
@@ -335,9 +398,52 @@ export function AdminPage({
             <strong>Admin workspace</strong>
             <span className="admin-badge">Admin</span>
           </div>
-          <AccountAvatar account={account} />
+          <div className="top-actions">
+            <div className="notifications-menu">
+              <button
+                className={`notifications-trigger ${notificationsOpen ? "active" : ""}`}
+                type="button"
+                aria-label="Open admin notifications"
+                aria-expanded={notificationsOpen}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleAdminNotifications();
+                }}
+              >
+                <BellIcon size={21} weight="duotone" aria-hidden="true" />
+                {activityUnreadCount > 0 ? (
+                  <b>{activityUnreadCount > 99 ? "99+" : activityUnreadCount}</b>
+                ) : null}
+              </button>
+              {notificationsOpen ? (
+                <AdminNotificationsPopover
+                  items={adminActivity}
+                  loading={activityLoading}
+                  onNavigate={onNavigate}
+                  onClose={() => setNotificationsOpen(false)}
+                />
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className={`notifications-trigger settings-trigger ${section === "settings" ? "active" : ""}`}
+              aria-label="Open settings"
+              title="Settings"
+              onClick={() => {
+                setNotificationsOpen(false);
+                onNavigate("settings");
+              }}
+            >
+              <GearSixIcon size={21} weight="duotone" aria-hidden="true" />
+            </button>
+          </div>
         </header>
-        <div className={`admin-content ${section === "support" || section === "feedback" ? "support-admin-content" : ""}`}>
+        <div className={`admin-content ${section === "support" || section === "bugs" || section === "features" ? "support-admin-content" : ""}`}>
+          {(section === "overview" || visitedSections.has("overview")) && (
+            <div className="admin-page-slot" hidden={section !== "overview"}>
+              <AdminOverviewPage onNavigate={onNavigate} />
+            </div>
+          )}
           {(section === "addresses" || visitedSections.has("addresses")) && (
             <div className="admin-page-slot" hidden={section !== "addresses"}>
               <AddressChangeRequestsPanel />
@@ -361,12 +467,20 @@ export function AdminPage({
               <SupportTicketsPanel />
             </div>
           )}
-          {(section === "feedback" || visitedSections.has("feedback")) && (
+          {(section === "bugs" || visitedSections.has("bugs")) && (
             <div
               className="admin-page-slot admin-support-slot"
-              hidden={section !== "feedback"}
+              hidden={section !== "bugs"}
             >
-              <SupportTicketsPanel mode="feedback" />
+              <SupportTicketsPanel mode="bugs" />
+            </div>
+          )}
+          {(section === "features" || visitedSections.has("features")) && (
+            <div
+              className="admin-page-slot admin-support-slot"
+              hidden={section !== "features"}
+            >
+              <SupportTicketsPanel mode="features" />
             </div>
           )}
           {(section === "updates" || visitedSections.has("updates")) && (

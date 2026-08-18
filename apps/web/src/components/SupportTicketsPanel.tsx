@@ -3,6 +3,8 @@ import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowClockwis
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
 import type { SupportTicket, SupportTicketStatus } from "@findeat/types";
 import { request } from "../lib/api";
+import { AppLink } from "./AppLink";
+import { adminPaths } from "../lib/navigation";
 
 const statuses: Array<"ALL" | SupportTicketStatus> = [
   "ALL",
@@ -29,7 +31,33 @@ const categoryLabels = {
   OTHER: "Other",
 };
 
-export function SupportTicketsPanel({ mode = "support" }: { mode?: "support" | "feedback" }) {
+type SupportPanelMode = "support" | "bugs" | "features";
+
+function matchesMode(ticket: SupportTicket, mode: SupportPanelMode) {
+  if (mode === "bugs") return ticket.category === "BUG";
+  if (mode === "features") return ticket.category === "FEATURE_REQUEST";
+  return ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST";
+}
+
+const panelCopy: Record<SupportPanelMode, { eyebrow: string; title: string; description: string }> = {
+  support: {
+    eyebrow: "CUSTOMER CARE",
+    title: "Help and support",
+    description: "Review requests from FindEat users and keep every response in one place.",
+  },
+  bugs: {
+    eyebrow: "BUG REPORTS",
+    title: "Reported bugs",
+    description: "Review technical problems and evidence submitted by FindEat users.",
+  },
+  features: {
+    eyebrow: "FEATURE SUGGESTIONS",
+    title: "Suggested features",
+    description: "Review ideas and product suggestions submitted by FindEat users.",
+  },
+};
+
+export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelMode }) {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof statuses)[number]>("OPEN");
@@ -40,11 +68,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: "support" | "
   const [status, setStatus] = useState<SupportTicketStatus>("OPEN");
 
   const relevantTickets = useMemo(
-    () => tickets.filter((ticket) =>
-      mode === "feedback"
-        ? ticket.category === "BUG" || ticket.category === "FEATURE_REQUEST"
-        : ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST",
-    ),
+    () => tickets.filter((ticket) => matchesMode(ticket, mode)),
     [mode, tickets],
   );
   const filtered = useMemo(
@@ -61,11 +85,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: "support" | "
         cache: "reload",
       });
       setTickets(next);
-      const relevant = next.filter((ticket) =>
-        mode === "feedback"
-          ? ticket.category === "BUG" || ticket.category === "FEATURE_REQUEST"
-          : ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST",
-      );
+      const relevant = next.filter((ticket) => matchesMode(ticket, mode));
       setSelectedId((current) =>
         current && relevant.some((ticket) => ticket.id === current)
           ? current
@@ -84,11 +104,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: "support" | "
       .then((next) => {
         if (!active) return;
         setTickets(next);
-        const relevant = next.filter((ticket) =>
-          mode === "feedback"
-            ? ticket.category === "BUG" || ticket.category === "FEATURE_REQUEST"
-            : ticket.category !== "BUG" && ticket.category !== "FEATURE_REQUEST",
-        );
+        const relevant = next.filter((ticket) => matchesMode(ticket, mode));
         const first = relevant.find((ticket) => ticket.status === "OPEN") ?? relevant[0];
         setSelectedId(first?.id ?? null);
         setReply(first?.adminReply ?? "");
@@ -128,11 +144,16 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: "support" | "
 
   return (
     <>
+      <div className="support-section-switcher" role="tablist" aria-label="Admin inbox type">
+        <AppLink to={adminPaths.support} role="tab" aria-selected={mode === "support"} className={mode === "support" ? "active" : ""}>Support</AppLink>
+        <AppLink to={adminPaths.bugs} role="tab" aria-selected={mode === "bugs"} className={mode === "bugs" ? "active" : ""}>Bug reports</AppLink>
+        <AppLink to={adminPaths.features} role="tab" aria-selected={mode === "features"} className={mode === "features" ? "active" : ""}>Feature suggestions</AppLink>
+      </div>
       <div className="page-heading support-heading">
         <div>
-          <p className="eyebrow">{mode === "feedback" ? "PRODUCT FEEDBACK" : "CUSTOMER CARE"}</p>
-          <h2>{mode === "feedback" ? "Bugs and feature suggestions" : "Help and support"}</h2>
-          <p className="muted">{mode === "feedback" ? "Review reported problems and ideas submitted by FindEat users." : "Review requests from FindEat users and keep every response in one place."}</p>
+          <p className="eyebrow">{panelCopy[mode].eyebrow}</p>
+          <h2>{panelCopy[mode].title}</h2>
+          <p className="muted">{panelCopy[mode].description}</p>
         </div>
         <button className="secondary support-refresh" onClick={() => void load()} disabled={loading}>
           <ArrowClockwiseIcon size={18} weight="bold" /> Refresh

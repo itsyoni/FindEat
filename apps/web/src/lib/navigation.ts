@@ -19,12 +19,14 @@ export const businessPaths: Record<BusinessDashboardSection, string> = {
 };
 
 export const adminPaths: Record<AdminDashboardSection, string> = {
+  overview: "/admin",
   claims: "/admin/claims",
   addresses: "/admin/address-requests",
   moderation: "/admin/moderation",
   ownership: "/admin/ownership",
   support: "/admin/support",
-  feedback: "/admin/feedback",
+  bugs: "/admin/bugs",
+  features: "/admin/features",
   updates: "/admin/whats-new",
   sounds: "/admin/sounds",
   admins: "/admin/admins",
@@ -50,6 +52,7 @@ export function adminSectionFromPath(
   pathname: string,
 ): AdminDashboardSection | null {
   const path = normalizedPath(pathname);
+  if (path === "/admin/feedback") return "bugs";
   const match = Object.entries(adminPaths).find(([, route]) => route === path);
   return (match?.[0] as AdminDashboardSection | undefined) ?? null;
 }
