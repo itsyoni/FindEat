@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
@@ -10,6 +10,7 @@ import { StarIcon } from "@phosphor-icons/react/dist/csr/Star";
 import { HeartIcon } from "@phosphor-icons/react/dist/csr/Heart";
 import { ChartLineUpIcon } from "@phosphor-icons/react/dist/csr/ChartLineUp";
 import { DotsThreeVerticalIcon } from "@phosphor-icons/react/dist/csr/DotsThreeVertical";
+import { DotsSixVerticalIcon } from "@phosphor-icons/react/dist/csr/DotsSixVertical";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { ForkKnifeIcon } from "@phosphor-icons/react/dist/csr/ForkKnife";
@@ -99,6 +100,44 @@ export function MenuPage({
   const [insightsDish, setInsightsDish] = useState<Dish | null>(null);
   const [openDishOptions, setOpenDishOptions] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [menuOrderIds, setMenuOrderIds] = useState<string[] | null>(null);
+  const [draggedMenuId, setDraggedMenuId] = useState<string | null>(null);
+  const [dragStartOrder, setDragStartOrder] = useState<string[] | null>(null);
+  const [draggedSectionHeight, setDraggedSectionHeight] = useState(82);
+  const [dragPosition, setDragPosition] = useState<{
+    left: number;
+    top: number;
+    width: number;
+  } | null>(null);
+  const activeDraggedMenuIdRef = useRef<string | null>(null);
+  const dragStartOrderRef = useRef<string[] | null>(null);
+  const liveMenuOrderRef = useRef<string[] | null>(null);
+  const dragPointerOffsetRef = useRef({ x: 0, y: 0 });
+  const dragScrollContainerRef = useRef<HTMLElement | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  const [sectionTypeOverrides, setSectionTypeOverrides] = useState<
+    Record<string, MenuSectionType>
+  >({});
+  const [updatingSectionTypeId, setUpdatingSectionTypeId] = useState<string | null>(null);
+
+  const orderedMenus = useMemo(() => {
+    if (!menuOrderIds) return menus;
+    const byId = new Map(menus.map((menu) => [menu.id, menu]));
+    const ordered = menuOrderIds.flatMap((id) => {
+      const menu = byId.get(id);
+      if (!menu) return [];
+      byId.delete(id);
+      return [menu];
+    });
+    return [...ordered, ...byId.values()];
+  }, [menuOrderIds, menus]);
+
+  useEffect(() => () => dragCleanupRef.current?.(), []);
+
+  function menuSectionType(menu: Menu): MenuSectionType {
+    return sectionTypeOverrides[menu.id] ??
+      (menu.sectionType === "DRINKS" ? "DRINKS" : "FOOD");
+  }
   const popularDishIds = useMemo(
     () =>
       new Set(
@@ -224,21 +263,187 @@ export function MenuPage({
     menu: Menu,
     sectionType: MenuSectionType,
   ) {
-    if (menu.sectionType === sectionType) return;
+    const previousType = menuSectionType(menu);
+    if (previousType === sectionType || updatingSectionTypeId === menu.id) return;
     setError("");
+    setSectionTypeOverrides((current) => ({ ...current, [menu.id]: sectionType }));
+    setUpdatingSectionTypeId(menu.id);
     try {
-      await request(`/business/menus/${menu.id}`, {
+      const updated = await request<Menu>(`/business/menus/${menu.id}`, {
         method: "PATCH",
         body: JSON.stringify({ sectionType }),
       });
+      if (updated.sectionType !== sectionType) {
+        throw new Error("The menu section type was not saved. Please try again.");
+      }
       await reload();
+      setSectionTypeOverrides((current) => {
+        const next = { ...current };
+        delete next[menu.id];
+        return next;
+      });
     } catch (nextError) {
+      setSectionTypeOverrides((current) => ({
+        ...current,
+        [menu.id]: previousType,
+      }));
       setError(
         nextError instanceof Error
           ? nextError.message
           : "Could not update menu section type",
       );
+    } finally {
+      setUpdatingSectionTypeId(null);
     }
+  }
+
+  function startMenuDrag(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    menuId: string,
+  ) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const section = event.currentTarget.closest<HTMLElement>(".menu-section");
+    const bounds = section?.getBoundingClientRect();
+    const headingBounds = section
+      ?.querySelector<HTMLElement>(".menu-section-heading-row")
+      ?.getBoundingClientRect();
+    const initialOrder = orderedMenus.map((menu) => menu.id);
+    activeDraggedMenuIdRef.current = menuId;
+    dragStartOrderRef.current = initialOrder;
+    liveMenuOrderRef.current = initialOrder;
+    setDraggedMenuId(menuId);
+    setDragStartOrder(initialOrder);
+    setMenuOrderIds(initialOrder);
+    setDraggedSectionHeight(headingBounds?.height ?? 82);
+    dragPointerOffsetRef.current = {
+      x: bounds ? event.clientX - bounds.left : 22,
+      y: bounds ? event.clientY - bounds.top : 22,
+    };
+    setDragPosition({
+      left: bounds?.left ?? event.clientX - 22,
+      top: bounds?.top ?? event.clientY - 22,
+      width: bounds?.width ?? 320,
+    });
+
+    const pageStack = event.currentTarget.closest<HTMLElement>(".page-stack");
+    dragScrollContainerRef.current = pageStack?.parentElement?.matches(
+      ".dashboard-page-slot",
+    )
+      ? pageStack.parentElement
+      : pageStack;
+
+    dragCleanupRef.current?.();
+    const pointerId = event.pointerId;
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      moveEvent.preventDefault();
+      moveDraggedMenu(moveEvent.clientX, moveEvent.clientY);
+    };
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      dragCleanupRef.current?.();
+      finishMenuReorder(true);
+    };
+    const handlePointerCancel = (cancelEvent: PointerEvent) => {
+      if (cancelEvent.pointerId !== pointerId) return;
+      dragCleanupRef.current?.();
+      finishMenuReorder(false);
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
+      dragCleanupRef.current = null;
+    };
+    dragCleanupRef.current = cleanup;
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
+  }
+
+  function moveDraggedMenu(clientX: number, clientY: number) {
+    const activeMenuId = activeDraggedMenuIdRef.current;
+    if (!activeMenuId) return;
+    setDragPosition((current) => current ? {
+      ...current,
+      left: clientX - dragPointerOffsetRef.current.x,
+      top: clientY - dragPointerOffsetRef.current.y,
+    } : current);
+
+    const scrollContainer = dragScrollContainerRef.current;
+    if (scrollContainer) {
+      const scrollBounds = scrollContainer.getBoundingClientRect();
+      const edgeSize = Math.min(88, scrollBounds.height * 0.18);
+      if (clientY < scrollBounds.top + edgeSize) {
+        scrollContainer.scrollBy({ top: -14 });
+      } else if (clientY > scrollBounds.bottom - edgeSize) {
+        scrollContainer.scrollBy({ top: 14 });
+      }
+    }
+
+    const hoveredSection = document
+      .elementFromPoint(clientX, clientY)
+      ?.closest<HTMLElement>("[data-menu-section-id]");
+    const hoveredMenuId = hoveredSection?.dataset.menuSectionId ?? null;
+    if (!hoveredSection || !hoveredMenuId || hoveredMenuId === activeMenuId) {
+      return;
+    }
+    const bounds = hoveredSection.getBoundingClientRect();
+    const position = clientY < bounds.top + bounds.height / 2
+      ? "before"
+      : "after";
+    setMenuOrderIds((current) => {
+      const order = current ?? liveMenuOrderRef.current;
+      if (!order) return current;
+      const next = order.filter((id) => id !== activeMenuId);
+      const targetIndex = next.indexOf(hoveredMenuId);
+      if (targetIndex < 0) return current;
+      next.splice(targetIndex + (position === "after" ? 1 : 0), 0, activeMenuId);
+      if (next.every((id, index) => id === order[index])) return current;
+      liveMenuOrderRef.current = next;
+      return next;
+    });
+  }
+
+  function finishMenuReorder(shouldSave: boolean) {
+    const activeMenuId = activeDraggedMenuIdRef.current;
+    if (!activeMenuId) return;
+    const previous = dragStartOrderRef.current ?? dragStartOrder;
+    const menuIds = liveMenuOrderRef.current ?? previous ?? orderedMenus.map((menu) => menu.id);
+    const previousIds = previous ?? [];
+    activeDraggedMenuIdRef.current = null;
+    dragStartOrderRef.current = null;
+    liveMenuOrderRef.current = null;
+    dragScrollContainerRef.current = null;
+    setDraggedMenuId(null);
+    setDragStartOrder(null);
+    setDragPosition(null);
+    if (
+      !shouldSave ||
+      menuIds.every((id, index) => id === previousIds[index])
+    ) {
+      setMenuOrderIds(shouldSave ? menuIds : previous);
+      return;
+    }
+    setMenuOrderIds(menuIds);
+    setError("");
+    void request("/business/menus/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({ menuIds }),
+    })
+      .then(async () => {
+        await reload();
+        setMenuOrderIds(null);
+      })
+      .catch((nextError) => {
+        if (previous) setMenuOrderIds(previous);
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Could not save menu section order",
+        );
+      });
   }
 
   async function deleteMenu(menu: Menu) {
@@ -363,17 +568,47 @@ export function MenuPage({
           <p>Add your first section, then fill it with dishes.</p>
         </div>
       ) : (
-        menus.map((menu) => (
-          <section className="menu-section" key={menu.id}>
-            <button
-              className={`section-heading ${openMenu === menu.id ? "open" : ""}`}
-              onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
-            >
+        orderedMenus.map((menu) => {
+          const effectiveSectionType = menuSectionType(menu);
+          const isDragged = draggedMenuId === menu.id;
+          return (
+          <Fragment key={menu.id}>
+          {isDragged && (
+            <div
+              className="menu-section-drop-placeholder"
+              style={{ height: draggedSectionHeight }}
+              aria-hidden="true"
+            />
+          )}
+          <section
+            className={`menu-section ${isDragged ? "dragging-source" : ""}`}
+            data-menu-section-id={menu.id}
+            style={isDragged && dragPosition ? {
+              left: dragPosition.left,
+              top: dragPosition.top,
+              width: dragPosition.width,
+            } : undefined}
+          >
+            <div className="menu-section-heading-row">
+              <button
+                type="button"
+                className="menu-section-drag-handle"
+                aria-label={`Reorder ${menu.title}`}
+                title="Drag to reorder section"
+                onPointerDown={(event) => startMenuDrag(event, menu.id)}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <DotsSixVerticalIcon size={20} weight="bold" />
+              </button>
+              <button
+                className={`section-heading ${openMenu === menu.id ? "open" : ""}`}
+                onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
+              >
               <div>
                 <div className="menu-section-title-row">
                   <h3>{menu.title}</h3>
-                  <span className={`menu-section-type-badge ${menu.sectionType === "DRINKS" ? "drinks" : "food"}`}>
-                    {menu.sectionType === "DRINKS" ? "Drinks" : "Food"}
+                  <span className={`menu-section-type-badge ${effectiveSectionType === "DRINKS" ? "drinks" : "food"}`}>
+                    {effectiveSectionType === "DRINKS" ? "Drinks" : "Food"}
                   </span>
                 </div>
                 <p>
@@ -382,7 +617,8 @@ export function MenuPage({
                 </p>
               </div>
               {openMenu === menu.id ? <CaretDownIcon size={22} weight="bold" /> : <CaretRightIcon size={22} weight="bold" />}
-            </button>
+              </button>
+            </div>
             {openMenu === menu.id && (
               <div className="section-body">
                 {menu.items.map((dish) => (
@@ -584,41 +820,46 @@ export function MenuPage({
                       >
                         + Add dish
                       </button>
-                      <button
-                        className="text-button"
-                        onClick={() => void editMenu(menu)}
-                      >
-                        Rename section
-                      </button>
                       <div className="menu-section-type-toggle" role="group" aria-label={`Type for ${menu.title}`}>
                         <button
                           type="button"
-                          className={menu.sectionType !== "DRINKS" ? "selected" : ""}
+                          className={effectiveSectionType === "FOOD" ? "selected" : ""}
+                          disabled={updatingSectionTypeId === menu.id}
                           onClick={() => void updateMenuSectionType(menu, "FOOD")}
                         >
                           <ForkKnifeIcon size={14} weight="bold" /> Food
                         </button>
                         <button
                           type="button"
-                          className={menu.sectionType === "DRINKS" ? "selected" : ""}
+                          className={effectiveSectionType === "DRINKS" ? "selected" : ""}
+                          disabled={updatingSectionTypeId === menu.id}
                           onClick={() => void updateMenuSectionType(menu, "DRINKS")}
                         >
                           <MartiniIcon size={14} weight="bold" /> Drinks
                         </button>
                       </div>
                     </div>
-                    <button
-                      className="text-danger"
-                      onClick={() => void deleteMenu(menu)}
-                    >
-                      Delete section
-                    </button>
+                    <div className="menu-section-management-actions">
+                      <button
+                        className="text-button"
+                        onClick={() => void editMenu(menu)}
+                      >
+                        Rename section
+                      </button>
+                      <button
+                        className="text-danger"
+                        onClick={() => void deleteMenu(menu)}
+                      >
+                        Delete section
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </section>
-        ))
+          </Fragment>
+        );})
       )}
       {insightsDish && (
         <DishInsightsModal

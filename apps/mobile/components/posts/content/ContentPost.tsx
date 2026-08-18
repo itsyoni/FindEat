@@ -64,6 +64,7 @@ type Props = {
   height: number;
   contentTopInset?: number;
   controlsTopInset?: number;
+  bottomAuthorBarHeight?: number;
   isActive?: boolean;
   onToggleLike: (postId: string, isLiked: boolean) => void;
   onOpenComments: (postId: string) => void;
@@ -98,6 +99,7 @@ export default function ContentPost({
   post,
   height,
   contentTopInset = 0,
+  bottomAuthorBarHeight = 0,
   isActive = true,
   onToggleLike,
   onOpenComments,
@@ -128,6 +130,7 @@ export default function ContentPost({
   const [soundPlaybackRevision, setSoundPlaybackRevision] = useState(0);
   const [soundPlaybackOffsetMs, setSoundPlaybackOffsetMs] = useState(0);
   const contentFeedMuted = useContentFeedAudio();
+  const mediaHeight = Math.max(1, height - bottomAuthorBarHeight);
   const likePressStartedAt = useRef(0);
   const mediaCarouselGesture = useMemo(
     () => Gesture.Native().disallowInterruption(true),
@@ -368,7 +371,7 @@ export default function ContentPost({
     fullTextHeight: number,
   ) {
     const extraCaptionHeight = Math.max(0, fullTextHeight - 24) + 28;
-    const maximumHeight = Math.max(280, height - contentTopInset);
+    const maximumHeight = Math.max(280, mediaHeight - contentTopInset);
     const nextHeight = expanded
       ? Math.min(maximumHeight, 280 + extraCaptionHeight)
       : 280;
@@ -386,7 +389,7 @@ export default function ContentPost({
       style={{ height, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <Pressable
-        style={{ flex: 1 }}
+        style={{ height: mediaHeight }}
         delayLongPress={220}
         onLongPress={videoMedia?.videoUrl ? undefined : () => setMediaOnly(true)}
         onPressOut={videoMedia?.videoUrl ? undefined : () => setMediaOnly(false)}
@@ -428,7 +431,7 @@ export default function ContentPost({
               position: "absolute",
               inset: 0,
               width,
-              height,
+              height: mediaHeight,
               backgroundColor: "#080808",
             }}
           >
@@ -469,7 +472,7 @@ export default function ContentPost({
               position: "absolute",
               inset: 0,
               width,
-              height,
+              height: mediaHeight,
               backgroundColor: "#080808",
             }}
           >
@@ -506,7 +509,7 @@ export default function ContentPost({
             }}
             scrollEventThrottle={16}
             renderItem={({ item }) => (
-              <View style={{ width, height, backgroundColor: "#080808" }}>
+              <View style={{ width, height: mediaHeight, backgroundColor: "#080808" }}>
                 {item.imageUrl ? (
                   <PinchZoomImage
                     uri={item.imageUrl}
@@ -597,7 +600,7 @@ export default function ContentPost({
               </Text>
             </View>
           ) : null}
-          <View className="mb-3 flex-row items-center justify-start gap-3">
+          {bottomAuthorBarHeight === 0 ? <View className="mb-3 flex-row items-center justify-start gap-3">
             <View className="min-w-0 shrink flex-row items-center gap-3">
               {isRestaurantPost ? (
                 <TouchableOpacity activeOpacity={0.8} onPress={openAuthorProfile}>
@@ -652,7 +655,7 @@ export default function ContentPost({
               </TouchableOpacity>
             </View>
             <PostAuthorFollowAction post={post} onMedia />
-          </View>
+          </View> : null}
 
           {!!post.restaurant || !!post.taggedUsers?.length ? (
             <View className="mb-3 flex-row items-center">
@@ -732,10 +735,11 @@ export default function ContentPost({
               {post.canRepost ? (
                 <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel={tCommon(isReposted ? "removeRepost" : "repost")}
-                  disabled={reposting}
+                  accessibilityLabel={tCommon(isReposted ? "reposted" : "repost")}
+                  accessibilityState={{ disabled: reposting || isReposted }}
+                  disabled={reposting || isReposted}
                   activeOpacity={0.8}
-                  className="ml-2 flex-row items-center rounded-full bg-[#00000080] px-3 py-2"
+                  className="ml-2 h-8 w-8 items-center justify-center rounded-full bg-[#00000080]"
                   onPress={() => void toggleRepost()}
                   style={{ opacity: reposting ? 0.6 : 1 }}
                 >
@@ -748,13 +752,6 @@ export default function ContentPost({
                       weight="bold"
                     />
                   )}
-                  <Text
-                    numberOfLines={1}
-                    className="ml-1.5 text-xs font-bold"
-                    style={{ color: isReposted ? "#F7D786" : "#FAF9F6" }}
-                  >
-                    {tCommon(isReposted ? "reposted" : "repost")}
-                  </Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -927,6 +924,77 @@ export default function ContentPost({
         </View> : null}
       </Animated.View>
       </Pressable>
+      {bottomAuthorBarHeight > 0 ? (
+        <View
+          style={{
+            height: bottomAuthorBarHeight,
+            backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
+          }}
+        >
+          {!mediaOnly ? (
+            <View className="h-[49px] flex-row items-center px-4">
+              <View className="min-w-0 flex-1 flex-row items-center gap-3">
+                {isRestaurantPost ? (
+                  <TouchableOpacity activeOpacity={0.8} onPress={openAuthorProfile}>
+                    <Avatar
+                      uri={displayAvatar}
+                      username={displayName ?? ""}
+                      size={38}
+                      fallbackType="restaurant"
+                    />
+                  </TouchableOpacity>
+                ) : (
+                  <SnapAvatarButton
+                    avatarUrl={displayAvatar}
+                    username={displayName}
+                    userId={post.author?.id}
+                    size={38}
+                    indicatorPlacement="outside"
+                    onPressWithoutSnap={openAuthorProfile}
+                  />
+                )}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={openAuthorProfile}
+                  className="min-w-0 shrink"
+                >
+                  <View className="min-w-0 shrink">
+                    <View className="flex-row items-center">
+                      <Text
+                        numberOfLines={1}
+                        className="shrink font-bold text-[#171717] dark:text-[#FAF9F6]"
+                      >
+                        {displayName}
+                      </Text>
+                      {isOfficialPost ? <RestaurantBadge /> : null}
+                      {!isOfficialPost && post.visibility !== "PUBLIC" ? (
+                        <View className="ml-1.5">
+                          <PostVisibilityIcon
+                            visibility={post.visibility}
+                            color={isDark ? "#FAF9F6CC" : "#171717B3"}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                    {isOfficialPost ? (
+                      <Text className="mt-0.5 text-xs font-semibold text-[#B78300] dark:text-[#F7D786]">
+                        Official restaurant
+                      </Text>
+                    ) : post.author?.displayName?.trim() ? (
+                      <Text className="mt-0.5 text-xs text-gray-500 dark:text-white/65">
+                        {usernameLabel(post.author.username)}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              </View>
+              <View className="ml-3">
+                <PostAuthorFollowAction post={post} />
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <TaggedUsersBottomSheet
         open={taggedUsersOpen}
         users={post.taggedUsers ?? []}

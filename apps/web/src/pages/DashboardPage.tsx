@@ -649,26 +649,12 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <small>Business</small>
           </div>
         </div>
-        <div className="desktop-restaurant-switcher">
-          <RestaurantSwitcher
-            restaurant={restaurant}
-            restaurants={restaurants}
-            onSelect={selectRestaurant}
-          />
-        </div>
         <div className="mobile-nav-bar">
           <div className="mobile-nav-title">
             <StorefrontIcon size={20} weight="duotone" aria-hidden="true" />
             <div>
               <div className="mobile-nav-title-row">
                 <strong>FindEat Business</strong>
-                <span className="mobile-access-pill">
-                  {restaurant.accessRole === "ADMIN"
-                    ? "Admin access"
-                    : restaurant.status === "CLAIMED"
-                      ? "Claimed"
-                      : "Unclaimed"}
-                </span>
               </div>
               <small>Restaurant workspace</small>
             </div>
@@ -776,22 +762,25 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       </aside>
       <main className="content">
         <header>
-          <div className="desktop-header-restaurant-summary">
-            <strong>{restaurant.name}</strong>
-            <span className="claimed">
-              {restaurant.accessRole === "ADMIN"
-                ? "Admin access"
-                : restaurant.status === "CLAIMED"
-                  ? "Claimed"
-                  : "Unclaimed"}
-            </span>
-          </div>
-          <div className="mobile-header-restaurant-selector">
-            <RestaurantSwitcher
-              restaurant={restaurant}
-              restaurants={restaurants}
-              onSelect={selectRestaurant}
-            />
+          <div className="header-identity-group">
+            <div className="account-summary header-account-summary">
+              <AccountAvatar account={account} />
+              <div className="account-summary-copy">
+                <div className="account-summary-name">
+                  <strong>{account.username}</strong>
+                  {restaurant.accessRole === "ADMIN" ? (
+                    <span className="account-access-pill">Admin access</span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <div className="header-restaurant-switcher">
+              <RestaurantSwitcher
+                restaurant={restaurant}
+                restaurants={restaurants}
+                onSelect={selectRestaurant}
+              />
+            </div>
           </div>
           <div className="top-actions">
             <div className="notifications-menu">
@@ -823,12 +812,6 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
                   onClear={clearRestaurantNotifications}
                 />
               )}
-            </div>
-            <div className="account-summary">
-              <div>
-                <strong>{account.username}</strong>
-              </div>
-              <AccountAvatar account={account} />
             </div>
           </div>
         </header>
@@ -875,7 +858,10 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
         {(section === "badges" || visitedSections.has("badges")) && (
-          <div className="dashboard-page-slot" hidden={section !== "badges"}>
+          <div
+            className="dashboard-page-slot badges-page-slot"
+            hidden={section !== "badges"}
+          >
             <BadgesPage restaurant={restaurant} />
           </div>
         )}

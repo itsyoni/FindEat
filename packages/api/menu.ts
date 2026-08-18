@@ -82,6 +82,14 @@ export function createMenuApi(api: AxiosInstance) {
       return data;
     },
 
+    async reorderMenus(menuIds: string[]) {
+      const { data } = await api.patch<{ ok: true }>(
+        "/business/menus/reorder",
+        { menuIds },
+      );
+      return data;
+    },
+
     async deleteMenu(id: string) {
       const { data } = await api.delete<{ ok: boolean }>(
         `/business/menus/${id}`,

@@ -11,6 +11,7 @@ import { HeartIcon } from "@phosphor-icons/react/dist/csr/Heart";
 import { LightbulbIcon } from "@phosphor-icons/react/dist/csr/Lightbulb";
 import { StarIcon } from "@phosphor-icons/react/dist/csr/Star";
 import { UsersIcon } from "@phosphor-icons/react/dist/csr/Users";
+import { CustomDropdown } from "../components/CustomDropdown";
 import { request } from "../lib/api";
 
 type Range = "7" | "30" | "90" | "all";
@@ -164,15 +165,20 @@ export function AnalyticsPage({
             Understand what brings people in, what they value, and what to improve next.
           </p>
         </div>
-        <label className="pro-range">
-          Period
-          <select value={range} onChange={(event) => setRange(event.target.value as Range)}>
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="all">All time</option>
-          </select>
-        </label>
+        <div className="pro-range">
+          <span>Period</span>
+          <CustomDropdown
+            ariaLabel="Analytics period"
+            value={range}
+            options={[
+              { value: "7", label: "Last 7 days" },
+              { value: "30", label: "Last 30 days" },
+              { value: "90", label: "Last 90 days" },
+              { value: "all", label: "All time" },
+            ]}
+            onChange={(value) => setRange(value as Range)}
+          />
+        </div>
       </div>
 
       {error ? <p className="banner error">{error}</p> : null}

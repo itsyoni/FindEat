@@ -14,3 +14,11 @@ export type SelectedAddress = {
   } | null;
   source?: "SEARCH" | "MAP" | "CURRENT_LOCATION";
 };
+
+export type StayLocationSuggestion = {
+  googlePlaceId: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};

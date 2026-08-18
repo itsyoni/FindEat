@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   RESTAURANT_WEEKDAYS,
   type Menu,
@@ -16,6 +16,10 @@ import { CopyIcon } from "@phosphor-icons/react/dist/csr/Copy";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import { createEmptyOpeningHours } from "./openingHours";
+import {
+  CustomDropdown,
+  type CustomDropdownOption,
+} from "./CustomDropdown";
 
 const dayLabels: Record<RestaurantWeekday, string> = {
   MONDAY: "Monday",
@@ -81,178 +85,6 @@ const timezoneLocalTimeLabel = (timezone: string, timestamp: number) => {
     return "--:--";
   }
 };
-
-type DropdownOption = {
-  value: string;
-  label: string;
-  meta?: string;
-};
-
-function CustomDropdown({
-  value,
-  options,
-  onChange,
-  ariaLabel,
-}: {
-  value: string;
-  options: DropdownOption[];
-  onChange: (value: string) => void;
-  ariaLabel: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [highlightedValue, setHighlightedValue] = useState(value);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const highlightedValueRef = useRef(value);
-  const typeahead = useRef("");
-  const typeaheadTimer = useRef<number | null>(null);
-  const selected = options.find((option) => option.value === value) ?? options[0];
-
-  function highlight(valueToHighlight: string) {
-    highlightedValueRef.current = valueToHighlight;
-    setHighlightedValue(valueToHighlight);
-    window.requestAnimationFrame(() => {
-      [...(dropdownRef.current?.querySelectorAll<HTMLButtonElement>("[data-option-value]") ?? [])]
-        .find((button) => button.dataset.optionValue === valueToHighlight)
-        ?.scrollIntoView({ block: "nearest" });
-    });
-  }
-
-  useEffect(
-    () => () => {
-      if (typeaheadTimer.current !== null) {
-        window.clearTimeout(typeaheadTimer.current);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleTypeahead = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.matches("input, textarea, [contenteditable='true']")) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setIsOpen(false);
-        dropdownRef.current
-          ?.querySelector<HTMLButtonElement>(".custom-dropdown-trigger")
-          ?.focus();
-        return;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        onChange(highlightedValueRef.current);
-        setIsOpen(false);
-        dropdownRef.current
-          ?.querySelector<HTMLButtonElement>(".custom-dropdown-trigger")
-          ?.focus();
-        return;
-      }
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const currentIndex = Math.max(
-          0,
-          options.findIndex(
-            (option) => option.value === highlightedValueRef.current,
-          ),
-        );
-        const direction = event.key === "ArrowDown" ? 1 : -1;
-        const nextIndex = Math.min(
-          options.length - 1,
-          Math.max(0, currentIndex + direction),
-        );
-        if (options[nextIndex]) highlight(options[nextIndex].value);
-        return;
-      }
-      if (
-        event.key.length !== 1 ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        !/[\p{L}\p{N}]/u.test(event.key)
-      ) {
-        return;
-      }
-      event.preventDefault();
-      typeahead.current += event.key.toLocaleLowerCase();
-      if (typeaheadTimer.current !== null) {
-        window.clearTimeout(typeaheadTimer.current);
-      }
-      typeaheadTimer.current = window.setTimeout(() => {
-        typeahead.current = "";
-      }, 800);
-      let match = options.find((option) =>
-        `${option.label} ${option.meta ?? ""}`
-          .toLocaleLowerCase()
-          .startsWith(typeahead.current),
-      );
-      if (!match) {
-        typeahead.current = event.key.toLocaleLowerCase();
-        match = options.find((option) =>
-          `${option.label} ${option.meta ?? ""}`
-            .toLocaleLowerCase()
-            .startsWith(typeahead.current),
-        );
-      }
-      if (match) highlight(match.value);
-    };
-    window.addEventListener("keydown", handleTypeahead);
-    return () => window.removeEventListener("keydown", handleTypeahead);
-  }, [isOpen, onChange, options]);
-
-  return (
-    <div
-      ref={dropdownRef}
-      className={`custom-dropdown ${isOpen ? "open" : ""}`}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          setIsOpen(false);
-        }
-      }}
-    >
-      <button
-        type="button"
-        className="custom-dropdown-trigger"
-        aria-label={ariaLabel}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        onClick={() =>
-          setIsOpen((open) => {
-            if (!open) highlight(value);
-            return !open;
-          })
-        }
-      >
-        <span className="custom-dropdown-label">{selected?.label}</span>
-        {selected?.meta ? <span className="custom-dropdown-meta">{selected.meta}</span> : null}
-        <CaretDownIcon aria-hidden="true" className="custom-dropdown-caret" size={14} weight="bold" />
-      </button>
-      {isOpen ? (
-        <div className="custom-dropdown-menu" role="listbox" aria-label={ariaLabel}>
-          {options.map((option) => (
-            <button
-              type="button"
-              className={`${option.value === value ? "selected" : ""} ${option.value === highlightedValue ? "highlighted" : ""}`}
-              key={option.value}
-              role="option"
-              aria-selected={option.value === value}
-              data-option-value={option.value}
-              onFocus={() => highlight(option.value)}
-              onMouseEnter={() => highlight(option.value)}
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-            >
-              <span>{option.label}</span>
-              {option.meta ? <span>{option.meta}</span> : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 function DishTargetPicker({
   menus,
@@ -519,7 +351,7 @@ export function OpeningHoursEditor({
   const drinksSectionCount = menus.filter(
     (menu) => menu.sectionType === "DRINKS",
   ).length;
-  const happyHourTargetOptions: DropdownOption[] = [
+  const happyHourTargetOptions: CustomDropdownOption[] = [
     { value: "ALL_MENU", label: "Entire menu" },
     { value: "FOOD", label: "All food", meta: `${foodSectionCount} sections` },
     { value: "DRINKS", label: "All drinks", meta: `${drinksSectionCount} sections` },

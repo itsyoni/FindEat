@@ -1,0 +1,1 @@
+export const BOTTOM_TAB_BAR_BASE_HEIGHT = 49;

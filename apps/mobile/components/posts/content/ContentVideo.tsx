@@ -24,6 +24,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import Text from "@/components/common/AppText";
 
 type Props = {
   uri: string;
@@ -50,6 +51,18 @@ type Props = {
   onPlaybackEnd?: () => void;
   onSeek?: (seconds: number) => void;
 };
+
+function formatVideoTime(seconds: number, roundUp = false) {
+  const safeSeconds = Number.isFinite(seconds) ? seconds : 0;
+  const wholeSeconds = Math.max(
+    0,
+    roundUp ? Math.ceil(safeSeconds) : Math.floor(safeSeconds),
+  );
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
 
 export default function ContentVideo({
   uri,
@@ -116,6 +129,7 @@ export default function ContentVideo({
   const videoHeight = useSharedValue(0);
   const scrubTouchStartX = useSharedValue(0);
   const scrubTouchStartY = useSharedValue(0);
+  const scrubberExpansion = useSharedValue(0);
 
   useEffect(() => {
     // Keep every mounted feed player aligned with the shared audio choice.
@@ -185,6 +199,14 @@ export default function ContentVideo({
       ? Math.max(0, Math.min(1, timeUpdate.currentTime / duration))
       : 0;
   const displayedProgress = scrubProgress ?? progress;
+  const displayedTime = displayedProgress * Math.max(0, duration);
+
+  useEffect(() => {
+    scrubberExpansion.value = withTiming(scrubProgress === null ? 0 : 1, {
+      duration: 140,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [scrubProgress, scrubberExpansion]);
 
   function scrubRatio(locationX: number) {
     if (!scrubberWidth) return 0;
@@ -333,6 +355,25 @@ export default function ContentVideo({
       { scale: scale.value },
     ],
   }));
+  const progressTrackAnimatedStyle = useAnimatedStyle(() => ({
+    height: 3 + scrubberExpansion.value * 5,
+  }));
+  const progressHandleAnimatedStyle = useAnimatedStyle(() => {
+    const size = 10 + scrubberExpansion.value * 6;
+    const trackHeight = 3 + scrubberExpansion.value * 5;
+
+    return {
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      right: -size / 2,
+      top: (trackHeight - size) / 2,
+    };
+  });
+  const scrubberTimeAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: scrubberExpansion.value,
+    transform: [{ translateY: (1 - scrubberExpansion.value) * 5 }],
+  }));
 
   return (
     <GestureDetector gesture={pinchGesture}>
@@ -386,6 +427,18 @@ export default function ContentVideo({
         </View>
       ) : null}
       {showProgress && !mediaOnly ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scrubberTimeOverlay, scrubberTimeAnimatedStyle]}
+        >
+          <View style={styles.scrubberTimePill}>
+            <Text style={styles.scrubberTimeText}>
+              {formatVideoTime(displayedTime)}/{formatVideoTime(duration, true)}
+            </Text>
+          </View>
+        </Animated.View>
+      ) : null}
+      {showProgress && !mediaOnly ? (
         <GestureDetector gesture={scrubberGesture}>
         <View
           accessibilityRole="adjustable"
@@ -399,16 +452,21 @@ export default function ContentVideo({
           }}
           style={styles.scrubberTouchArea}
         >
-          <View pointerEvents="none" style={styles.progressTrack}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.progressTrack, progressTrackAnimatedStyle]}
+          >
             <View
               style={[
                 styles.progressFill,
                 { width: `${displayedProgress * 100}%` },
               ]}
             >
-              <View style={styles.progressHandle} />
+              <Animated.View
+                style={[styles.progressHandle, progressHandleAnimatedStyle]}
+              />
             </View>
-          </View>
+          </Animated.View>
         </View>
         </GestureDetector>
       ) : null}
@@ -464,11 +522,34 @@ const styles = StyleSheet.create({
   },
   progressHandle: {
     position: "absolute",
-    right: -5,
-    top: -3.5,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
     backgroundColor: "#FAF9F6",
+  },
+  scrubberTimeOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrubberTimePill: {
+    minWidth: 142,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "rgba(11,11,10,0.68)",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  scrubberTimeText: {
+    color: "#FAF9F6",
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+    textShadowColor: "rgba(0,0,0,0.75)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });

@@ -1,11 +1,13 @@
 import Avatar from '@/components/common/Avatar';
+import AppBottomSheet from '@/components/common/AppBottomSheet';
 import FullScreenImageViewer from '@/components/common/FullScreenImageViewer';
 import { Restaurant } from '@findeat/types';
 import { router } from 'expo-router';
 import { CalendarCheckIcon, ChatCircleIcon, DotsThreeIcon, MapPinIcon } from 'phosphor-react-native';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
 import { useTranslation } from 'react-i18next';
-import { Linking, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Platform, TouchableOpacity, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../common/AppText';
@@ -18,6 +20,35 @@ import { Skeleton, SkeletonPulse } from '../common';
 import ParallaxProfileCover from '../profile/ParallaxProfileCover';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { RestaurantOpeningHoursSummary } from './RestaurantOpeningHours';
+import { BottomSheetView } from '@gorhom/bottom-sheet';
+import Svg, { Path } from 'react-native-svg';
+
+function GoogleMapsBrandIcon({ size = 25 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 92.3 132.3">
+      <Path
+        fill="#1A73E8"
+        d="M60.2 2.2C55.8.8 51 0 46.1 0 32 0 19.3 6.4 10.8 16.5l21.8 18.3L60.2 2.2Z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M10.8 16.5C4.1 24.5 0 34.9 0 46.1c0 8.7 1.7 15.7 4.6 22l28-33.3-21.8-18.3Z"
+      />
+      <Path
+        fill="#4285F4"
+        d="M46.2 28.5c9.8 0 17.7 7.9 17.7 17.7 0 4.3-1.6 8.3-4.2 11.4 0 0 13.9-16.6 27.5-32.7-5.6-10.8-15.3-19-27-22.7L32.6 34.8c3.3-3.8 8.1-6.3 13.6-6.3Z"
+      />
+      <Path
+        fill="#FBBC04"
+        d="M46.2 63.8c-9.8 0-17.7-7.9-17.7-17.7 0-4.3 1.5-8.3 4.1-11.3l-28 33.3c4.8 10.6 12.8 19.2 21 29.9l34.1-40.5c-3.3 3.9-8.1 6.3-13.5 6.3Z"
+      />
+      <Path
+        fill="#34A853"
+        d="M59.1 109.2c15.4-24.1 33.3-35 33.3-63 0-7.7-1.9-14.9-5.2-21.3L25.6 98c2.6 3.4 5.3 7.3 7.9 11.3 9.4 14.5 6.8 23.1 12.8 23.1s3.4-8.7 12.8-23.2Z"
+      />
+    </Svg>
+  );
+}
 
 type Props = {
   restaurant?: Restaurant | null;
@@ -31,6 +62,7 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
   const { t } = useTranslation('restaurants');
   const { isDark } = useAppTheme();
   const [logoOpen, setLogoOpen] = useState(false);
+  const [locationActionsOpen, setLocationActionsOpen] = useState(false);
 
   if (loading || !restaurant) {
     return (
@@ -59,6 +91,16 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
     );
   }
   const location = [restaurant.address, restaurant.city].filter(Boolean).join(', ');
+  const hasNavigationCoordinates =
+    typeof restaurant.latitude === 'number' &&
+    typeof restaurant.longitude === 'number';
+  const navigationDestination = hasNavigationCoordinates
+    ? `${restaurant.latitude},${restaurant.longitude}`
+    : location;
+  const encodedDestination = encodeURIComponent(navigationDestination);
+  const wazeUrl = hasNavigationCoordinates
+    ? `https://waze.com/ul?ll=${encodedDestination}&navigate=yes`
+    : `https://waze.com/ul?q=${encodedDestination}&navigate=yes`;
   const reviewPosts = restaurant.posts.filter((post) => post.type === 'REVIEW');
   const ratings = reviewPosts
     .map((post) => post.rating)
@@ -133,15 +175,16 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
           <TouchableOpacity
             activeOpacity={0.7}
             className="mt-3 flex-row items-center rounded-full bg-blue-50 px-3 py-2 dark:bg-blue-950/40"
-            onPress={() =>
-              router.push({
-                pathname: '/(tabs)/map',
-                params: { restaurantId: restaurant.id },
-              })
-            }
+            onPress={() => setLocationActionsOpen(true)}
           >
             <MapPinIcon size={16} color="#3B82F6" weight="fill" />
-            <Text className="ml-1.5 max-w-72 text-center font-medium text-blue-600 dark:text-blue-400">{location}</Text>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              className="ml-1.5 max-w-72 text-center font-medium text-blue-600 dark:text-blue-400"
+            >
+              {location}
+            </Text>
             <DirectionalIcon direction="forward" size={14} color="#3B82F6" weight="bold" />
           </TouchableOpacity>
         ) : null}
@@ -200,6 +243,106 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
         visible={logoOpen}
         onClose={() => setLogoOpen(false)}
       />
+      <AppBottomSheet
+        open={locationActionsOpen}
+        onClose={() => setLocationActionsOpen(false)}
+        snapPoints={[Platform.OS === 'ios' ? "52%" : "42%"]}
+      >
+        <BottomSheetView className="flex-1 px-5 pb-8 pt-1">
+          <Text className="text-xl font-bold text-black dark:text-white">
+            {t('locationOptions')}
+          </Text>
+          <Text numberOfLines={2} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {location}
+          </Text>
+
+          <View className="mt-5 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
+            <TouchableOpacity
+              onPress={() => {
+                setLocationActionsOpen(false);
+                requestAnimationFrame(() => {
+                  router.push({
+                    pathname: '/(tabs)/map',
+                    params: { restaurantId: restaurant.id },
+                  });
+                });
+              }}
+              className="h-16 flex-row items-center px-4"
+            >
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-950">
+                <MapPinIcon size={21} color="#3B82F6" weight="fill" />
+              </View>
+              <Text className="ml-3 flex-1 text-base font-bold text-black dark:text-white">
+                {t('viewOnMap')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setLocationActionsOpen(false);
+                void Linking.openURL(wazeUrl).catch((error) =>
+                  console.error('Could not open Waze', error),
+                );
+              }}
+              className="h-16 flex-row items-center border-t border-black/5 px-4 dark:border-white/10"
+            >
+              <View className="h-10 w-10 overflow-hidden rounded-full">
+                <Image
+                  source={require('../../assets/images/waze-navigation.jpg')}
+                  className="h-full w-full"
+                  resizeMode="cover"
+                />
+              </View>
+              <Text className="ml-3 flex-1 text-base font-bold text-black dark:text-white">
+                {t('navigateWithWaze')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setLocationActionsOpen(false);
+                void Linking.openURL(
+                  `https://www.google.com/maps/dir/?api=1&destination=${encodedDestination}`,
+                ).catch((error) =>
+                  console.error('Could not open Google Maps', error),
+                );
+              }}
+              className="h-16 flex-row items-center border-t border-black/5 px-4 dark:border-white/10"
+            >
+              <View
+                className="h-10 w-10 items-center justify-center rounded-full"
+                style={{ backgroundColor: '#FFFFFF' }}
+              >
+                <GoogleMapsBrandIcon />
+              </View>
+              <Text className="ml-3 flex-1 text-base font-bold text-black dark:text-white">
+                {t('navigateWithGoogleMaps')}
+              </Text>
+            </TouchableOpacity>
+
+            {Platform.OS === 'ios' ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setLocationActionsOpen(false);
+                  void Linking.openURL(
+                    `https://maps.apple.com/?daddr=${encodedDestination}&dirflg=d`,
+                  ).catch((error) =>
+                    console.error('Could not open Apple Maps', error),
+                  );
+                }}
+                className="h-16 flex-row items-center border-t border-black/5 px-4 dark:border-white/10"
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
+                  <FontAwesome6 name="apple" size={24} color="#111111" />
+                </View>
+                <Text className="ml-3 flex-1 text-base font-bold text-black dark:text-white">
+                  {t('navigateWithAppleMaps')}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </BottomSheetView>
+      </AppBottomSheet>
     </View>
   );
 }

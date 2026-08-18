@@ -27,6 +27,7 @@ type Props = {
   height: number;
   contentTopInset?: number;
   controlsTopInset?: number;
+  bottomAuthorBarHeight?: number;
   refreshing: boolean;
   onRefresh: () => void;
   onEndReached?: () => void;
@@ -60,6 +61,7 @@ export default function ContentFeed({
   height,
   contentTopInset = 0,
   controlsTopInset = 0,
+  bottomAuthorBarHeight = 0,
   refreshing,
   onRefresh,
   onEndReached,
@@ -320,6 +322,7 @@ export default function ContentFeed({
             isActive={active && index === visiblePostIndex}
             contentTopInset={contentTopInset}
             controlsTopInset={controlsTopInset}
+            bottomAuthorBarHeight={bottomAuthorBarHeight}
             onToggleLike={onToggleLike}
             onOpenComments={onOpenComments}
             onToggleWantToTry={onToggleWantToTry}

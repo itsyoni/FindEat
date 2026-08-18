@@ -43,7 +43,7 @@ export default function ListLocationSearchScreen() {
       try {
         setLoading(true);
         if (kind === "destination") {
-          const areas = await api.restaurants.searchMapAreas(
+          const areas = await api.restaurants.searchCities(
             trimmed,
             i18n.language,
           );
@@ -51,7 +51,9 @@ export default function ListLocationSearchScreen() {
             setResults(
               areas.map((area) => ({
                 id: area.googlePlaceId,
-                place_name: area.formattedAddress ?? area.name,
+                place_name: [area.name, area.country]
+                  .filter(Boolean)
+                  .join(", "),
                 center: [area.longitude, area.latitude],
                 text: area.name,
                 countryCode: area.countryCode,

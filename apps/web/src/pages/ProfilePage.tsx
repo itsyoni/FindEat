@@ -11,6 +11,7 @@ import { request, uploadImage } from "../lib/api";
 import { OpeningHoursEditor } from "../components/OpeningHoursEditor";
 import { normalizeOpeningHours } from "../components/openingHours";
 import { ImageCropDialog } from "../components/ImageCropDialog";
+import { CustomDropdown } from "../components/CustomDropdown";
 
 export function ProfilePage({
   restaurant,
@@ -276,10 +277,74 @@ export function ProfilePage({
           </p>
           <div className="restaurant-certification-fields">
             <section>
-              <label>Kosher status<select value={foodCertificationDetails.kosher.status} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, status: event.target.value as "NOT_KOSHER" | "CERTIFIED" } }))}><option value="NOT_KOSHER">Not certified kosher</option><option value="CERTIFIED">Kosher certified</option></select></label>
+              <label>
+                <span>Kosher status</span>
+                <CustomDropdown
+                  ariaLabel="Kosher status"
+                  value={foodCertificationDetails.kosher.status}
+                  options={[
+                    { value: "NOT_KOSHER", label: "Not certified kosher" },
+                    { value: "CERTIFIED", label: "Kosher certified" },
+                  ]}
+                  onChange={(status) =>
+                    setFoodCertificationDetails((current) => ({
+                      ...current,
+                      kosher: {
+                        ...current.kosher,
+                        status: status as "NOT_KOSHER" | "CERTIFIED",
+                      },
+                    }))
+                  }
+                />
+              </label>
               {foodCertificationDetails.kosher.status === "CERTIFIED" && <>
-                <label>Standard<select value={foodCertificationDetails.kosher.standard ?? "REGULAR"} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, standard: event.target.value as "REGULAR" | "MEHADRIN" | "OTHER" } }))}><option value="REGULAR">Regular</option><option value="MEHADRIN">Mehadrin</option><option value="OTHER">Other</option></select></label>
-                <label>Restaurant type<select value={foodCertificationDetails.kosher.restaurantType ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, restaurantType: (event.target.value || null) as "MEAT" | "DAIRY" | "PAREVE" | null } }))}><option value="">Not specified</option><option value="MEAT">Meat</option><option value="DAIRY">Dairy</option><option value="PAREVE">Pareve</option></select></label>
+                <label>
+                  <span>Standard</span>
+                  <CustomDropdown
+                    ariaLabel="Kosher certification standard"
+                    value={foodCertificationDetails.kosher.standard ?? "REGULAR"}
+                    options={[
+                      { value: "REGULAR", label: "Regular" },
+                      { value: "MEHADRIN", label: "Mehadrin" },
+                      { value: "OTHER", label: "Other" },
+                    ]}
+                    onChange={(standard) =>
+                      setFoodCertificationDetails((current) => ({
+                        ...current,
+                        kosher: {
+                          ...current.kosher,
+                          standard: standard as "REGULAR" | "MEHADRIN" | "OTHER",
+                        },
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Restaurant type</span>
+                  <CustomDropdown
+                    ariaLabel="Kosher restaurant type"
+                    value={foodCertificationDetails.kosher.restaurantType ?? ""}
+                    options={[
+                      { value: "", label: "Not specified" },
+                      { value: "MEAT", label: "Meat" },
+                      { value: "DAIRY", label: "Dairy" },
+                      { value: "PAREVE", label: "Pareve" },
+                    ]}
+                    onChange={(restaurantType) =>
+                      setFoodCertificationDetails((current) => ({
+                        ...current,
+                        kosher: {
+                          ...current.kosher,
+                          restaurantType: (restaurantType || null) as
+                            | "MEAT"
+                            | "DAIRY"
+                            | "PAREVE"
+                            | null,
+                        },
+                      }))
+                    }
+                  />
+                </label>
                 <label>Certification authority<input value={foodCertificationDetails.kosher.authority ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, authority: event.target.value } }))} placeholder="Authority name" /></label>
                 <label>Certificate URL<input type="url" value={foodCertificationDetails.kosher.certificateUrl ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, certificateUrl: event.target.value } }))} placeholder="https://…" /></label>
                 <label>Certificate expires<input type="date" value={foodCertificationDetails.kosher.expiresAt?.slice(0, 10) ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, kosher: { ...current.kosher, expiresAt: event.target.value || null } }))} /></label>
@@ -287,7 +352,28 @@ export function ProfilePage({
               </>}
             </section>
             <section>
-              <label>Halal status<select value={foodCertificationDetails.halal.status} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, status: event.target.value as RestaurantFoodCertificationDetails["halal"]["status"] } }))}><option value="NOT_HALAL">Not declared halal</option><option value="OPTIONS">Halal options available</option><option value="HALAL_MEAT">Halal meat used</option><option value="CERTIFIED">Halal certified</option></select></label>
+              <label>
+                <span>Halal status</span>
+                <CustomDropdown
+                  ariaLabel="Halal status"
+                  value={foodCertificationDetails.halal.status}
+                  options={[
+                    { value: "NOT_HALAL", label: "Not declared halal" },
+                    { value: "OPTIONS", label: "Halal options available" },
+                    { value: "HALAL_MEAT", label: "Halal meat used" },
+                    { value: "CERTIFIED", label: "Halal certified" },
+                  ]}
+                  onChange={(status) =>
+                    setFoodCertificationDetails((current) => ({
+                      ...current,
+                      halal: {
+                        ...current.halal,
+                        status: status as RestaurantFoodCertificationDetails["halal"]["status"],
+                      },
+                    }))
+                  }
+                />
+              </label>
               {foodCertificationDetails.halal.status !== "NOT_HALAL" && <>
                 <label>Certification authority<input value={foodCertificationDetails.halal.authority ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, authority: event.target.value } }))} placeholder="Authority name" /></label>
                 <label>Certificate URL<input type="url" value={foodCertificationDetails.halal.certificateUrl ?? ""} onChange={(event) => setFoodCertificationDetails((current) => ({ ...current, halal: { ...current.halal, certificateUrl: event.target.value } }))} placeholder="https://…" /></label>

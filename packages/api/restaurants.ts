@@ -21,6 +21,7 @@ import type {
   RestaurantHotspotActivity,
   MutedVisitRestaurant,
   VisitDetectionCandidate,
+  StayLocationSuggestion,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
@@ -108,9 +109,25 @@ export function createRestaurantsApi(api: AxiosInstance) {
       return data;
     },
 
+    async searchCities(query: string, languageCode?: string) {
+      const { data } = await api.get<CityFilterLocation[]>(
+        "/restaurants/cities/search",
+        { params: { q: query, languageCode } },
+      );
+      return data;
+    },
+
     async searchCountries(query: string, languageCode?: string) {
       const { data } = await api.get<CityFilterLocation[]>(
         "/restaurants/countries/search",
+        { params: { q: query, languageCode } },
+      );
+      return data;
+    },
+
+    async searchStayLocations(query: string, languageCode?: string) {
+      const { data } = await api.get<StayLocationSuggestion[]>(
+        "/restaurants/stays/search",
         { params: { q: query, languageCode } },
       );
       return data;
@@ -237,6 +254,7 @@ export function createRestaurantsApi(api: AxiosInstance) {
       latitude?: number | null;
       longitude?: number | null;
       googlePlaceId: string;
+      listId?: string;
     }) {
       const { data } = await api.post<Restaurant>(
         "/restaurants/from-google",

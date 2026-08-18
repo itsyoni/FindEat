@@ -14,15 +14,17 @@ import {
 } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
 import { StatusBar } from "expo-status-bar";
+import { BOTTOM_TAB_BAR_BASE_HEIGHT } from "@/constants/layout";
 
 export default function PostScreen() {
   const { id, commentId } = useLocalSearchParams<{ id: string; commentId?: string }>();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [activeFeed, setActiveFeed] = useState<PostType>("CONTENT");
@@ -237,6 +239,8 @@ export default function PostScreen() {
   }, [fetchPostsData]);
 
   const loading = !id || loadedPostId !== id;
+  const standaloneBottomBarHeight =
+    BOTTOM_TAB_BAR_BASE_HEIGHT + insets.bottom;
 
   if (loading) {
     return (
@@ -253,7 +257,9 @@ export default function PostScreen() {
       >
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView edges={["top"]} pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 50 }}><View className="ml-4 mt-2 h-11 w-11 rounded-full bg-black/50" /></SafeAreaView>
-        {feedHeight > 0 ? <ContentFeed posts={[]} loading height={feedHeight} contentTopInset={0} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} /> : null}
+        {feedHeight > 0 ? (
+          <ContentFeed posts={[]} loading height={feedHeight} bottomAuthorBarHeight={standaloneBottomBarHeight} contentTopInset={0} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
+        ) : null}
       </View>
     );
   }
@@ -297,20 +303,21 @@ export default function PostScreen() {
 
         {feedHeight > 0 &&
           (activeFeed === "CONTENT" ? (
-            <ContentFeed
-              posts={posts}
-              height={feedHeight}
-              contentTopInset={0}
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              onToggleLike={toggleLike}
-              onOpenComments={openComments}
-              onToggleWantToTry={toggleWantToTry}
-              onDeletePost={deletePost}
-              onOpenSharePost={setSharePostId}
-              onOpenPostOptions={setOptionsPostId}
-              initialIndex={0}
-            />
+              <ContentFeed
+                posts={posts}
+                height={feedHeight}
+                bottomAuthorBarHeight={standaloneBottomBarHeight}
+                contentTopInset={0}
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                onToggleLike={toggleLike}
+                onOpenComments={openComments}
+                onToggleWantToTry={toggleWantToTry}
+                onDeletePost={deletePost}
+                onOpenSharePost={setSharePostId}
+                onOpenPostOptions={setOptionsPostId}
+                initialIndex={0}
+              />
           ) : (
             <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
               <ReviewFeed

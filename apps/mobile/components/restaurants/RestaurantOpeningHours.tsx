@@ -83,6 +83,15 @@ function getOpenState(hours: OpeningHours) {
   return { isOpen: false, closesAt: null, minutesUntilClose: null, opensAt: null, opensDay: null, today: now.day };
 }
 
+function hasPublishedOpeningHours(
+  hours?: OpeningHours | null,
+): hours is OpeningHours {
+  if (!hours?.weekly) return false;
+  return RESTAURANT_WEEKDAYS.some(
+    (day) => Array.isArray(hours.weekly[day]) && hours.weekly[day].length > 0,
+  );
+}
+
 function formatPeriods(
   periods: OpeningHours["weekly"][RestaurantWeekday],
   relativeLabel?: (rule: NonNullable<(typeof periods)[number]["openRule"]>, edge: "open" | "close") => string,
@@ -107,7 +116,7 @@ export default function RestaurantOpeningHours({ hours }: { hours?: OpeningHours
     return () => clearInterval(interval);
   }, []);
 
-  if (!hours) return null;
+  if (!hasPublishedOpeningHours(hours)) return null;
 
   const relativeLabel = (
     rule: NonNullable<OpeningHours["weekly"][RestaurantWeekday][number]["openRule"]>,
@@ -232,7 +241,7 @@ export function RestaurantOpeningHoursSummary({
     return () => clearInterval(interval);
   }, []);
 
-  if (!hours) return null;
+  if (!hasPublishedOpeningHours(hours)) return null;
   let state: ReturnType<typeof getOpenState> | null = null;
   try {
     state = getOpenState(hours);

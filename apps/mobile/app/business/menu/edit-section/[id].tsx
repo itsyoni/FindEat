@@ -36,11 +36,15 @@ export default function EditMenuSectionScreen() {
     try {
       setLoading(true);
 
-      await api.menu.updateMenu(params.id, {
+      const updated = await api.menu.updateMenu(params.id, {
         title: title.trim(),
         description: description.trim() || null,
         sectionType,
       });
+
+      if (updated.sectionType !== sectionType) {
+        throw new Error("The section type was not saved. Please try again.");
+      }
 
       router.back();
     } catch (error) {

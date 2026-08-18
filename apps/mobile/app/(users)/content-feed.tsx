@@ -13,22 +13,28 @@ import {
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useCallback, useMemo, useState } from "react";
 import { Dimensions, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { removePostFromAppCache } from "@/hooks/useFeed";
 import {
   cacheProfilePostsForNavigation,
   getCachedProfilePosts,
 } from "@/lib/profilePostNavigationCache";
+import { BOTTOM_TAB_BAR_BASE_HEIGHT } from "@/constants/layout";
 
 const { height } = Dimensions.get("window");
 
 export default function UserContentFeedScreen() {
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const { userId, postId } = useLocalSearchParams<{
     userId: string;
     postId: string;
   }>();
+  const standaloneBottomBarHeight = Math.max(
+    BOTTOM_TAB_BAR_BASE_HEIGHT,
+    BOTTOM_TAB_BAR_BASE_HEIGHT + insets.bottom,
+  );
 
   const cachedPosts = getCachedProfilePosts(userId, "CONTENT");
   const [posts, setPosts] = useState<Post[]>(() => cachedPosts ?? []);
@@ -197,7 +203,7 @@ export default function UserContentFeedScreen() {
     return (
       <View className="flex-1 bg-black">
         <SafeAreaView edges={["top"]} pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 50 }}><View className="ml-4 mt-2 h-11 w-11 rounded-full bg-black/50" /></SafeAreaView>
-        <ContentFeedList posts={[]} loading height={height} contentTopInset={0} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
+        <ContentFeedList posts={[]} loading height={height} bottomAuthorBarHeight={standaloneBottomBarHeight} contentTopInset={0} refreshing={false} onRefresh={onRefresh} onToggleLike={toggleLike} onOpenComments={setSelectedPostId} onToggleWantToTry={toggleWantToTry} onDeletePost={deletePost} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
       </View>
     );
   }
@@ -223,20 +229,21 @@ export default function UserContentFeedScreen() {
         </TouchableOpacity>
       </SafeAreaView>
 
-      <ContentFeedList
-        posts={posts}
-        height={height}
-        contentTopInset={0}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        onToggleLike={toggleLike}
-        onOpenComments={setSelectedPostId}
-        onToggleWantToTry={toggleWantToTry}
-        onDeletePost={deletePost}
-        onOpenSharePost={setSharePostId}
-        onOpenPostOptions={setOptionsPostId}
-        initialIndex={initialIndex}
-      />
+        <ContentFeedList
+          posts={posts}
+          height={height}
+          bottomAuthorBarHeight={standaloneBottomBarHeight}
+          contentTopInset={0}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          onToggleLike={toggleLike}
+          onOpenComments={setSelectedPostId}
+          onToggleWantToTry={toggleWantToTry}
+          onDeletePost={deletePost}
+          onOpenSharePost={setSharePostId}
+          onOpenPostOptions={setOptionsPostId}
+          initialIndex={initialIndex}
+        />
 
       <PostOptionsBottomSheet
         postId={optionsPostId}

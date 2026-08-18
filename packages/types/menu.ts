@@ -165,5 +165,6 @@ export type Menu = {
   title: string;
   description?: string | null;
   sectionType?: MenuSectionType;
+  displayOrder?: number;
   items: Dish[];
 };

@@ -6,17 +6,17 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import { consumePendingListLocation } from "@/lib/listLocationSelection";
-import { getFreshDeviceLocation } from "@/lib/currentLocation";
-import * as Location from "expo-location";
 import type {
   PlaceListDetail,
   PlaceListEventType,
+  StayLocationSuggestion,
 } from "@findeat/types";
 import { uploadImage } from "@/lib/uploadImage";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
+  BedIcon,
   CameraIcon,
   MapPinIcon,
   TrashIcon,
@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   Switch,
   TextInput,
   TouchableOpacity,
@@ -35,7 +36,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EditSavedListScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
   const [list, setList] = useState<PlaceListDetail | null>(null);
@@ -56,6 +57,9 @@ export default function EditSavedListScreen() {
   const [stayLatitude, setStayLatitude] = useState<number | null>(null);
   const [stayLongitude, setStayLongitude] = useState<number | null>(null);
   const [staySource, setStaySource] = useState<"SEARCH" | "MAP" | "CURRENT_LOCATION" | null>(null);
+  const [stayResults, setStayResults] = useState<StayLocationSuggestion[]>([]);
+  const [staySearchEnabled, setStaySearchEnabled] = useState(false);
+  const [staySearching, setStaySearching] = useState(false);
   const [allowInvites, setAllowInvites] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
@@ -98,27 +102,34 @@ export default function EditSavedListScreen() {
       setEventLocationLongitude(location.longitude);
       setDestinationCountryCode(location.countryCode ?? null);
       setDestinationBounds(location.bounds ?? null);
-      const stay = consumePendingListLocation(id, "stay");
-      if (stay) {
-        setStayName(stay.placeName);
-        setStayLatitude(stay.latitude);
-        setStayLongitude(stay.longitude);
-        setStaySource(stay.source ?? "SEARCH");
-      }
     }, [id]),
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!id) return;
-      const stay = consumePendingListLocation(id, "stay");
-      if (!stay) return;
-      setStayName(stay.placeName);
-      setStayLatitude(stay.latitude);
-      setStayLongitude(stay.longitude);
-      setStaySource(stay.source ?? "SEARCH");
-    }, [id]),
-  );
+  useEffect(() => {
+    if (eventType !== "TRIP" || !staySearchEnabled) return;
+    const query = stayName.trim();
+    if (query.length < 2) return;
+    let active = true;
+    const timeout = setTimeout(async () => {
+      try {
+        setStaySearching(true);
+        const results = await api.restaurants.searchStayLocations(
+          query,
+          i18n.language,
+        );
+        if (active) setStayResults(results);
+      } catch {
+        if (active) setStayResults([]);
+      } finally {
+        if (active) setStaySearching(false);
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [eventType, i18n.language, stayName, staySearchEnabled]);
 
   async function pickCover() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -398,49 +409,91 @@ export default function EditSavedListScreen() {
               <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Optional. We’ll show how far each place is from where you’re staying.
               </Text>
-              {stayLatitude != null && stayLongitude != null ? (
-                <View className="mt-3 flex-row items-center">
-                  <MapPinIcon size={18} color="#D97706" weight="fill" />
-                  <Text numberOfLines={1} className="ml-2 min-w-0 flex-1 font-semibold text-black dark:text-white">
-                    {stayName || "Saved stay location"}
-                  </Text>
+              <View className="mt-3 flex-row items-center rounded-xl border border-amber-200 bg-white px-3 dark:border-amber-900 dark:bg-gray-900">
+                <BedIcon size={20} color="#D97706" weight="fill" />
+                <TextInput
+                  value={stayName}
+                  onFocus={() => {
+                    if (stayLatitude == null || stayLongitude == null) {
+                      setStaySearchEnabled(true);
+                    }
+                  }}
+                  onChangeText={(value) => {
+                    setStayName(value);
+                    setStayLatitude(null);
+                    setStayLongitude(null);
+                    setStaySource(null);
+                    setStaySearchEnabled(true);
+                    if (value.trim().length < 2) {
+                      setStayResults([]);
+                      setStaySearching(false);
+                    }
+                  }}
+                  placeholder="Search hotel or address"
+                  placeholderTextColor="#9CA3AF"
+                  returnKeyType="search"
+                  style={{
+                    height: 48,
+                    textAlignVertical: "center",
+                    includeFontPadding: false,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    fontFamily: "CabinetRegular",
+                    transform:
+                      Platform.OS === "ios"
+                        ? [{ translateY: -2 }]
+                        : undefined,
+                  }}
+                  className="min-w-0 flex-1 px-2 text-base text-black dark:text-white"
+                />
+                {staySearching ? <ActivityIndicator size="small" color="#D97706" /> : null}
+                {stayName && !staySearching ? (
                   <TouchableOpacity
                     onPress={() => {
                       setStayName("");
                       setStayLatitude(null);
                       setStayLongitude(null);
                       setStaySource(null);
+                      setStayResults([]);
+                      setStaySearchEnabled(false);
                     }}
-                    className="h-9 w-9 items-center justify-center"
+                    className="h-10 w-10 items-center justify-center"
                   >
                     <XIcon size={17} color="#9CA3AF" weight="bold" />
                   </TouchableOpacity>
+                ) : null}
+              </View>
+              {staySearchEnabled && stayResults.length > 0 ? (
+                <View className="mt-2 overflow-hidden rounded-xl border border-amber-200 bg-white dark:border-amber-900 dark:bg-gray-900">
+                  {stayResults.map((result, index) => (
+                    <TouchableOpacity
+                      key={result.googlePlaceId}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setStayName(result.name);
+                        setStayLongitude(result.longitude);
+                        setStayLatitude(result.latitude);
+                        setStaySource("SEARCH");
+                        setStayResults([]);
+                        setStaySearchEnabled(false);
+                      }}
+                      className={`flex-row items-center px-3 py-3 ${index ? "border-t border-gray-100 dark:border-gray-800" : ""}`}
+                    >
+                      <View className="h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950">
+                        <MapPinIcon size={16} color="#D97706" weight="fill" />
+                      </View>
+                      <Text numberOfLines={2} className="ml-3 min-w-0 flex-1 text-sm font-semibold text-black dark:text-white">
+                        {result.name}
+                        {result.address && result.address !== result.name ? (
+                          <Text numberOfLines={1} className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+                            {result.address}
+                          </Text>
+                        ) : null}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              ) : (
-                <View className="mt-3 flex-row gap-2">
-                  <TouchableOpacity
-                    onPress={() => router.push({ pathname: "/saved-lists/location-search", params: { id, kind: "stay" } })}
-                    className="flex-1 items-center rounded-xl bg-white px-3 py-3 dark:bg-gray-900"
-                  >
-                    <Text className="font-bold text-amber-700 dark:text-amber-300">Search a stay</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      void getFreshDeviceLocation().then(async (position) => {
-                        if (!position) return;
-                        const address = (await Location.reverseGeocodeAsync(position.coords))[0];
-                        setStayName(address?.formattedAddress ?? address?.name ?? "Current location");
-                        setStayLatitude(position.coords.latitude);
-                        setStayLongitude(position.coords.longitude);
-                        setStaySource("CURRENT_LOCATION");
-                      });
-                    }}
-                    className="flex-1 items-center rounded-xl bg-white px-3 py-3 dark:bg-gray-900"
-                  >
-                    <Text className="font-bold text-amber-700 dark:text-amber-300">Use current location</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              ) : null}
             </View>
           ) : null}
 
