@@ -1,6 +1,12 @@
 {
   "bookWith": "הזמנה דרך {{provider}}",
   "bookTableWith": "הזמנת שולחן דרך {{provider}}",
+  "bookTable": "הזמנת שולחן",
+  "bookingVia": "דרך {{provider}}",
+  "openingBooking": "פותחים את ההזמנה…",
+  "externalBookingProvider": "ספק ההזמנות",
+  "bookingUnavailableTitle": "ההזמנה אינה זמינה",
+  "bookingUnavailableBody": "לא הצלחנו לפתוח את עמוד ההזמנות של המסעדה. כדאי לנסות שוב בעוד רגע.",
   "dietaryConflictTitle": "לא מתאים לדרישות האוכל שלך",
   "restaurantDietaryConflict": "המסעדה או התפריט שלה מתנגשים עם: {{restrictions}}.",
   "dishConflictsWith": "מתנגש עם: {{restrictions}}",

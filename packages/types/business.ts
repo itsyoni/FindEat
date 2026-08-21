@@ -61,6 +61,17 @@ export type RestaurantProAnalytics = {
   recommendationImpact: Partial<
     Record<"VISITED" | "CONTENT_POST" | "REVIEW_POST", number>
   >;
+  reservations: {
+    clicks: number;
+    bySource: Partial<Record<import("./reservation").ReservationClickSource, number>>;
+    byProvider: Partial<Record<import("./reservation").ReservationProvider, number>>;
+    topContent: Array<{ postId: string | null; clicks: number }>;
+    topDishes: Array<{
+      menuItemId: string | null;
+      name: string;
+      clicks: number;
+    }>;
+  };
   reviewTimeline: Array<{ date: string; rating: number | null }>;
 };
 
@@ -86,6 +97,7 @@ export type AdminDashboardSection =
   | "ownership"
   | "support"
   | "bugs"
+  | "knownIssues"
   | "features"
   | "updates"
   | "sounds"

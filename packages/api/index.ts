@@ -17,6 +17,8 @@ import { createProfileTagsApi } from "./profile-tags";
 import { createSnapsApi } from "./snaps";
 import { createSoundsApi } from "./sounds";
 import { createRewardsApi } from "./rewards";
+import { createReservationsApi } from "./reservations";
+import { createKnownIssuesApi } from "./known-issues";
 
 type GetToken = () => string | null | Promise<string | null>;
 type RefreshAccessToken = () => Promise<string | null>;
@@ -52,6 +54,8 @@ export function createApiFromClient(client: AxiosInstance) {
     snaps: createSnapsApi(client),
     sounds: createSoundsApi(client),
     rewards: createRewardsApi(client),
+    reservations: createReservationsApi(client),
+    knownIssues: createKnownIssuesApi(client),
   };
 }
 

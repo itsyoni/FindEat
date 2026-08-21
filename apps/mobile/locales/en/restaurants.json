@@ -1,6 +1,12 @@
 {
   "bookWith": "Book with {{provider}}",
   "bookTableWith": "Book a table with {{provider}}",
+  "bookTable": "Book a Table",
+  "bookingVia": "via {{provider}}",
+  "openingBooking": "Opening booking…",
+  "externalBookingProvider": "booking provider",
+  "bookingUnavailableTitle": "Booking unavailable",
+  "bookingUnavailableBody": "We couldn't open this restaurant's booking page. Please try again in a moment.",
   "dietaryConflictTitle": "Doesn’t match your food requirements",
   "restaurantDietaryConflict": "This restaurant or its menu conflicts with: {{restrictions}}.",
   "dishConflictsWith": "Conflicts with: {{restrictions}}",

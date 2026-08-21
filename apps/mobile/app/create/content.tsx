@@ -967,68 +967,6 @@ export default function CreateContentScreen() {
     confirmExit();
   }
 
-  const openVideo = useCallback(async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images", "videos"],
-        exif: true,
-        allowsEditing: true,
-        videoMaxDuration: 10,
-        videoExportPreset: ImagePicker.VideoExportPreset.HighestQuality,
-        quality: 0.8,
-      });
-      if (result.canceled) return;
-      const asset = result.assets[0];
-      if (asset.type !== "video") {
-        const coordinates = coordinatesFromExif(asset.exif);
-        setMedia([
-          {
-            id: `${asset.assetId ?? "gallery"}-${Date.now()}`,
-            type: "IMAGE",
-            uri: asset.uri,
-            originalUri: asset.uri,
-            originalWidth: asset.width,
-            originalHeight: asset.height,
-            width: asset.width,
-            height: asset.height,
-            ...(coordinates
-              ? {
-                  locationLatitude: coordinates.latitude,
-                  locationLongitude: coordinates.longitude,
-                }
-              : {}),
-          },
-        ]);
-        setAvailableDraft(null);
-        setAppendingCameraPhoto(false);
-        setPreviewMediaIndex(0);
-        setStep("EDIT_MEDIA");
-        return;
-      }
-      const durationMs = await getVideoDurationMs(asset.uri);
-      if (durationMs > 10_250) {
-        showToast(t("videoTooLongBody"), { kind: "error" });
-        return;
-      }
-      setMedia([
-        {
-          id: asset.assetId ?? `${Date.now()}-video`,
-          type: "VIDEO",
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
-          durationMs: Math.min(10_000, durationMs),
-        },
-      ]);
-      setAvailableDraft(null);
-      setPreviewMediaIndex(0);
-      setStep("DETAILS");
-    } catch (error) {
-      console.error("content video picker failed", error);
-      showToast(t("videoPickerErrorBody"), { kind: "error" });
-    }
-  }, [showToast, t]);
-
   async function getRestaurantId() {
     if (!selectedRestaurant) return undefined;
     if (selectedRestaurant.source === "FINDEAT") {
@@ -1696,7 +1634,7 @@ export default function CreateContentScreen() {
                     accessibilityLabel={
                       t("chooseFromGallery")
                     }
-                    onPress={() => void openVideo()}
+                    onPress={() => void openGallery()}
                     className={`h-14 w-14 items-center justify-center rounded-2xl border border-white/25 bg-black/55 ${
                       recording ? "opacity-40" : ""
                     }`}

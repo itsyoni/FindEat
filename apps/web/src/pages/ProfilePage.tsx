@@ -12,6 +12,7 @@ import { OpeningHoursEditor } from "../components/OpeningHoursEditor";
 import { normalizeOpeningHours } from "../components/openingHours";
 import { ImageCropDialog } from "../components/ImageCropDialog";
 import { CustomDropdown } from "../components/CustomDropdown";
+import { ReservationSettingsPanel } from "../components/ReservationSettingsPanel";
 
 export function ProfilePage({
   restaurant,
@@ -27,8 +28,6 @@ export function ProfilePage({
     phone: restaurant.phone || "",
     website: restaurant.website || "",
     instagram: restaurant.instagram || "",
-    ontopoUrl: restaurant.ontopoUrl || "",
-    tabitUrl: restaurant.tabitUrl || "",
     bio: restaurant.bio || "",
   });
   const [categoryNames, setCategoryNames] = useState(restaurant.categories || []);
@@ -93,8 +92,6 @@ export function ProfilePage({
         phone: restaurant.phone || "",
         website: restaurant.website || "",
         instagram: restaurant.instagram || "",
-        ontopoUrl: restaurant.ontopoUrl || "",
-        tabitUrl: restaurant.tabitUrl || "",
         bio: restaurant.bio || "",
       };
       const changedFields = Object.fromEntries(
@@ -493,30 +490,6 @@ export function ProfilePage({
               }
             />
           </label>
-          <label>
-            Ontopo reservation link <span className="muted [.login-card>&]:[line-height:1.55] [color:var(--muted)] max-[650px]:[.messages-heading_&]:[display:none] max-[800px]:[.support-admin-content_.support-heading_&]:[display:none]">(optional)</span>
-            <input
-              type="url"
-              inputMode="url"
-              placeholder="https://ontopo.com/..."
-              value={form.ontopoUrl}
-              onChange={(event) =>
-                setForm({ ...form, ontopoUrl: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Tabit reservation link <span className="muted [.login-card>&]:[line-height:1.55] [color:var(--muted)] max-[650px]:[.messages-heading_&]:[display:none] max-[800px]:[.support-admin-content_.support-heading_&]:[display:none]">(optional)</span>
-            <input
-              type="url"
-              inputMode="url"
-              placeholder="https://tabitisrael.co.il/..."
-              value={form.tabitUrl}
-              onChange={(event) =>
-                setForm({ ...form, tabitUrl: event.target.value })
-              }
-            />
-          </label>
         </div>
         <div className="form-footer [display:flex] [align-items:center] [justify-content:space-between] [margin-top:16px] max-[800px]:[gap:10px] max-[800px]:[flex-wrap:wrap] max-[600px]:[align-items:stretch] max-[600px]:[flex-direction:column] max-[600px]:[&_button]:[width:100%]">
           <span className={status === "Saved" ? "success" : "muted"}>
@@ -527,6 +500,7 @@ export function ProfilePage({
           </button>
         </div>
       </form>
+      <ReservationSettingsPanel restaurant={restaurant} onSaved={onSaved} />
       {cropRequest && (
         <ImageCropDialog
           file={cropRequest.file}

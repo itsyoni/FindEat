@@ -3,6 +3,7 @@ import Text from "@/components/common/AppText";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import SettingsHeader from "@/components/settings/SettingsHeader";
+import KnownIssueSuggestionCard from "@/components/settings/KnownIssueSuggestionCard";
 import useSettingsDirection from "@/components/settings/useSettingsDirection";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -17,7 +18,8 @@ import {
   TrashIcon,
   VideoCameraIcon,
 } from "phosphor-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { KnownIssue } from "@findeat/types";
 import { useTranslation } from "react-i18next";
 import {
   Platform,
@@ -48,6 +50,9 @@ export default function FeedbackFormScreen({
   const [secondary, setSecondary] = useState("");
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const [saving, setSaving] = useState(false);
+  const [knownIssues, setKnownIssues] = useState<KnownIssue[]>([]);
+  const [affectedIssueIds, setAffectedIssueIds] = useState<Set<string>>(new Set());
+  const [workingIssueId, setWorkingIssueId] = useState<string | null>(null);
 
   const colors = {
     background: isDark ? "#0B0B0A" : "#FBFAF8",
@@ -58,6 +63,51 @@ export default function FeedbackFormScreen({
   };
   const isBug = kind === "BUG";
   const canSubmit = title.trim().length >= 3 && details.trim().length >= 10;
+
+  useEffect(() => {
+    if (!isBug) return;
+    let active = true;
+    void api.knownIssues.list()
+      .then((items) => {
+        if (!active) return;
+        setKnownIssues(items.filter((item) => item.status !== "RESOLVED").slice(0, 3));
+      })
+      .catch((error) => console.warn("Could not load known issues before bug report", error));
+    void api.knownIssues.affectedMine()
+      .then((affected) => {
+        if (active) setAffectedIssueIds(new Set(affected.issueIds));
+      })
+      .catch((error) => console.warn("Could not load affected known issues", error));
+    return () => {
+      active = false;
+    };
+  }, [isBug]);
+
+  async function toggleKnownIssue(issue: KnownIssue) {
+    if (workingIssueId) return;
+    const affected = !affectedIssueIds.has(issue.id);
+    setWorkingIssueId(issue.id);
+    try {
+      const result = await api.knownIssues.setAffected(issue.id, affected);
+      setAffectedIssueIds((current) => {
+        const next = new Set(current);
+        if (result.affected) next.add(issue.id);
+        else next.delete(issue.id);
+        return next;
+      });
+      setKnownIssues((current) =>
+        current.map((item) =>
+          item.id === issue.id
+            ? { ...item, affectedCount: result.affectedCount }
+            : item,
+        ),
+      );
+    } catch {
+      showToast(t("knownIssueAffectedError"), { kind: "error" });
+    } finally {
+      setWorkingIssueId(null);
+    }
+  }
 
   async function pickAttachments() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -147,6 +197,33 @@ export default function FeedbackFormScreen({
         <Text style={[textStyle, { color: colors.muted, lineHeight: 21 }]}>
           {t(isBug ? "reportBugIntro" : "suggestFeatureIntro")}
         </Text>
+
+        {isBug && knownIssues.length ? (
+          <View className="mt-5">
+            <Text weight="bold" style={[textStyle, { color: colors.text, fontSize: 18 }]}>
+              {t("alreadyTrackingTitle")}
+            </Text>
+            <Text style={[textStyle, { color: colors.muted, marginTop: 5, marginBottom: 12, lineHeight: 20 }]}>
+              {t("alreadyTrackingBody")}
+            </Text>
+            <View className="gap-3">
+              {knownIssues.map((issue) => (
+                <KnownIssueSuggestionCard
+                  key={issue.id}
+                  issue={issue}
+                  affected={affectedIssueIds.has(issue.id)}
+                  working={workingIssueId === issue.id}
+                  onToggleAffected={() => void toggleKnownIssue(issue)}
+                />
+              ))}
+            </View>
+            <View className="mt-6 border-t border-gray-200 pt-5 dark:border-gray-700">
+              <Text weight="bold" style={[textStyle, { color: colors.text, fontSize: 16 }]}>
+                {t("reportDifferentIssue")}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         <Text weight="bold" style={[textStyle, { color: colors.text, marginTop: 24, marginBottom: 8 }]}>
           {t(isBug ? "bugTitle" : "featureTitle")}

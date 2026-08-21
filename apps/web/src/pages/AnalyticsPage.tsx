@@ -292,9 +292,10 @@ export function AnalyticsPage({
             <article><span>Post engagement</span><strong>{analytics ? analytics.overview.content.likes + analytics.overview.content.comments : "—"}</strong></article>
             <article><span>Attributed visits</span><strong>{analytics?.recommendationImpact.VISITED ?? 0}</strong></article>
             <article><span>Favorites</span><strong>{analytics?.overview.intent.favorites ?? "—"}</strong></article>
+            <article><span>Booking clicks</span><strong>{analytics?.reservations?.clicks ?? 0}</strong></article>
           </div>
           <p className="pro-data-note [margin:14px_0_0] [color:var(--muted)] [font-size:9px] [line-height:1.5]">
-            Profile views and map impressions are not shown yet because FindEat does not currently track those events.
+            Booking clicks record the handoff to an external provider; confirmed reservations remain separate.
           </p>
         </section>
       </div>

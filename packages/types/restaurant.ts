@@ -1,6 +1,7 @@
 import type { Menu } from "./menu";
 import type { UserRestaurant, UserSummary } from "./user";
 import type { Post } from "./post";
+import type { RestaurantReservationConfig } from "./reservation";
 
 export type RestaurantStatus =
   | "PENDING"
@@ -186,6 +187,7 @@ export type ManagedRestaurant = {
   instagram?: string | null;
   ontopoUrl?: string | null;
   tabitUrl?: string | null;
+  reservationConfig?: RestaurantReservationConfig | null;
   bio?: string | null;
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
@@ -293,6 +295,7 @@ export type Restaurant = {
   instagram?: string | null;
   ontopoUrl?: string | null;
   tabitUrl?: string | null;
+  reservationConfig?: RestaurantReservationConfig | null;
   openingHours?: RestaurantOpeningHours | null;
   resolvedOpeningHours?: RestaurantResolvedOpeningHours | null;
   isHappyHourNow?: boolean;

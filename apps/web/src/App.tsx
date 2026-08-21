@@ -7,6 +7,7 @@ import { navigateTo, usePathname } from './lib/navigation'
 import { invalidateRequestCache } from './lib/api'
 import { adminSectionFromPath, businessSectionFromPath } from './lib/navigation'
 import { ErrorPage } from './components/ErrorPage'
+import { KnownIssuesPage } from './pages/KnownIssuesPage'
 
 export default function App() {
   const pathname = usePathname()
@@ -14,22 +15,24 @@ export default function App() {
     () => Boolean(localStorage.getItem('findeat-business-token')),
   )
   const legalPage = legalPageKind(pathname)
+  const knownIssuesPage = pathname === '/known-issues' || pathname === '/status'
   const knownDashboardPath = Boolean(
     businessSectionFromPath(pathname) || adminSectionFromPath(pathname),
   )
   const notFound = !legalPage
+    && !knownIssuesPage
     && pathname !== '/'
     && pathname !== '/login'
     && !knownDashboardPath
 
   useEffect(() => {
-    if (legalPage || notFound) return
+    if (legalPage || knownIssuesPage || notFound) return
     if (authenticated && (pathname === '/' || pathname === '/login')) {
       navigateTo('/home', true)
     } else if (!authenticated && pathname !== '/login') {
       navigateTo('/login', true)
     }
-  }, [authenticated, legalPage, notFound, pathname])
+  }, [authenticated, knownIssuesPage, legalPage, notFound, pathname])
 
   const logout = useCallback(() => {
     invalidateRequestCache()
@@ -40,6 +43,9 @@ export default function App() {
 
   if (legalPage) {
     return <PublicLegalPage kind={legalPage} />
+  }
+  if (knownIssuesPage) {
+    return <KnownIssuesPage />
   }
   if (notFound) {
     return (

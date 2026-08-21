@@ -8,6 +8,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
 import { useTranslation } from 'react-i18next';
 import { Image, Linking, Platform, TouchableOpacity, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import type { SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../common/AppText';
@@ -22,6 +23,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { RestaurantOpeningHoursSummary } from './RestaurantOpeningHours';
 import { BottomSheetView } from '@gorhom/bottom-sheet';
 import Svg, { Path } from 'react-native-svg';
+import { api } from '@/lib/api';
+import { AppAlert as Alert } from '@/lib/appAlert';
 
 function GoogleMapsBrandIcon({ size = 25 }: { size?: number }) {
   return (
@@ -63,6 +66,7 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
   const { isDark } = useAppTheme();
   const [logoOpen, setLogoOpen] = useState(false);
   const [locationActionsOpen, setLocationActionsOpen] = useState(false);
+  const [booking, setBooking] = useState(false);
 
   if (loading || !restaurant) {
     return (
@@ -122,12 +126,49 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
           ? t('halalOptions')
           : null,
   ].filter((value): value is string => Boolean(value));
-  const reservationLinks = [
-    restaurant.ontopoUrl
-      ? { label: 'Ontopo', url: restaurant.ontopoUrl }
-      : null,
-    restaurant.tabitUrl ? { label: 'Tabit', url: restaurant.tabitUrl } : null,
-  ].filter((value): value is { label: string; url: string } => Boolean(value));
+  const legacyReservation = restaurant.ontopoUrl
+    ? { provider: 'ONTOP' as const, reservationUrl: restaurant.ontopoUrl }
+    : restaurant.tabitUrl
+      ? { provider: 'TABIT' as const, reservationUrl: restaurant.tabitUrl }
+      : null;
+  const reservation = restaurant.reservationConfig?.enabled
+    ? restaurant.reservationConfig
+    : !restaurant.reservationConfig && legacyReservation
+      ? { ...legacyReservation, enabled: true }
+      : null;
+  const reservationProvider = reservation?.provider === 'ONTOP'
+    ? 'Ontopo'
+    : reservation?.provider === 'TABIT'
+      ? 'Tabit'
+      : reservation?.provider === 'OTHER'
+        ? t('externalBookingProvider')
+        : null;
+  const restaurantId = restaurant.id;
+
+  async function openReservation() {
+    if (!reservation || booking) return;
+    setBooking(true);
+    try {
+      const result = await api.reservations.resolveBookingLink(restaurantId, {
+        source: 'RESTAURANT_PAGE',
+      });
+      try {
+        await WebBrowser.openBrowserAsync(result.bookingUrl, {
+          controlsColor: '#D97706',
+        });
+      } catch {
+        await Linking.openURL(result.bookingUrl);
+      }
+    } catch (error) {
+      console.warn('Could not open restaurant booking', error);
+      Alert.alert(t('bookingUnavailableTitle'), t('bookingUnavailableBody'), undefined, {
+        tone: 'warning',
+        illustration: 'guide',
+      });
+    } finally {
+      setBooking(false);
+    }
+  }
   return (
     <View style={{ backgroundColor: isDark ? '#0B0B0A' : '#FAF9F6' }}>
       <View className="relative">
@@ -198,29 +239,25 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
             <HappyHourBadge restaurant={restaurant} />
           </View>
         ) : null}
-        {reservationLinks.length ? (
-          <View className="mt-3 flex-row flex-wrap justify-center gap-2 px-5">
-            {reservationLinks.map((reservation) => (
-              <TouchableOpacity
-                key={reservation.label}
-                accessibilityRole="link"
-                accessibilityLabel={t('bookTableWith', { provider: reservation.label })}
-                activeOpacity={0.75}
-                onPress={() => {
-                  const url = /^https?:\/\//i.test(reservation.url)
-                    ? reservation.url
-                    : `https://${reservation.url}`;
-                  void Linking.openURL(url);
-                }}
-                className="flex-row items-center rounded-full bg-amber-100 px-3.5 py-2 dark:bg-amber-950/70"
-              >
-                <CalendarCheckIcon size={17} color="#D97706" weight="fill" />
-                <Text className="ml-1.5 text-sm font-bold text-amber-900 dark:text-amber-100">
-                  {t('bookWith', { provider: reservation.label })}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        {reservation && reservationProvider ? (
+          <TouchableOpacity
+            accessibilityRole="link"
+            accessibilityLabel={t('bookTableWith', { provider: reservationProvider })}
+            activeOpacity={0.75}
+            disabled={booking}
+            onPress={() => void openReservation()}
+            className="mt-3 min-w-48 flex-row items-center justify-center rounded-full bg-amber-100 px-4 py-2.5 dark:bg-amber-950/70"
+          >
+            <CalendarCheckIcon size={18} color="#D97706" weight="fill" />
+            <View className="ml-2">
+              <Text className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                {booking ? t('openingBooking') : t('bookTable')}
+              </Text>
+              <Text className="text-[10px] text-amber-800/70 dark:text-amber-200/70">
+                {t('bookingVia', { provider: reservationProvider })}
+              </Text>
+            </View>
+          </TouchableOpacity>
         ) : null}
         <RestaurantStats
           averageRating={averageRating}

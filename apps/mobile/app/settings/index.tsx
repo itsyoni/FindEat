@@ -10,10 +10,11 @@ import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
 import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GiftIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
-import { ScrollView } from 'react-native';
+import { Linking, ScrollView } from 'react-native';
 import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function SettingsScreen() {
   const { t } = useTranslation(['settings', 'common', 'profile']);
@@ -21,6 +22,7 @@ export default function SettingsScreen() {
   const { logout } = useAuth();
   const { activeCountry } = useActiveCountry();
   const [hasNewProfileTags, setHasNewProfileTags] = useState(false);
+  const [activeIssueCount, setActiveIssueCount] = useState<number | null>(null);
   const color = isDark ? '#FAF9F6' : '#111';
 
   useFocusEffect(useCallback(() => {
@@ -30,6 +32,11 @@ export default function SettingsScreen() {
         if (active) setHasNewProfileTags(status.hasUnseen);
       })
       .catch((error) => console.error('Could not load profile tag status', error));
+    void api.knownIssues.list()
+      .then((issues) => {
+        if (active) setActiveIssueCount(issues.filter((issue) => issue.status !== 'RESOLVED').length);
+      })
+      .catch((error) => console.error('Could not load known issues count', error));
     return () => { active = false; };
   }, []));
 
@@ -38,6 +45,15 @@ export default function SettingsScreen() {
       { text: t('common:cancel'), style: 'cancel' },
       { text: t('common:logout'), style: 'destructive', onPress: () => void logout() },
     ]);
+  }
+
+  async function openKnownIssues() {
+    const url = `${process.env.EXPO_PUBLIC_WEB_URL ?? 'https://findeat.space'}/known-issues`;
+    try {
+      await WebBrowser.openBrowserAsync(url, { controlsColor: '#D97706' });
+    } catch {
+      await Linking.openURL(url);
+    }
   }
 
   return (
@@ -64,6 +80,14 @@ export default function SettingsScreen() {
           <SettingsRow icon={<MoonIcon size={23} color={color} />} title={t('settings:appearanceLanguage')} subtitle={t('settings:appearanceLanguageSubtitle')} onPress={() => router.push('/settings/appearance')} />
         </SettingsSection>
         <SettingsSection title={t('settings:helpSupportSection')}>
+          <SettingsRow
+            icon={<BugIcon size={23} color="#D97706" weight="fill" />}
+            title={t('settings:knownIssues')}
+            subtitle={t('settings:knownIssuesSubtitle')}
+            value={activeIssueCount == null ? undefined : t('settings:activeIssueCount', { count: activeIssueCount })}
+            valueEmphasis={Boolean(activeIssueCount)}
+            onPress={() => void openKnownIssues()}
+          />
           <SettingsRow icon={<BugIcon size={23} color="#E4573D" weight="duotone" />} title={t('settings:reportBug')} subtitle={t('settings:reportBugSubtitle')} onPress={() => router.push('/settings/report-bug')} />
           <SettingsRow icon={<LightbulbIcon size={23} color="#D1A928" weight="duotone" />} title={t('settings:suggestFeature')} subtitle={t('settings:suggestFeatureSubtitle')} onPress={() => router.push('/settings/suggest-feature')} />
           <SettingsRow icon={<HeadsetIcon size={23} color={color} />} title={t('settings:helpSupport')} subtitle={t('settings:helpSupportSubtitle')} onPress={() => router.push('/settings/help-support')} />
