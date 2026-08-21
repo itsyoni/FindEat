@@ -9,9 +9,17 @@ import { TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import AuthFormHeader from './AuthFormHeader';
 
-type Props = { email: string; onBack: () => void };
+type Props = {
+  email: string;
+  onBack: () => void;
+  useBottomSheetInput?: boolean;
+};
 
-export default function EmailVerificationForm({ email, onBack }: Props) {
+export default function EmailVerificationForm({
+  email,
+  onBack,
+  useBottomSheetInput = true,
+}: Props) {
   const { t } = useTranslation('auth');
   const { verifyEmail } = useAuth();
   const [code, setCode] = useState('');
@@ -41,7 +49,7 @@ export default function EmailVerificationForm({ email, onBack }: Props) {
     <View>
       <AuthFormHeader title={t('verifyEmail')} subtitle={t('verificationSent', { email })} />
       <TextInput
-        useBottomSheetInput
+        useBottomSheetInput={useBottomSheetInput}
         value={code}
         onChangeText={(value) => setCode(value.replace(/\D/g, '').slice(0, 6))}
         placeholder="000000"

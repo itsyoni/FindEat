@@ -40,10 +40,10 @@ test("a long visit becomes a reminder candidate", () => {
   const result = exitRestaurantVisit(
     enter(),
     restaurantId,
-    enteredAt + 46 * 60_000,
+    enteredAt + 61 * 60_000,
   );
   assert.equal(result.qualified?.status, "PENDING");
-  assert.equal(result.qualified?.durationMs, 46 * 60_000);
+  assert.equal(result.qualified?.durationMs, 61 * 60_000);
 });
 
 test("a short visit is discarded", () => {
@@ -63,13 +63,13 @@ test("repeated enter events create only one dwelling candidate", () => {
   const exited = exitRestaurantVisit(
     second,
     restaurantId,
-    enteredAt + 46 * 60_000,
+    enteredAt + 61 * 60_000,
   );
   assert.equal(
     exitRestaurantVisit(
       exited.candidates,
       restaurantId,
-      enteredAt + 47 * 60_000,
+      enteredAt + 62 * 60_000,
     ).qualified,
     null,
   );
@@ -90,17 +90,17 @@ test("remind later is capped and not now completes the candidate lifecycle", () 
   const candidate = exitRestaurantVisit(
     enter(),
     restaurantId,
-    enteredAt + 46 * 60_000,
+    enteredAt + 61 * 60_000,
   ).qualified!;
-  const retry = remindVisitLater(candidate, enteredAt + 47 * 60_000);
+  const retry = remindVisitLater(candidate, enteredAt + 62 * 60_000);
   assert.equal(retry.status, "REMIND_LATER");
   assert.equal(retry.reminderCount, 1);
   assert.equal(
-    remindVisitLater(retry, enteredAt + 48 * 60_000).status,
+    remindVisitLater(retry, enteredAt + 63 * 60_000).status,
     "DISMISSED",
   );
   assert.equal(
-    updateVisitStatus(candidate, "DISMISSED", enteredAt + 49 * 60_000).status,
+    updateVisitStatus(candidate, "DISMISSED", enteredAt + 64 * 60_000).status,
     "DISMISSED",
   );
 });
@@ -116,7 +116,7 @@ test("stale reminders cannot reopen an actionable visit", () => {
   const candidate = exitRestaurantVisit(
     enter(),
     restaurantId,
-    enteredAt + 46 * 60_000,
+    enteredAt + 61 * 60_000,
   ).qualified!;
   assert.equal(isVisitCandidateActionable(candidate, candidate.updatedAt), true);
   assert.equal(

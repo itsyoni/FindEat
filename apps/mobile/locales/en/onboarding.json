@@ -24,6 +24,8 @@
   "dietaryTitle": "Anything we should know?",
   "dietarySubtitle": "Optional — choose what helps FindEat work better for you.",
   "allergiesTitle": "Select your allergies",
+  "allergiesSubtitle": "Choose anything that applies. You can update this later in Settings.",
+  "noAllergies": "I don't have any of these",
   "allergiesSafety": "Restaurant information can be incomplete. Always confirm allergies directly with the restaurant.",
   "dietary": {
     "KOSHER_ONLY": "Kosher",

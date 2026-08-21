@@ -304,8 +304,8 @@ export function OffersPage({ restaurant }: { restaurant: ManagedRestaurant }) {
       </section>
 
       {showForm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[#17131199] p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
-          <form className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-line bg-surface p-6 shadow-2xl" onSubmit={saveOffer}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#17131199] p-4 max-[600px]:items-end max-[600px]:p-0" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
+          <form className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-3xl border border-line bg-surface p-6 shadow-2xl max-[600px]:max-h-[calc(100dvh_-_12px)] max-[600px]:rounded-b-none max-[600px]:px-4 max-[600px]:pt-5 max-[600px]:pb-[calc(16px_+_env(safe-area-inset-bottom))]" onSubmit={saveOffer}>
             <div className="mb-5 flex items-start justify-between gap-3"><div><p className="m-0 text-xs font-black uppercase tracking-widest text-accent">Offer builder</p><h2 className="mb-0 mt-1 text-2xl font-black text-ink">{editingId ? "Edit offer" : "New reward"}</h2></div><button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-line bg-surface-subtle text-ink" onClick={closeForm}><XIcon size={17} weight="bold" /></button></div>
             <div className="grid gap-4">
               <label className="grid gap-1.5 text-xs font-black text-ink">Title<input className={inputClass()} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required /></label>

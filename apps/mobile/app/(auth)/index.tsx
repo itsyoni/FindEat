@@ -12,26 +12,28 @@ import {
   AppState,
   ImageBackground,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   TextInput as NativeTextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { runOnJS } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { applyAppLanguage } from "@/lib/appLanguage";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingScreen } from "@/components/common";
 
-type AuthMode = "login" | "signup" | "restaurant-signup" | "verify-email" | "forgot-password";
+type AuthMode = "login" | "forgot-password";
+type AuthPage = "welcome" | "signup" | "verify-email";
 
 export default function AuthIndexScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const { user, isLoading: authLoading } = useAuth();
   const { isDark } = useAppTheme();
   const { t, i18n } = useTranslation("auth");
-  const [step, setStep] = useState(0);
+  const [page, setPage] = useState<AuthPage>("welcome");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [pendingEmail, setPendingEmail] = useState("");
@@ -60,14 +62,6 @@ export default function AuthIndexScreen() {
     }
   }, [authMode, sheetOpen]);
 
-  const steps = [
-    {
-      title: t("onboardingStep1Title"),
-      subtitle: t("onboardingStep1Subtitle"),
-    },
-  ];
-
-  const current = steps[step];
   function openSheet(mode: AuthMode = "login") {
     setAuthMode(mode);
     setSheetOpen(true);
@@ -80,12 +74,8 @@ export default function AuthIndexScreen() {
   }
 
   function handleContinue() {
-    if (step < steps.length - 1) {
-      setStep((prev) => prev + 1);
-      return;
-    }
-
-    openSheet("signup");
+    Keyboard.dismiss();
+    setPage("signup");
   }
 
   function handleBack() {
@@ -94,29 +84,30 @@ export default function AuthIndexScreen() {
       return;
     }
 
-    if (step > 0) {
-      setStep((prev) => prev - 1);
-    }
+    setPage(page === "verify-email" ? "signup" : "welcome");
   }
 
-  function handleSwipe(translationX: number) {
-    const isForwardSwipe = isRtl ? translationX > 60 : translationX < -60;
-    const isBackSwipe = isRtl ? translationX < -60 : translationX > 60;
-
-    if (isForwardSwipe && step < steps.length - 1) {
-      setStep((currentStep) => currentStep + 1);
-    } else if (isBackSwipe && step > 0) {
-      setStep((currentStep) => currentStep - 1);
-    }
+  function openSignupPage() {
+    Keyboard.dismiss();
+    setSheetOpen(false);
+    bottomSheetRef.current?.close();
+    setPage("signup");
   }
 
-  const swipeGesture = Gesture.Pan()
-    .enabled(!sheetOpen)
-    .activeOffsetX([-20, 20])
-    .failOffsetY([-20, 20])
-    .onEnd((event) => {
-      runOnJS(handleSwipe)(event.translationX);
-    });
+  function openVerificationPage(email: string) {
+    Keyboard.dismiss();
+    setPendingEmail(email);
+    setSheetOpen(false);
+    bottomSheetRef.current?.close();
+    setPage("verify-email");
+  }
+
+  function openLoginSheetFromSignup() {
+    Keyboard.dismiss();
+    setAuthMode("login");
+    setPage("welcome");
+    setSheetOpen(true);
+  }
 
   function toggleLanguage() {
     const nextLanguage = i18n.language.startsWith("he") ? "en" : "he";
@@ -137,6 +128,131 @@ export default function AuthIndexScreen() {
     return <LoadingScreen variant="feed" />;
   }
 
+  if (page !== "welcome") {
+    return (
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: isDark ? "#11110F" : "#FBFAF8",
+        }}
+      >
+        <View
+          style={{
+            minHeight: 60,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+          }}
+        >
+          <TouchableOpacity
+            onPress={handleBack}
+            style={{
+              width: 44,
+              height: 44,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 22,
+              backgroundColor: isDark
+                ? "rgba(250,249,246,0.08)"
+                : "rgba(23,23,21,0.06)",
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t("common:back")}
+          >
+            <DirectionalIcon
+              direction="back"
+              size={24}
+              color={isDark ? "#FAF9F6" : "#171715"}
+            />
+          </TouchableOpacity>
+
+          <View style={{ flexDirection: "row", gap: 6 }} accessibilityRole="progressbar">
+            <View
+              style={{
+                width: 34,
+                height: 5,
+                borderRadius: 999,
+                backgroundColor: "#D6A92D",
+              }}
+            />
+            <View
+              style={{
+                width: 34,
+                height: 5,
+                borderRadius: 999,
+                backgroundColor:
+                  page === "verify-email"
+                    ? "#D6A92D"
+                    : isDark
+                      ? "rgba(250,249,246,0.16)"
+                      : "rgba(23,23,21,0.12)",
+              }}
+            />
+          </View>
+
+          <TouchableOpacity
+            onPress={toggleLanguage}
+            style={{
+              minWidth: 44,
+              minHeight: 44,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 22,
+              backgroundColor: isDark
+                ? "rgba(250,249,246,0.08)"
+                : "rgba(23,23,21,0.06)",
+              paddingHorizontal: 10,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.language.startsWith("he") ? "Switch to English" : "החלפה לעברית"}
+          >
+            <Text style={{ fontSize: 17 }}>
+              {i18n.language.startsWith("he") ? "🇺🇸" : "🇮🇱"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+        >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: "center",
+              paddingHorizontal: 24,
+              paddingTop: 18,
+              paddingBottom: 32,
+            }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+          >
+            <View style={{ width: "100%", alignSelf: "center", maxWidth: 520 }}>
+              {page === "signup" ? (
+                <SignupForm
+                  useBottomSheetInput={false}
+                  onLogin={openLoginSheetFromSignup}
+                  onVerificationRequired={openVerificationPage}
+                />
+              ) : (
+                <EmailVerificationForm
+                  email={pendingEmail}
+                  useBottomSheetInput={false}
+                  onBack={() => setPage("signup")}
+                />
+              )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0B0B0A" }}>
       <ImageBackground
@@ -154,15 +270,14 @@ export default function AuthIndexScreen() {
           }}
         />
 
-        <GestureDetector gesture={swipeGesture}>
-          <SafeAreaView
-            style={{
-              flex: 1,
-              justifyContent: "space-between",
-              paddingHorizontal: 32,
-              paddingVertical: 32,
-            }}
-          >
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: "space-between",
+            paddingHorizontal: 32,
+            paddingVertical: 32,
+          }}
+        >
           <View
             style={{
               zIndex: 100,
@@ -171,7 +286,7 @@ export default function AuthIndexScreen() {
               justifyContent: "space-between",
             }}
           >
-            {step > 0 || sheetOpen ? (
+            {sheetOpen ? (
               <TouchableOpacity onPress={handleBack}>
                 <DirectionalIcon direction="back" size={28} color="#FAF9F6" />
               </TouchableOpacity>
@@ -202,41 +317,7 @@ export default function AuthIndexScreen() {
           {!sheetOpen && (
             <>
               <View
-                pointerEvents="box-none"
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: 88,
-                  bottom: 128,
-                  zIndex: 20,
-                  flexDirection: "row",
-                }}
-              >
-                <TouchableOpacity
-                  accessible={false}
-                  activeOpacity={1}
-                  style={{ flex: 1 }}
-                  disabled={step === 0}
-                  onPress={() => {
-                    setStep((currentStep) => Math.max(0, currentStep - 1));
-                  }}
-                />
-                <TouchableOpacity
-                  accessible={false}
-                  activeOpacity={1}
-                  style={{ flex: 1 }}
-                  disabled={step === steps.length - 1}
-                  onPress={() => {
-                    setStep((currentStep) =>
-                      Math.min(steps.length - 1, currentStep + 1),
-                    );
-                  }}
-                />
-              </View>
-
-              <View
-                key={`${step}-${i18n.language}`}
+                key={i18n.language}
                 style={{ zIndex: 30, alignItems: "flex-start" }}
               >
                 <Text
@@ -253,7 +334,7 @@ export default function AuthIndexScreen() {
                     writingDirection: isRtl ? "rtl" : "ltr",
                   }}
                 >
-                  {current.title}
+                  {t("onboardingStep1Title")}
                 </Text>
 
                 <Text
@@ -268,7 +349,7 @@ export default function AuthIndexScreen() {
                     writingDirection: isRtl ? "rtl" : "ltr",
                   }}
                 >
-                  {current.subtitle}
+                  {t("onboardingStep1Subtitle")}
                 </Text>
               </View>
 
@@ -289,9 +370,7 @@ export default function AuthIndexScreen() {
                       textAlign: "center",
                     }}
                   >
-                    {step === steps.length - 1
-                      ? t("getStarted")
-                      : t("continue")}
+                    {t("getStarted")}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -307,8 +386,7 @@ export default function AuthIndexScreen() {
               </View>
             </>
           )}
-          </SafeAreaView>
-        </GestureDetector>
+        </SafeAreaView>
 
         {sheetOpen ? <BottomSheet
           ref={bottomSheetRef}
@@ -342,30 +420,10 @@ export default function AuthIndexScreen() {
           >
             {authMode === "login" && (
               <LoginForm
-                onSignup={() => setAuthMode("signup")}
-                onRestaurantSignup={() => setAuthMode("restaurant-signup")}
+                onSignup={openSignupPage}
+                onRestaurantSignup={openSignupPage}
                 onForgotPassword={() => setAuthMode("forgot-password")}
-                onVerificationRequired={(email) => {
-                  setPendingEmail(email);
-                  setAuthMode("verify-email");
-                }}
-              />
-            )}
-
-            {authMode === "signup" && (
-              <SignupForm
-                onLogin={() => setAuthMode("login")}
-                onVerificationRequired={(email) => {
-                  setPendingEmail(email);
-                  setAuthMode("verify-email");
-                }}
-              />
-            )}
-
-            {authMode === "verify-email" && (
-              <EmailVerificationForm
-                email={pendingEmail}
-                onBack={() => setAuthMode("login")}
+                onVerificationRequired={openVerificationPage}
               />
             )}
 

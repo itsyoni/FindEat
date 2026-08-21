@@ -17,9 +17,14 @@ import AuthFormHeader from "./AuthFormHeader";
 type Props = {
   onLogin: () => void;
   onVerificationRequired: (email: string) => void;
+  useBottomSheetInput?: boolean;
 };
 
-export default function SignupForm({ onLogin, onVerificationRequired }: Props) {
+export default function SignupForm({
+  onLogin,
+  onVerificationRequired,
+  useBottomSheetInput = true,
+}: Props) {
   const { t } = useTranslation(["auth", "common"]);
   const { signup } = useAuth();
   const { isDark } = useAppTheme();
@@ -120,7 +125,7 @@ export default function SignupForm({ onLogin, onVerificationRequired }: Props) {
 
       <View className="gap-4">
         <TextInput
-          useBottomSheetInput
+          useBottomSheetInput={useBottomSheetInput}
           placeholder={t("auth:usernamePlaceholder")}
           value={username}
           onChangeText={(text) => {
@@ -138,7 +143,7 @@ export default function SignupForm({ onLogin, onVerificationRequired }: Props) {
         )}
 
         <TextInput
-          useBottomSheetInput
+          useBottomSheetInput={useBottomSheetInput}
           placeholder={t("auth:emailPlaceholder")}
           value={email}
           onChangeText={setEmail}
@@ -155,7 +160,7 @@ export default function SignupForm({ onLogin, onVerificationRequired }: Props) {
         )}
 
         <TextInput
-          useBottomSheetInput
+          useBottomSheetInput={useBottomSheetInput}
           placeholder={t("auth:passwordPlaceholder")}
           value={password}
           onChangeText={setPassword}
@@ -166,7 +171,7 @@ export default function SignupForm({ onLogin, onVerificationRequired }: Props) {
         />
 
         <TextInput
-          useBottomSheetInput
+          useBottomSheetInput={useBottomSheetInput}
           placeholder={t("auth:confirmPasswordPlaceholder")}
           value={confirmPassword}
           onChangeText={setConfirmPassword}

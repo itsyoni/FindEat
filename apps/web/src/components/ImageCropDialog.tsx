@@ -187,7 +187,7 @@ export function ImageCropDialog({
       }}
     >
       <section
-        className="image-crop-dialog [width:min(680px,100%)] [max-height:calc(100vh_-_48px)] [overflow:auto] [border:1px_solid_var(--line)] [border-radius:24px] [background:var(--surface)] [box-shadow:0_28px_90px_#0004] max-[600px]:[width:100%] max-[600px]:[max-height:100vh] max-[600px]:[border-radius:0] max-[600px]:[height:100dvh] max-[600px]:[max-height:100dvh]"
+        className="image-crop-dialog [width:min(680px,100%)] [max-height:calc(100dvh_-_48px)] [overflow:auto] [overscroll-behavior:contain] [border:1px_solid_var(--line)] [border-radius:24px] [background:var(--surface)] [box-shadow:0_28px_90px_#0004] max-[600px]:[width:100%] max-[600px]:[max-height:100dvh] max-[600px]:[border-radius:0] max-[600px]:[height:100dvh]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="image-crop-title"

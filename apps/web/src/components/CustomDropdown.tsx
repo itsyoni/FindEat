@@ -144,7 +144,7 @@ export function CustomDropdown({
   return (
     <div
       ref={dropdownRef}
-      className={`custom-dropdown [position:relative] [min-width:0] [color:var(--ink)] [font-size:12px] [font-weight:700] [text-transform:none] [letter-spacing:normal] [&.open]:[z-index:50] [&.open_.custom-dropdown-caret]:[transform:rotate(180deg)] [.pro-range_&]:[width:180px] ${isOpen ? "open" : ""}`}
+      className={`custom-dropdown [position:relative] [min-width:0] [max-width:100%] [color:var(--ink)] [font-size:12px] [font-weight:700] [text-transform:none] [letter-spacing:normal] [&.open]:[z-index:50] [&.open_.custom-dropdown-caret]:[transform:rotate(180deg)] [.pro-range_&]:[width:180px] max-[520px]:[.pro-range_&]:[width:100%] max-[520px]:[&_.custom-dropdown-menu]:[width:min(100%,calc(100vw_-_28px))] max-[520px]:[&_.custom-dropdown-menu]:[min-width:0] ${isOpen ? "open" : ""}`}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setIsOpen(false);

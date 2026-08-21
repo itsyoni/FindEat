@@ -1,14 +1,17 @@
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 import type {
   VisitDetectionMode,
   VisitDetectionPreferences,
 } from "@findeat/types";
 import { api } from "@/lib/api";
 import {
-  VISIT_GEOFENCE_REFRESH_DISTANCE_METERS,
+  VISIT_DEFAULT_MAX_GEOFENCES,
   VISIT_GEOFENCE_REFRESH_INTERVAL_MS,
   VISIT_GEOFENCE_TASK,
+  VISIT_IOS_MAX_GEOFENCES,
+  VISIT_REGION_STRATEGY_VERSION,
 } from "./config";
 import { processVisitGeofenceEvent } from "./geofenceTask";
 import { clearVisitNotification } from "./reminders";
@@ -159,6 +162,36 @@ export async function refreshVisitGeofences(userId: string, force = false) {
     return nextPreferences;
   }
 
+  const maxGeofences =
+    Platform.OS === "ios"
+      ? VISIT_IOS_MAX_GEOFENCES
+      : VISIT_DEFAULT_MAX_GEOFENCES;
+  const registered = await getRegisteredVisitRegions(userId);
+  const registeredIsValid =
+    !!registered &&
+    registered.strategyVersion === VISIT_REGION_STRATEGY_VERSION &&
+    Number.isFinite(registered.refreshedAt) &&
+    Number.isFinite(registered.center?.latitude) &&
+    Number.isFinite(registered.center?.longitude) &&
+    Array.isArray(registered.restaurants) &&
+    registered.restaurants.length <= maxGeofences;
+
+  // Opening or returning to the app used to request a location every time just
+  // to prove that the cached regions were still nearby. Besides being wasteful,
+  // those checks made iOS's location-access map look like a movement trail.
+  // A fresh region set is safe to reuse without touching Core Location again.
+  if (
+    !force &&
+    registeredIsValid &&
+    Date.now() - registered.refreshedAt <
+      VISIT_GEOFENCE_REFRESH_INTERVAL_MS
+  ) {
+    if (mode !== "FULL") return nextPreferences;
+    if (await Location.hasStartedGeofencingAsync(VISIT_GEOFENCE_TASK)) {
+      return nextPreferences;
+    }
+  }
+
   const currentLocation =
     (await Location.getLastKnownPositionAsync({ maxAge: 10 * 60 * 1_000 })) ??
     (await Location.getCurrentPositionAsync({
@@ -168,29 +201,21 @@ export async function refreshVisitGeofences(userId: string, force = false) {
     latitude: currentLocation.coords.latitude,
     longitude: currentLocation.coords.longitude,
   };
-  const registered = await getRegisteredVisitRegions(userId);
-  const registeredIsValid =
-    !!registered &&
-    Number.isFinite(registered.refreshedAt) &&
-    Number.isFinite(registered.center?.latitude) &&
-    Number.isFinite(registered.center?.longitude) &&
-    Array.isArray(registered.restaurants);
   const canReuse =
     !force &&
     registeredIsValid &&
     Date.now() - registered.refreshedAt <
-      VISIT_GEOFENCE_REFRESH_INTERVAL_MS &&
-    distanceMeters(center, registered.center) <
-      VISIT_GEOFENCE_REFRESH_DISTANCE_METERS;
+      VISIT_GEOFENCE_REFRESH_INTERVAL_MS;
   const candidates = canReuse
     ? registered.restaurants
     : await api.restaurants.visitDetectionCandidates({
         ...center,
-        limit: 18,
+        limit: maxGeofences,
       });
   const regions = canReuse
     ? registered
     : {
+        strategyVersion: VISIT_REGION_STRATEGY_VERSION,
         refreshedAt: Date.now(),
         center,
         restaurants: Array.isArray(candidates) ? candidates : [],

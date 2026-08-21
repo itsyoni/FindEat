@@ -486,14 +486,14 @@ export function MenuPage({
       {error && <p className="error [color:#b32727] [font-size:13px] [color:var(--danger)] banner [padding:12px_16px] [border-radius:12px] [background:#fff0f0] [.support-admin-content>&]:[flex:0_0_auto] [.support-admin-content>.admin-support-slot>&]:[flex:0_0_auto] [background:var(--danger-soft)] [color:var(--danger)]">{error}</p>}
       {createSectionOpen && (
         <div
-          className="menu-section-create-backdrop [position:fixed] [z-index:120] [inset:0] [display:grid] [place-items:center] [padding:24px] [background:#17171770] [backdrop-filter:blur(5px)]"
+          className="menu-section-create-backdrop [position:fixed] [z-index:120] [inset:0] [display:grid] [place-items:center] [padding:24px] [background:#17171770] [backdrop-filter:blur(5px)] max-[520px]:[align-items:end] max-[520px]:[padding:0]"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setCreateSectionOpen(false);
           }}
         >
           <form
-            className="menu-section-create-dialog [width:min(470px,100%)] [padding:26px] [border:1px_solid_var(--line)] [border-radius:24px] [background:var(--surface)] [box-shadow:0_30px_90px_#0005] [&_h3]:[margin:20px_0_7px] [&_h3]:[font-size:25px] [&_h3]:[letter-spacing:-.025em] [&>p]:[margin:0_0_24px] [&>p]:[color:var(--muted)] [&>p]:[line-height:1.55] [&_label]:[display:block] [&_label]:[margin-bottom:8px] [&_label]:[font-size:13px] [&_label]:[font-weight:800] [&_input]:[width:100%] [&_input]:[min-height:52px]"
+            className="menu-section-create-dialog [width:min(470px,100%)] [max-height:calc(100dvh_-_48px)] [overflow-y:auto] [padding:26px] [border:1px_solid_var(--line)] [border-radius:24px] [background:var(--surface)] [box-shadow:0_30px_90px_#0005] [&_h3]:[margin:20px_0_7px] [&_h3]:[font-size:25px] [&_h3]:[letter-spacing:-.025em] [&>p]:[margin:0_0_24px] [&>p]:[color:var(--muted)] [&>p]:[line-height:1.55] [&_label]:[display:block] [&_label]:[margin-bottom:8px] [&_label]:[font-size:13px] [&_label]:[font-weight:800] [&_input]:[width:100%] [&_input]:[min-height:52px] max-[520px]:[width:100%] max-[520px]:[max-height:calc(100dvh_-_12px)] max-[520px]:[padding:20px_16px_calc(16px_+_env(safe-area-inset-bottom))] max-[520px]:[border-radius:24px_24px_0_0] max-[520px]:[&_.menu-section-type-picker]:[grid-template-columns:1fr]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-menu-section-title"
@@ -546,7 +546,7 @@ export function MenuPage({
                 <i><CheckIcon size={14} weight="bold" /></i>
               </button>
             </fieldset>
-            <div className="menu-section-create-actions [display:flex] [justify-content:flex-end] [gap:10px] [margin-top:24px] [&_button]:[min-width:120px]">
+            <div className="menu-section-create-actions [display:flex] [justify-content:flex-end] [gap:10px] [margin-top:24px] [&_button]:[min-width:120px] max-[520px]:[&_button]:[min-width:0] max-[520px]:[&_button]:[flex:1]">
               <button
                 type="button"
                 className="secondary [border:0] [border-radius:12px] [padding:12px_17px] [font-weight:800] [background:var(--soft)] [color:var(--ink)] [border:1px_solid_var(--line)] [.error-page-actions_&:hover]:[background:var(--surface-hover)] [.error-page-actions_&:hover]:[transform:translateY(-1px)]"

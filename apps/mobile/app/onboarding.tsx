@@ -26,7 +26,6 @@ import * as Location from "expo-location";
 import { router } from "expo-router";
 import {
   BookmarkSimpleIcon,
-  CheckCircleIcon,
   ForkKnifeIcon,
   MapPinIcon,
   SparkleIcon,
@@ -41,7 +40,6 @@ import {
 } from "react-native";
 import Animated, {
   FadeIn,
-  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -53,6 +51,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const FLOW: OnboardingStep[] = [
   "FOOD_PREFERENCES",
   "DIETARY_PREFERENCES",
+  "ALLERGIES",
   "LOCATION",
   "SAVE_TUTORIAL",
   "DISH_REVIEWS",
@@ -67,7 +66,6 @@ const DIETARY_OPTIONS = [
   "VEGAN",
   "NO_PORK",
   "GLUTEN_FREE",
-  "ALLERGIES",
 ] as const;
 
 type DietaryOption = (typeof DIETARY_OPTIONS)[number];
@@ -131,7 +129,14 @@ export default function OnboardingScreen() {
 
   if (loading || !state) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-canvas dark:bg-[#0B0B0A]">
+      <SafeAreaView
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
+        }}
+      >
         {error ? (
           <View className="items-center px-8">
             <Text className="text-center text-gray-500 dark:text-gray-400">{error}</Text>
@@ -145,7 +150,13 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas dark:bg-[#0B0B0A]">
+    <SafeAreaView
+      style={{
+        flex: 1,
+        minHeight: 0,
+        backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
+      }}
+    >
       <View className="flex-row items-center px-5 pb-2 pt-3">
         {index > 0 ? (
           <TouchableOpacity
@@ -179,17 +190,15 @@ export default function OnboardingScreen() {
         </Text>
       </View>
 
-      <Animated.View
-        key={step}
-        entering={FadeIn.duration(220)}
-        exiting={FadeOut.duration(120)}
-        className="flex-1"
-      >
+      <View key={step} style={{ flex: 1, minHeight: 0, width: "100%" }}>
         {step === "FOOD_PREFERENCES" ? (
           <FoodPreferencesStep state={state} saving={saving} persist={persist} />
         ) : null}
         {step === "DIETARY_PREFERENCES" ? (
           <DietaryPreferencesStep state={state} saving={saving} persist={persist} />
+        ) : null}
+        {step === "ALLERGIES" ? (
+          <AllergiesStep state={state} saving={saving} persist={persist} />
         ) : null}
         {step === "LOCATION" ? (
           <LocationStep state={state} saving={saving} persist={persist} />
@@ -221,7 +230,7 @@ export default function OnboardingScreen() {
             }}
           />
         ) : null}
-      </Animated.View>
+      </View>
 
       {error ? (
         <Text className="px-6 pb-2 text-center text-sm text-red-500">{error}</Text>
@@ -231,13 +240,25 @@ export default function OnboardingScreen() {
 }
 
 function StepHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  const { isDark } = useAppTheme();
+
   return (
-    <View className="px-6 pb-5 pt-4">
-      <Text weight="black" className="text-3xl leading-9 text-ink dark:text-[#FAF9F6]">
+    <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20 }}>
+      <Text
+        weight="black"
+        style={{ color: isDark ? "#FAF9F6" : "#171715", fontSize: 30, lineHeight: 36 }}
+      >
         {title}
       </Text>
       {subtitle ? (
-        <Text className="mt-2 text-base leading-6 text-gray-500 dark:text-gray-400">
+        <Text
+          style={{
+            marginTop: 8,
+            color: isDark ? "#A8A8A3" : "#6B6B67",
+            fontSize: 16,
+            lineHeight: 24,
+          }}
+        >
           {subtitle}
         </Text>
       ) : null}
@@ -256,14 +277,29 @@ function PrimaryButton({
   disabled?: boolean;
   loading?: boolean;
 }) {
+  const { isDark } = useAppTheme();
+  const isDisabled = disabled || loading;
+
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       activeOpacity={0.82}
-      className={`mt-4 min-h-14 items-center justify-center rounded-2xl px-5 ${
-        disabled ? "bg-black/10 dark:bg-white/10" : "bg-ink dark:bg-[#FAF9F6]"
-      }`}
+      style={{
+        minHeight: 56,
+        marginTop: 16,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 16,
+        paddingHorizontal: 20,
+        backgroundColor: isDisabled
+          ? isDark
+            ? "rgba(250,249,246,0.1)"
+            : "rgba(23,23,21,0.1)"
+          : isDark
+            ? "#FAF9F6"
+            : "#171715",
+      }}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       accessibilityLabel={label}
@@ -273,7 +309,9 @@ function PrimaryButton({
       ) : (
         <Text
           weight="bold"
-          className={disabled ? "text-gray-400" : "text-white dark:text-[#171717]"}
+          style={{
+            color: isDisabled ? "#9B9B96" : isDark ? "#171715" : "#FAF9F6",
+          }}
         >
           {label}
         </Text>
@@ -291,25 +329,40 @@ function ChoiceChip({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { isDark } = useAppTheme();
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.75}
-      className={`min-h-12 flex-row items-center rounded-2xl border px-4 py-3 ${
-        selected
-          ? "border-[#D6A92D] bg-[#F7D786]/35 dark:bg-[#D6A92D]/20"
-          : "border-black/10 bg-white/60 dark:border-white/10 dark:bg-white/5"
-      }`}
+      style={{
+        minHeight: 48,
+        flexDirection: "row",
+        alignItems: "center",
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: selected
+          ? "#D6A92D"
+          : isDark
+            ? "rgba(250,249,246,0.14)"
+            : "rgba(23,23,21,0.12)",
+        backgroundColor: selected
+          ? isDark
+            ? "rgba(214,169,45,0.2)"
+            : "rgba(247,215,134,0.35)"
+          : isDark
+            ? "rgba(250,249,246,0.06)"
+            : "rgba(250,249,246,0.72)",
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+      }}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={label}
     >
-      <Text className="text-base text-ink dark:text-[#FAF9F6]">{label}</Text>
-      {selected ? (
-        <View className="ml-2">
-          <CheckCircleIcon size={19} color="#C38C00" weight="fill" />
-        </View>
-      ) : null}
+      <Text style={{ color: isDark ? "#FAF9F6" : "#171715", fontSize: 16 }}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -320,6 +373,7 @@ function FoodPreferencesStep({
   persist,
 }: StepProps) {
   const { t } = useTranslation("onboarding");
+  const { isDark } = useAppTheme();
   const { reduceMotion } = useAccessibilityPreferences();
   const [selected, setSelected] = useState<string[]>(state.foodInterests ?? []);
 
@@ -331,10 +385,18 @@ function FoodPreferencesStep({
   }
 
   return (
-    <View className="flex-1">
+    <View style={{ flex: 1, minHeight: 0 }}>
       <StepHeader title={t("foodTitle")} subtitle={t("foodSubtitle")} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 18 }}>
-        <View className="flex-row flex-wrap gap-2.5">
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingBottom: 18,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {FOOD_INTERESTS.map((interest) => (
             <ChoiceChip
               key={interest}
@@ -345,9 +407,15 @@ function FoodPreferencesStep({
           ))}
         </View>
       </ScrollView>
-      <View className="px-6 pb-3">
+      <View style={{ paddingHorizontal: 24, paddingBottom: 12 }}>
         {selected.length < 3 ? (
-          <Text className="text-center text-sm text-gray-500">
+          <Text
+            style={{
+              color: isDark ? "#A8A8A3" : "#6B6B67",
+              fontSize: 14,
+              textAlign: "center",
+            }}
+          >
             {t("foodMinimum")} · {selected.length}/3
           </Text>
         ) : null}
@@ -381,10 +449,8 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
     if (state.foodPreferences.includes("VEGAN")) values.push("VEGAN");
     if (state.dietaryRestrictions.includes("NO_PORK")) values.push("NO_PORK");
     if (state.dietaryRestrictions.includes("GLUTEN_FREE")) values.push("GLUTEN_FREE");
-    if (state.allergies.length) values.push("ALLERGIES");
     return values;
   });
-  const [allergies, setAllergies] = useState(state.allergies);
 
   function toggle(value: DietaryOption) {
     void Haptics.selectionAsync();
@@ -401,13 +467,15 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
     restaurantDietaryRequirements: selected.filter(
       (item) => item === "KOSHER_ONLY" || item === "HALAL_ONLY",
     ),
-    allergies: selected.includes("ALLERGIES") ? allergies : [],
   };
 
   return (
     <View className="flex-1">
       <StepHeader title={t("dietaryTitle")} subtitle={t("dietarySubtitle")} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 18 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 18 }}
+      >
         <View className="flex-row flex-wrap gap-2.5">
           {DIETARY_OPTIONS.map((option) => (
             <ChoiceChip
@@ -418,45 +486,87 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
             />
           ))}
         </View>
-        {selected.includes("ALLERGIES") ? (
-          <Animated.View entering={FadeIn.duration(180)} className="mt-7">
-            <Text weight="bold" className="mb-3 text-lg text-ink dark:text-white">
-              {t("allergiesTitle")}
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {ALLERGEN_OPTIONS.map((allergen) => (
-                <ChoiceChip
-                  key={allergen}
-                  label={t(`allergen.${allergen}`)}
-                  selected={allergies.includes(allergen)}
-                  onPress={() => {
-                    void Haptics.selectionAsync();
-                    setAllergies((current) =>
-                      current.includes(allergen)
-                        ? current.filter((item) => item !== allergen)
-                        : [...current, allergen],
-                    );
-                  }}
-                />
-              ))}
-            </View>
-            <Text className="mt-4 text-xs leading-5 text-gray-500">{t("allergiesSafety")}</Text>
-          </Animated.View>
-        ) : null}
       </ScrollView>
       <View className="px-6 pb-3">
         <PrimaryButton
           label={t("continue")}
           loading={saving}
-          onPress={() => void persist("LOCATION", patch)}
+          onPress={() => void persist("ALLERGIES", patch)}
         />
         <TouchableOpacity
-          onPress={() => void persist("LOCATION", patch)}
+          onPress={() => void persist("ALLERGIES", patch)}
           disabled={saving}
           className="min-h-11 items-center justify-center"
           accessibilityRole="button"
         >
           <Text weight="bold" className="text-gray-500">{t("skip")}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function AllergiesStep({ state, saving, persist }: StepProps) {
+  const { t } = useTranslation("onboarding");
+  const { isDark } = useAppTheme();
+  const { reduceMotion } = useAccessibilityPreferences();
+  const [selected, setSelected] = useState<string[]>(state.allergies ?? []);
+
+  function toggle(value: string) {
+    if (!reduceMotion) void Haptics.selectionAsync();
+    setSelected((current) =>
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, minHeight: 0 }}>
+      <StepHeader title={t("allergiesTitle")} subtitle={t("allergiesSubtitle")} />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingBottom: 18,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+          {ALLERGEN_OPTIONS.map((allergen) => (
+            <ChoiceChip
+              key={allergen}
+              label={t(`allergen.${allergen}`)}
+              selected={selected.includes(allergen)}
+              onPress={() => toggle(allergen)}
+            />
+          ))}
+        </View>
+        <Text
+          style={{
+            marginTop: 20,
+            color: isDark ? "#A8A8A3" : "#6B6B67",
+            fontSize: 12,
+            lineHeight: 20,
+          }}
+        >
+          {t("allergiesSafety")}
+        </Text>
+      </ScrollView>
+      <View style={{ paddingHorizontal: 24, paddingBottom: 12 }}>
+        <PrimaryButton
+          label={t("continue")}
+          loading={saving}
+          onPress={() => void persist("LOCATION", { allergies: selected })}
+        />
+        <TouchableOpacity
+          onPress={() => void persist("LOCATION", { allergies: [] })}
+          disabled={saving}
+          style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}
+          accessibilityRole="button"
+        >
+          <Text weight="bold" style={{ color: isDark ? "#A8A8A3" : "#6B6B67" }}>
+            {t("noAllergies")}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -761,7 +871,10 @@ function SocialStep({ state, saving, persist }: StepProps) {
   return (
     <View className="flex-1">
       <StepHeader title={t("socialTitle")} subtitle={t("socialSubtitle")} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 18 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 18 }}
+      >
         {loading ? (
           <ActivityIndicator className="mt-12" color="#D6A92D" />
         ) : suggestions.length ? (

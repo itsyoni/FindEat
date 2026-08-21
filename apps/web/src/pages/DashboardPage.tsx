@@ -4,7 +4,6 @@ import { ChartLineUpIcon } from "@phosphor-icons/react/dist/csr/ChartLineUp";
 import { ChatCircleDotsIcon } from "@phosphor-icons/react/dist/csr/ChatCircleDots";
 import { HouseIcon } from "@phosphor-icons/react/dist/csr/House";
 import { ListDashesIcon } from "@phosphor-icons/react/dist/csr/ListDashes";
-import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { StarIcon } from "@phosphor-icons/react/dist/csr/Star";
 import { MedalIcon } from "@phosphor-icons/react/dist/csr/Medal";
 import { StorefrontIcon } from "@phosphor-icons/react/dist/csr/Storefront";
@@ -33,9 +32,13 @@ import { AccountAvatar } from "../components/AccountAvatar";
 import { AppLink } from "../components/AppLink";
 import { NotificationsPopover } from "../components/NotificationsPopover";
 import { SidebarNavGroup } from "../components/SidebarNavGroup";
+import { WorkspaceSwitcher } from "../components/WorkspaceSwitcher";
 import { useInboxSocket } from "../hooks/useInboxSocket";
 import { useRestaurantActivitySocket } from "../hooks/useRestaurantActivitySocket";
-import { useResizableSidebar } from "../hooks/useResizableSidebar";
+import {
+  SHARED_SIDEBAR_WIDTH_STORAGE_KEY,
+  useResizableSidebar,
+} from "../hooks/useResizableSidebar";
 import {
   fetchRestaurantConversations,
   fetchRestaurantNotifications,
@@ -314,7 +317,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
     open: desktopSidebarOpen,
     setOpen: setDesktopSidebarOpen,
     startResize: startSidebarResize,
-  } = useResizableSidebar("findeat-business-sidebar-width");
+  } = useResizableSidebar(SHARED_SIDEBAR_WIDTH_STORAGE_KEY, pathname);
   const [claims, setClaims] = useState<RestaurantClaim[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -681,7 +684,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           <SidebarSimpleIcon size={19} weight="duotone" />
         </button>
         <div className="brand [display:flex] [align-items:center] [gap:12px] [padding:0_8px_25px] [&_strong]:[display:block] [&_small]:[display:block] [&_strong]:[font-size:18px] [&_small]:[color:var(--muted)] [&_small]:[font-size:12px] [.restaurant-setup-topbar_&]:[display:flex] [.restaurant-setup-topbar_&]:[align-items:center] [.restaurant-setup-topbar_&]:[gap:10px] [.restaurant-setup-topbar_&>div:last-child]:[display:flex] [.restaurant-setup-topbar_&>div:last-child]:[flex-direction:column] [.admin-layout_header_&]:[padding:0] max-[800px]:[aside_&]:[display:none]">
-          <div className="brand-mark [display:grid] [place-items:center] [width:42px] [height:42px] [border-radius:13px] [background:var(--ink)] [color:#FAF9F6] [font-weight:900] [font-size:22px] dark:[color:#171717]">F</div>
+          <span className="login-brand-mark [display:grid] [place-items:center] [width:46px] [height:46px] [overflow:hidden] [border:1px_solid_var(--line)] [border-radius:15px] [background:#fff8ef] [box-shadow:0_8px_22px_#4d2a1614] [&_img]:[width:37px] [&_img]:[height:37px] [&_img]:[object-fit:contain] dark:[border-color:var(--line)] dark:[background:var(--surface-subtle)] dark:[box-shadow:0_8px_24px_#0005]">
+            <img src="/findeat-favicon.svg" alt="" />
+          </span>
           <div>
             <strong>FindEat</strong>
             <small>Business</small>
@@ -712,16 +717,25 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             )}
           </button>
         </div>
-        <nav className="mt-6.25 grid gap-1.25 [&>a]:flex [&>a]:min-h-11 [&>a]:w-full [&>a]:items-center [&>a]:gap-3.25 [&>a]:rounded-xl [&>a]:border-0 [&>a]:bg-transparent [&>a]:p-3 [&>a]:text-left [&>a]:text-sm [&>a]:font-bold [&>a]:text-[#555] [&>a]:no-underline [&>a]:transition [&>a:focus-visible]:outline-2 [&>a:focus-visible]:outline-offset-2 [&>a:focus-visible]:outline-accent [@media(hover:hover)]:[&>a:hover]:translate-x-0.75 [@media(hover:hover)]:[&>a:hover]:bg-surface-hover [@media(hover:hover)]:[&>a:hover]:text-ink max-[800px]:m-0 max-[800px]:grid-cols-3 max-[800px]:[&>a]:justify-center max-[800px]:[&>a]:text-xs" id="business-navigation" onClick={() => setMobileNavOpen(false)}>
+        {isAdmin && (
+          <WorkspaceSwitcher
+            active="business"
+            adminCount={claims.length}
+            collapsed={!desktopSidebarOpen}
+            onBusiness={() => undefined}
+            onAdmin={() => navigateTo(adminPaths.overview)}
+          />
+        )}
+        <nav className="mt-6.25 grid gap-1.25 [&>a]:flex [&>a]:min-h-11 [&>a]:w-full [&>a]:items-center [&>a]:gap-3.25 [&>a]:rounded-xl [&>a]:border-0 [&>a]:bg-transparent [&>a]:p-3 [&>a]:text-left [&>a]:text-sm [&>a]:font-normal [&>a]:text-[#555] [&>a]:no-underline [&>a]:transition [&>a:focus-visible]:outline-2 [&>a:focus-visible]:outline-offset-2 [&>a:focus-visible]:outline-accent [@media(hover:hover)]:[&>a:hover]:translate-x-0.75 [@media(hover:hover)]:[&>a:hover]:bg-surface-hover [@media(hover:hover)]:[&>a:hover]:text-ink max-[800px]:m-0 max-[800px]:grid-cols-3 max-[800px]:[&>a]:justify-center max-[800px]:[&>a]:text-xs" id="business-navigation" onClick={() => setMobileNavOpen(false)}>
           <AppLink
             to={businessPaths.overview}
-            className={section === "overview" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-black! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
+            className={section === "overview" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
           >
             <HouseIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Overview
           </AppLink>
           <AppLink
             to={businessPaths.dashboard}
-            className={section === "dashboard" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-black! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
+            className={section === "dashboard" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
           >
             <ChartLineUpIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Dashboard <small className="nav-premium [margin-left:auto] [padding:2px_5px] [border-radius:5px] [background:#fff0cc] [color:#8a6200] [font-size:8px] [font-weight:900] max-[800px]:[display:none] [background:var(--warning-soft)] [color:var(--warning)]">PRO</small>
           </AppLink>
@@ -765,19 +779,10 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           </SidebarNavGroup>
           <AppLink
             to={businessPaths.support}
-            className={section === "support" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-black! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
+            className={section === "support" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
           >
             <HeadsetIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Help and support
           </AppLink>
-          {isAdmin && (
-            <AppLink
-              to={adminPaths.overview}
-              className={isAdminRoute ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-black! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
-            >
-              <ShieldCheckIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Admin{" "}
-              <small className="nav-count [margin-left:auto] [min-width:22px] [padding:3px_6px] [border-radius:20px] [background:#ffe4da] [color:#a6382a] [text-align:center] [font-size:10px] [font-weight:900] [&.neutral]:[background:#ebe9e5] [&.neutral]:[color:#555] [&.neutral]:[background:var(--neutral-chip)] [&.neutral]:[color:var(--neutral-chip-text)] [background:var(--accent-soft)] [color:var(--accent-dark)]">{claims.length}</small>
-            </AppLink>
-          )}
         </nav>
         <div className="aside-footer [margin-top:auto] [padding:16px_10px_0] [border-top:1px_solid_var(--line)] [&_p]:[margin-bottom:5px] [&_p]:[font-weight:800] [&_p]:[font-size:13px] [&_small]:[display:block] [&_small]:[color:var(--muted)] [&_small]:[line-height:1.45] [&_button]:[margin-top:18px] [&_button]:[padding:0] [&_button]:[border:0] [&_button]:[background:none] [&_button]:[color:#a13c2a] [&_button]:[font-weight:700] [&_.sidebar-account>button]:[display:grid] [&_.sidebar-account>button]:[place-items:center] [&_.sidebar-account>button]:[width:34px] [&_.sidebar-account>button]:[height:34px] [&_.sidebar-account>button]:[margin:0] [&_.sidebar-account>button]:[padding:0] [&_.sidebar-account>button]:[border:1px_solid_var(--line)] [&_.sidebar-account>button]:[border-radius:11px] [&_.sidebar-account>button]:[background:var(--surface-subtle)] [&_.sidebar-account>button]:[color:var(--muted)] [&_.sidebar-account>button]:[transition:background-color_.16s_ease,color_.16s_ease] [&_.sidebar-account>button:hover]:[background:var(--danger-soft)] [&_.sidebar-account>button:hover]:[color:var(--danger)] max-[800px]:[display:none] [&_.web-version]:[display:block] [&_.web-version]:[margin-top:12px] [&_.web-version]:[color:color-mix(in_srgb,var(--muted)_72%,transparent)] [&_.web-version]:[font-size:9px] [&_.web-version]:[font-weight:800] [&_.web-version]:[letter-spacing:.06em] [&_.web-version]:[text-align:center] [&_.web-version]:[text-transform:uppercase] [&_button]:[color:var(--danger)]">
           <div className="sidebar-account [display:grid] [grid-template-columns:auto_minmax(0,1fr)_34px] [align-items:center] [gap:11px] [&>div]:[min-width:0] [&_strong]:[display:block] [&_strong]:[overflow:hidden] [&_strong]:[text-overflow:ellipsis] [&_strong]:[white-space:nowrap] [&_small]:[display:block] [&_small]:[overflow:hidden] [&_small]:[text-overflow:ellipsis] [&_small]:[white-space:nowrap] [&_strong]:[font-size:12px] [&_small]:[margin-top:2px] [&_small]:[font-size:9px]">
@@ -808,7 +813,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         )}
       </aside>
       <main className="content [min-width:0] [min-height:0] [height:100vh] [display:grid] [grid-template-rows:76px_minmax(0,_1fr)] [overflow:hidden] [&>header]:[position:relative] [&>header]:[z-index:10] [&>:not(header)]:[min-height:0] [&>:not(header)]:[overflow-y:auto] [&>:not(header)]:[overscroll-behavior:contain] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0] [&>.messages-page]:[margin-top:0] [&>.messages-page]:[margin-bottom:0] [&>.admin-content]:[margin-top:0] [&>.admin-content]:[margin-bottom:0] [&>.messages-page]:[display:flex] [&>.messages-page]:[flex-direction:column] [&>.messages-page]:[height:100%] [&>.messages-page]:[min-height:0] [&>.messages-page]:[overflow:hidden] max-[800px]:[height:100%] max-[800px]:[min-height:0] [&>.support-admin-content]:[display:flex] [&>.support-admin-content]:[flex-direction:column] [&>.support-admin-content]:[height:100%] [&>.support-admin-content]:[min-height:0] [&>.support-admin-content]:[overflow:hidden] [&>.support-admin-content]:[padding-bottom:32px] max-[800px]:[&>.support-admin-content]:[padding-top:22px] max-[800px]:[&>.support-admin-content]:[padding-bottom:18px] max-[800px]:[grid-template-rows:60px_minmax(0,_1fr)] max-[800px]:[&>header]:[display:flex] max-[800px]:[&>header]:[height:60px] max-[800px]:[&>header]:[min-width:0] max-[800px]:[&>header]:[padding:0_16px] max-[800px]:[&>header>div:first-child]:[min-width:0] max-[380px]:[&>header]:[padding-inline:12px] max-[380px]:[&>header>div:first-child>strong]:[max-width:34vw] max-[380px]:[&>header>div:first-child>strong]:[font-size:12px]">
-        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-10.5 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-5">
+        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-10.5 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-5 max-[380px]:[&_.top-actions]:[gap:6px] max-[380px]:[&_.top-actions_.notifications-trigger]:[width:34px] max-[380px]:[&_.top-actions_.notifications-trigger]:[height:34px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[width:18px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[height:18px]">
           <div className="header-identity-group [display:flex] [align-items:center] [gap:18px] [min-width:0] [flex:1] max-[800px]:[align-self:stretch] max-[800px]:[gap:7px] max-[800px]:[min-width:0] max-[800px]:[flex:1]">
             <div className="header-restaurant-switcher [min-width:0] [&_.restaurant-switcher]:[width:min(360px,42vw)] [&_.restaurant-chip]:[min-height:50px] [&_.restaurant-chip]:[padding:6px_8px] [&_.restaurant-chip]:[border-color:transparent] [&_.restaurant-chip]:[background:transparent] [&_.restaurant-chip:hover]:[background:var(--surface-hover)] [&_.restaurant-chip.open]:[background:var(--surface-hover)] [&_.restaurant-switcher-menu]:[right:auto] [&_.restaurant-switcher-menu]:[left:0] [&_.restaurant-switcher-menu]:[width:100%] [&_.restaurant-switcher-menu]:[max-width:none] max-[800px]:[display:flex] max-[800px]:[align-self:stretch] max-[800px]:[align-items:center] max-[800px]:[justify-content:flex-start] max-[800px]:[min-width:0] max-[800px]:[flex:1] max-[800px]:[&_.restaurant-switcher]:[width:100%] max-[800px]:[&_.restaurant-switcher]:[max-width:none] max-[800px]:[&_.restaurant-chip]:[min-height:44px] max-[800px]:[&_.restaurant-chip]:[padding:4px_7px] max-[800px]:[&_.restaurant-chip]:[border-color:transparent] max-[800px]:[&_.restaurant-chip]:[background:transparent] max-[800px]:[&_.restaurant-chip:hover]:[background:var(--surface-hover)] max-[800px]:[&_.restaurant-chip.open]:[background:var(--surface-hover)] max-[800px]:[&_.restaurant-chip_img]:[width:34px] max-[800px]:[&_.restaurant-chip_img]:[height:34px] max-[800px]:[&_.restaurant-chip_img]:[flex-basis:34px] max-[800px]:[&_.restaurant-chip>span]:[width:34px] max-[800px]:[&_.restaurant-chip>span]:[height:34px] max-[800px]:[&_.restaurant-chip>span]:[flex-basis:34px] max-[800px]:[&_.restaurant-switcher-menu]:[top:calc(100%_+_7px)] max-[800px]:[&_.restaurant-switcher-menu]:[right:auto] max-[800px]:[&_.restaurant-switcher-menu]:[left:0] max-[800px]:[&_.restaurant-switcher-menu]:[width:100%] max-[800px]:[&_.restaurant-switcher-menu]:[max-width:none]">
               <RestaurantSwitcher
@@ -957,7 +962,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
         {(section === "settings" || visitedSections.has("settings")) && (
-          <div className="dashboard-page-slot [min-height:0] [overflow-y:auto] [overscroll-behavior:contain] [&[hidden]]:[display:none] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0]" hidden={section !== "settings"}>
+          <div className="dashboard-page-slot [min-height:0] [overflow-y:auto] [overscroll-behavior:contain] [&[hidden]]:[display:none] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0] [padding:46px_42px_70px] max-[800px]:[padding:26px_clamp(14px,4vw,22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px]" hidden={section !== "settings"}>
             <SettingsPage />
           </div>
         )}

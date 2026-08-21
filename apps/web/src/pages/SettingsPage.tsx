@@ -61,7 +61,7 @@ export function SettingsPage() {
   const { preference, resolvedTheme, setPreference } = useWebTheme();
 
   return (
-    <div className="w-full max-w-260">
+    <div className="mx-auto w-full max-w-260">
       <div className="mb-7 flex items-start justify-between gap-5">
         <div>
           <p className="mb-2 text-xs font-extrabold tracking-[.12em] text-accent">PREFERENCES</p>
@@ -73,7 +73,7 @@ export function SettingsPage() {
       </div>
 
       <section className="mb-4.5 overflow-hidden rounded-[22px] border border-line bg-surface shadow-panel">
-        <div className="flex items-center justify-between gap-5 px-6.5 pt-6 pb-4.5">
+        <div className="flex items-center justify-between gap-5 px-6.5 pt-6 pb-4.5 max-[520px]:px-4.5 max-[520px]:pt-5">
           <div>
             <h3 className="m-0 text-xl tracking-[-.02em]">Appearance</h3>
             <p className="mt-1.25 mb-0 text-xs leading-normal text-muted">
@@ -82,7 +82,7 @@ export function SettingsPage() {
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2.75 px-6.5 pb-6.5 max-[760px]:grid-cols-1" role="radiogroup" aria-label="Appearance">
+        <div className="grid grid-cols-3 gap-2.75 px-6.5 pb-6.5 max-[760px]:grid-cols-1 max-[520px]:px-4.5 max-[520px]:pb-5" role="radiogroup" aria-label="Appearance">
           {appearanceOptions.map((option) => {
             const Icon = option.icon;
             const selected = preference === option.value;
@@ -108,7 +108,7 @@ export function SettingsPage() {
       </section>
 
       <section className="mb-4.5 overflow-hidden rounded-[22px] border border-line bg-surface shadow-panel">
-        <div className="flex items-center justify-between gap-5 px-6.5 pt-6 pb-4.5">
+        <div className="flex items-center justify-between gap-5 px-6.5 pt-6 pb-4.5 max-[520px]:px-4.5 max-[520px]:pt-5">
           <div>
             <h3 className="m-0 text-xl tracking-[-.02em]">Legal and privacy</h3>
             <p className="mt-1.25 mb-0 text-xs leading-normal text-muted">Public documents for users, restaurant owners, and app stores.</p>
@@ -118,7 +118,7 @@ export function SettingsPage() {
           {legalLinks.map((link) => {
             const Icon = link.icon;
             return (
-              <a className="grid min-h-19.5 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3.5 border-b border-line px-6.5 py-3.5 text-ink no-underline transition last:border-b-0 hover:bg-surface-hover" key={link.href} href={link.href}>
+              <a className="grid min-h-19.5 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3.5 border-b border-line px-6.5 py-3.5 text-ink no-underline transition last:border-b-0 hover:bg-surface-hover max-[520px]:gap-2.5 max-[520px]:px-4.5" key={link.href} href={link.href}>
                 <span className="grid size-11 place-items-center rounded-[14px] bg-soft text-ink">
                   <Icon size={22} weight="duotone" />
                 </span>

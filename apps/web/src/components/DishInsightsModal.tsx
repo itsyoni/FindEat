@@ -38,14 +38,14 @@ export function DishInsightsModal({
 
   return (
     <div
-      className="dish-insights-backdrop [position:fixed] [z-index:110] [inset:0] [display:grid] [place-items:center] [padding:24px] [background:#17171775] [backdrop-filter:blur(5px)] max-[600px]:[padding:10px]"
+      className="dish-insights-backdrop [position:fixed] [z-index:110] [inset:0] [display:grid] [place-items:center] [padding:24px] [background:#17171775] [backdrop-filter:blur(5px)] max-[600px]:[align-items:end] max-[600px]:[padding:0]"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <section
-        className="dish-insights [width:min(760px,100%)] [max-height:calc(100vh_-_48px)] [overflow:hidden] [border:1px_solid_#ffffff30] [border-radius:24px] [background:var(--surface)] [box-shadow:0_30px_100px_#0005] max-[600px]:[max-height:calc(100vh_-_20px)] max-[600px]:[border-radius:19px] [width:min(760px,_100%)] [max-height:calc(100vh_-_48px)] [overflow:hidden] [border:1px_solid_#ffffff30] [border-radius:24px] [background:var(--surface)] [box-shadow:0_30px_100px_#0005] max-[600px]:[max-height:calc(100vh_-_20px)] max-[600px]:[border-radius:19px]"
+        className="dish-insights [width:min(760px,100%)] [max-height:calc(100dvh_-_48px)] [overflow:hidden] [border:1px_solid_#ffffff30] [border-radius:24px] [background:var(--surface)] [box-shadow:0_30px_100px_#0005] max-[600px]:[width:100%] max-[600px]:[max-height:calc(100dvh_-_12px)] max-[600px]:[border-radius:19px_19px_0_0]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dish-insights-title"
@@ -67,7 +67,7 @@ export function DishInsightsModal({
           </button>
         </header>
 
-        <div className="dish-insights-body [max-height:calc(100vh_-_138px)] [overflow-y:auto] [padding:24px] max-[600px]:[max-height:calc(100vh_-_98px)] max-[600px]:[padding:17px]">
+        <div className="dish-insights-body [max-height:calc(100dvh_-_138px)] [overflow-y:auto] [overscroll-behavior:contain] [padding:24px] max-[600px]:[max-height:calc(100dvh_-_90px)] max-[600px]:[padding:17px_15px_calc(17px_+_env(safe-area-inset-bottom))]">
           <div className="dish-insights-section-heading [display:flex] [align-items:flex-start] [justify-content:space-between] [gap:20px] [&_h3]:[margin:7px_0_3px] [&_h3]:[font-size:18px] [&_p]:[margin:0] [&_p]:[color:var(--muted)] [&_p]:[font-size:12px]">
             <div>
               <span className="dish-insights-plan [display:inline-flex] [padding:4px_8px] [border-radius:999px] [font-size:9px] [font-weight:900] [letter-spacing:.08em] [text-transform:uppercase] [&.free]:[background:#e7f5ed] [&.free]:[color:#18734a] [&.pro]:[background:#eee9ff] [&.pro]:[color:#6742c1] [&.free]:[background:var(--success-soft)] [&.free]:[color:var(--success)] [&.pro]:[background:var(--purple-soft)] [&.pro]:[color:var(--purple)] free">Free</span>

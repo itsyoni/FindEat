@@ -27,6 +27,7 @@ export type VisitDetectionEngagement = {
 };
 
 export type RegisteredVisitRegions = {
+  strategyVersion?: number;
   refreshedAt: number;
   center: { latitude: number; longitude: number };
   restaurants: VisitDetectionCandidate[];

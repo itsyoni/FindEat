@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
 import { SealCheckIcon } from "@phosphor-icons/react/dist/csr/SealCheck";
 import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
@@ -45,8 +44,12 @@ import { AdminNotificationsPopover } from "../components/AdminNotificationsPopov
 import { SidebarNavGroup } from "../components/SidebarNavGroup";
 import { request } from "../lib/api";
 import { confirmAction } from "../lib/appConfirm";
-import { useResizableSidebar } from "../hooks/useResizableSidebar";
+import {
+  SHARED_SIDEBAR_WIDTH_STORAGE_KEY,
+  useResizableSidebar,
+} from "../hooks/useResizableSidebar";
 import { KnownIssuesAdmin } from "../components/KnownIssuesAdmin";
+import { WorkspaceSwitcher } from "../components/WorkspaceSwitcher";
 
 type AdminSidebarGroup = "platform" | "feedback" | "content";
 
@@ -93,7 +96,7 @@ export function AdminPage({
     open: desktopSidebarOpen,
     setOpen: setDesktopSidebarOpen,
     startResize: startSidebarResize,
-  } = useResizableSidebar("findeat-admin-sidebar-width");
+  } = useResizableSidebar(SHARED_SIDEBAR_WIDTH_STORAGE_KEY);
   const [openSidebarGroup, setOpenSidebarGroup] =
     useState<AdminSidebarGroup | null>(() =>
       adminSidebarGroupForSection(section),
@@ -315,15 +318,18 @@ export function AdminPage({
             )}
           </button>
         </div>
-        <nav className="mt-6.25 grid gap-1.25 [&>button]:flex [&>button]:min-h-11 [&>button]:w-full [&>button]:items-center [&>button]:gap-3.25 [&>button]:rounded-xl [&>button]:border-0 [&>button]:bg-transparent [&>button]:p-3 [&>button]:text-left [&>button]:text-sm [&>button]:font-bold [&>button]:text-[#555] [&>button]:transition [&>button:focus-visible]:outline-2 [&>button:focus-visible]:outline-offset-2 [&>button:focus-visible]:outline-accent [@media(hover:hover)]:[&>button:hover]:translate-x-0.75 [@media(hover:hover)]:[&>button:hover]:bg-surface-hover [@media(hover:hover)]:[&>button:hover]:text-ink max-[800px]:m-0 max-[800px]:grid-cols-4 max-[800px]:[&>button]:justify-center max-[800px]:[&>button]:text-xs" id="admin-navigation" onClick={() => setMobileNavOpen(false)}>
-          {onBackToBusiness && (
-            <button className="overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!" onClick={onBackToBusiness}>
-              <ArrowLeftIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Restaurant
-              dashboard
-            </button>
-          )}
+        {onBackToBusiness && (
+          <WorkspaceSwitcher
+            active="admin"
+            adminCount={claims.length}
+            collapsed={!desktopSidebarOpen}
+            onBusiness={onBackToBusiness}
+            onAdmin={() => undefined}
+          />
+        )}
+        <nav className="mt-6.25 grid gap-1.25 [&>button]:flex [&>button]:min-h-11 [&>button]:w-full [&>button]:items-center [&>button]:gap-3.25 [&>button]:rounded-xl [&>button]:border-0 [&>button]:bg-transparent [&>button]:p-3 [&>button]:text-left [&>button]:text-sm [&>button]:font-normal [&>button]:text-[#555] [&>button]:transition [&>button:focus-visible]:outline-2 [&>button:focus-visible]:outline-offset-2 [&>button:focus-visible]:outline-accent [@media(hover:hover)]:[&>button:hover]:translate-x-0.75 [@media(hover:hover)]:[&>button:hover]:bg-surface-hover [@media(hover:hover)]:[&>button:hover]:text-ink max-[800px]:m-0 max-[800px]:grid-cols-4 max-[800px]:[&>button]:justify-center max-[800px]:[&>button]:text-xs" id="admin-navigation" onClick={() => setMobileNavOpen(false)}>
           <button
-            className={section === "overview" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-black! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
+            className={section === "overview" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
             onClick={() => {
               onNavigate("overview");
               setError("");
@@ -458,7 +464,7 @@ export function AdminPage({
           </button>
           </SidebarNavGroup>
           <button
-            className={section === "admins" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-black! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
+            className={section === "admins" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
             onClick={() => {
               onNavigate("admins");
               setError("");
@@ -497,7 +503,7 @@ export function AdminPage({
         )}
       </aside>
       <main className="content [min-width:0] [min-height:0] [height:100vh] [display:grid] [grid-template-rows:76px_minmax(0,_1fr)] [overflow:hidden] [&>header]:[position:relative] [&>header]:[z-index:10] [&>:not(header)]:[min-height:0] [&>:not(header)]:[overflow-y:auto] [&>:not(header)]:[overscroll-behavior:contain] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0] [&>.messages-page]:[margin-top:0] [&>.messages-page]:[margin-bottom:0] [&>.admin-content]:[margin-top:0] [&>.admin-content]:[margin-bottom:0] [&>.messages-page]:[display:flex] [&>.messages-page]:[flex-direction:column] [&>.messages-page]:[height:100%] [&>.messages-page]:[min-height:0] [&>.messages-page]:[overflow:hidden] max-[800px]:[height:100%] max-[800px]:[min-height:0] [&>.support-admin-content]:[display:flex] [&>.support-admin-content]:[flex-direction:column] [&>.support-admin-content]:[height:100%] [&>.support-admin-content]:[min-height:0] [&>.support-admin-content]:[overflow:hidden] [&>.support-admin-content]:[padding-bottom:32px] max-[800px]:[&>.support-admin-content]:[padding-top:22px] max-[800px]:[&>.support-admin-content]:[padding-bottom:18px] max-[800px]:[grid-template-rows:60px_minmax(0,_1fr)] max-[800px]:[&>header]:[display:flex] max-[800px]:[&>header]:[height:60px] max-[800px]:[&>header]:[min-width:0] max-[800px]:[&>header]:[padding:0_16px] max-[800px]:[&>header>div:first-child]:[min-width:0] max-[380px]:[&>header]:[padding-inline:12px] max-[380px]:[&>header>div:first-child>strong]:[max-width:34vw] max-[380px]:[&>header>div:first-child>strong]:[font-size:12px]">
-        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-10.5 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-5">
+        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-10.5 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-5 max-[380px]:[&_.top-actions]:[gap:6px] max-[380px]:[&_.top-actions_.notifications-trigger]:[width:34px] max-[380px]:[&_.top-actions_.notifications-trigger]:[height:34px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[width:18px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[height:18px]">
           <div>
             <strong>Admin workspace</strong>
             <span className="admin-badge [padding:4px_9px] [border-radius:20px] [background:#f2e8ff] [color:#7040a0] [font-size:11px] [font-weight:800] [background:var(--purple-soft)] [color:var(--purple)] max-[600px]:[max-width:30vw] max-[600px]:[overflow:hidden] max-[600px]:[text-overflow:ellipsis] max-[600px]:[white-space:nowrap] max-[380px]:[font-size:9px]">Admin</span>
