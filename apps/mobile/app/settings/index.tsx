@@ -8,7 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useActiveCountry } from '@/contexts/ActiveCountryContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
+import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GiftIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
 import { useCallback, useState } from 'react';
@@ -49,6 +49,7 @@ export default function SettingsScreen() {
           <SettingsRow icon={<ArchiveIcon size={23} color={color} weight="fill" />} title={t('settings:archivedPosts')} subtitle={t('settings:archivedPostsSubtitle')} onPress={() => router.push('/settings/archived-posts')} />
           <SettingsRow icon={<BookmarkSimpleIcon size={23} color="#D1A928" weight="fill" />} title={t('settings:savedPosts')} subtitle={t('settings:savedPostsSubtitle')} onPress={() => router.push({ pathname: '/saved', params: { tab: 'posts' } })} />
           <SettingsRow icon={<ForkKnifeIcon size={23} color="#E11D48" weight="fill" />} title={t('settings:favoriteDishes')} subtitle={t('settings:favoriteDishesSubtitle')} onPress={() => router.push('/settings/favorite-dishes')} />
+          <SettingsRow icon={<GiftIcon size={23} color="#E4573D" weight="duotone" />} title={t('settings:myRewards')} subtitle={t('settings:myRewardsSubtitle')} onPress={() => router.push('/settings/rewards')} />
           <SettingsRow icon={<ChartLineUpIcon size={23} color={color} weight="bold" />} title={t('profile:creatorInsights')} subtitle={t('profile:creatorInsightsSubtitle')} onPress={() => router.push('/(profile)/statistics')} />
           <SettingsRow icon={<TrophyIcon size={23} color="#D97706" weight="fill" />} title={t('settings:creatorLevels')} subtitle={t('settings:creatorLevelsSubtitle')} onPress={() => router.push('/settings/creator-levels')} />
           <SettingsRow icon={<TagIcon size={23} color="#D97706" weight="fill" />} title={t('settings:profileTagCollection')} subtitle={t('settings:profileTagCollectionSubtitle')} value={hasNewProfileTags ? t('settings:newTag') : undefined} valueEmphasis={hasNewProfileTags} onPress={() => router.push('/settings/profile-tags')} />

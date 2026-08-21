@@ -56,36 +56,46 @@ export function AppConfirmProvider({ children }: { children: ReactNode }) {
     : tone === "warning"
       ? WarningDiamondIcon
       : QuestionIcon;
+  const toneIconClass = tone === "destructive"
+    ? "bg-[#fbe7e5] text-[#d64a42] dark:bg-danger-soft dark:text-danger"
+    : tone === "warning"
+      ? "bg-[#fff0d4] text-[#d97706] dark:bg-warning-soft dark:text-warning"
+      : "bg-[#f3e7ce] text-[#d97706] dark:bg-warning-soft dark:text-warning";
+  const confirmClass = tone === "destructive"
+    ? "bg-[#d64a42]"
+    : tone === "warning"
+      ? "bg-[#d97706]"
+      : "bg-[#2b2926]";
 
   return (
     <>
       {children}
       {pending ? (
         <div
-          className={`app-confirm-backdrop${closing ? " closing" : ""}`}
+          className={`fixed inset-0 z-3000 grid place-items-center bg-[rgba(24,22,18,0.62)] p-5 backdrop-blur-[7px] max-[480px]:items-end max-[480px]:p-3 ${closing ? "pointer-events-none animate-[confirm-fade-out_.17s_ease-in_forwards]" : "animate-[confirm-fade_.16s_ease-out]"}`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) close(false);
           }}
         >
           <section
-            className={`app-confirm-card ${tone}`}
+            className={`w-full max-w-97.5 rounded-[30px] border border-line bg-surface p-6 text-center shadow-[0_30px_90px_rgba(20,18,14,0.32)] max-[480px]:rounded-[28px] ${closing ? "animate-[confirm-leave_.17s_ease-in_forwards]" : "animate-[confirm-enter_.2s_cubic-bezier(0.2,0.9,0.25,1.08)]"}`}
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="app-confirm-title"
             aria-describedby={pending.message ? "app-confirm-message" : undefined}
           >
-            <div className="app-confirm-icon" aria-hidden="true">
+            <div className={`mx-auto mb-3.75 grid size-14.5 place-items-center rounded-full ${toneIconClass}`} aria-hidden="true">
               <ToneIcon size={30} weight="duotone" />
             </div>
-            <h2 id="app-confirm-title">{pending.title}</h2>
-            {pending.message ? <p id="app-confirm-message">{pending.message}</p> : null}
-            <div className="app-confirm-actions">
-              <button type="button" className="secondary" onClick={() => close(false)}>
+            <h2 className="m-0 text-[23px] tracking-[-0.025em] text-ink" id="app-confirm-title">{pending.title}</h2>
+            {pending.message ? <p className="mx-auto mt-2.25 max-w-[32ch] leading-[1.55] text-muted" id="app-confirm-message">{pending.message}</p> : null}
+            <div className="mt-5.5 grid grid-cols-2 gap-2.25 max-[480px]:grid-cols-1">
+              <button type="button" className="flex min-h-12 items-center justify-center gap-1.75 rounded-2xl border-0 bg-soft font-extrabold text-ink" onClick={() => close(false)}>
                 <XIcon size={17} />
                 {pending.cancelLabel ?? "Cancel"}
               </button>
-              <button type="button" className="confirm" onClick={() => close(true)} autoFocus>
+              <button type="button" className={`flex min-h-12 items-center justify-center gap-1.75 rounded-2xl border-0 font-extrabold text-[#f5f2ec] ${confirmClass}`} onClick={() => close(true)} autoFocus>
                 {tone === "destructive" ? <TrashIcon size={17} /> : null}
                 {pending.confirmLabel ?? "Continue"}
               </button>

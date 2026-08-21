@@ -7,7 +7,6 @@ import { navigateTo, usePathname } from './lib/navigation'
 import { invalidateRequestCache } from './lib/api'
 import { adminSectionFromPath, businessSectionFromPath } from './lib/navigation'
 import { ErrorPage } from './components/ErrorPage'
-import './App.css'
 
 export default function App() {
   const pathname = usePathname()

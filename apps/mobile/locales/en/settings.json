@@ -29,6 +29,8 @@
   "savedPostsSubtitle": "See the posts that led you to save restaurants",
   "favoriteDishes": "Favorite dishes",
   "favoriteDishesSubtitle": "See the dishes you saved from restaurant menus",
+  "myRewards": "My Rewards",
+  "myRewardsSubtitle": "Claim restaurant offers and see your savings",
   "favoriteDishesEmpty": "No favorite dishes yet",
   "favoriteDishesEmptySubtitle": "Tap the heart on a dish to keep it here for later.",
   "favoriteDishesLoadError": "Could not load your favorite dishes.",

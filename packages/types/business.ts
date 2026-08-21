@@ -70,6 +70,7 @@ export type BusinessDashboardSection =
   | "menu"
   | "reviews"
   | "badges"
+  | "offers"
   | "messages"
   | "notifications"
   | "profile"

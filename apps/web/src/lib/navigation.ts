@@ -10,6 +10,7 @@ export const businessPaths: Record<BusinessDashboardSection, string> = {
   menu: "/menu",
   reviews: "/reviews",
   badges: "/badges",
+  offers: "/offers",
   messages: "/messages",
   notifications: "/home",
   profile: "/restaurant-profile",

@@ -38,7 +38,9 @@ export type NotificationType =
   | 'REVIEW_CONTRIBUTION'
   | 'RESTAURANT_DISPUTE'
   | 'MODERATION_ACTION'
-  | 'APPEAL_DECISION';
+  | 'APPEAL_DECISION'
+  | 'RESTAURANT_OFFER_AVAILABLE'
+  | 'RESTAURANT_REWARD_EXPIRING';
 
 export type AppNotification = {
   id: string;

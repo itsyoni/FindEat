@@ -1,5 +1,259 @@
-:root { font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink,#171717); background:var(--page,#fbfaf8); font-synthesis:none; text-rendering:optimizeLegibility; }
-html { min-width:320px; min-height:100%; overflow-x:hidden; }
-body { margin:0; min-width:320px; min-height:100vh; min-height:100dvh; overflow-x:hidden; }
-button,input,textarea,select { font-family:inherit; }
-img,video,svg { max-width:100%; }
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-soft: var(--soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-hover: var(--surface-hover);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-purple: var(--purple);
+  --shadow-panel: var(--shadow);
+}
+
+@keyframes confirm-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes confirm-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes confirm-fade-out {
+  to { opacity: 0; }
+}
+@keyframes confirm-leave {
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+
+:root {
+  --ink: #171717;
+  --muted: #747474;
+  --line: #e8e6e1;
+  --soft: #f6f5f2;
+  --accent: #ff5b35;
+  --green: #1f8a58;
+  --page: #fbfaf8;
+  --surface: #faf9f6;
+  --surface-subtle: #faf9f7;
+  --surface-hover: #f7f4ef;
+  --accent-soft: #fff0e9;
+  --shadow: 0 14px 42px #3426160a;
+  --danger: #a6382a;
+  --danger-soft: #fff0ed;
+  --success: #196537;
+  --success-soft: #e6f4ec;
+  --warning: #815c00;
+  --warning-soft: #fff2c7;
+  --info: #1d4ed8;
+  --purple: #68418b;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--ink, #171717);
+  background: var(--page, #fbfaf8);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+:root[data-theme="dark"] {
+  --ink: #f6f3ee;
+  --muted: #aaa49c;
+  --line: #37332f;
+  --soft: #26231f;
+  --accent: #ff7657;
+  --green: #48b982;
+  --page: #121110;
+  --surface: #1c1a18;
+  --surface-subtle: #211f1c;
+  --surface-hover: #2a2723;
+  --accent-soft: #3a211c;
+  --shadow: 0 18px 52px #0005;
+  --danger: #ff9a88;
+  --danger-soft: #3b211e;
+  --success: #72d6a2;
+  --success-soft: #19362a;
+  --warning: #f1c66d;
+  --warning-soft: #3a2f19;
+  --info: #8db5ff;
+  --purple: #c8adf1;
+}
+html {
+  @apply min-h-full min-w-80 overflow-x-hidden;
+}
+body {
+  @apply m-0 min-h-dvh min-w-80 overflow-x-hidden bg-page text-ink;
+}
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+img,
+video,
+svg {
+  @apply max-w-full;
+}
+
+
+/* Migrated legacy global foundations */
+:root {
+  --ink: #171717;
+  --muted: #747474;
+  --line: #e8e6e1;
+  --soft: #f6f5f2;
+  --accent: #ff5b35;
+  --green: #1f8a58;
+  --page: #fbfaf8;
+  --surface: #faf9f6;
+  --surface-subtle: #faf9f7;
+  --surface-hover: #f7f4ef;
+  --text: var(--ink);
+  --accent-soft: #fff0e9;
+  --accent-dark: #b34f31;
+  --shadow: 0 14px 42px #3426160a;
+  --neutral-chip: #eeeae4;
+  --neutral-chip-text: #625c55;
+  --avatar-surface: #eee7df;
+  --danger: #a6382a;
+  --danger-soft: #fff0ed;
+  --danger-border: #f1cdcd;
+  --warning: #815c00;
+  --warning-soft: #fff2c7;
+  --warning-border: #f0dba2;
+  --success: #196537;
+  --success-soft: #e6f4ec;
+  --success-border: #b9dfc8;
+  --info: #1d4ed8;
+  --info-soft: #dbeafe;
+  --purple: #68418b;
+  --purple-soft: #f0e9f8;
+  --chat-surface: #f7f5f1;
+  --chat-glow: #fff8f2;
+  --glass-surface: #faf9f7f2;
+}
+:root[data-theme="dark"] {
+  --ink: #f6f3ee;
+  --muted: #aaa49c;
+  --line: #37332f;
+  --soft: #26231f;
+  --accent: #ff7657;
+  --green: #48b982;
+  --page: #121110;
+  --surface: #1c1a18;
+  --surface-subtle: #211f1c;
+  --surface-hover: #2a2723;
+  --accent-soft: #3a211c;
+  --accent-dark: #ff8b70;
+  --shadow: 0 18px 52px #0005;
+  --neutral-chip: #312e2a;
+  --neutral-chip-text: #c4bdb5;
+  --avatar-surface: #302c28;
+  --danger: #ff9a88;
+  --danger-soft: #3b211e;
+  --danger-border: #60312d;
+  --warning: #f1c66d;
+  --warning-soft: #3a2f19;
+  --warning-border: #5d4820;
+  --success: #72d6a2;
+  --success-soft: #19362a;
+  --success-border: #285d43;
+  --info: #8db5ff;
+  --info-soft: #1d2c47;
+  --purple: #c8adf1;
+  --purple-soft: #30263f;
+  --chat-surface: #171614;
+  --chat-glow: #302019;
+  --glass-surface: #211f1cf2;
+}
+* {
+  box-sizing: border-box;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin-top: 0;
+}
+form label {
+  display: grid;
+  gap: 8px;
+  color: #3d3d3d;
+  font-size: 13px;
+  font-weight: 700;
+}
+input {
+  width: 100%;
+  border: 1px solid #dcdad5;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 13px 14px;
+  outline: none;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #dcdad5;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 13px 14px;
+  outline: none;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px #17171710;
+}
+@keyframes error-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+:root[data-theme="dark"] body {
+  background: var(--page);
+  color: var(--ink);
+}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: #77716a;
+}
+:root[data-theme="dark"] input:focus,
+:root[data-theme="dark"] textarea:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}

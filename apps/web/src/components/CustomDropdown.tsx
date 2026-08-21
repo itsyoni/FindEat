@@ -144,7 +144,7 @@ export function CustomDropdown({
   return (
     <div
       ref={dropdownRef}
-      className={`custom-dropdown ${isOpen ? "open" : ""}`}
+      className={`custom-dropdown [position:relative] [min-width:0] [color:var(--ink)] [font-size:12px] [font-weight:700] [text-transform:none] [letter-spacing:normal] [&.open]:[z-index:50] [&.open_.custom-dropdown-caret]:[transform:rotate(180deg)] [.pro-range_&]:[width:180px] ${isOpen ? "open" : ""}`}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setIsOpen(false);
@@ -153,7 +153,7 @@ export function CustomDropdown({
     >
       <button
         type="button"
-        className="custom-dropdown-trigger"
+        className="custom-dropdown-trigger [display:grid] [grid-template-columns:minmax(0,_1fr)_auto_auto] [align-items:center] [width:100%] [height:48px] [min-width:0] [gap:10px] [padding:0_12px_0_14px] [border:1px_solid_#dcdad5] [border-radius:12px] [background:var(--surface)] [color:var(--ink)] [font:inherit] [text-align:left] [outline:0] [transition:border-color_0.16s_ease,_box-shadow_0.16s_ease] [&:focus]:[border-color:var(--ink)] [&:focus]:[box-shadow:0_0_0_3px_#17171710] dark:[border-color:var(--line)] [.pro-range_&]:[height:44px] [.pro-range_&]:[border-color:var(--line)] [.pro-range_&]:[background:var(--surface)] [.pro-range_&]:[font-size:12px] [.pro-range_&]:[font-weight:750]"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -171,19 +171,19 @@ export function CustomDropdown({
           setIsOpen(true);
         }}
       >
-        <span className="custom-dropdown-label">{selected?.label}</span>
+        <span className="custom-dropdown-label [overflow:hidden] [text-overflow:ellipsis] [white-space:nowrap]">{selected?.label}</span>
         {selected?.meta ? (
-          <span className="custom-dropdown-meta">{selected.meta}</span>
+          <span className="custom-dropdown-meta [overflow:hidden] [text-overflow:ellipsis] [white-space:nowrap] [color:var(--muted)] [font-size:10px] [font-weight:800] [text-align:right]">{selected.meta}</span>
         ) : null}
         <CaretDownIcon
           aria-hidden="true"
-          className="custom-dropdown-caret"
+          className="custom-dropdown-caret [color:var(--muted)] [transition:transform_0.16s_ease]"
           size={14}
           weight="bold"
         />
       </button>
       {isOpen ? (
-        <div className="custom-dropdown-menu" role="listbox" aria-label={ariaLabel}>
+        <div className="custom-dropdown-menu [position:absolute] [z-index:60] [top:calc(100%_+_6px)] [left:0] [width:max(100%,_190px)] [max-height:280px] [overflow:auto] [padding:6px] [border:1px_solid_var(--line)] [border-radius:14px] [background:var(--surface)] [box-shadow:0_16px_38px_rgba(23,_18,_13,_0.18)] [&>button]:[display:flex] [&>button]:[align-items:center] [&>button]:[justify-content:space-between] [&>button]:[width:100%] [&>button]:[min-height:40px] [&>button]:[gap:12px] [&>button]:[padding:9px_10px] [&>button]:[border:0] [&>button]:[border-radius:9px] [&>button]:[background:transparent] [&>button]:[color:var(--ink)] [&>button]:[font:inherit] [&>button]:[font-size:11px] [&>button]:[text-align:left] [&>button>span]:[overflow:hidden] [&>button>span]:[text-overflow:ellipsis] [&>button>span]:[white-space:nowrap] [&>button>span:last-child:not(:first-child)]:[color:var(--muted)] [&>button>span:last-child:not(:first-child)]:[font-size:10px] [&>button>span:last-child:not(:first-child)]:[text-align:right] [&>button:hover]:[background:var(--surface-hover)] [&>button:hover]:[outline:0] [&>button:focus-visible]:[background:var(--surface-hover)] [&>button:focus-visible]:[outline:0] [&>button.highlighted]:[background:var(--surface-hover)] [&>button.highlighted]:[outline:0] [&>button.selected]:[background:var(--soft)] [&>button.selected]:[font-weight:900] [&>button.selected.highlighted]:[box-shadow:inset_0_0_0_1px_var(--line)] [.pro-range_&]:[width:100%] [.pro-range_&]:[min-width:100%]" role="listbox" aria-label={ariaLabel}>
           {options.map((option) => (
             <button
               type="button"

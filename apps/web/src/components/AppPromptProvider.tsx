@@ -55,14 +55,14 @@ export function AppPromptProvider({ children }: { children: ReactNode }) {
       {children}
       {pending ? (
         <div
-          className={`app-confirm-backdrop${closing ? " closing" : ""}`}
+          className={`fixed inset-0 z-3000 grid place-items-center bg-[rgba(24,22,18,0.62)] p-5 backdrop-blur-[7px] max-[480px]:items-end max-[480px]:p-3 ${closing ? "pointer-events-none animate-[confirm-fade-out_.17s_ease-in_forwards]" : "animate-[confirm-fade_.16s_ease-out]"}`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) close(null);
           }}
         >
           <form
-            className="app-confirm-card app-prompt-card"
+            className={`w-full max-w-97.5 rounded-[30px] border border-line bg-surface p-6 text-center shadow-[0_30px_90px_rgba(20,18,14,0.32)] max-[480px]:rounded-[28px] ${closing ? "animate-[confirm-leave_.17s_ease-in_forwards]" : "animate-[confirm-enter_.2s_cubic-bezier(0.2,0.9,0.25,1.08)]"}`}
             role="dialog"
             aria-modal="true"
             onSubmit={(event) => {
@@ -70,23 +70,24 @@ export function AppPromptProvider({ children }: { children: ReactNode }) {
               close(value);
             }}
           >
-            <div className="app-confirm-icon" aria-hidden="true">
+            <div className="mx-auto mb-3.75 grid size-14.5 place-items-center rounded-full bg-[#f3e7ce] text-[#d97706] dark:bg-warning-soft dark:text-warning" aria-hidden="true">
               <PencilSimpleIcon size={29} weight="duotone" />
             </div>
-            <h2>{pending.title}</h2>
-            {pending.message ? <p>{pending.message}</p> : null}
+            <h2 className="m-0 text-[23px] tracking-[-0.025em] text-ink">{pending.title}</h2>
+            {pending.message ? <p className="mx-auto mt-2.25 max-w-[32ch] leading-[1.55] text-muted">{pending.message}</p> : null}
             <input
+              className="mt-5 min-h-13 w-full rounded-2xl border border-line bg-soft px-3.75 text-ink outline-none focus:border-[#d97706] focus:shadow-[0_0_0_3px_rgba(217,119,6,0.14)]"
               autoFocus
               value={value}
               placeholder={pending.placeholder}
               onChange={(event) => setValue(event.target.value)}
             />
-            <div className="app-confirm-actions">
-              <button type="button" className="secondary" onClick={() => close(null)}>
+            <div className="mt-5.5 grid grid-cols-2 gap-2.25 max-[480px]:grid-cols-1">
+              <button type="button" className="flex min-h-12 items-center justify-center gap-1.75 rounded-2xl border-0 bg-soft font-extrabold text-ink" onClick={() => close(null)}>
                 <XIcon size={17} />
                 {pending.cancelLabel ?? "Cancel"}
               </button>
-              <button type="submit" className="confirm">
+              <button type="submit" className="flex min-h-12 items-center justify-center rounded-2xl border-0 bg-[#2b2926] font-extrabold text-[#f5f2ec]">
                 {pending.confirmLabel ?? "Save"}
               </button>
             </div>

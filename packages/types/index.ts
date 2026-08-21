@@ -21,6 +21,7 @@ export * from "./profile";
 export * from "./profile-tags";
 export * from "./product-update";
 export * from "./restaurant";
+export * from "./reward";
 export * from "./review";
 export * from "./search";
 export * from "./snap";
