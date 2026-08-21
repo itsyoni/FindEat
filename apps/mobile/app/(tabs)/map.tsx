@@ -34,6 +34,7 @@ import type { LocationObject } from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import ContextualCoachMark from "@/components/onboarding/ContextualCoachMark";
 import { FlatList, Switch, TouchableOpacity, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import {
@@ -1449,6 +1450,7 @@ export default function MapScreen() {
       edges={["top"]}
       style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
+      <ContextualCoachMark markKey="map" style={{ top: 72 }} />
       {isCitySearching ? (
         <Animated.View
           key="city-search"

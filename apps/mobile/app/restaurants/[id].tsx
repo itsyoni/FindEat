@@ -29,6 +29,7 @@ import RestaurantAboutBottomSheet from "@/components/restaurants/RestaurantAbout
 import PlaceStatusBookmark, { getPlaceStatusLabelKey } from "@/components/restaurants/PlaceStatusBookmark";
 import { CaretDownIcon, MedalIcon } from "phosphor-react-native";
 import RestaurantBadgesBottomSheet from "@/components/restaurants/RestaurantBadgesBottomSheet";
+import ContextualCoachMark from "@/components/onboarding/ContextualCoachMark";
 
 type RestaurantTab = RestaurantPostSection | "MENU";
 
@@ -216,6 +217,7 @@ export default function RestaurantScreen() {
 
   return (
     <>
+      <ContextualCoachMark markKey="restaurant" style={{ top: 72 }} />
       <Animated.ScrollView
         style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         contentContainerStyle={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}

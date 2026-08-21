@@ -11,6 +11,7 @@ import enRestaurants from "./en/restaurants.json";
 import enCollaborativeReview from "./en/collaborativeReview.json";
 import enVisitDetection from "./en/visitDetection.json";
 import enSound from "./en/sound.json";
+import enOnboarding from "./en/onboarding.json";
 
 import heCommon from "./he/common.json";
 import heAuth from "./he/auth.json";
@@ -25,6 +26,7 @@ import heRestaurants from "./he/restaurants.json";
 import heCollaborativeReview from "./he/collaborativeReview.json";
 import heVisitDetection from "./he/visitDetection.json";
 import heSound from "./he/sound.json";
+import heOnboarding from "./he/onboarding.json";
 
 export const resources = {
   en: {
@@ -41,6 +43,7 @@ export const resources = {
     collaborativeReview: enCollaborativeReview,
     visitDetection: enVisitDetection,
     sound: enSound,
+    onboarding: enOnboarding,
   },
   he: {
     common: heCommon,
@@ -56,5 +59,6 @@ export const resources = {
     collaborativeReview: heCollaborativeReview,
     visitDetection: heVisitDetection,
     sound: heSound,
+    onboarding: heOnboarding,
   },
 };

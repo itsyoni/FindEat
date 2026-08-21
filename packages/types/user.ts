@@ -29,7 +29,12 @@ export type User = {
   dietaryRestrictions?: string[];
   restaurantDietaryRequirements?: string[];
   favoriteCuisines?: string[];
+  foodInterests?: string[];
   profileCompletedFields?: string[];
+  onboardingStep?: import("./onboarding").OnboardingStep | null;
+  onboardingProgress?: import("./onboarding").OnboardingProgress | null;
+  onboardingCompletedAt?: string | null;
+  seenCoachMarks?: string[];
   showPhoneNumber?: boolean;
   showBirthday?: boolean;
   showPronouns?: boolean;

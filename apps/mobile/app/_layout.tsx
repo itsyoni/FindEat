@@ -57,6 +57,7 @@ import { SnapIndicatorProvider } from "@/contexts/SnapIndicatorContext";
 import AppErrorBoundary from "@/components/common/AppErrorBoundary";
 import { VisitDetectionProvider } from "@/contexts/VisitDetectionContext";
 import { ActiveCountryProvider } from "@/contexts/ActiveCountryContext";
+import { CoachMarkProvider } from "@/contexts/CoachMarkContext";
 import { setAudioModeAsync } from "expo-audio";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -134,6 +135,7 @@ export default function RootLayout() {
               <AppAlertProvider>
                 <QueryClientProvider client={queryClient}>
                   <AuthProvider>
+                    <CoachMarkProvider>
                     <ActiveCountryProvider>
                     <SnapIndicatorProvider>
                       <ToastProvider>
@@ -155,6 +157,7 @@ export default function RootLayout() {
                       </ToastProvider>
                     </SnapIndicatorProvider>
                     </ActiveCountryProvider>
+                    </CoachMarkProvider>
                   </AuthProvider>
                 </QueryClientProvider>
               </AppAlertProvider>
@@ -193,12 +196,23 @@ function RootNavigator() {
     if (isLoading) return;
 
     const inAuthScreen = segments[0] === "(auth)";
+    const inOnboarding = segments[0] === "onboarding";
 
     if (!user && !inAuthScreen) {
       router.replace("/(auth)");
+      return;
     }
 
-    if (user && inAuthScreen) {
+    if (user?.onboardingCompletedAt === null && !inOnboarding) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    if (
+      user &&
+      user.onboardingCompletedAt !== null &&
+      (inAuthScreen || inOnboarding)
+    ) {
       router.replace("/(tabs)");
     }
   }, [user, isLoading, segments]);
@@ -218,6 +232,10 @@ function RootNavigator() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(users)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
         <Stack.Screen
           name="(profile)"
           options={{

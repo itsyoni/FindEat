@@ -97,6 +97,7 @@ import ContentVideo from "@/components/posts/content/ContentVideo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import type { KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
+import ContextualCoachMark from "@/components/onboarding/ContextualCoachMark";
 
 type Step =
   | "CAMERA"
@@ -2054,6 +2055,7 @@ export default function CreateContentScreen() {
       style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
+      <ContextualCoachMark markKey="create" style={{ top: 72 }} />
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center px-4 py-2">
           <TouchableOpacity

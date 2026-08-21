@@ -16,10 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Animated, {
-  LinearTransition,
-  runOnJS,
-} from "react-native-reanimated";
+import { runOnJS } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { applyAppLanguage } from "@/lib/appLanguage";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -68,14 +65,6 @@ export default function AuthIndexScreen() {
       title: t("onboardingStep1Title"),
       subtitle: t("onboardingStep1Subtitle"),
     },
-    {
-      title: t("onboardingStep2Title"),
-      subtitle: t("onboardingStep2Subtitle"),
-    },
-    {
-      title: t("onboardingStep3Title"),
-      subtitle: t("onboardingStep3Subtitle"),
-    },
   ];
 
   const current = steps[step];
@@ -96,7 +85,7 @@ export default function AuthIndexScreen() {
       return;
     }
 
-    openSheet("login");
+    openSheet("signup");
   }
 
   function handleBack() {
@@ -141,22 +130,6 @@ export default function AuthIndexScreen() {
           onPress: () => void applyAppLanguage(nextLanguage),
         },
       ],
-    );
-  }
-
-  function IndicatorDot({ active }: { active: boolean }) {
-    return (
-      <Animated.View
-        layout={LinearTransition.springify().damping(28).stiffness(260)}
-        style={{
-          width: active ? 32 : 8,
-          height: 8,
-          borderRadius: 999,
-          backgroundColor: active
-            ? "#FAF9F6"
-            : "rgba(250, 249, 246, 0.4)",
-        }}
-      />
     );
   }
 
@@ -268,11 +241,14 @@ export default function AuthIndexScreen() {
               >
                 <Text
                   weight="black"
+                  numberOfLines={4}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
                   style={{
                     alignSelf: "stretch",
                     color: "#FAF9F6",
-                    fontSize: 56,
-                    lineHeight: 60,
+                    fontSize: 46,
+                    lineHeight: 50,
                     textAlign: "auto",
                     writingDirection: isRtl ? "rtl" : "ltr",
                   }}
@@ -297,19 +273,6 @@ export default function AuthIndexScreen() {
               </View>
 
               <View style={{ zIndex: 30 }}>
-                <View
-                  style={{
-                    marginBottom: 24,
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                >
-                  {steps.map((_, index) => (
-                    <IndicatorDot key={index} active={index === step} />
-                  ))}
-                </View>
-
                 <TouchableOpacity
                   style={{
                     borderRadius: 999,
@@ -329,6 +292,16 @@ export default function AuthIndexScreen() {
                     {step === steps.length - 1
                       ? t("getStarted")
                       : t("continue")}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => openSheet("login")}
+                  style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("login")}
+                >
+                  <Text weight="bold" style={{ color: "#FAF9F6", fontSize: 15 }}>
+                    {t("login")}
                   </Text>
                 </TouchableOpacity>
               </View>

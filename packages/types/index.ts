@@ -15,6 +15,7 @@ export * from "./media";
 export * from "./menu";
 export * from "./moderation";
 export * from "./notification";
+export * from "./onboarding";
 export * from "./place-list";
 export * from "./post";
 export * from "./preferences";

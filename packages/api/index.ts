@@ -19,6 +19,7 @@ import { createSoundsApi } from "./sounds";
 import { createRewardsApi } from "./rewards";
 import { createReservationsApi } from "./reservations";
 import { createKnownIssuesApi } from "./known-issues";
+import { createOnboardingApi } from "./onboarding";
 
 type GetToken = () => string | null | Promise<string | null>;
 type RefreshAccessToken = () => Promise<string | null>;
@@ -56,6 +57,7 @@ export function createApiFromClient(client: AxiosInstance) {
     rewards: createRewardsApi(client),
     reservations: createReservationsApi(client),
     knownIssues: createKnownIssuesApi(client),
+    onboarding: createOnboardingApi(client),
   };
 }
 
