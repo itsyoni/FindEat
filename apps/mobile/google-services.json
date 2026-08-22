@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:625345812900:android:13feaa4ddd37efc1f54931",
+        "mobilesdk_app_id": "1:625345812900:android:b26861f8801e6dbdf54931",
         "android_client_info": {
-          "package_name": "com.itsyoni.findeat.dev"
+          "package_name": "com.itsyoni.findeat"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "625345812900-f6uqk6tdb3evhfari8qe7fs8nevatfak.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBHIElDm74olE2hw5f47gAcVZAWb_QvXHo"
@@ -20,7 +25,49 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "625345812900-f6uqk6tdb3evhfari8qe7fs8nevatfak.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:625345812900:android:13feaa4ddd37efc1f54931",
+        "android_client_info": {
+          "package_name": "com.itsyoni.findeat.dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "625345812900-ui3mgckak6goapjkolmk3c602h254mp4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.itsyoni.findeat.dev",
+            "certificate_hash": "b5dfa8f48442ab0f9a627af9f82e62f1a38e9766"
+          }
+        },
+        {
+          "client_id": "625345812900-f6uqk6tdb3evhfari8qe7fs8nevatfak.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHIElDm74olE2hw5f47gAcVZAWb_QvXHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "625345812900-f6uqk6tdb3evhfari8qe7fs8nevatfak.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
