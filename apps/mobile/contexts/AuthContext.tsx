@@ -5,6 +5,7 @@ import type {
   AuthSession,
   SignupResult,
   SocialAuthInput,
+  SocialAuthResult,
   User,
 } from "@findeat/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -32,7 +33,7 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  socialAuth: (payload: SocialAuthInput) => Promise<void>;
+  socialAuth: (payload: SocialAuthInput) => Promise<SocialAuthResult>;
   reactivate: (email: string, password: string) => Promise<void>;
   signup: (
     email: string,
@@ -139,8 +140,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function socialAuth(payload: SocialAuthInput) {
-    const session = await api.auth.socialAuth(payload);
-    await establishSession(session);
+    const result = await api.auth.socialAuth(payload);
+    if ("usernameRequired" in result) return result;
+    await establishSession(result);
+    return result;
   }
 
   async function reactivate(email: string, password: string) {

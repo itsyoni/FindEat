@@ -14,16 +14,18 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import useSettingsDirection from '@/components/settings/useSettingsDirection';
+import { requestAppleAuth } from '@/lib/appleAuth';
 
 export default function DeleteAccountScreen() {
   const { t } = useTranslation('settings');
   const { isDark } = useAppTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
-  const canDelete = password.length > 0 && confirmation === 'DELETE' && !deleting;
+  const useApple = user?.authMethods?.providers.includes('APPLE') ?? false;
+  const canDelete = (useApple || password.length > 0) && confirmation === 'DELETE' && !deleting;
   const { rowStyle, textStyle } = useSettingsDirection();
 
   async function deleteAccount() {
@@ -31,7 +33,10 @@ export default function DeleteAccountScreen() {
     setDeleting(true);
     setError('');
     try {
-      await api.auth.deleteAccount(password, confirmation);
+      const credential = useApple
+        ? await requestAppleAuth()
+        : { password };
+      await api.auth.deleteAccount(credential, confirmation);
       await logout();
     } catch (nextError) {
       setError(getErrorMessage(nextError, t('deleteAccountError')));
@@ -82,14 +87,16 @@ export default function DeleteAccountScreen() {
             ))}
           </View>
 
-          <Text weight="bold" className="mb-2 mt-7 text-black dark:text-white" style={textStyle}>{t('currentPassword')}</Text>
-          <TextInput
-            isPassword
-            value={password}
-            onChangeText={setPassword}
-            placeholder={t('currentPasswordPlaceholder')}
-            autoCapitalize="none"
-          />
+          {useApple ? (
+            <Text className="mt-7 text-center text-sm text-gray-500 dark:text-gray-400">
+              {t('appleDeleteConfirmation')}
+            </Text>
+          ) : (
+            <>
+              <Text weight="bold" className="mb-2 mt-7 text-black dark:text-white" style={textStyle}>{t('currentPassword')}</Text>
+              <TextInput isPassword value={password} onChangeText={setPassword} placeholder={t('currentPasswordPlaceholder')} autoCapitalize="none" />
+            </>
+          )}
 
           <Text weight="bold" className="mb-2 mt-5 text-black dark:text-white" style={textStyle}>{t('confirmAccountDeletion')}</Text>
           <Text className="mb-3 text-sm text-gray-500 dark:text-gray-400" style={textStyle}>
@@ -110,7 +117,7 @@ export default function DeleteAccountScreen() {
           ) : null}
 
           <AppButton
-            title={deleting ? t('deletingAccount') : t('deleteAccountPermanently')}
+            title={deleting ? t('deletingAccount') : useApple ? t('continueWithAppleToDelete') : t('deleteAccountPermanently')}
             variant="danger"
             loading={deleting}
             disabled={!canDelete}

@@ -1,11 +1,13 @@
 import type {
   AccountAvailability,
   AccountAvailabilityQuery,
+  AccountCredential,
   AuthSession,
   LoginInput,
   SignupInput,
   SignupResult,
   SocialAuthInput,
+  SocialAuthResult,
   AuthTokens,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
@@ -52,7 +54,7 @@ export function createAuthApi(api: AxiosInstance) {
     },
 
     async socialAuth(payload: SocialAuthInput) {
-      const { data } = await api.post<AuthSession>("/auth/social", payload);
+      const { data } = await api.post<SocialAuthResult>("/auth/social", payload);
       return data;
     },
 
@@ -88,17 +90,17 @@ export function createAuthApi(api: AxiosInstance) {
       return data;
     },
 
-    async deleteAccount(password: string, confirmation: string) {
+    async deleteAccount(credential: AccountCredential, confirmation: string) {
       const { data } = await api.delete<{ ok: true }>("/auth/account", {
-        data: { password, confirmation },
+        data: { ...credential, confirmation },
       });
       return data;
     },
 
-    async deactivateAccount(password: string) {
+    async deactivateAccount(credential: AccountCredential) {
       const { data } = await api.post<{ ok: true }>(
         "/auth/account/deactivate",
-        { password },
+        credential,
       );
       return data;
     },

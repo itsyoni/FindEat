@@ -13,23 +13,28 @@ import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useSettingsDirection from '@/components/settings/useSettingsDirection';
+import { requestAppleAuth } from '@/lib/appleAuth';
 
 export default function DeactivateAccountScreen() {
   const { t } = useTranslation('settings');
   const { isDark } = useAppTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [password, setPassword] = useState('');
   const [deactivating, setDeactivating] = useState(false);
   const [error, setError] = useState('');
   const { rowStyle, textStyle } = useSettingsDirection();
+  const useApple = user?.authMethods?.providers.includes('APPLE') ?? false;
 
   async function deactivateAccount() {
-    if (!password || deactivating) return;
+    if ((!useApple && !password) || deactivating) return;
     setDeactivating(true);
     setError('');
 
     try {
-      await api.auth.deactivateAccount(password);
+      const credential = useApple
+        ? await requestAppleAuth()
+        : { password };
+      await api.auth.deactivateAccount(credential);
       await logout();
     } catch (nextError) {
       setError(getErrorMessage(nextError, t('deactivateAccountError')));
@@ -70,16 +75,16 @@ export default function DeactivateAccountScreen() {
             ))}
           </View>
 
-          <Text weight="bold" className="mb-2 mt-7 text-black dark:text-white" style={textStyle}>
-            {t('currentPassword')}
-          </Text>
-          <TextInput
-            isPassword
-            value={password}
-            onChangeText={setPassword}
-            placeholder={t('currentPasswordPlaceholder')}
-            autoCapitalize="none"
-          />
+          {useApple ? (
+            <Text className="mt-7 text-center text-sm text-gray-500 dark:text-gray-400">
+              {t('appleDeactivateConfirmation')}
+            </Text>
+          ) : (
+            <>
+              <Text weight="bold" className="mb-2 mt-7 text-black dark:text-white" style={textStyle}>{t('currentPassword')}</Text>
+              <TextInput isPassword value={password} onChangeText={setPassword} placeholder={t('currentPasswordPlaceholder')} autoCapitalize="none" />
+            </>
+          )}
 
           {error ? (
             <View className="mt-4 rounded-2xl bg-red-50 p-4 dark:bg-red-950/30">
@@ -88,9 +93,9 @@ export default function DeactivateAccountScreen() {
           ) : null}
 
           <AppButton
-            title={deactivating ? t('deactivatingAccount') : t('deactivateAccountAction')}
+            title={deactivating ? t('deactivatingAccount') : useApple ? t('continueWithAppleToDeactivate') : t('deactivateAccountAction')}
             loading={deactivating}
-            disabled={!password || deactivating}
+            disabled={(!useApple && !password) || deactivating}
             onPress={() => void deactivateAccount()}
             className="mt-6"
           />

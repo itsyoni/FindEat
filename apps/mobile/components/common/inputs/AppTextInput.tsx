@@ -17,6 +17,7 @@ type Props = TextInputProps & {
   rightIcon?: ReactNode;
   isPassword?: boolean;
   useBottomSheetInput?: boolean;
+  foregroundColor?: string;
 };
 
 function startsWithRtl(text?: string) {
@@ -45,6 +46,7 @@ export default function TextInput({
   value,
   onChangeText,
   placeholderTextColor,
+  foregroundColor,
   ...props
 }: Props) {
   const { isDark } = useAppTheme();
@@ -75,7 +77,9 @@ export default function TextInput({
           props.maxFontSizeMultiplier ??
           (Platform.OS === "android" ? 1.15 : undefined)
         }
-        placeholderTextColor={placeholderTextColor ?? (isDark ? "#9CA3AF" : "#747474")}
+        placeholderTextColor={
+          placeholderTextColor ?? foregroundColor ?? (isDark ? "#9CA3AF" : "#747474")
+        }
         textAlign={isRtl ? "right" : "left"}
         textAlignVertical={isMultiline ? "top" : "center"}
         style={[
@@ -85,7 +89,7 @@ export default function TextInput({
             fontSize: Math.round(
               16 * textScale * (Platform.OS === "android" ? 0.9 : 1),
             ),
-            color: isDark ? "#FAF9F6" : "#171717",
+            color: foregroundColor ?? (isDark ? "#FAF9F6" : "#171717"),
             fontFamily: boldText ? "CabinetMedium" : "CabinetRegular",
             writingDirection: isRtl ? "rtl" : "ltr",
             minHeight: isMultiline ? 120 : undefined,
@@ -97,9 +101,15 @@ export default function TextInput({
       {isPassword ? (
         <TouchableOpacity onPress={() => setHidden((prev) => !prev)}>
           {hidden ? (
-            <EyeIcon size={20} color={isDark ? "#E5E7EB" : "#171717"} />
+            <EyeIcon
+              size={20}
+              color={foregroundColor ?? (isDark ? "#E5E7EB" : "#171717")}
+            />
           ) : (
-            <EyeClosedIcon size={20} color={isDark ? "#E5E7EB" : "#171717"} />
+            <EyeClosedIcon
+              size={20}
+              color={foregroundColor ?? (isDark ? "#E5E7EB" : "#171717")}
+            />
           )}
         </TouchableOpacity>
       ) : (

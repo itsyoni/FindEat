@@ -4,8 +4,8 @@ import EmailVerificationForm from "@/components/auth/EmailVerificationForm";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 import SignupOnboardingFlow from "@/components/auth/SignupOnboardingFlow";
 import Text from "@/components/common/AppText";
-import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
+import { BlurView } from "expo-blur";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,12 +14,15 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
   TextInput as NativeTextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -32,20 +35,43 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LoadingScreen } from "@/components/common";
 import { CheckIcon, TranslateIcon, XIcon } from "phosphor-react-native";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  FadeOutDown,
+} from "react-native-reanimated";
 
-type AuthMode = "actions" | "login" | "forgot-password";
+type AuthMode = "slides" | "actions" | "login" | "forgot-password";
 type AuthPage = "welcome" | "signup" | "verify-email";
 
 export default function AuthIndexScreen() {
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const slidesRef = useRef<ScrollView>(null);
+  const programmaticSlideTargetRef = useRef<number | null>(null);
+  const { width } = useWindowDimensions();
   const { user, isLoading: authLoading } = useAuth();
   const { isDark } = useAppTheme();
   const { t, i18n } = useTranslation("auth");
   const [page, setPage] = useState<AuthPage>("welcome");
-  const [authMode, setAuthMode] = useState<AuthMode>("actions");
+  const [authMode, setAuthMode] = useState<AuthMode>("slides");
+  const [slideIndex, setSlideIndex] = useState(0);
   const [pendingEmail, setPendingEmail] = useState("");
   const [languageSelectorOpen, setLanguageSelectorOpen] = useState(false);
   const isRtl = i18n.language.startsWith("he");
+  const slides = [
+    {
+      title: t("onboardingStep1Title"),
+      subtitle: t("onboardingStep1Subtitle"),
+    },
+    {
+      title: t("onboardingStep2Title"),
+      subtitle: t("onboardingStep2Subtitle"),
+    },
+    {
+      title: t("onboardingStep3Title"),
+      subtitle: t("onboardingStep3Subtitle"),
+    },
+  ];
 
   useEffect(() => {
     const dismissKeyboard = () => {
@@ -54,36 +80,86 @@ export default function AuthIndexScreen() {
     };
 
     const subscription = AppState.addEventListener("change", (nextState) => {
-      dismissKeyboard();
-      if (nextState === "active" && page === "welcome") {
-        requestAnimationFrame(() => bottomSheetRef.current?.snapToIndex(0));
-      }
+      if (nextState !== "active") dismissKeyboard();
     });
 
     return () => subscription.remove();
-  }, [page]);
+  }, []);
 
   useEffect(() => {
     Keyboard.dismiss();
-    if (page === "welcome") {
-      requestAnimationFrame(() => bottomSheetRef.current?.snapToIndex(0));
-    }
   }, [authMode, page]);
 
-  function openSheet(mode: Exclude<AuthMode, "actions"> = "login") {
+  function openAuth(mode: "login" | "forgot-password" = "login") {
     setAuthMode(mode);
-    bottomSheetRef.current?.snapToIndex(0);
   }
 
-  function showWelcomeActions() {
-    Keyboard.dismiss();
+  function scrollToSlide(nextIndex: number, animated = true) {
+    const boundedIndex = Math.max(0, Math.min(slides.length - 1, nextIndex));
+    programmaticSlideTargetRef.current = animated ? boundedIndex : null;
+    setSlideIndex(boundedIndex);
+    slidesRef.current?.scrollTo({ x: boundedIndex * width, animated });
+  }
+
+  function advanceSlides() {
+    if (slideIndex < slides.length - 1) {
+      scrollToSlide(slideIndex + 1);
+      return;
+    }
     setAuthMode("actions");
-    requestAnimationFrame(() => bottomSheetRef.current?.snapToIndex(0));
   }
 
-  function handleContinue() {
+  function handleSlidesScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    const programmaticTarget = programmaticSlideTargetRef.current;
+    if (programmaticTarget !== null) {
+      const targetOffset = programmaticTarget * width;
+      if (Math.abs(event.nativeEvent.contentOffset.x - targetOffset) < 1) {
+        programmaticSlideTargetRef.current = null;
+      }
+      return;
+    }
+
+    const nextIndex = Math.max(
+      0,
+      Math.min(
+        slides.length - 1,
+        Math.round(event.nativeEvent.contentOffset.x / width),
+      ),
+    );
+    if (nextIndex !== slideIndex) setSlideIndex(nextIndex);
+  }
+
+  function handleSlidesMomentumEnd(
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) {
+    programmaticSlideTargetRef.current = null;
+    const nextIndex = Math.max(
+      0,
+      Math.min(
+        slides.length - 1,
+        Math.round(event.nativeEvent.contentOffset.x / width),
+      ),
+    );
+    setSlideIndex(nextIndex);
+  }
+
+  function handleWelcomeBack() {
     Keyboard.dismiss();
-    setPage("signup");
+    if (authMode === "forgot-password") {
+      setAuthMode("login");
+      return;
+    }
+    if (authMode === "login") {
+      setAuthMode("actions");
+      return;
+    }
+    if (authMode === "actions") {
+      const lastSlide = slides.length - 1;
+      scrollToSlide(lastSlide, false);
+      setAuthMode("slides");
+      return;
+    }
+    if (slideIndex > 0) scrollToSlide(slideIndex - 1);
   }
 
   function handleBack() {
@@ -103,7 +179,7 @@ export default function AuthIndexScreen() {
     setPage("verify-email");
   }
 
-  function openLoginSheetFromSignup() {
+  function openLoginOverlayFromSignup() {
     Keyboard.dismiss();
     setAuthMode("login");
     setPage("welcome");
@@ -142,7 +218,7 @@ export default function AuthIndexScreen() {
     return (
       <SignupOnboardingFlow
         onExit={() => setPage("welcome")}
-        onLogin={openLoginSheetFromSignup}
+        onLogin={openLoginOverlayFromSignup}
       />
     );
   }
@@ -287,187 +363,426 @@ export default function AuthIndexScreen() {
           style={{
             position: "absolute",
             inset: 0,
-            backgroundColor: "rgba(11, 11, 10, 0.35)",
+            backgroundColor: "rgba(11, 11, 10, 0.34)",
           }}
         />
 
         <SafeAreaView
-          style={{
-            flex: 1,
-            paddingHorizontal: 32,
-            paddingVertical: 32,
-          }}
+          pointerEvents={authMode === "slides" ? "auto" : "none"}
+          style={{ flex: 1, opacity: authMode === "slides" ? 1 : 0 }}
         >
-          <View
-            style={{
-              zIndex: 100,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            {authMode !== "actions" ? (
-              <TouchableOpacity onPress={showWelcomeActions}>
-                <DirectionalIcon direction="back" size={28} color="#FAF9F6" />
-              </TouchableOpacity>
-            ) : (
-              <View style={{ width: 28 }} />
-            )}
-
-            <TouchableOpacity
-              onPress={openLanguageSelector}
+            <View
               style={{
+                zIndex: 20,
+                minHeight: 58,
                 flexDirection: "row",
                 alignItems: "center",
-                borderRadius: 999,
-                backgroundColor: "rgba(11, 11, 10, 0.42)",
-                paddingHorizontal: 12,
-                paddingVertical: 8,
+                justifyContent: "space-between",
+                paddingHorizontal: 24,
+                paddingTop: 8,
               }}
             >
-              <Text style={{ marginRight: 6, fontSize: 18 }}>
-                {currentAppLanguage(i18n.language) === "he"
-                  ? "🇮🇱"
-                  : currentAppLanguage(i18n.language) === "ru"
-                    ? "🇷🇺"
-                    : "🇺🇸"}
-              </Text>
-              <Text weight="bold" style={{ fontSize: 14, color: "#FAF9F6" }}>
-                {currentAppLanguage(i18n.language).toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {authMode === "actions" ? (
-              <View
-                key={i18n.language}
-                style={{
-                  zIndex: 30,
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "flex-start",
-                  paddingBottom: 150,
-                }}
-              >
-                <Text
-                  weight="black"
-                  numberOfLines={4}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.78}
-                  style={{
-                    alignSelf: "stretch",
-                    color: "#FAF9F6",
-                    fontSize: 46,
-                    lineHeight: 50,
-                    textAlign: "auto",
-                    writingDirection: isRtl ? "rtl" : "ltr",
-                  }}
-                >
-                  {t("onboardingStep1Title")}
-                </Text>
-
-                <Text
-                  style={{
-                    alignSelf: "flex-start",
-                    maxWidth: 290,
-                    marginTop: 20,
-                    color: "rgba(250, 249, 246, 0.86)",
-                    fontSize: 18,
-                    lineHeight: 27,
-                    textAlign: "auto",
-                    writingDirection: isRtl ? "rtl" : "ltr",
-                  }}
-                >
-                  {t("onboardingStep1Subtitle")}
-                </Text>
-              </View>
-          ) : (
-            <View style={{ flex: 1 }} />
-          )}
-        </SafeAreaView>
-
-        <BottomSheet
-          ref={bottomSheetRef}
-          index={0}
-          enableDynamicSizing
-          enablePanDownToClose={false}
-          enableHandlePanningGesture={false}
-          keyboardBehavior="interactive"
-          keyboardBlurBehavior="restore"
-          enableBlurKeyboardOnGesture
-          android_keyboardInputMode="adjustPan"
-          backgroundStyle={{
-            backgroundColor: isDark ? "#181817" : "#FAF9F6",
-            borderTopLeftRadius: 36,
-            borderTopRightRadius: 36,
-          }}
-          handleIndicatorStyle={{
-            backgroundColor: isDark ? "#6B7280" : "#D1D5DB",
-            width: 48,
-          }}
-        >
-          <BottomSheetScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              paddingHorizontal: 24,
-              paddingTop: 8,
-              paddingBottom: 48,
-            }}
-          >
-            {authMode === "actions" && (
-              <View>
-                <SocialAuthButtons showDivider={false} />
+              {slideIndex > 0 ? (
                 <TouchableOpacity
+                  onPress={handleWelcomeBack}
                   style={{
-                    minHeight: 56,
-                    marginTop: 14,
+                    width: 44,
+                    height: 44,
                     alignItems: "center",
                     justifyContent: "center",
-                    borderRadius: 999,
-                    backgroundColor: isDark ? "#FAF9F6" : "#171715",
-                    paddingHorizontal: 20,
+                    borderRadius: 22,
+                    backgroundColor: "rgba(11, 11, 10, 0.38)",
                   }}
-                  onPress={handleContinue}
                   accessibilityRole="button"
-                  accessibilityLabel={t("getStarted")}
+                  accessibilityLabel={t("common:back")}
                 >
-                  <Text
-                    weight="bold"
-                    style={{ color: isDark ? "#171715" : "#FAF9F6", fontSize: 16 }}
-                  >
-                    {t("getStarted")}
-                  </Text>
+                  <DirectionalIcon direction="back" size={25} color="#F8F5EF" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => openSheet("login")}
-                  style={{ minHeight: 48, alignItems: "center", justifyContent: "center" }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("login")}
-                >
-                  <Text
-                    weight="bold"
-                    style={{ color: isDark ? "#FAF9F6" : "#171715", fontSize: 15 }}
-                  >
-                    {t("login")}
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+                  <View
+                    style={{
+                      width: 11,
+                      height: 11,
+                      borderRadius: 6,
+                      backgroundColor: "#E4B83B",
+                    }}
+                  />
+                  <Text weight="black" style={{ color: "#F8F5EF", fontSize: 22 }}>
+                    FindEat
                   </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                </View>
+              )}
 
-            {authMode === "login" && (
-              <LoginForm
-                onSignup={openSignupPage}
-                onRestaurantSignup={openSignupPage}
-                onForgotPassword={() => setAuthMode("forgot-password")}
-                onVerificationRequired={openVerificationPage}
+              <LanguageButton
+                language={currentAppLanguage(i18n.language)}
+                onPress={openLanguageSelector}
               />
-            )}
+            </View>
 
-            {authMode === "forgot-password" && (
-              <ForgotPasswordForm onBack={() => setAuthMode("login")} />
-            )}
-          </BottomSheetScrollView>
-        </BottomSheet>
+            <ScrollView
+              ref={slidesRef}
+              horizontal
+              pagingEnabled
+              bounces={false}
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleSlidesScroll}
+              onMomentumScrollEnd={handleSlidesMomentumEnd}
+              scrollEventThrottle={16}
+              style={{ flex: 1, direction: "ltr" }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {slides.map((slide, index) => (
+                <View
+                  key={index}
+                  style={{
+                    width,
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "flex-start",
+                    paddingHorizontal: 28,
+                  }}
+                >
+                  <Text
+                    weight="black"
+                    numberOfLines={4}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                    style={{
+                      color: "#F8F5EF",
+                      fontSize: 48,
+                      lineHeight: 51,
+                      textAlign: "left",
+                      writingDirection: isRtl ? "rtl" : "ltr",
+                      textShadowColor: "rgba(0,0,0,0.52)",
+                      textShadowOffset: { width: 0, height: 2 },
+                      textShadowRadius: 12,
+                    }}
+                  >
+                    {slide.title}
+                  </Text>
+                  <Text
+                    style={{
+                      maxWidth: 320,
+                      alignSelf: "flex-start",
+                      marginTop: 14,
+                      color: "rgba(248,245,239,0.88)",
+                      fontSize: 17,
+                      lineHeight: 25,
+                      textAlign: "left",
+                      writingDirection: isRtl ? "rtl" : "ltr",
+                      textShadowColor: "rgba(0,0,0,0.46)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 8,
+                    }}
+                  >
+                    {slide.subtitle}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={{ paddingHorizontal: 24, paddingBottom: 18, paddingTop: 8 }}>
+              <View
+                style={{
+                  marginBottom: 20,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                {slides.map((_, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => scrollToSlide(index)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${index + 1} / ${slides.length}`}
+                    style={{
+                      width: index === slideIndex ? 30 : 8,
+                      height: 8,
+                      borderRadius: 999,
+                      backgroundColor:
+                        index === slideIndex ? "#E4B83B" : "rgba(248,245,239,0.42)",
+                    }}
+                  />
+                ))}
+              </View>
+              <TouchableOpacity
+                onPress={advanceSlides}
+                activeOpacity={0.8}
+                style={{
+                  minHeight: 56,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 19,
+                  backgroundColor: "#F8F5EF",
+                  paddingHorizontal: 20,
+                }}
+                accessibilityRole="button"
+              >
+                <Text weight="bold" style={{ color: "#24221F", fontSize: 16 }}>
+                  {slideIndex === slides.length - 1 ? t("getStarted") : t("continue")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+        </SafeAreaView>
+
+        {authMode !== "slides" ? (
+          <Animated.View
+            entering={FadeIn.duration(240)}
+            exiting={FadeOut.duration(190)}
+            style={{ position: "absolute", inset: 0 }}
+          >
+            <BlurView
+              pointerEvents="none"
+              intensity={Platform.OS === "ios" ? 74 : 55}
+              tint="systemMaterialDark"
+              blurMethod="dimezisBlurViewSdk31Plus"
+              style={{ position: "absolute", inset: 0 }}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: "rgba(12,11,10,0.28)",
+              }}
+            />
+            <Animated.View
+              entering={FadeInDown.duration(320)}
+              exiting={FadeOutDown.duration(180)}
+              style={{ flex: 1 }}
+            >
+            <SafeAreaView style={{ flex: 1 }}>
+              <View
+                style={{
+                  minHeight: 58,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingHorizontal: 20,
+                  paddingTop: 8,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={handleWelcomeBack}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 22,
+                    borderWidth: 1,
+                    borderColor: "rgba(248,245,239,0.16)",
+                    backgroundColor: "rgba(20,19,17,0.32)",
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common:back")}
+                >
+                  <DirectionalIcon
+                    direction="back"
+                    size={24}
+                    color="#F8F5EF"
+                  />
+                </TouchableOpacity>
+
+                <LanguageButton
+                  language={currentAppLanguage(i18n.language)}
+                  onPress={openLanguageSelector}
+                />
+              </View>
+
+              <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+              >
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    justifyContent: "flex-start",
+                    paddingHorizontal: 20,
+                    paddingTop: 48,
+                    paddingBottom: 24,
+                  }}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+                  automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+                >
+                  <View
+                    style={{
+                      width: "100%",
+                      maxWidth: 460,
+                      alignSelf: "center",
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    {authMode === "actions" ? (
+                      <View>
+                        <Text
+                          weight="black"
+                          style={{
+                            maxWidth: 340,
+                            color: "#F8F5EF",
+                            fontSize: 39,
+                            lineHeight: 43,
+                            textAlign: isRtl ? "right" : "left",
+                            textShadowColor: "rgba(0,0,0,0.30)",
+                            textShadowOffset: { width: 0, height: 2 },
+                            textShadowRadius: 8,
+                          }}
+                        >
+                          {t("authChoiceTitle")}
+                        </Text>
+                        <Text
+                          style={{
+                            marginTop: 9,
+                            color: "rgba(248,245,239,0.72)",
+                            fontSize: 15,
+                            lineHeight: 21,
+                            textAlign: isRtl ? "right" : "left",
+                          }}
+                        >
+                          {t("chooseHowToContinue")}
+                        </Text>
+
+                        <TouchableOpacity
+                          onPress={openSignupPage}
+                          activeOpacity={0.8}
+                          style={{
+                            minHeight: 56,
+                            marginTop: 32,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 999,
+                            borderWidth: 1.5,
+                            borderColor: "rgba(248,245,239,0.24)",
+                            backgroundColor: "rgba(248,245,239,0.10)",
+                            paddingHorizontal: 18,
+                          }}
+                          accessibilityRole="button"
+                        >
+                          <Text weight="bold" style={{ color: "#F8F5EF", fontSize: 16 }}>
+                            {t("createAccount")}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => openAuth("login")}
+                          activeOpacity={0.76}
+                          style={{
+                            minHeight: 54,
+                            marginTop: 10,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 999,
+                            borderWidth: 1.5,
+                            borderColor: "rgba(248,245,239,0.24)",
+                            backgroundColor: "rgba(248,245,239,0.10)",
+                            paddingHorizontal: 18,
+                          }}
+                          accessibilityRole="button"
+                        >
+                          <Text
+                            weight="bold"
+                            style={{ color: "#F8F5EF", fontSize: 16 }}
+                          >
+                            {t("login")}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <View
+                          style={{
+                            marginVertical: 17,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 12,
+                          }}
+                        >
+                          <View
+                            style={{
+                              height: 1,
+                              flex: 1,
+                              backgroundColor: "rgba(248,245,239,0.24)",
+                            }}
+                          />
+                          <Text
+                            style={{ color: "rgba(248,245,239,0.68)", fontSize: 13 }}
+                          >
+                            {t("orContinueWith")}
+                          </Text>
+                          <View
+                            style={{
+                              height: 1,
+                              flex: 1,
+                              backgroundColor: "rgba(248,245,239,0.24)",
+                            }}
+                          />
+                        </View>
+                        <SocialAuthButtons showDivider={false} appearance="glass" />
+                        <Text
+                          style={{
+                            marginTop: 26,
+                            color: "rgba(248,245,239,0.58)",
+                            fontSize: 12,
+                            lineHeight: 18,
+                            textAlign: isRtl ? "right" : "left",
+                          }}
+                        >
+                          {t("authTermsNotice")}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {authMode === "login" ? (
+                      <View>
+                        <Text
+                          weight="black"
+                          style={{
+                            marginBottom: 4,
+                            color: "#F8F5EF",
+                            fontSize: 37,
+                            textAlign: isRtl ? "right" : "left",
+                          }}
+                        >
+                          {t("welcomeBack")}
+                        </Text>
+                        <Text
+                          style={{
+                            marginBottom: 18,
+                            color: "rgba(248,245,239,0.72)",
+                            fontSize: 15,
+                            textAlign: isRtl ? "right" : "left",
+                          }}
+                        >
+                          {t("loginSubtitle")}
+                        </Text>
+                        <LoginForm
+                          onSignup={openSignupPage}
+                          onRestaurantSignup={openSignupPage}
+                          onForgotPassword={() => setAuthMode("forgot-password")}
+                          onVerificationRequired={openVerificationPage}
+                          useBottomSheetInput={false}
+                          showSocialAuth={false}
+                          appearance="glass"
+                        />
+                      </View>
+                    ) : null}
+
+                    {authMode === "forgot-password" ? (
+                      <ForgotPasswordForm
+                        useBottomSheetInput={false}
+                        onBack={() => setAuthMode("login")}
+                      />
+                    ) : null}
+                  </View>
+                </ScrollView>
+              </KeyboardAvoidingView>
+            </SafeAreaView>
+            </Animated.View>
+          </Animated.View>
+        ) : null}
+
         <LanguageSelectorModal
           visible={languageSelectorOpen}
           currentLanguage={currentAppLanguage(i18n.language)}
@@ -476,6 +791,40 @@ export default function AuthIndexScreen() {
         />
       </ImageBackground>
     </View>
+  );
+}
+
+function LanguageButton({
+  language,
+  onPress,
+  dark = true,
+}: {
+  language: AppLanguage;
+  onPress: () => void;
+  dark?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        minHeight: 42,
+        flexDirection: "row",
+        alignItems: "center",
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: dark ? "rgba(248,245,239,0.18)" : "rgba(36,34,31,0.11)",
+        backgroundColor: dark ? "rgba(11,11,10,0.42)" : "rgba(255,252,247,0.58)",
+        paddingHorizontal: 12,
+      }}
+      accessibilityRole="button"
+    >
+      <Text style={{ marginRight: 7, fontSize: 17 }}>
+        {language === "he" ? "🇮🇱" : language === "ru" ? "🇷🇺" : "🇺🇸"}
+      </Text>
+      <Text weight="bold" style={{ color: dark ? "#F8F5EF" : "#24221F", fontSize: 13 }}>
+        {language.toUpperCase()}
+      </Text>
+    </TouchableOpacity>
   );
 }
 

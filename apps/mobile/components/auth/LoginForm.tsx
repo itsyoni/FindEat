@@ -18,13 +18,27 @@ type Props = {
   onRestaurantSignup: () => void;
   onForgotPassword: () => void;
   onVerificationRequired: (email: string) => void;
+  useBottomSheetInput?: boolean;
+  showSocialAuth?: boolean;
+  appearance?: "default" | "glass";
 };
 
-export default function LoginForm({ onSignup, onForgotPassword, onVerificationRequired }: Props) {
+export default function LoginForm({
+  onSignup,
+  onForgotPassword,
+  onVerificationRequired,
+  useBottomSheetInput = false,
+  showSocialAuth = true,
+  appearance = "default",
+}: Props) {
   const { t } = useTranslation("auth");
   const { login, reactivate } = useAuth();
   const { isDark } = useAppTheme();
-  const iconColor = isDark ? "#E5E7EB" : "#212121";
+  const isGlass = appearance === "glass";
+  const iconColor = isGlass ? "#F8F5EF" : isDark ? "#E5E7EB" : "#212121";
+  const inputClassName = isGlass
+    ? "border border-white/25 bg-white/10"
+    : "border border-[#D8D3CA] bg-[#F1EEE8] dark:border-gray-600 dark:bg-gray-800";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -93,11 +107,11 @@ export default function LoginForm({ onSignup, onForgotPassword, onVerificationRe
 
   return (
     <View>
-      <SocialAuthButtons />
+      {showSocialAuth ? <SocialAuthButtons appearance={appearance} /> : null}
       <View className="gap-4">
-        <View className="h-1" />
+        {showSocialAuth ? <View className="h-1" /> : null}
         <TextInput
-          useBottomSheetInput
+          useBottomSheetInput={useBottomSheetInput}
           placeholder={t("emailPlaceholder")}
           value={email}
           onChangeText={setEmail}
@@ -106,12 +120,14 @@ export default function LoginForm({ onSignup, onForgotPassword, onVerificationRe
           returnKeyType="done"
           submitBehavior="blurAndSubmit"
           onSubmitEditing={Keyboard.dismiss}
-          className="border border-[#D8D3CA] bg-[#F1EEE8] dark:border-gray-600 dark:bg-gray-800"
+          className={inputClassName}
+          foregroundColor={isGlass ? "#F8F5EF" : undefined}
+          placeholderTextColor={isGlass ? "rgba(248,245,239,0.66)" : undefined}
           leftIcon={<EnvelopeSimpleIcon size={20} color={iconColor} />}
         />
 
         <TextInput
-          useBottomSheetInput
+          useBottomSheetInput={useBottomSheetInput}
           placeholder={t("passwordPlaceholder")}
           value={password}
           onChangeText={setPassword}
@@ -119,30 +135,45 @@ export default function LoginForm({ onSignup, onForgotPassword, onVerificationRe
           returnKeyType="done"
           submitBehavior="blurAndSubmit"
           onSubmitEditing={Keyboard.dismiss}
-          className="border border-[#D8D3CA] bg-[#F1EEE8] dark:border-gray-600 dark:bg-gray-800"
+          className={inputClassName}
+          foregroundColor={isGlass ? "#F8F5EF" : undefined}
+          placeholderTextColor={isGlass ? "rgba(248,245,239,0.66)" : undefined}
           leftIcon={<LockIcon size={20} color={iconColor} />}
         />
 
         <View className="-mt-1 flex-row items-center justify-between px-1">
           <TouchableOpacity onPress={onForgotPassword}>
-            <Text weight="bold" className="text-[#212121] dark:text-white">
+            <Text
+              weight="bold"
+              style={{ color: isGlass ? "#F8F5EF" : isDark ? "#FFFFFF" : "#212121" }}
+            >
               {t("forgotPassword")}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onSignup}>
-            <Text weight="bold" className="text-[#212121] dark:text-white">
+            <Text
+              weight="bold"
+              style={{ color: isGlass ? "#F8F5EF" : isDark ? "#FFFFFF" : "#212121" }}
+            >
               {t("signUp")}
             </Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          className="rounded-2xl bg-[#212121] py-4 dark:bg-white"
+          className={
+            isGlass
+              ? "rounded-full border border-white/25 bg-white/15 py-4"
+              : "rounded-2xl bg-[#212121] py-4 dark:bg-white"
+          }
           onPress={handleLogin}
           disabled={loading}
         >
-          <Text weight="bold" className="text-center text-white dark:text-black">
+          <Text
+            weight="bold"
+            className={isGlass ? "text-center text-white" : "text-center text-white dark:text-black"}
+          >
             {loading ? t("loggingIn") : t("login")}
           </Text>
         </TouchableOpacity>

@@ -11,12 +11,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function ResetPasswordSettingsScreen() {
   const { t } = useTranslation('settings');
   const { isDark } = useAppTheme();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   return <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0B0B0A' : '#FBFAF8' }}>
-    <SettingsHeader title={t('resetPassword')} />
+    <SettingsHeader title={user?.authMethods?.hasPassword === false ? t('setPassword') : t('resetPassword')} />
     <KeyboardAwareFormScrollView bottomOffset={28}>
       <View className="p-6">
-        <ForgotPasswordForm initialEmail={user?.email ?? ''} useBottomSheetInput={false} onBack={() => router.back()} />
+        <ForgotPasswordForm
+          initialEmail={user?.email ?? ''}
+          useBottomSheetInput={false}
+          onBack={() => {
+            void refreshUser().finally(() => router.back());
+          }}
+        />
       </View>
     </KeyboardAwareFormScrollView>
   </SafeAreaView>;

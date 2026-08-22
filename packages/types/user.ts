@@ -42,6 +42,10 @@ export type User = {
   showFoodPreferences?: boolean;
   showDietaryRestrictions?: boolean;
   showFavoriteCuisines?: boolean;
+  authMethods?: {
+    hasPassword: boolean;
+    providers: Array<"APPLE" | "GOOGLE">;
+  };
 };
 
 export type FollowRequest = {

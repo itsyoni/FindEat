@@ -17,6 +17,19 @@ export type SocialAuthInput = {
   provider: SocialAuthProvider;
   identityToken: string;
   displayName?: string;
+  username?: string;
+  authorizationCode?: string;
+};
+
+export type AccountCredential = {
+  password?: string;
+  provider?: SocialAuthProvider;
+  identityToken?: string;
+  authorizationCode?: string;
+};
+
+export type SocialAuthUsernameRequired = {
+  usernameRequired: true;
 };
 
 export type SignupResult = {
@@ -29,6 +42,8 @@ export type AuthSession = {
   accessToken: string;
   refreshToken: string;
 };
+
+export type SocialAuthResult = AuthSession | SocialAuthUsernameRequired;
 
 export type AuthTokens = Pick<AuthSession, "accessToken" | "refreshToken">;
 

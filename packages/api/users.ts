@@ -57,7 +57,6 @@ export function createUsersApi(api: AxiosInstance) {
       displayName?: string;
       coverUrl?: string | null;
       email?: string;
-      password?: string;
       language?: Language;
       showActivityStatus?: boolean;
       showWhatsNewPopups?: boolean;
