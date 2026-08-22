@@ -4,7 +4,7 @@ import SettingsHeader from '@/components/settings/SettingsHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
-import { applyAppLanguage, type AppLanguage } from '@/lib/appLanguage';
+import { applyAppLanguage, isRtlLanguage, type AppLanguage } from '@/lib/appLanguage';
 import { CheckIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const languages = [
   { code: 'en' as const, flag: '🇺🇸', label: 'English', nativeLabel: 'English' },
   { code: 'he' as const, flag: '🇮🇱', label: 'Hebrew', nativeLabel: 'עברית' },
+  { code: 'ru' as const, flag: '🇷🇺', label: 'Russian', nativeLabel: 'Русский' },
 ];
 
 export default function LanguageSettingsScreen() {
@@ -21,7 +22,11 @@ export default function LanguageSettingsScreen() {
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
   const [switchingTo, setSwitchingTo] = useState<AppLanguage | null>(null);
-  const active = i18n.language.startsWith('he') ? 'he' : 'en';
+  const active: AppLanguage = i18n.language.startsWith('he')
+    ? 'he'
+    : i18n.language.startsWith('ru')
+      ? 'ru'
+      : 'en';
   const isRtl = active === 'he';
   const labelDirectionStyle = {
     alignSelf: 'stretch' as const,
@@ -31,6 +36,10 @@ export default function LanguageSettingsScreen() {
 
   function selectLanguage(language: AppLanguage) {
     if (language === active || switchingTo) return;
+    if (isRtlLanguage(active) === isRtlLanguage(language)) {
+      void changeLanguage(language);
+      return;
+    }
     Alert.alert(
       t('common:languageRestartTitle'),
       t('common:languageRestartDescription'),
@@ -47,7 +56,7 @@ export default function LanguageSettingsScreen() {
   async function changeLanguage(language: AppLanguage) {
     try {
       setSwitchingTo(language);
-      await api.users.updateMe({ language: language === 'he' ? 'HE' : 'EN' });
+      await api.users.updateMe({ language: language.toUpperCase() as 'EN' | 'HE' | 'RU' });
       await applyAppLanguage(language);
     } catch {
       setSwitchingTo(null);

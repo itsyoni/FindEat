@@ -5,6 +5,7 @@ import type {
   LoginInput,
   SignupInput,
   SignupResult,
+  SocialAuthInput,
   AuthTokens,
 } from "@findeat/types";
 import type { AxiosInstance } from "axios";
@@ -47,6 +48,11 @@ export function createAuthApi(api: AxiosInstance) {
     async login(payload: LoginInput) {
       const { data } = await api.post<AuthSession>("/auth/login", payload);
 
+      return data;
+    },
+
+    async socialAuth(payload: SocialAuthInput) {
+      const { data } = await api.post<AuthSession>("/auth/social", payload);
       return data;
     },
 

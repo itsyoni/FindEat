@@ -1,6 +1,6 @@
 import type { ProfileTagKey } from "./profile-tags";
 
-export type Language = "EN" | "HE";
+export type Language = "EN" | "HE" | "RU";
 
 export type User = {
   id: string;

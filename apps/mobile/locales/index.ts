@@ -28,6 +28,10 @@ import heVisitDetection from "./he/visitDetection.json";
 import heSound from "./he/sound.json";
 import heOnboarding from "./he/onboarding.json";
 
+import ruCommon from "./ru/common.json";
+import ruAuth from "./ru/auth.json";
+import ruOnboarding from "./ru/onboarding.json";
+
 export const resources = {
   en: {
     common: enCommon,
@@ -60,5 +64,10 @@ export const resources = {
     visitDetection: heVisitDetection,
     sound: heSound,
     onboarding: heOnboarding,
+  },
+  ru: {
+    common: ruCommon,
+    auth: ruAuth,
+    onboarding: ruOnboarding,
   },
 };

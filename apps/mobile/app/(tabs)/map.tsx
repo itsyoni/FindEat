@@ -1578,42 +1578,7 @@ export default function MapScreen() {
             ]}
           />
 
-          {loading ? (
-            <SkeletonPulse style={{ flex: 1 }}>
-              <View className="flex-1 bg-[#E8E4DD] dark:bg-[#171719]">
-                <Skeleton
-                  width={48}
-                  height={48}
-                  circle
-                  style={{ position: "absolute", left: "18%", top: "20%" }}
-                />
-                <Skeleton
-                  width={48}
-                  height={48}
-                  circle
-                  style={{ position: "absolute", right: "18%", top: "33%" }}
-                />
-                <Skeleton
-                  width={48}
-                  height={48}
-                  circle
-                  style={{ position: "absolute", left: "42%", top: "51%" }}
-                />
-                <Skeleton
-                  width={48}
-                  height={48}
-                  circle
-                  style={{ position: "absolute", left: "15%", bottom: "18%" }}
-                />
-                <Skeleton
-                  width={48}
-                  height={48}
-                  circle
-                  style={{ position: "absolute", right: "12%", bottom: "12%" }}
-                />
-              </View>
-            </SkeletonPulse>
-          ) : viewMode === "MAP" ? (
+          {viewMode === "MAP" ? (
             <View style={{ flex: 1 }}>
               <Mapbox.MapView
                 style={{ flex: 1 }}
@@ -2150,6 +2115,41 @@ export default function MapScreen() {
                 />
               </TouchableOpacity>
             </View>
+          ) : loading ? (
+            <SkeletonPulse style={{ flex: 1 }}>
+              <View className="flex-1 bg-[#E8E4DD] dark:bg-[#171719]">
+                <Skeleton
+                  width={48}
+                  height={48}
+                  circle
+                  style={{ position: "absolute", left: "18%", top: "20%" }}
+                />
+                <Skeleton
+                  width={48}
+                  height={48}
+                  circle
+                  style={{ position: "absolute", right: "18%", top: "33%" }}
+                />
+                <Skeleton
+                  width={48}
+                  height={48}
+                  circle
+                  style={{ position: "absolute", left: "42%", top: "51%" }}
+                />
+                <Skeleton
+                  width={48}
+                  height={48}
+                  circle
+                  style={{ position: "absolute", left: "15%", bottom: "18%" }}
+                />
+                <Skeleton
+                  width={48}
+                  height={48}
+                  circle
+                  style={{ position: "absolute", right: "12%", bottom: "12%" }}
+                />
+              </View>
+            </SkeletonPulse>
           ) : (
             <FlatList
               className="bg-canvas dark:bg-black"

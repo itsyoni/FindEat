@@ -9,6 +9,7 @@ import type {
   RewardSavingsSummary,
 } from "@findeat/types";
 import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import {
@@ -22,6 +23,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -34,6 +36,13 @@ type Tab = "available" | "used" | "expired";
 function amount(value: string | number | null | undefined) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formattedAmount(value: string | number | null | undefined) {
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount(value));
 }
 
 function benefitLabel(offer: RestaurantOffer) {
@@ -123,6 +132,7 @@ export default function RewardsScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [redemption, setRedemption] = useState<{ token: string; expiresAt: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -159,19 +169,30 @@ export default function RewardsScreen() {
 
   async function showCode(claimId: string) {
     setBusyId(claimId);
-    try { setRedemption(await api.rewards.redemptionToken(claimId)); }
+    try {
+      setCopied(false);
+      setRedemption(await api.rewards.redemptionToken(claimId));
+    }
     catch (nextError) { setError(nextError instanceof Error ? nextError.message : "Could not create redemption code"); }
     finally { setBusyId(null); }
+  }
+
+  async function copyRedemptionCode() {
+    if (!redemption) return;
+    await Clipboard.setStringAsync(redemption.token);
+    setCopied(true);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    setTimeout(() => setCopied(false), 1800);
   }
 
   return (
     <SafeAreaView className="flex-1 bg-[#FBFAF8] dark:bg-[#0B0B0A]">
       <SettingsHeader title={t("myRewards")} />
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E4573D" />} contentContainerClassName="gap-4 px-4 pb-10">
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E4573D" />} contentContainerClassName="gap-4 px-4 pb-10 pt-4">
         <View className="overflow-hidden rounded-[24px] bg-[#272320] p-5 dark:bg-[#201E1B]">
           <Text className="text-xs font-bold uppercase tracking-widest text-[#E9BFB4]">Your savings</Text>
-          <Text weight="bold" className="mt-1 text-3xl text-[#F7F4EF]">{amount(summary?.lifetimeSavings).toFixed(2)} <Text className="text-base text-[#CFC7BE]">ILS</Text></Text>
-          <Text className="mt-1 text-xs text-[#BEB6AE]">{summary?.redeemedCount ?? 0} rewards redeemed · {amount(summary?.currentYearSavings).toFixed(2)} ILS this year</Text>
+          <Text weight="bold" className="mt-1 text-3xl text-[#F7F4EF]">{formattedAmount(summary?.lifetimeSavings)} <Text className="text-base text-[#CFC7BE]">ILS</Text></Text>
+          <Text className="mt-1 text-xs text-[#BEB6AE]">{summary?.redeemedCount ?? 0} rewards redeemed · {formattedAmount(summary?.currentYearSavings)} ILS this year</Text>
         </View>
 
         <View className="flex-row rounded-2xl bg-[#EEEAE4] p-1 dark:bg-[#23211F]">
@@ -200,17 +221,38 @@ export default function RewardsScreen() {
         {!loading && tab !== "available" ? <View className="gap-3">{visibleHistory.map((claim) => <RewardCard key={claim.id} offer={claim.offer} claim={claim} />)}{!visibleHistory.length ? <View className="items-center px-8 py-16"><CheckCircleIcon size={44} color="#C7BEB5" weight="duotone" /><Text className="mt-3 text-sm text-[#817A73]">Nothing here yet.</Text></View> : null}</View> : null}
       </ScrollView>
 
-      {redemption ? (
-        <View className="absolute inset-0 items-center justify-center bg-[#17131199] px-6">
+      <Modal
+        visible={!!redemption}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setRedemption(null)}
+      >
+        <View className="flex-1 items-center justify-center bg-[#17131199] px-6">
           <Pressable className="absolute inset-0" onPress={() => setRedemption(null)} />
-          <View className="w-full max-w-sm rounded-[28px] bg-[#F7F4EF] p-6 dark:bg-[#201E1B]">
+          {redemption ? <View className="w-full max-w-sm rounded-[28px] bg-[#F7F4EF] p-6 dark:bg-[#201E1B]">
             <View className="items-center"><TicketIcon size={42} color="#E4573D" weight="duotone" /><Text weight="bold" className="mt-2 text-xl text-[#1E1B18] dark:text-[#F7F4EF]">Redemption code</Text><Text className="mt-1 text-center text-xs text-[#817A73]">Show this to the restaurant. It expires in two minutes and works once.</Text></View>
             <View className="my-5 rounded-2xl border border-dashed border-[#CFC5BA] bg-[#EEE8E0] p-4 dark:border-[#514B45] dark:bg-[#2B2825]"><Text selectable weight="bold" className="text-center text-sm tracking-wider text-[#292521] dark:text-[#F7F4EF]">{redemption.token}</Text></View>
-            <Pressable onPress={() => void Clipboard.setStringAsync(redemption.token)} className="min-h-11 flex-row items-center justify-center gap-2 rounded-xl bg-[#E4573D]"><CopyIcon size={18} color="#F7F4EF" weight="bold" /><Text weight="bold" className="text-[#F7F4EF]">Copy code</Text></Pressable>
+            <Pressable
+              onPress={() => void copyRedemptionCode()}
+              accessibilityRole="button"
+              accessibilityLabel={copied ? "Redemption code copied" : "Copy redemption code"}
+              className={`min-h-11 flex-row items-center justify-center gap-2 rounded-xl ${copied ? "bg-[#2F8A5B]" : "bg-[#E4573D]"}`}
+            >
+              {copied ? (
+                <CheckCircleIcon size={19} color="#F7F4EF" weight="fill" />
+              ) : (
+                <CopyIcon size={18} color="#F7F4EF" weight="bold" />
+              )}
+              <Text weight="bold" className="text-[#F7F4EF]">
+                {copied ? "Copied!" : "Copy code"}
+              </Text>
+            </Pressable>
             <Pressable onPress={() => setRedemption(null)} className="min-h-11 items-center justify-center"><Text weight="bold" className="text-[#6F6861]">Close</Text></Pressable>
-          </View>
+          </View> : null}
         </View>
-      ) : null}
+      </Modal>
     </SafeAreaView>
   );
 }

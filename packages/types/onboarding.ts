@@ -31,6 +31,9 @@ export type FoodInterest = (typeof FOOD_INTERESTS)[number];
 
 export type OnboardingProgress = {
   locationChoice?: "GRANTED" | "DENIED" | "SKIPPED" | "UNAVAILABLE";
+  foodPreferencesPreferNotToSay?: boolean;
+  dietaryPreferencesPreferNotToSay?: boolean;
+  allergiesPreferNotToSay?: boolean;
   saveTutorialCompleted?: boolean;
   followedUserIds?: string[];
 };

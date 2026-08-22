@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { reloadAppAsync } from "expo";
 import { I18nManager, Platform } from "react-native";
 
-export type AppLanguage = "en" | "he";
+export type AppLanguage = "en" | "he" | "ru";
 
 export function isRtlLanguage(language: string) {
   return language.toLowerCase().startsWith("he");

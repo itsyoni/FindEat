@@ -1,0 +1,22 @@
+{
+  "save": "Сохранить",
+  "saving": "Сохранение...",
+  "cancel": "Отмена",
+  "ok": "ОК",
+  "retry": "Повторить",
+  "dismiss": "Закрыть",
+  "close": "Закрыть",
+  "back": "Назад",
+  "error": "Ошибка",
+  "languageRestartTitle": "Перезапустить FindEat?",
+  "languageRestartDescription": "FindEat необходимо перезапустить, чтобы изменить язык и направление интерфейса.",
+  "chooseLanguage": "Выберите язык",
+  "chooseLanguageDescription": "Выберите язык интерфейса FindEat.",
+  "english": "Английский",
+  "hebrew": "Иврит",
+  "russian": "Русский",
+  "restartAndChange": "Перезапустить и изменить",
+  "permissionRequired": "Требуется разрешение",
+  "search": "Поиск",
+  "noResultsFound": "Ничего не найдено"
+}

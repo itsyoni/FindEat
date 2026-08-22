@@ -5,6 +5,7 @@ import RelationshipActionButton from "@/components/profile/RelationshipActionBut
 import { useAccessibilityPreferences } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import {
   ALLERGEN_OPTIONS,
@@ -26,15 +27,21 @@ import * as Location from "expo-location";
 import { router } from "expo-router";
 import {
   BookmarkSimpleIcon,
+  CheckIcon,
   ForkKnifeIcon,
   MapPinIcon,
   SparkleIcon,
+  XIcon,
 } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -324,16 +331,19 @@ function ChoiceChip({
   label,
   selected,
   onPress,
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   const { isDark } = useAppTheme();
 
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
       activeOpacity={0.75}
       style={{
         minHeight: 48,
@@ -355,6 +365,7 @@ function ChoiceChip({
             : "rgba(250,249,246,0.72)",
         paddingHorizontal: 16,
         paddingVertical: 12,
+        opacity: disabled ? 0.42 : 1,
       }}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
@@ -362,6 +373,62 @@ function ChoiceChip({
     >
       <Text style={{ color: isDark ? "#FAF9F6" : "#171715", fontSize: 16 }}>
         {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function PreferNotToSayCheckbox({
+  checked,
+  onPress,
+  label,
+}: {
+  checked: boolean;
+  onPress: () => void;
+  label?: string;
+}) {
+  const { t } = useTranslation("onboarding");
+  const { isDark } = useAppTheme();
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      style={{
+        minHeight: 48,
+        marginTop: 18,
+        flexDirection: "row",
+        alignItems: "center",
+      }}
+    >
+      <View
+        style={{
+          width: 24,
+          height: 24,
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 7,
+          borderWidth: 1.5,
+          borderColor: checked
+            ? "#D6A92D"
+            : isDark
+              ? "rgba(250,249,246,0.35)"
+              : "rgba(23,23,21,0.3)",
+          backgroundColor: checked ? "#D6A92D" : "transparent",
+        }}
+      >
+        {checked ? <CheckIcon size={17} color="#171715" weight="bold" /> : null}
+      </View>
+      <Text
+        style={{
+          marginLeft: 12,
+          color: isDark ? "#FAF9F6" : "#171715",
+          fontSize: 16,
+        }}
+      >
+        {label ?? t("preferNotToSay")}
       </Text>
     </TouchableOpacity>
   );
@@ -376,6 +443,9 @@ function FoodPreferencesStep({
   const { isDark } = useAppTheme();
   const { reduceMotion } = useAccessibilityPreferences();
   const [selected, setSelected] = useState<string[]>(state.foodInterests ?? []);
+  const [preferNotToSay, setPreferNotToSay] = useState(
+    !!state.onboardingProgress?.foodPreferencesPreferNotToSay,
+  );
 
   function toggle(value: string) {
     if (!reduceMotion) void Haptics.selectionAsync();
@@ -403,12 +473,13 @@ function FoodPreferencesStep({
               label={t(`foodInterests.${interest}`)}
               selected={selected.includes(interest)}
               onPress={() => toggle(interest)}
+              disabled={preferNotToSay}
             />
           ))}
         </View>
       </ScrollView>
       <View style={{ paddingHorizontal: 24, paddingBottom: 12 }}>
-        {selected.length < 3 ? (
+        {!preferNotToSay && selected.length < 3 ? (
           <Text
             style={{
               color: isDark ? "#A8A8A3" : "#6B6B67",
@@ -419,11 +490,27 @@ function FoodPreferencesStep({
             {t("foodMinimum")} · {selected.length}/3
           </Text>
         ) : null}
+        <PreferNotToSayCheckbox
+          checked={preferNotToSay}
+          onPress={() => {
+            if (!reduceMotion) void Haptics.selectionAsync();
+            setPreferNotToSay((current) => {
+              const next = !current;
+              if (next) setSelected([]);
+              return next;
+            });
+          }}
+        />
         <PrimaryButton
           label={t("continue")}
-          disabled={selected.length < 3}
+          disabled={!preferNotToSay && selected.length < 3}
           loading={saving}
-          onPress={() => void persist("DIETARY_PREFERENCES", { foodInterests: selected })}
+          onPress={() =>
+            void persist("DIETARY_PREFERENCES", {
+              foodInterests: preferNotToSay ? [] : selected,
+              progress: { foodPreferencesPreferNotToSay: preferNotToSay },
+            })
+          }
         />
       </View>
     </View>
@@ -441,6 +528,7 @@ type StepProps = {
 
 function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
   const { t } = useTranslation("onboarding");
+  const { reduceMotion } = useAccessibilityPreferences();
   const [selected, setSelected] = useState<DietaryOption[]>(() => {
     const values: DietaryOption[] = [];
     if (state.restaurantDietaryRequirements.includes("KOSHER_ONLY")) values.push("KOSHER_ONLY");
@@ -451,6 +539,9 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
     if (state.dietaryRestrictions.includes("GLUTEN_FREE")) values.push("GLUTEN_FREE");
     return values;
   });
+  const [preferNotToSay, setPreferNotToSay] = useState(
+    !!state.onboardingProgress?.dietaryPreferencesPreferNotToSay,
+  );
 
   function toggle(value: DietaryOption) {
     void Haptics.selectionAsync();
@@ -483,24 +574,40 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
               label={t(`dietary.${option}`)}
               selected={selected.includes(option)}
               onPress={() => toggle(option)}
+              disabled={preferNotToSay}
             />
           ))}
         </View>
       </ScrollView>
       <View className="px-6 pb-3">
+        <PreferNotToSayCheckbox
+          checked={preferNotToSay}
+          onPress={() => {
+            if (!reduceMotion) void Haptics.selectionAsync();
+            setPreferNotToSay((current) => {
+              const next = !current;
+              if (next) setSelected([]);
+              return next;
+            });
+          }}
+        />
         <PrimaryButton
           label={t("continue")}
+          disabled={!preferNotToSay && selected.length === 0}
           loading={saving}
-          onPress={() => void persist("ALLERGIES", patch)}
+          onPress={() =>
+            void persist("ALLERGIES", {
+              ...(preferNotToSay
+                ? {
+                    foodPreferences: [],
+                    dietaryRestrictions: [],
+                    restaurantDietaryRequirements: [],
+                  }
+                : patch),
+              progress: { dietaryPreferencesPreferNotToSay: preferNotToSay },
+            })
+          }
         />
-        <TouchableOpacity
-          onPress={() => void persist("ALLERGIES", patch)}
-          disabled={saving}
-          className="min-h-11 items-center justify-center"
-          accessibilityRole="button"
-        >
-          <Text weight="bold" className="text-gray-500">{t("skip")}</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -511,12 +618,26 @@ function AllergiesStep({ state, saving, persist }: StepProps) {
   const { isDark } = useAppTheme();
   const { reduceMotion } = useAccessibilityPreferences();
   const [selected, setSelected] = useState<string[]>(state.allergies ?? []);
+  const [preferNotToSay, setPreferNotToSay] = useState(
+    !!state.onboardingProgress?.allergiesPreferNotToSay,
+  );
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
 
   function toggle(value: string) {
     if (!reduceMotion) void Haptics.selectionAsync();
+    setPreferNotToSay(false);
     setSelected((current) =>
       current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
     );
+  }
+
+  function togglePreferNotToSay() {
+    if (!reduceMotion) void Haptics.selectionAsync();
+    setPreferNotToSay((current) => {
+      const next = !current;
+      if (next) setSelected([]);
+      return next;
+    });
   }
 
   return (
@@ -538,6 +659,7 @@ function AllergiesStep({ state, saving, persist }: StepProps) {
               label={t(`allergen.${allergen}`)}
               selected={selected.includes(allergen)}
               onPress={() => toggle(allergen)}
+              disabled={preferNotToSay}
             />
           ))}
         </View>
@@ -551,25 +673,195 @@ function AllergiesStep({ state, saving, persist }: StepProps) {
         >
           {t("allergiesSafety")}
         </Text>
-      </ScrollView>
-      <View style={{ paddingHorizontal: 24, paddingBottom: 12 }}>
-        <PrimaryButton
-          label={t("continue")}
-          loading={saving}
-          onPress={() => void persist("LOCATION", { allergies: selected })}
-        />
         <TouchableOpacity
-          onPress={() => void persist("LOCATION", { allergies: [] })}
-          disabled={saving}
-          style={{ minHeight: 44, alignItems: "center", justifyContent: "center" }}
+          onPress={() => setSuggestionOpen(true)}
+          activeOpacity={0.75}
           accessibilityRole="button"
+          style={{ alignSelf: "flex-start", marginTop: 14, paddingVertical: 8 }}
         >
-          <Text weight="bold" style={{ color: isDark ? "#A8A8A3" : "#6B6B67" }}>
-            {t("noAllergies")}
+          <Text weight="bold" style={{ color: "#C38C00", fontSize: 15 }}>
+            {t("missingAllergyAction")}
           </Text>
         </TouchableOpacity>
+      </ScrollView>
+      <View style={{ paddingHorizontal: 24, paddingBottom: 12 }}>
+        <PreferNotToSayCheckbox
+          checked={preferNotToSay}
+          onPress={togglePreferNotToSay}
+          label={t("allergiesNoneOrPreferNotToSay")}
+        />
+        <PrimaryButton
+          label={t("continue")}
+          disabled={!preferNotToSay && selected.length === 0}
+          loading={saving}
+          onPress={() =>
+            void persist("LOCATION", {
+              allergies: preferNotToSay ? [] : selected,
+              progress: { allergiesPreferNotToSay: preferNotToSay },
+            })
+          }
+        />
       </View>
+      <AllergySuggestionModal
+        visible={suggestionOpen}
+        onClose={() => setSuggestionOpen(false)}
+      />
     </View>
+  );
+}
+
+function AllergySuggestionModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation("onboarding");
+  const { isDark } = useAppTheme();
+  const { showToast } = useToast();
+  const [allergy, setAllergy] = useState("");
+  const [details, setDetails] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const colors = {
+    background: isDark ? "#11110F" : "#FBFAF8",
+    surface: isDark ? "#1D1D1A" : "#F1EEE8",
+    border: isDark ? "#383833" : "#DDD7CD",
+    text: isDark ? "#FAF9F6" : "#171715",
+    muted: isDark ? "#A8A8A3" : "#6B6B67",
+  };
+  const canSubmit = allergy.trim().length >= 2 && !submitting;
+
+  function close() {
+    if (submitting) return;
+    setAllergy("");
+    setDetails("");
+    onClose();
+  }
+
+  async function submit() {
+    const name = allergy.trim();
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      await api.support.create({
+        category: "FEATURE_REQUEST",
+        subject: `Allergy suggestion: ${name}`.slice(0, 120),
+        message: [
+          `Missing allergy suggested during personalized onboarding: ${name}`,
+          details.trim() ? `Additional details: ${details.trim()}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      });
+      showToast(t("allergySuggestionSent"));
+      setAllergy("");
+      setDetails("");
+      onClose();
+    } catch {
+      showToast(t("allergySuggestionError"), { kind: "error" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={close}
+    >
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View
+          style={{
+            minHeight: 60,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+          }}
+        >
+          <View style={{ width: 44 }} />
+          <Text weight="bold" style={{ color: colors.text, fontSize: 18 }}>
+            {t("allergySuggestionTitle")}
+          </Text>
+          <TouchableOpacity
+            onPress={close}
+            disabled={submitting}
+            accessibilityRole="button"
+            accessibilityLabel={t("common:close")}
+            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+          >
+            <XIcon size={24} color={colors.text} weight="bold" />
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 18, paddingBottom: 36 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={{ color: colors.muted, fontSize: 16, lineHeight: 23 }}>
+              {t("allergySuggestionIntro")}
+            </Text>
+            <Text weight="bold" style={{ color: colors.text, fontSize: 15, marginTop: 26, marginBottom: 8 }}>
+              {t("allergyNameLabel")}
+            </Text>
+            <TextInput
+              value={allergy}
+              onChangeText={setAllergy}
+              autoFocus
+              maxLength={80}
+              placeholder={t("allergyNamePlaceholder")}
+              placeholderTextColor={colors.muted}
+              style={{
+                minHeight: 52,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text,
+                paddingHorizontal: 16,
+                fontSize: 16,
+              }}
+            />
+            <Text weight="bold" style={{ color: colors.text, fontSize: 15, marginTop: 22, marginBottom: 8 }}>
+              {t("allergyDetailsLabel")}
+            </Text>
+            <TextInput
+              value={details}
+              onChangeText={setDetails}
+              multiline
+              maxLength={1000}
+              textAlignVertical="top"
+              placeholder={t("allergyDetailsPlaceholder")}
+              placeholderTextColor={colors.muted}
+              style={{
+                minHeight: 120,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                color: colors.text,
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                fontSize: 16,
+              }}
+            />
+            <PrimaryButton
+              label={t("submitAllergySuggestion")}
+              disabled={!canSubmit}
+              loading={submitting}
+              onPress={() => void submit()}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -905,13 +1197,6 @@ function SocialStep({ state, saving, persist }: StepProps) {
       </ScrollView>
       <View className="px-6 pb-3">
         <PrimaryButton label={t("continue")} loading={saving} onPress={() => void finish()} />
-        <TouchableOpacity
-          onPress={() => void finish()}
-          disabled={saving}
-          className="min-h-11 items-center justify-center"
-        >
-          <Text weight="bold" className="text-gray-500">{t("skip")}</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );

@@ -11,6 +11,14 @@ export type SignupInput = {
   password: string;
 };
 
+export type SocialAuthProvider = "GOOGLE" | "APPLE";
+
+export type SocialAuthInput = {
+  provider: SocialAuthProvider;
+  identityToken: string;
+  displayName?: string;
+};
+
 export type SignupResult = {
   email: string;
   emailVerificationRequired: true;

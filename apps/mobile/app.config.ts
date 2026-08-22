@@ -3,6 +3,12 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 export default ({ config }: ConfigContext): ExpoConfig => {
   const variant = process.env.APP_VARIANT ?? "development";
   const appleTeamId = process.env.APPLE_TEAM_ID?.trim();
+  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
+  const googleIosUrlScheme =
+    process.env.GOOGLE_IOS_URL_SCHEME?.trim() ??
+    (googleIosClientId?.endsWith(".apps.googleusercontent.com")
+      ? `com.googleusercontent.apps.${googleIosClientId.replace(".apps.googleusercontent.com", "")}`
+      : undefined);
   const googleServicesFile =
     process.env.GOOGLE_SERVICES_JSON?.trim() ??
     config.android?.googleServicesFile;
@@ -44,6 +50,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
     plugins: [
       ...(config.plugins ?? []),
+      ...(googleIosUrlScheme
+        ? [
+            [
+              "@react-native-google-signin/google-signin",
+              { iosUrlScheme: googleIosUrlScheme },
+            ] as [string, { iosUrlScheme: string }],
+          ]
+        : []),
       "@react-native-community/datetimepicker",
       "@bacons/apple-targets",
     ],
@@ -51,6 +65,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       ...config.ios,
       bundleIdentifier,
+      usesAppleSignIn: true,
       ...(appleTeamId ? { appleTeamId } : {}),
       entitlements: {
         ...config.ios?.entitlements,

@@ -11,6 +11,7 @@ import { Keyboard, TouchableOpacity, View } from "react-native";
 import { ZodError } from "zod";
 import { TextInput } from "../common";
 import { useAppTheme } from "@/contexts/ThemeContext";
+import SocialAuthButtons from "./SocialAuthButtons";
 
 type Props = {
   onSignup: () => void;
@@ -92,7 +93,9 @@ export default function LoginForm({ onSignup, onForgotPassword, onVerificationRe
 
   return (
     <View>
+      <SocialAuthButtons />
       <View className="gap-4">
+        <View className="h-1" />
         <TextInput
           useBottomSheetInput
           placeholder={t("emailPlaceholder")}

@@ -1,7 +1,12 @@
 import { LANGUAGE_KEY } from "@/constants/storage";
 import { api } from "@/lib/api";
-import { applyAppLanguage } from "@/lib/appLanguage";
-import type { AuthSession, SignupResult, User } from "@findeat/types";
+import { applyAppLanguage, type AppLanguage } from "@/lib/appLanguage";
+import type {
+  AuthSession,
+  SignupResult,
+  SocialAuthInput,
+  User,
+} from "@findeat/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isAxiosError } from "axios";
 import React, {
@@ -27,6 +32,7 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  socialAuth: (payload: SocialAuthInput) => Promise<void>;
   reactivate: (email: string, password: string) => Promise<void>;
   signup: (
     email: string,
@@ -39,7 +45,9 @@ type AuthContextValue = {
 };
 
 function toAppLanguage(language?: User["language"]) {
-  return language === "HE" ? "he" : "en";
+  if (language === "HE") return "he";
+  if (language === "RU") return "ru";
+  return "en";
 }
 
 async function syncLanguage(user: User) {
@@ -74,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       cachedUser = savedSession.user;
 
-      if (savedLanguage === "en" || savedLanguage === "he") {
+      if (savedLanguage === "en" || savedLanguage === "he" || savedLanguage === "ru") {
         await applyAppLanguage(savedLanguage);
       }
 
@@ -130,6 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await establishSession(session);
   }
 
+  async function socialAuth(payload: SocialAuthInput) {
+    const session = await api.auth.socialAuth(payload);
+    await establishSession(session);
+  }
+
   async function reactivate(email: string, password: string) {
     const session = await api.auth.reactivateAccount({ email, password });
     await establishSession(session);
@@ -148,8 +161,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function verifyEmail(email: string, code: string) {
+    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
+    const selectedLanguage: AppLanguage | null =
+      savedLanguage === "en" || savedLanguage === "he" || savedLanguage === "ru"
+        ? savedLanguage
+        : null;
     const session = await api.auth.verifyEmail(email, code);
     await establishSession(session);
+    if (!selectedLanguage) return;
+
+    const serverLanguage = selectedLanguage.toUpperCase() as User["language"];
+    if (session.user.language !== serverLanguage) {
+      const updatedUser = await api.users.updateMe({ language: serverLanguage });
+      await storeSessionUser(updatedUser);
+      setUser(updatedUser);
+    }
+    await applyAppLanguage(selectedLanguage);
   }
 
   async function logout() {
@@ -204,6 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isLoading,
         login,
+        socialAuth,
         reactivate,
         signup,
         verifyEmail,
