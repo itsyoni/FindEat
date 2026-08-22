@@ -189,7 +189,7 @@ export default function RewardsScreen() {
     <SafeAreaView className="flex-1 bg-[#FBFAF8] dark:bg-[#0B0B0A]">
       <SettingsHeader title={t("myRewards")} />
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E4573D" />} contentContainerClassName="gap-4 px-4 pb-10 pt-4">
-        <View className="overflow-hidden rounded-[24px] bg-[#272320] p-5 dark:bg-[#201E1B]">
+        <View className="overflow-hidden rounded-3xl bg-[#272320] p-5 dark:bg-[#201E1B]">
           <Text className="text-xs font-bold uppercase tracking-widest text-[#E9BFB4]">Your savings</Text>
           <Text weight="bold" className="mt-1 text-3xl text-[#F7F4EF]">{formattedAmount(summary?.lifetimeSavings)} <Text className="text-base text-[#CFC7BE]">ILS</Text></Text>
           <Text className="mt-1 text-xs text-[#BEB6AE]">{summary?.redeemedCount ?? 0} rewards redeemed · {formattedAmount(summary?.currentYearSavings)} ILS this year</Text>

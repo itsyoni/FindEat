@@ -753,7 +753,7 @@ export default function TripPlannerScreen() {
                     }
                   }}
                   onPress={() => selectTripDay(day)}
-                  className="min-w-[78px] rounded-2xl px-4 py-2.5"
+                  className="min-w-19.5 rounded-2xl px-4 py-2.5"
                   style={{ backgroundColor: selected ? "#D97706" : isDark ? "#1F1F1D" : "#EEEAE3" }}
                 >
                   <Text className="text-center text-xs font-bold" style={{ color: selected ? "#FAF9F6" : ink }}>
@@ -830,7 +830,7 @@ export default function TripPlannerScreen() {
                 </TouchableOpacity>
               );
             }) : selectedDay === UNPLANNED ? (
-              <View className="items-center rounded-[24px] border border-dashed border-gray-300 px-6 py-12 dark:border-gray-700">
+              <View className="items-center rounded-3xl border border-dashed border-gray-300 px-6 py-12 dark:border-gray-700">
                 <CalendarBlankIcon size={40} color="#D97706" weight="duotone" />
                 <Text className="mt-3 text-center font-bold text-black dark:text-white">
                   {selectedDay === UNPLANNED ? t("everythingPlanned") : t("nothingPlannedForDay")}
@@ -1037,7 +1037,7 @@ export default function TripPlannerScreen() {
           <Text className="text-center text-xl font-bold text-black dark:text-white">
             {t("editSchedule")}
           </Text>
-          <View className="mb-5 mt-4 flex-row items-center rounded-[24px] bg-gray-100 p-3 dark:bg-[#242422]">
+          <View className="mb-5 mt-4 flex-row items-center rounded-3xl bg-gray-100 p-3 dark:bg-[#242422]">
             <View className="h-16 w-16 overflow-hidden rounded-2xl bg-gray-200 dark:bg-gray-800">
               {movingItem?.restaurant.coverUrl ? (
                 <ProgressiveImage
@@ -1100,7 +1100,7 @@ export default function TripPlannerScreen() {
                       setDraftEndMinutes(13 * 60 + 30);
                     }
                   }}
-                  className="min-w-[92px] rounded-2xl px-3 py-3"
+                  className="min-w-23 rounded-2xl px-3 py-3"
                   style={{ backgroundColor: current ? "#D97706" : isDark ? "#252523" : "#F0ECE6" }}
                 >
                   <Text numberOfLines={1} className="text-center text-xs font-bold" style={{ color: current ? "#FAF9F6" : ink }}>

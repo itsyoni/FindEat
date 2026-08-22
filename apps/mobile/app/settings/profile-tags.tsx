@@ -84,7 +84,7 @@ export default function ProfileTagsScreen() {
         </SkeletonPulse>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-          <View className="rounded-[24px] bg-amber-100 p-5 dark:bg-amber-950" style={rowStyle}>
+          <View className="rounded-3xl bg-amber-100 p-5 dark:bg-amber-950" style={rowStyle}>
             <View className="flex-row items-center" style={rowStyle}>
               <TagIcon size={26} color="#D97706" weight="fill" />
               <Text className="flex-1 text-lg font-black text-amber-950 dark:text-amber-100" style={[textStyle, { marginStart: 12 }]}>

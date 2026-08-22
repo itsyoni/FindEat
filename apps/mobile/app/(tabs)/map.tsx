@@ -1271,7 +1271,7 @@ export default function MapScreen() {
   function renderAreaSearchResult(city: CityFilterLocation) {
     return (
       <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-900">
-        <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-brand-soft dark:bg-gray-800">
+        <View className="h-13 w-13 items-center justify-center rounded-full bg-brand-soft dark:bg-gray-800">
           <MapPinIcon size={24} color="#FF5B35" weight="fill" />
         </View>
         <View className="ml-3 min-w-0 flex-1">

@@ -1001,7 +1001,7 @@ function SaveTutorialStep({ state, saving, persist }: StepProps) {
     <View className="flex-1">
       <StepHeader title={t("saveTitle")} subtitle={!saved ? t("saveInstruction") : undefined} />
       <View className="flex-1 px-6">
-        <View className="flex-1 overflow-hidden rounded-[28px] bg-[#171717] shadow-sm">
+        <View className="flex-1 overflow-hidden rounded-[28px] bg-ink shadow-sm">
           <Image
             source={require("@/assets/images/auth-bg.png")}
             contentFit="cover"
@@ -1083,7 +1083,7 @@ function DishReviewStep({
               <Text weight="bold" className="text-xl text-ink dark:text-white">{t("dishName")}</Text>
               <Text className="mt-1 text-sm text-gray-500">{t("dishRatingLabel")}</Text>
             </View>
-            <View className="h-16 w-16 items-center justify-center rounded-2xl bg-[#171717] dark:bg-[#F7D786]">
+            <View className="h-16 w-16 items-center justify-center rounded-2xl bg-ink dark:bg-[#F7D786]">
               <Text weight="black" className="text-2xl text-white dark:text-[#171717]">
                 {t("dishRating")}
               </Text>

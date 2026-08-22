@@ -30,7 +30,7 @@ export default function ContextualCoachMark({
     <Animated.View
       entering={FadeInDown.duration(220)}
       exiting={FadeOutUp.duration(160)}
-      className="absolute left-5 right-5 z-[500] flex-row items-center rounded-2xl bg-[#2B2A28]/95 p-3.5 shadow-lg"
+      className="absolute left-5 right-5 z-500 flex-row items-center rounded-2xl bg-[#2B2A28]/95 p-3.5 shadow-lg"
       style={style}
       accessibilityRole="alert"
     >

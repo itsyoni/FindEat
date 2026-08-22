@@ -106,7 +106,7 @@ export default function CreatorLevelsScreen() {
             )}
           </View>
 
-          <View className="mt-5 rounded-[24px] bg-white p-5 dark:bg-gray-900">
+          <View className="mt-5 rounded-3xl bg-white p-5 dark:bg-gray-900">
             <Text className="text-lg font-bold text-black dark:text-white">
               {t("settings:howPointsWork")}
             </Text>
@@ -140,7 +140,7 @@ export default function CreatorLevelsScreen() {
             </View>
           </View>
 
-          <View className="mt-5 rounded-[24px] bg-white px-5 py-6 dark:bg-gray-900">
+          <View className="mt-5 rounded-3xl bg-white px-5 py-6 dark:bg-gray-900">
             <Text className="mb-5 text-lg font-bold text-black dark:text-white">
               {t("settings:levelRoadmap")}
             </Text>

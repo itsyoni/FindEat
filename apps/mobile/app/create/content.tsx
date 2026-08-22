@@ -1724,7 +1724,7 @@ export default function CreateContentScreen() {
                 paddingVertical: 24,
               }}
             >
-              <View className="h-20 w-20 items-center justify-center rounded-[24px] bg-[#F7D786]">
+              <View className="h-20 w-20 items-center justify-center rounded-3xl bg-[#F7D786]">
                 <CameraIcon size={38} color="#171717" weight="fill" />
               </View>
               <Text className="mt-6 text-center text-[26px] font-bold leading-8 text-[#FAF9F6]">

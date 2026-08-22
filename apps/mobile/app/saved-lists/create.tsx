@@ -172,7 +172,7 @@ export default function CreateSavedListScreen() {
           accessibilityLabel={t(coverUri ? "changeCover" : "addListCover")}
           activeOpacity={0.84}
           onPress={() => void pickCover()}
-          className="h-44 overflow-hidden rounded-[24px] border border-[#E5E1DB] bg-amber-50 dark:border-[#30302E] dark:bg-amber-950/40"
+          className="h-44 overflow-hidden rounded-3xl border border-[#E5E1DB] bg-amber-50 dark:border-[#30302E] dark:bg-amber-950/40"
         >
           {coverUri ? (
             <ProgressiveImage

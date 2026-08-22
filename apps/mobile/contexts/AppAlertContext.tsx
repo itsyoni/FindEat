@@ -208,7 +208,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
             <View className="items-center">
               {illustration === "none" ? null : showGuide ? (
                 <View
-                  className="mb-2 h-32 w-full items-center justify-center overflow-hidden rounded-[24px]"
+                  className="mb-2 h-32 w-full items-center justify-center overflow-hidden rounded-3xl"
                   style={{ backgroundColor: toneVisual.background }}
                 >
                   <Image
