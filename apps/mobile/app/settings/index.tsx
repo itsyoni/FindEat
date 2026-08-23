@@ -8,7 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useActiveCountry } from '@/contexts/ActiveCountryContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GiftIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
+import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GiftIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, RocketLaunchIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView } from 'react-native';
 import { useCallback, useState } from 'react';
@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const { activeCountry } = useActiveCountry();
   const [hasNewProfileTags, setHasNewProfileTags] = useState(false);
   const [activeIssueCount, setActiveIssueCount] = useState<number | null>(null);
+  const [upcomingFeatureCount, setUpcomingFeatureCount] = useState<number | null>(null);
   const color = isDark ? '#FAF9F6' : '#111';
 
   useFocusEffect(useCallback(() => {
@@ -37,6 +38,11 @@ export default function SettingsScreen() {
         if (active) setActiveIssueCount(issues.filter((issue) => issue.status !== 'RESOLVED').length);
       })
       .catch((error) => console.error('Could not load known issues count', error));
+    void api.plannedFeatures.list()
+      .then((features) => {
+        if (active) setUpcomingFeatureCount(features.filter((feature) => feature.status !== 'RELEASED').length);
+      })
+      .catch((error) => console.error('Could not load upcoming features count', error));
     return () => { active = false; };
   }, []));
 
@@ -87,6 +93,14 @@ export default function SettingsScreen() {
             value={activeIssueCount == null ? undefined : t('settings:activeIssueCount', { count: activeIssueCount })}
             valueEmphasis={Boolean(activeIssueCount)}
             onPress={() => void openKnownIssues()}
+          />
+          <SettingsRow
+            icon={<RocketLaunchIcon size={23} color="#D97706" weight="duotone" />}
+            title={t('settings:upcomingFeatures')}
+            subtitle={t('settings:upcomingFeaturesSubtitle')}
+            value={upcomingFeatureCount == null ? undefined : t('settings:upcomingFeatureCount', { count: upcomingFeatureCount })}
+            valueEmphasis={Boolean(upcomingFeatureCount)}
+            onPress={() => router.push('/settings/upcoming-features')}
           />
           <SettingsRow icon={<BugIcon size={23} color="#E4573D" weight="duotone" />} title={t('settings:reportBug')} subtitle={t('settings:reportBugSubtitle')} onPress={() => router.push('/settings/report-bug')} />
           <SettingsRow icon={<LightbulbIcon size={23} color="#D1A928" weight="duotone" />} title={t('settings:suggestFeature')} subtitle={t('settings:suggestFeatureSubtitle')} onPress={() => router.push('/settings/suggest-feature')} />

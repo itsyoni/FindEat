@@ -19,6 +19,7 @@ type SupportTicketUser = {
   username: string;
   email?: string;
   avatarUrl?: string | null;
+  isAdmin?: boolean;
 };
 
 export type SupportTicket = {
@@ -47,6 +48,8 @@ export type SupportTicket = {
     description?: string | null;
     status: import("./known-issue").KnownIssueStatus;
     severity?: import("./known-issue").KnownIssueSeverity;
+    isPublic?: boolean;
+    affectedAreas?: string[];
   } | null;
   plannedFeature?: {
     id: string;

@@ -48,7 +48,6 @@ import {
   SHARED_SIDEBAR_WIDTH_STORAGE_KEY,
   useResizableSidebar,
 } from "../hooks/useResizableSidebar";
-import { KnownIssuesAdmin } from "../components/KnownIssuesAdmin";
 import { WorkspaceSwitcher } from "../components/WorkspaceSwitcher";
 
 type AdminSidebarGroup = "platform" | "feedback" | "content";
@@ -59,7 +58,7 @@ function adminSidebarGroupForSection(
   if (["claims", "addresses", "moderation", "ownership"].includes(section)) {
     return "platform";
   }
-  if (["support", "bugs", "knownIssues", "features"].includes(section)) return "feedback";
+  if (["support", "bugs", "features"].includes(section)) return "feedback";
   if (["updates", "sounds"].includes(section)) return "content";
   return null;
 }
@@ -390,7 +389,7 @@ export function AdminPage({
             id="admin-feedback-inbox"
             label="Feedback inbox"
             icon={<TrayIcon size={20} weight="duotone" />}
-            active={["support", "bugs", "knownIssues", "features"].includes(section)}
+            active={["support", "bugs", "features"].includes(section)}
             open={openSidebarGroup === "feedback"}
             onOpenChange={(open) =>
               setOpenSidebarGroup(open ? "feedback" : null)
@@ -413,15 +412,6 @@ export function AdminPage({
             }}
           >
             <BugIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Bug reports
-          </button>
-          <button
-            className={section === "knownIssues" ? "active" : ""}
-            onClick={() => {
-              onNavigate("knownIssues");
-              setError("");
-            }}
-          >
-            <BroadcastIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px]" weight="duotone" /> Known issues
           </button>
           <button
             className={section === "features" ? "active" : ""}
@@ -551,7 +541,7 @@ export function AdminPage({
           </div>
         </header>
         <div
-          className={`admin-content [width:min(1120px,100%)] [margin:auto] [padding:48px_42px_75px] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,4vw,22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] [width:min(1120px,_100%)] [margin:auto] [padding:48px_42px_75px] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,_4vw,_22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] ${section === "support" || section === "bugs" || section === "features" ? "flex h-full min-h-0 flex-col overflow-hidden pb-8 max-[800px]:py-[18px] max-[800px]:pt-[22px]" : ""} ${section === "knownIssues" ? "max-w-none p-0" : ""}`}
+          className={`admin-content [width:min(1120px,100%)] [margin:auto] [padding:48px_42px_75px] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,4vw,22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] [width:min(1120px,_100%)] [margin:auto] [padding:48px_42px_75px] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,_4vw,_22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] ${section === "support" || section === "bugs" || section === "features" ? "flex h-full min-h-0 flex-col overflow-hidden pb-8 max-[800px]:py-[18px] max-[800px]:pt-[22px]" : ""}`}
         >
           {(section === "overview" || visitedSections.has("overview")) && (
             <div className="admin-page-slot [&[hidden]]:[display:none]" hidden={section !== "overview"}>
@@ -585,11 +575,6 @@ export function AdminPage({
               className={`min-h-0 flex-1 flex-col ${section === "bugs" ? "flex" : "hidden"}`}
             >
               <SupportTicketsPanel mode="bugs" />
-            </div>
-          )}
-          {(section === "knownIssues" || visitedSections.has("knownIssues")) && (
-            <div hidden={section !== "knownIssues"}>
-              <KnownIssuesAdmin />
             </div>
           )}
           {(section === "features" || visitedSections.has("features")) && (

@@ -54,7 +54,7 @@ export function adminSectionFromPath(
   pathname: string,
 ): AdminDashboardSection | null {
   const path = normalizedPath(pathname);
-  if (path === "/admin/feedback") return "bugs";
+  if (path === "/admin/feedback" || path === "/admin/known-issues") return "bugs";
   const match = Object.entries(adminPaths).find(([, route]) => route === path);
   return (match?.[0] as AdminDashboardSection | undefined) ?? null;
 }
