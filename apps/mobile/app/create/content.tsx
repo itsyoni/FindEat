@@ -27,8 +27,14 @@ import { api } from "@/lib/api";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { createVideoCover } from "@/lib/createVideoCover";
 import { getVideoDurationMs } from "@/lib/videoDuration";
-import { cropPostImage } from "@/lib/cropPostImage";
-import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
+import {
+  defaultContentCrop,
+  renderContentCrop,
+} from "@/lib/renderContentCrop";
+import {
+  normalizeBackCameraPhoto,
+  normalizeFrontCameraPhoto,
+} from "@/lib/normalizeCameraPhoto";
 import {
   MediaLibraryPermissionError,
   saveImageToGallery,
@@ -97,7 +103,6 @@ import ContentVideo from "@/components/posts/content/ContentVideo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import type { KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
-import ContextualCoachMark from "@/components/onboarding/ContextualCoachMark";
 
 type Step =
   | "CAMERA"
@@ -530,7 +535,7 @@ export default function CreateContentScreen() {
       const capturedPhoto =
         cameraFacing === "front"
           ? await normalizeFrontCameraPhoto(photo.uri)
-          : photo;
+          : await normalizeBackCameraPhoto(photo.uri);
       if (appendingCameraPhoto) {
         const nextMedia = [
           ...media,
@@ -722,73 +727,68 @@ export default function CreateContentScreen() {
     }
   }, [media, showToast, t]);
 
-  const cropSelectedPhoto = useCallback(async () => {
-    const selected = media[previewMediaIndex];
-    if (!selected || selected.type !== "IMAGE" || editingMedia) return;
+  const updateContentCrop = useCallback(
+    (mediaId: string, crop: ContentMediaDraft["crop"]) => {
+      if (!crop) return;
+      setMedia((current) =>
+        current.map((item) => (item.id === mediaId ? { ...item, crop } : item)),
+      );
+    },
+    [],
+  );
+
+  const finishContentImageEditing = useCallback(async () => {
+    if (editingMedia) return;
+    setEditingMedia(true);
     try {
-      setEditingMedia(true);
-      const sourceOriginalUri = selected.originalUri ?? selected.uri;
-      // Native pickers can clean or replace temporary files after editing.
-      // Archive the untouched source before opening the cropper so every
-      // later crop begins with the complete image, never the previous crop.
-      const originalUri = userId
-        ? (await persistContentMediaUri(
-            userId,
-            sourceOriginalUri,
-            `original-${selected.id}`,
-          )) ?? sourceOriginalUri
-        : sourceOriginalUri;
-      setMedia((current) =>
-        current.map((item) =>
-          item.id === selected.id
-            ? {
-                ...item,
-                originalUri,
-                originalWidth: selected.originalWidth ?? selected.width,
-                originalHeight: selected.originalHeight ?? selected.height,
-              }
-            : item,
-        ),
-      );
-      const cropped = await cropPostImage({
-        uri: originalUri,
-        width: selected.originalWidth ?? selected.width,
-        height: selected.originalHeight ?? selected.height,
-        aspect: "CONTENT",
-        toolbarTitle: t("cropContentPhoto"),
-      });
-      if (!cropped) return;
-      const stableUri = userId
-        ? await persistContentMediaUri(
-            userId,
-            cropped.uri,
-            `crop-${selected.id}-${Date.now()}`,
-          )
-        : cropped.uri;
-      setMedia((current) =>
-        current.map((item) =>
-          item.id === selected.id
-            ? {
-                ...item,
-                uri: stableUri ?? cropped.uri,
-                originalUri,
-                originalWidth: selected.originalWidth ?? selected.width,
-                originalHeight: selected.originalHeight ?? selected.height,
-                width: cropped.width,
-                height: cropped.height,
-                filterSourceUri: undefined,
-                photoFilter: "ORIGINAL",
-              }
-            : item,
-        ),
-      );
+      const prepared: ContentMediaDraft[] = [];
+      for (const item of media) {
+        if (item.type !== "IMAGE") {
+          prepared.push(item);
+          continue;
+        }
+        const sourceUri = item.cropSourceUri ?? item.uri;
+        const sourceWidth = item.cropSourceWidth ?? item.width;
+        const sourceHeight = item.cropSourceHeight ?? item.height;
+        const stableSourceUri = userId
+          ? (await persistContentMediaUri(
+              userId,
+              sourceUri,
+              `crop-source-${item.id}`,
+            )) ?? sourceUri
+          : sourceUri;
+        const crop = item.crop ?? defaultContentCrop(sourceWidth, sourceHeight);
+        const rendered = await renderContentCrop(stableSourceUri, crop);
+        const stableCroppedUri = userId
+          ? (await persistContentMediaUri(
+              userId,
+              rendered.uri,
+              `crop-${item.id}-${Date.now()}`,
+            )) ?? rendered.uri
+          : rendered.uri;
+        prepared.push({
+          ...item,
+          uri: stableCroppedUri,
+          cropSourceUri: stableSourceUri,
+          cropSourceWidth: sourceWidth,
+          cropSourceHeight: sourceHeight,
+          crop,
+          originalUri: item.originalUri ?? stableSourceUri,
+          originalWidth: item.originalWidth ?? sourceWidth,
+          originalHeight: item.originalHeight ?? sourceHeight,
+          width: rendered.width,
+          height: rendered.height,
+        });
+      }
+      setMedia(prepared);
+      setStep("DETAILS");
     } catch (error) {
-      console.error("content crop failed", error);
+      console.error("content crop render failed", error);
       showToast(t("imageCropErrorBody"), { kind: "error" });
     } finally {
       setEditingMedia(false);
     }
-  }, [editingMedia, media, previewMediaIndex, showToast, t, userId]);
+  }, [editingMedia, media, showToast, t, userId]);
 
   const saveSelectedPhotoToGallery = useCallback(async () => {
     const selected = media[previewMediaIndex];
@@ -832,7 +832,8 @@ export default function CreateContentScreen() {
       if (!selected || selected.type !== "IMAGE" || editingMedia) return;
       setEditingMedia(true);
       try {
-        const sourceUri = selected.filterSourceUri ?? selected.uri;
+        const sourceUri =
+          selected.filterSourceUri ?? selected.cropSourceUri ?? selected.uri;
         const stableSourceUri = userId
           ? (await persistContentMediaUri(
               userId,
@@ -859,6 +860,9 @@ export default function CreateContentScreen() {
                   photoFilter: filterId,
                   width: filtered.width ?? item.width,
                   height: filtered.height ?? item.height,
+                  cropSourceUri: undefined,
+                  cropSourceWidth: undefined,
+                  cropSourceHeight: undefined,
                 }
               : item,
           ),
@@ -879,7 +883,8 @@ export default function CreateContentScreen() {
     if (!selected || selected.type !== "IMAGE" || editingMedia) return;
     try {
       setEditingMedia(true);
-      const context = ImageManipulator.manipulate(selected.uri);
+      const rotationSource = selected.cropSourceUri ?? selected.uri;
+      const context = ImageManipulator.manipulate(rotationSource);
       context.rotate(90);
       const rendered = await context.renderAsync();
       const rotated = await rendered.saveAsync({
@@ -902,6 +907,10 @@ export default function CreateContentScreen() {
                 uri: stableUri ?? rotated.uri,
                 width: rotated.width,
                 height: rotated.height,
+                cropSourceUri: undefined,
+                cropSourceWidth: undefined,
+                cropSourceHeight: undefined,
+                crop: undefined,
                 filterSourceUri: undefined,
                 photoFilter: "ORIGINAL",
               }
@@ -949,14 +958,19 @@ export default function CreateContentScreen() {
   }
 
   function promptAddPhoto() {
-    Alert.alert(t("addPhotosTitle"), undefined, [
-      { text: t("cancel"), style: "cancel" },
-      { text: t("takeAnotherPhoto"), onPress: takeAdditionalPhoto },
+    Alert.alert(t("addPhotosTitle"), t("addPhotosBody"), [
+      {
+        text: t("takeAnotherPhoto"),
+        icon: "camera",
+        onPress: takeAdditionalPhoto,
+      },
       {
         text: t("chooseFromGallery"),
+        icon: "gallery",
         onPress: () => void openGallery({ append: true }),
       },
-    ]);
+      { text: t("cancel"), style: "cancel", icon: "close" },
+    ], { illustration: "none", cancelable: true });
   }
 
   function closeCamera() {
@@ -1371,9 +1385,9 @@ export default function CreateContentScreen() {
             setCameraReady(false);
             setStep("CAMERA");
           }}
-          onNext={() => setStep("DETAILS")}
+          onNext={() => void finishContentImageEditing()}
           onAdd={promptAddPhoto}
-          onCrop={() => void cropSelectedPhoto()}
+          onCropChange={updateContentCrop}
           onRotate={() => void rotateSelectedPhoto()}
           onApplyFilter={applySelectedPhotoFilter}
           onSaveToGallery={() => void saveSelectedPhotoToGallery()}
@@ -2055,7 +2069,6 @@ export default function CreateContentScreen() {
       style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <ContextualCoachMark markKey="create" style={{ top: 72 }} />
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center px-4 py-2">
           <TouchableOpacity

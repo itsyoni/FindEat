@@ -21,6 +21,7 @@ import ContentVideo from "@/components/posts/content/ContentVideo";
 import { useState } from "react";
 import type { LinkedContentPreview } from "../ReviewCreator";
 import DishPreviewImage from "../components/DishPreviewImage";
+import { calculateReviewBill } from "@/lib/reviewPricing";
 
 type Props = {
   draft: CreateReviewDraft;
@@ -59,6 +60,7 @@ export default function PreviewStep({
   const { t } = useTranslation(["create", "common"]);
   const { width: screenWidth } = useWindowDimensions();
   const [mediaIndex, setMediaIndex] = useState(0);
+  const calculatedBill = calculateReviewBill(draft.items);
   const previewWidth = screenWidth - 48;
   const restaurantName =
     draft.restaurant?.source === "FINDEAT"
@@ -147,7 +149,10 @@ export default function PreviewStep({
         {previewMedia.length > 0 ? (
           <View
             className="mt-4 overflow-hidden rounded-3xl bg-black"
-            style={{ width: previewWidth, aspectRatio: 4 / 5 }}
+            style={{
+              width: previewWidth,
+              aspectRatio: linkedContentPreview ? 4 / 5 : 4 / 3,
+            }}
           >
             <FlatList
               horizontal
@@ -267,9 +272,9 @@ export default function PreviewStep({
               </Text>
             )}
 
-            {draft.totalPrice != null && (
+            {calculatedBill != null && (
               <Text className="text-gray-700 dark:text-gray-300">
-                {t("create:bill")}: ₪{draft.totalPrice}
+                {t("create:bill")}: ₪{calculatedBill}
               </Text>
             )}
           </View>

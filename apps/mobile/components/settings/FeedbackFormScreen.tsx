@@ -136,15 +136,6 @@ export default function FeedbackFormScreen({
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
-      const uploaded = await Promise.all(
-        attachments.map(async (attachment) => ({
-          type: attachment.type,
-          url:
-            attachment.type === "VIDEO"
-              ? await uploadVideo(attachment.uri, undefined, "other")
-              : await uploadImage(attachment.uri, "other"),
-        })),
-      );
       const context = [
         `${t("feedbackAppVersion")}: ${Constants.expoConfig?.version ?? "unknown"}`,
         `${t("feedbackPlatform")}: ${Platform.OS} ${String(Platform.Version)}`,
@@ -159,17 +150,32 @@ export default function FeedbackFormScreen({
       ]
         .filter(Boolean)
         .join("\n\n");
-      await api.support.create({
+      const ticket = await api.support.create({
         category: kind,
         subject: title.trim(),
         message,
-        attachments: uploaded,
       });
       showToast(t(isBug ? "bugReportSent" : "featureSuggestionSent"));
       router.back();
+
+      if (attachments.length) {
+        void Promise.all(
+          attachments.map(async (attachment) => ({
+            type: attachment.type,
+            url:
+              attachment.type === "VIDEO"
+                ? await uploadVideo(attachment.uri, undefined, "other")
+                : await uploadImage(attachment.uri, "other"),
+          })),
+        )
+          .then((uploaded) => api.support.updateAttachments(ticket.id, uploaded))
+          .catch((error) => {
+            console.warn("Could not attach media to bug report", error);
+            showToast(t("bugAttachmentUploadError"), { kind: "error" });
+          });
+      }
     } catch {
       showToast(t("supportSubmitError"), { kind: "error" });
-    } finally {
       setSaving(false);
     }
   }

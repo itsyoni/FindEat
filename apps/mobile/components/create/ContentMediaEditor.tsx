@@ -1,18 +1,21 @@
 import Text from "@/components/common/AppText";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import AnimatedGallerySaveIcon from "@/components/common/AnimatedGallerySaveIcon";
+import ContentCropPreview, {
+  type ContentCropRect,
+} from "@/components/create/ContentCropPreview";
 import type { GallerySaveStatus } from "@/hooks/useGallerySaveFeedback";
 import type { ContentMediaDraft } from "@/lib/postDrafts";
 import type { PhotoFilterId } from "@/lib/photoFilters";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import {
   ArrowClockwiseIcon,
-  CropIcon,
   FadersHorizontalIcon,
   PlusIcon,
   TrashIcon,
 } from "phosphor-react-native";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -47,12 +50,14 @@ type Props = {
   onBack: () => void;
   onNext: () => void;
   onAdd: () => void;
-  onCrop: () => void;
+  onCropChange: (mediaId: string, crop: ContentCropRect) => void;
   onRotate: () => void;
   onApplyFilter: (filterId: PhotoFilterId) => Promise<void>;
   onSaveToGallery: () => void;
   onDelete: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
+  aspectRatio?: number;
+  showMediaStrip?: boolean;
 };
 
 export default function ContentMediaEditor({
@@ -64,12 +69,14 @@ export default function ContentMediaEditor({
   onBack,
   onNext,
   onAdd,
-  onCrop,
+  onCropChange,
   onRotate,
   onApplyFilter,
   onSaveToGallery,
   onDelete,
   onReorder,
+  aspectRatio,
+  showMediaStrip = true,
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
@@ -89,6 +96,13 @@ export default function ContentMediaEditor({
     onClose: () => void;
     onApply: (filterId: PhotoFilterId) => Promise<void>;
   }> | null>(null);
+  const selectedMediaId = selectedMedia?.id;
+  const handleCropChange = useCallback(
+    (crop: ContentCropRect) => {
+      if (selectedMediaId) onCropChange(selectedMediaId, crop);
+    },
+    [onCropChange, selectedMediaId],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -199,30 +213,22 @@ export default function ContentMediaEditor({
           }}
         >
           {selectedMedia ? (
-            <ProgressiveImage
+            <ContentCropPreview
               key={`${selectedMedia.id}-${selectedMedia.uri}`}
-              source={{ uri: selectedMedia.uri }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit="cover"
-              cachePolicy="none"
-              transition={0}
+              sourceUri={selectedMedia.cropSourceUri ?? selectedMedia.uri}
+              sourceWidth={
+                selectedMedia.cropSourceWidth ?? selectedMedia.width
+              }
+              sourceHeight={
+                selectedMedia.cropSourceHeight ?? selectedMedia.height
+              }
+              crop={selectedMedia.crop}
+              aspectRatio={aspectRatio}
+              disabled={busy}
+              onCropChange={handleCropChange}
             />
           ) : null}
-
           <View className="absolute right-3 top-3 gap-3">
-            <EditorTool
-              label={t("crop")}
-              disabled={busy}
-              onPress={onCrop}
-              icon={
-                <CropIcon
-                  size={23}
-                  color="#FFFFFFCC"
-                  weight="bold"
-                  style={editorIconShadow}
-                />
-              }
-            />
             <EditorTool
               label={t("rotate")}
               disabled={busy}
@@ -275,7 +281,6 @@ export default function ContentMediaEditor({
               }
             />
           </View>
-
           {busy ? (
             <View className="absolute inset-0 items-center justify-center bg-black/45">
               <ActivityIndicator color="#F7D786" size="large" />
@@ -283,15 +288,18 @@ export default function ContentMediaEditor({
           ) : null}
         </View>
 
+        {showMediaStrip ? (
         <View className="pb-2 pt-3" style={{ flexShrink: 0 }}>
           <ScrollView
             horizontal
             scrollEnabled={!dragState}
+            removeClippedSubviews={false}
             showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0, height: 64 }}
+            style={{ flexGrow: 0, height: 72, overflow: "visible" }}
             contentContainerStyle={{
               alignItems: "center",
               paddingHorizontal: 18,
+              overflow: "visible",
             }}
           >
             <View
@@ -300,7 +308,7 @@ export default function ContentMediaEditor({
                 width:
                   media.length * thumbnailStride +
                   (media.length < 10 ? 64 : 0),
-                height: 64,
+                height: 72,
               }}
             >
               {media.map((item, index) => (
@@ -346,7 +354,7 @@ export default function ContentMediaEditor({
                   style={{
                     position: "absolute",
                     left: media.length * thumbnailStride,
-                    top: 0,
+                    top: 4,
                     borderColor: isDark
                       ? "rgba(255,255,255,0.15)"
                       : "rgba(23,23,23,0.12)",
@@ -368,6 +376,7 @@ export default function ContentMediaEditor({
             {selectedMedia ? t("editPhotoHint") : ""}
           </Text>
         </View>
+        ) : null}
       </SafeAreaView>
       {selectedMedia && FilterPicker && filterPickerOpen ? (
         <FilterPicker
@@ -510,7 +519,7 @@ function DraggableThumbnail({
   const animatedStyle = useAnimatedStyle(() => ({
     position: "absolute" as const,
     left: slotX.value,
-    top: 0,
+    top: 4,
     zIndex: dragging.value ? 50 : 0,
     elevation: dragging.value ? 12 : 0,
     opacity: dragging.value ? 0.92 : 1,

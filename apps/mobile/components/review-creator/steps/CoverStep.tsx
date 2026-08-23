@@ -6,18 +6,17 @@ import { ThemedSafeAreaView } from "@/components/common";
 import SaveDraftButton from "@/components/posts/SaveDraftButton";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGallerySaveFeedback } from "@/hooks/useGallerySaveFeedback";
 import { persistReviewMediaUri } from "@/lib/postDrafts";
-import { pickReviewImage, type ReviewImageSource } from "@/lib/reviewImagePicker";
-import { MediaLibraryPermissionError, saveImageToGallery } from "@/lib/saveImageToGallery";
+import type { PickedReviewImage } from "@/lib/reviewImagePicker";
 import { useToast } from "@/contexts/ToastContext";
+import ContentPhotoCamera from "@/components/create/ContentPhotoCamera";
 import type { CreateReviewDraft } from "@findeat/types/review";
-import { CalendarBlankIcon, CameraIcon, ChatTextIcon, CurrencyDollarIcon, SparkleIcon, StarIcon, UsersThreeIcon } from "phosphor-react-native";
+import { CalendarBlankIcon, CameraIcon, ChatTextIcon, SparkleIcon, StarIcon, UsersThreeIcon } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import DishPhotoPickerCard from "../components/DishPhotoPickerCard";
+import ReviewImageCropEditor from "../components/ReviewImageCropEditor";
 import ReviewFieldEditor, { type ReviewFieldEditorKind } from "./ReviewFieldEditor";
 
 type Props = {
@@ -32,7 +31,7 @@ type Props = {
   compactLinkedFlow?: boolean;
 };
 
-type ActiveEditor = ReviewFieldEditorKind | "COVER" | null;
+type ActiveEditor = ReviewFieldEditorKind | null;
 
 function ReviewOptionRow({ icon, title, value, onPress, imageUrl, trailing, first = false }: {
   icon: ReactNode;
@@ -74,103 +73,67 @@ export default function CoverStep({
   onSaveDraft,
   savingDraft,
   onChooseParticipants,
-  derivedCover = false,
   compactLinkedFlow = false,
 }: Props) {
   const { t, i18n } = useTranslation(["create", "common"]);
-  const { isDark } = useAppTheme();
   const { showToast } = useToast();
   const { user } = useAuth();
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null);
-  const [pickingSource, setPickingSource] = useState<ReviewImageSource | null>(null);
-  const { status: gallerySaveStatus, isSaving: savingToGallery, begin: beginGallerySave, succeed: completeGallerySave, fail: failGallerySave } = useGallerySaveFeedback();
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [pendingCropImage, setPendingCropImage] =
+    useState<PickedReviewImage | null>(null);
   const coverSelectionRef = useRef(0);
   const restaurantName = draft.restaurant?.source === "FINDEAT" ? draft.restaurant.restaurant.name : draft.restaurant?.name;
   const coverImage = draft.coverImageUri ?? draft.coverImageUrl;
 
-  async function chooseCoverImage(source: ReviewImageSource) {
-    if (pickingSource) return;
-    const selectionId = ++coverSelectionRef.current;
-    try {
-      setPickingSource(source);
-      const croppedImage = await pickReviewImage(source, "cover", t("cropReviewPhoto"));
-      if (!croppedImage || coverSelectionRef.current !== selectionId) return;
-      onChange({ coverImageUri: croppedImage.uri, coverImageUrl: undefined });
-      setPickingSource(null);
-      if (user?.id) {
-        void persistReviewMediaUri(user.id, croppedImage.uri, `review-cover-${selectionId}`)
+  function openCoverCamera() {
+    coverSelectionRef.current += 1;
+    setCameraOpen(true);
+  }
+
+  function handleCoverCameraImage(image: PickedReviewImage) {
+    setCameraOpen(false);
+    setPendingCropImage(image);
+  }
+
+  function applyCoverImage(image: PickedReviewImage) {
+    const selectionId = coverSelectionRef.current;
+    setPendingCropImage(null);
+    onChange({ coverImageUri: image.uri, coverImageUrl: undefined });
+    if (user?.id) {
+      void persistReviewMediaUri(user.id, image.uri, `review-cover-${selectionId}`)
           .then((persistedUri) => {
             if (coverSelectionRef.current === selectionId) onChange({ coverImageUri: persistedUri, coverImageUrl: undefined });
           })
           .catch((error) => console.error("review cover draft persistence failed", error));
-      }
-    } catch (error) {
-      console.error("review cover image crop failed", error);
-      showToast(t("imageCropErrorBody"), { kind: "error" });
-    } finally {
-      if (coverSelectionRef.current === selectionId) setPickingSource(null);
     }
   }
 
-  function removeCoverImage() {
-    coverSelectionRef.current += 1;
-    setPickingSource(null);
-    onChange({ coverImageUri: undefined, coverImageUrl: undefined });
+  if (cameraOpen) {
+    return (
+      <ContentPhotoCamera
+        onClose={() => setCameraOpen(false)}
+        onImage={handleCoverCameraImage}
+        onError={() => showToast(t("imageCropErrorBody"), { kind: "error" })}
+      />
+    );
   }
 
-  async function saveCoverToGallery() {
-    if (!coverImage || savingToGallery) return;
-    beginGallerySave();
-    try {
-      await saveImageToGallery(coverImage);
-      completeGallerySave();
-      showToast(t("common:savedToGallery"), { kind: "success" });
-    } catch (error) {
-      failGallerySave();
-      showToast(t(error instanceof MediaLibraryPermissionError ? "common:saveToGalleryPermission" : "common:saveToGalleryFailed"), { kind: "error" });
-    }
-  }
-
-  if (activeEditor && activeEditor !== "COVER") {
+  if (activeEditor) {
     return <ReviewFieldEditor kind={activeEditor} draft={draft} onChange={onChange} onDone={() => setActiveEditor(null)} />;
   }
 
-  if (activeEditor === "COVER") {
+  if (pendingCropImage) {
     return (
-      <ThemedSafeAreaView>
-        <View className="h-14 flex-row items-center border-b border-black/5 px-4 dark:border-white/10">
-          <TouchableOpacity onPress={() => setActiveEditor(null)} className="h-10 w-10 items-center justify-center">
-            <DirectionalIcon direction="back" size={24} color={isDark ? "#FAF9F6" : "#171717"} weight="bold" />
-          </TouchableOpacity>
-          <Text className="mx-3 flex-1 text-center text-lg font-bold text-[#171717] dark:text-[#FAF9F6]">{t("placePhoto")}</Text>
-          <TouchableOpacity onPress={() => setActiveEditor(null)} className="min-w-10 items-end">
-            <Text className="font-bold text-brand">{t("common:done")}</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
-          <Text className="mb-6 text-base leading-6 text-gray-500 dark:text-gray-400">{t("placePhotoHint")}</Text>
-          {derivedCover && coverImage ? (
-            <View className="overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800">
-              <ProgressiveImage source={{ uri: coverImage }} style={{ width: "100%", aspectRatio: 1 }} resizeMode="cover" />
-              <View className="absolute bottom-3 right-3 rounded-full bg-[#0B0B0ACC] px-4 py-2">
-                <Text className="text-sm font-bold text-[#FAF9F6]">{t("coverFromPost")}</Text>
-              </View>
-            </View>
-          ) : (
-            <DishPhotoPickerCard
-              imageUrl={coverImage}
-              pickingSource={pickingSource}
-              emptyTitle={t("addPlacePhoto")}
-              emptyHint={t("takePhotoOrChooseGallery")}
-              aspectRatio={1}
-              onChoose={(source) => void chooseCoverImage(source)}
-              onRemove={removeCoverImage}
-              onSaveToGallery={draft.coverImageUri ? () => void saveCoverToGallery() : undefined}
-              gallerySaveStatus={gallerySaveStatus}
-            />
-          )}
-        </ScrollView>
-      </ThemedSafeAreaView>
+      <ReviewImageCropEditor
+        image={pendingCropImage}
+        kind="cover"
+        onCancel={() => {
+          setPendingCropImage(null);
+          setCameraOpen(true);
+        }}
+        onApply={applyCoverImage}
+      />
     );
   }
 
@@ -206,7 +169,7 @@ export default function CoverStep({
               imageUrl={coverImage}
               title={t("placePhoto")}
               value={coverImage ? t("added") : t("tapToAdd")}
-              onPress={() => setActiveEditor("COVER")}
+              onPress={openCoverCamera}
             />
             {onChooseParticipants ? (
               <ReviewOptionRow
@@ -234,7 +197,6 @@ export default function CoverStep({
           <ReviewOptionRow icon={<UsersThreeIcon size={25} color="#D4A72C" weight="duotone" />} title={t("reasonForVisit")} value={occasionValue} onPress={() => setActiveEditor("OCCASION")} />
           <ReviewOptionRow icon={<CalendarBlankIcon size={25} color="#D4A72C" weight="duotone" />} title={t("visitDate")} value={visitDateValue} onPress={() => setActiveEditor("VISIT_DATE")} />
           <ReviewOptionRow icon={<SparkleIcon size={25} color="#D4A72C" weight="duotone" />} title={t("goodToKnow")} value={tagsValue} onPress={() => setActiveEditor("EXPERIENCE_TAGS")} />
-          <ReviewOptionRow icon={<CurrencyDollarIcon size={25} color="#D4A72C" weight="duotone" />} title={t("bill")} value={draft.totalPrice != null ? String(draft.totalPrice) : t("tapToAdd")} onPress={() => setActiveEditor("TOTAL_PRICE")} />
         </View>
 
         <Text className="mb-3 ml-1 mt-8 text-sm font-bold uppercase tracking-wider text-gray-500">{t("ratings")}</Text>

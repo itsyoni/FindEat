@@ -31,6 +31,7 @@ export function createNotificationsApi(api: AxiosInstance) {
       token: string;
       platform: 'IOS' | 'ANDROID';
       deviceId?: string;
+      environment?: 'development' | 'preview' | 'production';
     }) {
       const { data } = await api.post('/push-tokens', payload);
       return data;

@@ -259,6 +259,7 @@
   "folderCover": "Folder cover",
   "coverPhotoError": "Could not open the selected cover photo. Please try another image.",
   "changeCover": "Change cover",
+  "addCover": "Add cover",
   "removeCover": "Remove cover",
   "listType": "List type",
   "regularList": "Regular list",

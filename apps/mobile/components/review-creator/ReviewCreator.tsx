@@ -39,6 +39,7 @@ import {
   type ReviewPostDraft,
   saveReviewPostDraft,
 } from "@/lib/postDrafts";
+import { calculateReviewBill } from "@/lib/reviewPricing";
 
 const initialDraft: CreateReviewDraft = {
   visibility: "PUBLIC",
@@ -215,8 +216,7 @@ export default function ReviewCreator({
       draft.experienceTags.length > 0 ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
-      draft.valueRating !== undefined ||
-      draft.totalPrice !== undefined;
+      draft.valueRating !== undefined;
     if (!hasDraftContent) return;
 
     const timer = setTimeout(() => {
@@ -249,8 +249,7 @@ export default function ReviewCreator({
       draft.experienceTags.length > 0 ||
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
-      draft.valueRating !== undefined ||
-      draft.totalPrice !== undefined;
+      draft.valueRating !== undefined;
     draftSnapshotRef.current =
       draftHydrated &&
       hasDraftContent &&
@@ -335,7 +334,6 @@ export default function ReviewCreator({
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined ||
-      draft.totalPrice !== undefined ||
       !!pendingDish
     );
   }
@@ -371,7 +369,6 @@ export default function ReviewCreator({
       draft.atmosphereRating !== undefined ||
       draft.serviceRating !== undefined ||
       draft.valueRating !== undefined ||
-      draft.totalPrice !== undefined ||
       draft.visitDate !== undefined ||
       draft.recommendedFor !== undefined ||
       draft.experienceTags.length > 0 ||
@@ -535,7 +532,7 @@ export default function ReviewCreator({
           atmosphereRating: pendingDraft.atmosphereRating,
           serviceRating: pendingDraft.serviceRating,
           valueRating: pendingDraft.valueRating,
-          totalPrice: pendingDraft.totalPrice,
+          totalPrice: calculateReviewBill(pendingDraft.items),
           linkedPostId: linkedContent?.postId ?? pendingDraft.linkedPostId,
           participantIds: pendingDraft.participants.map(
             (participant) => participant.id,
@@ -703,7 +700,7 @@ export default function ReviewCreator({
           onAddCustomDish={() => {
             setEditingDishId(null);
             setSelectedMenuDish(null);
-            setPendingDish({ dishName: "", text: "" });
+            setPendingDish(null);
             setStep("ADD_DISH_DETAILS");
           }}
           onAddMenuDish={() => {
@@ -762,17 +759,13 @@ export default function ReviewCreator({
           onSelect={(dish) => {
             setEditingDishId(null);
             setSelectedMenuDish(dish);
-            setPendingDish({
-              dishName: dish.name,
-              price: dish.price ?? undefined,
-              text: "",
-            });
+            setPendingDish(null);
             setStep("ADD_DISH_DETAILS");
           }}
           onAddCustom={() => {
             setEditingDishId(null);
             setSelectedMenuDish(null);
-            setPendingDish({ dishName: "", text: "" });
+            setPendingDish(null);
             setStep("ADD_DISH_DETAILS");
           }}
         />
@@ -792,13 +785,29 @@ export default function ReviewCreator({
             }))
           }
           editing={!!editingDishId}
-          onBack={() =>
-            editingDishId
-              ? setStep("DISHES")
-              : selectedMenuDish
-              ? setStep("SELECT_MENU_DISH")
-              : setStep("DISHES")
-          }
+          onBack={() => {
+            const hasEnteredDetails = !!pendingDish && (
+              (!selectedMenuDish && !!pendingDish.dishName.trim()) ||
+              (!selectedMenuDish && pendingDish.price !== undefined) ||
+              !!pendingDish.imageUri ||
+              pendingDish.rating !== undefined ||
+              !!pendingDish.text.trim()
+            );
+
+            if (editingDishId || !hasEnteredDetails) {
+              setPendingDish(null);
+              setEditingDishId(null);
+            }
+
+            if (editingDishId || hasEnteredDetails || !selectedMenuDish) {
+              if (!hasEnteredDetails) setSelectedMenuDish(null);
+              setStep("DISHES");
+              return;
+            }
+
+            setPendingDish(null);
+            setStep("SELECT_MENU_DISH");
+          }}
           onSave={(item) => {
             setDraft((current) => ({
               ...current,

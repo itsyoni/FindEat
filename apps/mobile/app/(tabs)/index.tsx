@@ -19,7 +19,7 @@ import type { FeedScope } from "@findeat/types/post";
 import { SearchEntityType, SearchResultItem } from "@findeat/types/search";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import type { FeedPage, RecentSearchItem } from "@findeat/types";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
@@ -54,7 +54,9 @@ import {
 } from "@/lib/recentSearches";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { useActiveCountry } from "@/contexts/ActiveCountryContext";
-import FollowingSuggestions from "@/components/feed/FollowingSuggestions";
+import FollowingSuggestions, {
+  followSuggestionsQueryKey,
+} from "@/components/feed/FollowingSuggestions";
 import DishCard from "@/components/restaurants/DishCard";
 
 const homeGestureThreshold = 12;
@@ -106,6 +108,20 @@ export default function HomeScreen() {
   const explorePosts = useMemo(
     () => exploreFeed.data?.pages.flatMap((page) => page.items) ?? [],
     [exploreFeed.data],
+  );
+  const refetchFollowingFeed = followingFeed.refetch;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!feedsEnabled || activeFeed !== "FOLLOWING") return;
+      void Promise.all([
+        refetchFollowingFeed(),
+        queryClient.refetchQueries({
+          queryKey: followSuggestionsQueryKey,
+          type: "all",
+        }),
+      ]);
+    }, [activeFeed, feedsEnabled, queryClient, refetchFollowingFeed]),
   );
 
   const onRefresh = useCallback(

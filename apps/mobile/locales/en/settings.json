@@ -172,6 +172,7 @@
   "changeAttachments": "Change attachments",
   "screenRecording": "Screen recording",
   "bugAttachmentVideoOnly": "Only the selected screen recording was added.",
+  "bugAttachmentUploadError": "Your report was sent, but its attachment could not finish uploading.",
   "submitBugReport": "Send bug report",
   "submitFeatureSuggestion": "Send feature suggestion",
   "bugReportSent": "Bug report sent. Thank you for helping us improve FindEat.",

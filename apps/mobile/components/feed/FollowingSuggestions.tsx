@@ -14,7 +14,7 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 
-const followSuggestionsQueryKey = ["users", "follow-suggestions"] as const;
+export const followSuggestionsQueryKey = ["users", "follow-suggestions"] as const;
 
 type Props = {
   topInset: number;

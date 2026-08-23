@@ -11,6 +11,7 @@ import type {
   SoundSelection,
 } from "@findeat/types";
 import type { PhotoFilterId } from "@/lib/photoFilters";
+import type { ContentCropRect } from "@/components/create/ContentCropPreview";
 
 export type ContentPostDraft = {
   step:
@@ -39,6 +40,10 @@ export type ContentMediaDraft = {
   type: "IMAGE" | "VIDEO";
   uri: string;
   originalUri?: string;
+  cropSourceUri?: string;
+  cropSourceWidth?: number;
+  cropSourceHeight?: number;
+  crop?: ContentCropRect;
   filterSourceUri?: string;
   photoFilter?: PhotoFilterId;
   originalWidth?: number;
@@ -164,11 +169,13 @@ export async function loadContentPostDraft(userId: string) {
       if (!uri) return null;
       const originalUri = await existingImage(item.originalUri);
       const filterSourceUri = await existingImage(item.filterSourceUri);
+      const cropSourceUri = await existingImage(item.cropSourceUri);
       return {
         ...item,
         uri,
         originalUri: originalUri ?? uri,
         filterSourceUri,
+        cropSourceUri,
         originalWidth: item.originalWidth ?? item.width,
         originalHeight: item.originalHeight ?? item.height,
       };
@@ -231,11 +238,18 @@ export async function saveContentPostDraft(
             "content",
             `post-media-${index}-filter-source`,
           );
+          const cropSourceUri = await keepDraftImage(
+            item.cropSourceUri,
+            userId,
+            "content",
+            `post-media-${index}-crop-source`,
+          );
           return {
             ...item,
             uri,
             originalUri: originalUri ?? uri,
             filterSourceUri,
+            cropSourceUri,
             originalWidth: item.originalWidth ?? item.width,
             originalHeight: item.originalHeight ?? item.height,
           };

@@ -783,19 +783,6 @@ export default function ContentPost({
                   onAuthorPress={openAuthorProfile}
                   onExpansionChange={handleCaptionExpansion}
                 />
-                {!!content?.captionEditedAt && (
-                  <Text
-                    className="mt-0.5 text-xs text-white/70"
-                    style={{
-                      alignSelf: "stretch",
-                      width: "100%",
-                      textAlign: "auto",
-                      writingDirection: captionIsRtl ? "rtl" : "ltr",
-                    }}
-                  >
-                    {tCommon("edited")}
-                  </Text>
-                )}
               </>
             )}
             <PostConnectionCard
@@ -810,6 +797,7 @@ export default function ContentPost({
               createdAt={post.createdAt}
               tone="overlay"
               hasContentAbove={!!caption || !!post.linkedPosts?.length}
+              edited={!!content?.captionEditedAt}
             />
           </View>
         </View> : null}

@@ -11,13 +11,50 @@ export type PickedReviewImage = {
   height: number;
 };
 
+export async function selectReviewImage(
+  source: ReviewImageSource,
+  _kind: ReviewImageKind,
+): Promise<PickedReviewImage | null> {
+  const result =
+    source === "gallery"
+      ? await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsMultipleSelection: false,
+          allowsEditing: false,
+          defaultTab: "photos",
+          quality: 0.92,
+        })
+      : await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          allowsEditing: false,
+          quality: 0.92,
+        });
+
+  if (result.canceled || !result.assets[0]) return null;
+  const selected = result.assets[0];
+  const width = Number(selected.width);
+  const height = Number(selected.height);
+  return {
+    // Keep the exact picker asset here. Creating another temporary image before
+    // mounting the editor can leave iOS with a URI whose native backing file is
+    // no longer available by the time the crop preview tries to decode it.
+    uri: normalizeFileUri(selected.uri),
+    width: Number.isFinite(width) && width > 0 ? Math.round(width) : 1,
+    height: Number.isFinite(height) && height > 0 ? Math.round(height) : 1,
+  };
+}
+
 function normalizeFileUri(path: string) {
   return path.startsWith("/") ? `file://${path}` : path;
 }
 
+/**
+ * Compatibility picker for review editing and collaboration screens that
+ * have not moved to the in-app crop step yet.
+ */
 export async function pickReviewImage(
   source: ReviewImageSource,
-  kind: ReviewImageKind,
+  _kind: ReviewImageKind,
   toolbarTitle: string,
 ): Promise<PickedReviewImage | null> {
   if (source === "gallery") {
@@ -29,20 +66,15 @@ export async function pickReviewImage(
       quality: 0.9,
     });
     if (result.canceled || !result.assets[0]) return null;
-
-    const image = result.assets[0];
+    await new Promise((resolve) =>
+      setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
+    );
     try {
-      // Let the system gallery finish dismissing before presenting another
-      // native controller. Opening the cropper in the same frame can leave
-      // its promise pending indefinitely, especially on iOS.
-      await new Promise((resolve) =>
-        setTimeout(resolve, Platform.OS === "ios" ? 350 : 120),
-      );
       const cropped = await ImageCropPicker.openCropper({
-        path: image.uri,
+        path: result.assets[0].uri,
         mediaType: "photo",
         width: 1200,
-        height: kind === "dish" ? 900 : 1200,
+        height: 900,
         cropping: true,
         freeStyleCropEnabled: false,
         cropperCircleOverlay: false,
@@ -56,37 +88,30 @@ export async function pickReviewImage(
         height: Math.max(1, Math.round(cropped.height)),
       };
     } catch (error) {
-      if ((error as { code?: string }).code === "E_PICKER_CANCELLED") {
-        return null;
-      }
+      if ((error as { code?: string }).code === "E_PICKER_CANCELLED") return null;
       throw error;
     }
   }
 
-  const options = {
-    width: 1200,
-    height: kind === "dish" ? 900 : 1200,
-    cropping: true,
-    freeStyleCropEnabled: false,
-    cropperCircleOverlay: false,
-    mediaType: "photo" as const,
-    compressImageQuality: 0.86,
-    forceJpg: true,
-    cropperToolbarTitle: toolbarTitle,
-  };
-
   try {
-    const image = await ImageCropPicker.openCamera(options);
-
+    const image = await ImageCropPicker.openCamera({
+      width: 1200,
+      height: 900,
+      cropping: true,
+      freeStyleCropEnabled: false,
+      cropperCircleOverlay: false,
+      mediaType: "photo",
+      compressImageQuality: 0.86,
+      forceJpg: true,
+      cropperToolbarTitle: toolbarTitle,
+    });
     return {
       uri: normalizeFileUri(image.path),
       width: Math.max(1, Math.round(image.width)),
       height: Math.max(1, Math.round(image.height)),
     };
   } catch (error) {
-    if ((error as { code?: string }).code === "E_PICKER_CANCELLED") {
-      return null;
-    }
+    if ((error as { code?: string }).code === "E_PICKER_CANCELLED") return null;
     throw error;
   }
 }

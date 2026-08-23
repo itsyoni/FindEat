@@ -550,8 +550,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
                   {confirmingDelete ? <button type="button" className="min-h-11 rounded-xl border border-line bg-surface px-4 py-3 text-sm font-extrabold text-ink" onClick={() => setConfirmingDelete(false)}>Cancel</button> : null}
-                  <button type="button" className={`min-h-11 rounded-xl border px-4 py-3 text-sm font-extrabold transition disabled:opacity-55 ${confirmingDelete ? "border-danger bg-danger text-[#faf9f6]" : "border-danger/25 bg-danger-soft text-danger"}`} onClick={() => void deleteSelectedTicket()} disabled={deleting}>{deleting ? "Deleting…" : confirmingDelete ? "Confirm delete" : "Delete"}</button>
-                  <button className="min-h-11 rounded-xl border-0 bg-ink px-4 py-3 font-extrabold text-surface disabled:opacity-55" onClick={() => void save()} disabled={saving}>
+                  <button type="button" className={`h-12 min-w-36 rounded-xl border px-5 text-sm font-extrabold transition disabled:opacity-55 ${confirmingDelete ? "border-danger bg-danger text-[#faf9f6]" : "border-danger/25 bg-danger-soft text-danger"}`} onClick={() => void deleteSelectedTicket()} disabled={deleting}>{deleting ? "Deleting…" : confirmingDelete ? "Confirm delete" : "Delete"}</button>
+                  <button className="h-12 min-w-36 rounded-xl border-0 bg-ink px-5 text-sm font-extrabold text-surface disabled:opacity-55" onClick={() => void save()} disabled={saving}>
                     {saving ? "Saving…" : selected.user?.isAdmin || selected.submitterName === "FindEat admin" ? "Save notes" : "Save response"}
                   </button>
                 </div>

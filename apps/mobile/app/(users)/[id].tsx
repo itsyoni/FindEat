@@ -45,6 +45,8 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import CreatorLevelBadge from "@/components/profile/CreatorLevelBadge";
 import ProfileTagBadge from "@/components/profile/ProfileTagBadge";
 import RelationshipActionButton from "@/components/profile/RelationshipActionButton";
+import { followSuggestionsQueryKey } from "@/components/feed/FollowingSuggestions";
+import { homeFeedQueryKey } from "@/hooks/useFeed";
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams();
@@ -109,6 +111,15 @@ export default function UserProfileScreen() {
           : currentUser,
       );
 
+      queryClient.setQueryData<
+        { id: string; relationship?: typeof result.relationship }[]
+      >(followSuggestionsQueryKey, (current) =>
+        current?.map((item) =>
+          item.id === user.id ? { ...item, relationship: result.relationship } : item,
+        ),
+      );
+      void queryClient.invalidateQueries({ queryKey: followSuggestionsQueryKey });
+      void queryClient.invalidateQueries({ queryKey: homeFeedQueryKey("FOLLOWING") });
       void queryClient.invalidateQueries({ queryKey: snapsQueryKey });
     } catch (error) {
       console.error(error);

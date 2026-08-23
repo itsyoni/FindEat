@@ -45,7 +45,7 @@
   "allergiesTitle": "בלי הפתעות בעלילה של הצלחת",
   "allergiesSubtitle": "סמנו כל דבר שצריך להישאר רחוק מההזמנה שלכם.",
   "preferNotToSay": "מעדיפ/ה לא לציין",
-  "allergiesNoneOrPreferNotToSay": "אין לי אף אחת מהאלרגיות האלה / מעדיפ/ה לא לציין",
+  "allergiesNoneOrPreferNotToSay": "אף אחת מהאפשרויות / מעדיפ/ה לא לציין",
   "missingAllergyAction": "האלרגיה שלי לא מופיעה",
   "allergySuggestionTitle": "הצעת אלרגיה",
   "allergySuggestionIntro": "ספרו לנו מה חסר. ההצעה תועבר לבדיקה של צוות FindEat.",
@@ -126,7 +126,6 @@
   "coachMarks": {
     "map": "כל מה ששמרתם, על המפה.",
     "restaurant": "ראיתם מנה שמעניינת אתכם? לחצו עליה לפוסטים וביקורות.",
-    "create": "שתפו משהו שאכלתם — או הפכו אותו לביקורת מלאה.",
     "dismiss": "הבנתי"
   }
 }

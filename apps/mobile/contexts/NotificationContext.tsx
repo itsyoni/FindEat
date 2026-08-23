@@ -62,6 +62,25 @@ type CachedPushToken = {
   refreshedAt: number;
 };
 
+type PushEnvironment = 'development' | 'preview' | 'production';
+
+function currentPushEnvironment(): PushEnvironment {
+  const variant = Constants.expoConfig?.extra?.appVariant;
+  if (variant === 'development' || variant === 'preview' || variant === 'production') {
+    return variant;
+  }
+
+  // Older installed binaries do not contain appVariant in their manifest.
+  // Their native identifier still reliably distinguishes each FindEat app.
+  const applicationId =
+    Platform.OS === 'ios'
+      ? Constants.expoConfig?.ios?.bundleIdentifier
+      : Constants.expoConfig?.android?.package;
+  if (applicationId?.endsWith('.dev')) return 'development';
+  if (applicationId?.endsWith('.preview')) return 'preview';
+  return 'production';
+}
+
 function readCachedPushToken(value: string | null): CachedPushToken | null {
   if (!value) return null;
   try {
@@ -370,7 +389,8 @@ export function NotificationProvider({
       Constants.expoConfig?.extra?.eas?.projectId ??
       Constants.easConfig?.projectId;
     if (typeof projectId !== "string") return;
-    const cacheKey = `findeat_expo_push_token:${userId}:${Platform.OS}:${projectId}`;
+    const pushEnvironment = currentPushEnvironment();
+    const cacheKey = `findeat_expo_push_token:${userId}:${Platform.OS}:${projectId}:${pushEnvironment}`;
 
     async function registerPushToken(
       attempt = 0,
@@ -424,6 +444,7 @@ export function NotificationProvider({
               token: cached.token,
               platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
               deviceId: Device.modelId || undefined,
+              environment: pushEnvironment,
             });
             lastRegisteredToken = cached.token;
           }
@@ -435,6 +456,7 @@ export function NotificationProvider({
             token: pushToken,
             platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
             deviceId: Device.modelId || undefined,
+            environment: pushEnvironment,
           });
         }
         lastRegisteredToken = pushToken;

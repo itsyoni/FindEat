@@ -193,6 +193,7 @@ export default function ConnectionsScreen() {
 
       {loading ? <SkeletonList count={7} /> : <FlatList
         className="px-6"
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: 24 }}
         refreshing={refreshing}
         onRefresh={onRefresh}
         data={items}

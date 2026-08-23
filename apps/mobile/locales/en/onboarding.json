@@ -45,7 +45,7 @@
   "allergiesTitle": "No plot twists on the plate",
   "allergiesSubtitle": "Mark anything that needs to stay far away from your order.",
   "preferNotToSay": "Prefer not to say",
-  "allergiesNoneOrPreferNotToSay": "I don't have any of these / Prefer not to say",
+  "allergiesNoneOrPreferNotToSay": "None of the above / Prefer not to say",
   "missingAllergyAction": "I don't see my allergy",
   "allergySuggestionTitle": "Suggest an allergy",
   "allergySuggestionIntro": "Tell us what is missing. Your suggestion will be reviewed by the FindEat team.",
@@ -126,7 +126,6 @@
   "coachMarks": {
     "map": "Everything you've saved, on a map.",
     "restaurant": "See a dish you want? Tap it for posts and reviews.",
-    "create": "Post something you ate — or turn it into a full review.",
     "dismiss": "Got it"
   }
 }

@@ -1,14 +1,17 @@
 import Text from "@/components/common/AppText";
-import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
-import { TextInput, ThemedSafeAreaView } from "@/components/common";
+import { TextInput } from "@/components/common";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import type { ReviewDishFormDraft } from "@findeat/types/review";
 import * as Haptics from "expo-haptics";
 import { ChatTextIcon, ForkKnifeIcon } from "phosphor-react-native";
-import { TouchableOpacity, View } from "react-native";
+import {
+  Text as NativeText,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import PriceInput from "../components/PriceInput";
+import ReviewDetailEditorShell from "../components/ReviewDetailEditorShell";
 
 export type DishFieldEditorKind = "NAME" | "PRICE" | "RATING" | "NOTE";
 
@@ -44,21 +47,7 @@ export default function DishFieldEditor({
           : t("dishNote");
 
   return (
-    <ThemedSafeAreaView>
-      <View className="h-14 flex-row items-center border-b border-black/5 px-4 dark:border-white/10">
-        <TouchableOpacity onPress={onDone} className="h-10 w-10 items-center justify-center">
-          <DirectionalIcon direction="back" size={24} color={isDark ? "#FAF9F6" : "#171717"} weight="bold" />
-        </TouchableOpacity>
-        <Text className="mx-3 flex-1 text-center text-lg font-bold text-[#171717] dark:text-[#FAF9F6]">{title}</Text>
-        <TouchableOpacity onPress={onDone} className="min-w-10 items-end">
-          <Text className="font-bold text-brand">{t("common:done")}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <KeyboardAwareFormScrollView
-        bottomOffset={28}
-        contentContainerStyle={{ flexGrow: 1, padding: 24, paddingBottom: 40 }}
-      >
+    <ReviewDetailEditorShell title={title} onDone={onDone}>
         {kind === "NAME" ? (
           <View>
             <View className="mb-6 h-16 w-16 items-center justify-center rounded-full bg-brand/15">
@@ -78,7 +67,7 @@ export default function DishFieldEditor({
         {kind === "PRICE" ? (
           <View>
             <Text className="mb-7 text-base leading-6 text-gray-500 dark:text-gray-400">{t("dishPriceEditorHint")}</Text>
-            <View className="rounded-3xl border border-gray-200 bg-[#F7F6F2] p-5 dark:border-gray-700 dark:bg-[#171716]">
+            <View className="rounded-2xl bg-black/[0.035] p-5 dark:bg-white/[0.06]">
               <PriceInput label={t("price")} value={form.price} onChange={(price) => onChange({ price })} />
             </View>
           </View>
@@ -107,12 +96,17 @@ export default function DishFieldEditor({
             <Text className="text-center text-base leading-6 text-gray-500 dark:text-gray-400">{t("dishRatingEditorHint")}</Text>
             <View className="flex-1 items-center justify-center py-10">
               <View className="h-36 w-36 items-center justify-center rounded-full bg-brand/15">
-                <Text className="text-6xl">{mood(form.rating)}</Text>
+                <Text
+                  className="text-6xl"
+                  style={{ lineHeight: 76, paddingTop: 4 }}
+                >
+                  {mood(form.rating)}
+                </Text>
               </View>
               <Text className="mt-6 text-5xl font-bold text-[#171717] dark:text-[#FAF9F6]">{form.rating ? `${form.rating}/10` : "—"}</Text>
               <Text className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{form.rating ? t("tapAnotherRating") : t("chooseRating")}</Text>
             </View>
-            <View className="rounded-3xl border border-black/5 bg-[#F7F6F2] p-4 dark:border-white/10 dark:bg-[#171716]">
+            <View className="pb-2">
               <View className="flex-row flex-wrap justify-between gap-y-3">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => {
                   const selected = form.rating === value;
@@ -127,7 +121,30 @@ export default function DishFieldEditor({
                       style={{ width: "18%" }}
                       className={`aspect-square items-center justify-center rounded-2xl border ${selected ? "border-brand bg-brand" : filled ? "border-brand/40 bg-brand/15" : "border-gray-200 bg-[#FAF9F6] dark:border-gray-700 dark:bg-[#242422]"}`}
                     >
-                      <Text className={`text-lg font-bold ${selected ? "text-[#171717]" : filled ? "text-brand" : "text-[#171717] dark:text-[#FAF9F6]"}`}>{value}</Text>
+                      <View
+                        pointerEvents="none"
+                        className="absolute inset-0 items-center justify-center"
+                      >
+                        <NativeText
+                          style={{
+                            color: selected
+                              ? "#171717"
+                              : filled
+                                ? "#D4A72C"
+                                : isDark
+                                  ? "#FAF9F6"
+                                  : "#171717",
+                            fontFamily: "CabinetBold",
+                            fontSize: 18,
+                            lineHeight: 20,
+                            includeFontPadding: false,
+                            textAlign: "center",
+                            transform: [{ translateY: -1 }],
+                          }}
+                        >
+                          {value}
+                        </NativeText>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -140,7 +157,6 @@ export default function DishFieldEditor({
             ) : null}
           </View>
         ) : null}
-      </KeyboardAwareFormScrollView>
-    </ThemedSafeAreaView>
+    </ReviewDetailEditorShell>
   );
 }

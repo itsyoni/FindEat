@@ -1,7 +1,5 @@
 import Text from "@/components/common/AppText";
-import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
-import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
-import { TextInput, ThemedSafeAreaView } from "@/components/common";
+import { TextInput } from "@/components/common";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import type {
   CreateReviewDraft,
@@ -12,21 +10,24 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import {
   CalendarBlankIcon,
-  CheckIcon,
   SparkleIcon,
   StarIcon,
 } from "phosphor-react-native";
-import { Platform, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  Text as NativeText,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
-import PriceInput from "../components/PriceInput";
+import ReviewDetailEditorShell from "../components/ReviewDetailEditorShell";
 
 export type ReviewFieldEditorKind =
   | "SUMMARY"
   | "OCCASION"
   | "VISIT_DATE"
   | "EXPERIENCE_TAGS"
-  | "TOTAL_PRICE"
   | "ATMOSPHERE"
   | "SERVICE"
   | "VALUE";
@@ -113,9 +114,7 @@ export default function ReviewFieldEditor({
         ? t("reasonForVisit")
         : kind === "VISIT_DATE"
           ? t("visitDate")
-          : kind === "TOTAL_PRICE"
-            ? t("bill")
-            : t("goodToKnow");
+          : t("goodToKnow");
 
   function selectRating(value: number) {
     if (!ratingKey) return;
@@ -124,46 +123,7 @@ export default function ReviewFieldEditor({
   }
 
   return (
-    <ThemedSafeAreaView>
-      <View className="h-14 flex-row items-center border-b border-black/5 px-4 dark:border-white/10">
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t("common:back")}
-          onPress={onDone}
-          className="h-10 w-10 items-center justify-center"
-        >
-          <DirectionalIcon
-            direction="back"
-            size={24}
-            color={isDark ? "#FAF9F6" : "#171717"}
-            weight="bold"
-          />
-        </TouchableOpacity>
-        <Text
-          numberOfLines={1}
-          className="mx-3 flex-1 text-center text-lg font-bold text-[#171717] dark:text-[#FAF9F6]"
-        >
-          {title}
-        </Text>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t("common:done")}
-          onPress={onDone}
-          className="min-w-10 items-end justify-center"
-        >
-          <Text className="font-bold text-brand">{t("common:done")}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <KeyboardAwareFormScrollView
-        bottomOffset={24}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 24,
-          paddingTop: 28,
-          paddingBottom: 36,
-        }}
-      >
+    <ReviewDetailEditorShell title={title} onDone={onDone}>
         {ratingKind && ratingKey ? (
           <View className="flex-1">
             <Text className="text-center text-base leading-6 text-gray-500 dark:text-gray-400">
@@ -172,7 +132,12 @@ export default function ReviewFieldEditor({
 
             <View className="flex-1 items-center justify-center py-10">
               <View className="h-36 w-36 items-center justify-center rounded-full bg-brand/15">
-                <Text className="text-6xl">{ratingMood(ratingValue)}</Text>
+                <Text
+                  className="text-6xl"
+                  style={{ lineHeight: 76, paddingTop: 4 }}
+                >
+                  {ratingMood(ratingValue)}
+                </Text>
               </View>
               <Text className="mt-6 text-5xl font-bold text-[#171717] dark:text-[#FAF9F6]">
                 {ratingValue ? `${ratingValue}/10` : "—"}
@@ -182,7 +147,7 @@ export default function ReviewFieldEditor({
               </Text>
             </View>
 
-            <View className="rounded-3xl border border-black/5 bg-[#F7F6F2] p-4 dark:border-white/10 dark:bg-[#171716]">
+            <View className="pb-2">
               <View className="flex-row flex-wrap justify-between gap-y-3">
                 {Array.from({ length: 10 }, (_, index) => index + 1).map(
                   (value) => {
@@ -203,17 +168,30 @@ export default function ReviewFieldEditor({
                               : "border-gray-200 bg-[#FAF9F6] dark:border-gray-700 dark:bg-[#242422]"
                         }`}
                       >
-                        <Text
-                          className={`text-lg font-bold ${
-                            selected
-                              ? "text-[#171717]"
-                              : filled
-                                ? "text-brand"
-                                : "text-[#171717] dark:text-[#FAF9F6]"
-                          }`}
+                        <View
+                          pointerEvents="none"
+                          className="absolute inset-0 items-center justify-center"
                         >
-                          {value}
-                        </Text>
+                          <NativeText
+                            style={{
+                              color: selected
+                                ? "#171717"
+                                : filled
+                                  ? "#D4A72C"
+                                  : isDark
+                                    ? "#FAF9F6"
+                                    : "#171717",
+                              fontFamily: "CabinetBold",
+                              fontSize: 18,
+                              lineHeight: 20,
+                              includeFontPadding: false,
+                              textAlign: "center",
+                              transform: [{ translateY: -1 }],
+                            }}
+                          >
+                            {value}
+                          </NativeText>
+                        </View>
                       </TouchableOpacity>
                     );
                   },
@@ -272,23 +250,12 @@ export default function ReviewFieldEditor({
                       onChange({ recommendedFor: selected ? undefined : occasion });
                     }}
                     style={{ width: "48.5%" }}
-                    className={`min-h-24 justify-between rounded-3xl border p-4 ${
+                    className={`min-h-20 justify-center rounded-2xl border px-4 py-3 ${
                       selected
                         ? "border-brand bg-brand/15"
                         : "border-gray-200 bg-[#F7F6F2] dark:border-gray-700 dark:bg-[#171716]"
                     }`}
                   >
-                    <View className="flex-row justify-end">
-                      <View
-                        className={`h-7 w-7 items-center justify-center rounded-full ${
-                          selected ? "bg-brand" : "bg-gray-100 dark:bg-gray-800"
-                        }`}
-                      >
-                        {selected ? (
-                          <CheckIcon size={16} color="#171717" weight="bold" />
-                        ) : null}
-                      </View>
-                    </View>
                     <Text className="text-base font-bold text-[#171717] dark:text-[#FAF9F6]">
                       {t(`visitOccasions.${occasion}`)}
                     </Text>
@@ -388,12 +355,9 @@ export default function ReviewFieldEditor({
                         : "border-gray-200 bg-[#F7F6F2] dark:border-gray-700 dark:bg-[#171716]"
                     }`}
                   >
-                    {selected ? (
-                      <CheckIcon size={15} color="#D4A72C" weight="bold" />
-                    ) : null}
                     <Text
                       className={`font-semibold text-[#171717] dark:text-[#FAF9F6] ${
-                        selected ? "ml-2 text-brand" : ""
+                        selected ? "text-brand" : ""
                       }`}
                     >
                       {t(`experienceTags.${tag}`)}
@@ -405,21 +369,6 @@ export default function ReviewFieldEditor({
           </View>
         ) : null}
 
-        {kind === "TOTAL_PRICE" ? (
-          <View>
-            <Text className="mb-7 text-base leading-6 text-gray-500 dark:text-gray-400">
-              {t("totalPriceEditorHint")}
-            </Text>
-            <View className="rounded-3xl border border-gray-200 bg-[#F7F6F2] p-5 dark:border-gray-700 dark:bg-[#171716]">
-              <PriceInput
-                label={t("bill")}
-                value={draft.totalPrice}
-                onChange={(totalPrice) => onChange({ totalPrice })}
-              />
-            </View>
-          </View>
-        ) : null}
-      </KeyboardAwareFormScrollView>
-    </ThemedSafeAreaView>
+    </ReviewDetailEditorShell>
   );
 }

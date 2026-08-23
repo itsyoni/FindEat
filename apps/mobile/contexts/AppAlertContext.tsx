@@ -7,12 +7,15 @@ import {
 import { Image } from "expo-image";
 import {
   CheckCircleIcon,
+  CameraIcon,
+  ImagesSquareIcon,
   InfoIcon,
   TrashIcon,
   WarningDiamondIcon,
   XIcon,
 } from "phosphor-react-native";
 import type { AlertButton } from "react-native";
+import type { AppAlertButton } from "@/lib/appAlert";
 import { Modal, Pressable, View } from "react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -76,7 +79,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
     };
   }, [showAlert]);
 
-  const buttons: AlertButton[] = request?.buttons?.length
+  const buttons: AppAlertButton[] = request?.buttons?.length
     ? request.buttons
     : [{ text: t("ok") }];
 
@@ -281,13 +284,24 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                         ? "#24221F"
                         : "#F5F2EC";
 
-                const ButtonIcon = destructive
-                  ? TrashIcon
-                  : cancel
-                    ? XIcon
-                    : tone === "success"
-                      ? CheckCircleIcon
-                      : null;
+                const ButtonIcon =
+                  button.icon === "camera"
+                    ? CameraIcon
+                    : button.icon === "gallery"
+                      ? ImagesSquareIcon
+                      : button.icon === "check"
+                        ? CheckCircleIcon
+                        : button.icon === "trash"
+                          ? TrashIcon
+                          : button.icon === "close"
+                            ? XIcon
+                            : destructive
+                              ? TrashIcon
+                              : cancel
+                                ? XIcon
+                                : tone === "success"
+                                  ? CheckCircleIcon
+                                  : null;
 
                 return (
                   <Pressable

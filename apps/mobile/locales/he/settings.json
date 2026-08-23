@@ -178,6 +178,7 @@
   "changeAttachments": "החלפת קבצים מצורפים",
   "screenRecording": "הקלטת מסך",
   "bugAttachmentVideoOnly": "נוספה רק הקלטת המסך שנבחרה.",
+  "bugAttachmentUploadError": "הדיווח נשלח, אבל לא הצלחנו להשלים את העלאת הקובץ המצורף.",
   "submitBugReport": "שליחת דיווח",
   "submitFeatureSuggestion": "שליחת הצעת תכונה",
   "bugReportSent": "הדיווח נשלח. תודה שעזרתם לנו לשפר את FindEat.",

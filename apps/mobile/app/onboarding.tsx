@@ -54,15 +54,18 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type OnboardingScreenStep = Exclude<OnboardingStep, "COMPLETED"> | "NOTIFICATIONS_PERMISSION";
+type OnboardingScreenStep = Exclude<
+  OnboardingStep,
+  "SAVE_TUTORIAL" | "DISH_REVIEWS" | "COMPLETION" | "COMPLETED"
+>;
 
 const FLOW: OnboardingScreenStep[] = [
   "FOOD_PREFERENCES",
   "DIETARY_PREFERENCES",
   "ALLERGIES",
   "LOCATION",
-  "SAVE_TUTORIAL",
-  "DISH_REVIEWS",
+  "CAMERA_PERMISSION",
+  "PHOTOS_PERMISSION",
   "NOTIFICATIONS_PERMISSION",
   "SOCIAL_DISCOVERY",
 ];
@@ -97,11 +100,15 @@ export default function OnboardingScreen() {
       setState(next);
       const resumedStep = next.onboardingStep;
       setStep(
-        resumedStep === "COMPLETION"
-          ? "SOCIAL_DISCOVERY"
+        resumedStep === "SAVE_TUTORIAL"
+          ? "CAMERA_PERMISSION"
+          : resumedStep === "DISH_REVIEWS"
+            ? "PHOTOS_PERMISSION"
+            : resumedStep === "COMPLETION"
+              ? "SOCIAL_DISCOVERY"
           : resumedStep && resumedStep !== "COMPLETED"
-            ? resumedStep
-            : "FOOD_PREFERENCES",
+                ? resumedStep
+                : "FOOD_PREFERENCES",
       );
     } catch {
       setError(t("somethingWentWrong"));
@@ -121,13 +128,20 @@ export default function OnboardingScreen() {
   ) {
     if (saving) return;
     if (nextStep === "NOTIFICATIONS_PERMISSION") {
+      setError("");
       setStep(nextStep);
       return;
     }
+    const serverStep: OnboardingStep =
+      nextStep === "CAMERA_PERMISSION"
+        ? "SAVE_TUTORIAL"
+        : nextStep === "PHOTOS_PERMISSION"
+          ? "DISH_REVIEWS"
+          : nextStep;
     setSaving(true);
     setError("");
     try {
-      const next = await api.onboarding.update({ ...patch, step: nextStep });
+      const next = await api.onboarding.update({ ...patch, step: serverStep });
       setState(next);
       setStep(nextStep);
     } catch {
@@ -140,10 +154,6 @@ export default function OnboardingScreen() {
   async function goBack() {
     if (index <= 0) return;
     const previousStep = FLOW[index - 1];
-    if (previousStep === "NOTIFICATIONS_PERMISSION") {
-      setStep(previousStep);
-      return;
-    }
     await persist(previousStep);
   }
 
@@ -213,10 +223,10 @@ export default function OnboardingScreen() {
         {step === "LOCATION" ? (
           <LocationStep state={state} saving={saving} persist={persist} />
         ) : null}
-        {step === "SAVE_TUTORIAL" ? (
+        {step === "CAMERA_PERMISSION" ? (
           <CameraPermissionStep saving={saving} persist={persist} />
         ) : null}
-        {step === "DISH_REVIEWS" ? (
+        {step === "PHOTOS_PERMISSION" ? (
           <PhotosPermissionStep saving={saving} persist={persist} />
         ) : null}
         {step === "NOTIFICATIONS_PERMISSION" ? (
@@ -974,7 +984,7 @@ function LocationStep({ state, saving, persist }: StepProps) {
             label={t("continue")}
             loading={saving}
             onPress={() =>
-              void persist("SAVE_TUTORIAL", { progress: { locationChoice: choice } })
+              void persist("CAMERA_PERMISSION", { progress: { locationChoice: choice } })
             }
           />
         ) : (
@@ -986,7 +996,7 @@ function LocationStep({ state, saving, persist }: StepProps) {
         )}
         <TouchableOpacity
           onPress={() =>
-            void persist("SAVE_TUTORIAL", { progress: { locationChoice: "SKIPPED" } })
+            void persist("CAMERA_PERMISSION", { progress: { locationChoice: "SKIPPED" } })
           }
           disabled={saving || requesting}
           className="min-h-11 items-center justify-center"
@@ -1011,7 +1021,7 @@ function CameraPermissionStep({ saving, persist }: Pick<StepProps, "saving" | "p
       saving={saving}
       load={async () => (await Camera.getCameraPermissionsAsync()).status}
       request={async () => (await Camera.requestCameraPermissionsAsync()).status}
-      onContinue={() => void persist("DISH_REVIEWS")}
+      onContinue={() => void persist("PHOTOS_PERMISSION")}
     />
   );
 }

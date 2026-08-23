@@ -1,6 +1,17 @@
 import { Alert as NativeAlert } from "react-native";
 import type { AlertButton, AlertOptions } from "react-native";
 
+export type AppAlertButtonIcon =
+  | "camera"
+  | "gallery"
+  | "check"
+  | "trash"
+  | "close";
+
+export type AppAlertButton = AlertButton & {
+  icon?: AppAlertButtonIcon;
+};
+
 export type AppAlertTone =
   | "default"
   | "info"
@@ -16,7 +27,7 @@ export type AppAlertOptions = AlertOptions & {
 export type AppAlertRequest = {
   title: string;
   message?: string;
-  buttons?: AlertButton[];
+  buttons?: AppAlertButton[];
   options?: AppAlertOptions;
 };
 
@@ -32,7 +43,7 @@ export const AppAlert = {
   alert(
     title: string,
     message?: string,
-    buttons?: AlertButton[],
+    buttons?: AppAlertButton[],
     options?: AppAlertOptions,
   ) {
     if (!handler) {

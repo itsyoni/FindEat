@@ -17,5 +17,16 @@ export function createSupportApi(client: AxiosInstance) {
       const response = await client.post<SupportTicket>("/support/tickets", input);
       return response.data;
     },
+
+    async updateAttachments(
+      ticketId: string,
+      attachments: NonNullable<CreateSupportTicketInput["attachments"]>,
+    ) {
+      const response = await client.patch<SupportTicket>(
+        `/support/tickets/${ticketId}/attachments`,
+        { attachments },
+      );
+      return response.data;
+    },
   };
 }

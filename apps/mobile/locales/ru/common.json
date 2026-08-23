@@ -18,5 +18,6 @@
   "restartAndChange": "Перезапустить и изменить",
   "permissionRequired": "Требуется разрешение",
   "search": "Поиск",
-  "noResultsFound": "Ничего не найдено"
+  "noResultsFound": "Ничего не найдено",
+  "addCover": "Добавить обложку"
 }

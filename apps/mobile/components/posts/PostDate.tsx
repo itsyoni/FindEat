@@ -1,5 +1,6 @@
 import Text from "@/components/common/AppText";
 import { useMemo } from "react";
+import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 const HOUR_IN_MS = 60 * 60 * 1000;
@@ -16,12 +17,14 @@ type Props = {
   createdAt: string;
   tone?: "overlay" | "surface";
   hasContentAbove?: boolean;
+  edited?: boolean;
 };
 
 export default function PostDate({
   createdAt,
   tone = "surface",
   hasContentAbove = false,
+  edited = false,
 }: Props) {
   const { t, i18n } = useTranslation("common");
   const isRtl = i18n.language.startsWith("he");
@@ -61,20 +64,28 @@ export default function PostDate({
 
   if (!dateLabel) return null;
 
+  const textClassName =
+    tone === "overlay"
+      ? "text-xs text-white/70"
+      : "text-xs text-gray-400 dark:text-gray-500";
+
   return (
-    <Text
-      className={
-        tone === "overlay"
-          ? `${hasContentAbove ? "mt-2 " : ""}text-xs text-white/70`
-          : `${hasContentAbove ? "mt-2 " : ""}text-xs text-gray-400 dark:text-gray-500`
-      }
-      style={{
-        alignSelf: "stretch",
-        textAlign: "auto",
-        writingDirection: isRtl ? "rtl" : "ltr",
-      }}
+    <View
+      className={`${hasContentAbove ? "mt-2 " : ""}flex-row items-center justify-between`}
+      style={{ alignSelf: "stretch" }}
     >
-      {dateLabel}
-    </Text>
+      <Text
+        className={textClassName}
+        style={{
+          textAlign: "auto",
+          writingDirection: isRtl ? "rtl" : "ltr",
+        }}
+      >
+        {dateLabel}
+      </Text>
+      {edited ? (
+        <Text className={textClassName}>{t("edited")}</Text>
+      ) : null}
+    </View>
   );
 }

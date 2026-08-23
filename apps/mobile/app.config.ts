@@ -44,6 +44,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
 
+    extra: {
+      ...config.extra,
+      appVariant: variant,
+    },
+
     name,
     slug: config.slug ?? "mobile",
     scheme,

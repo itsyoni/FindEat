@@ -26,6 +26,18 @@ function dishName(item: ReviewItem) {
   return item.menuItem?.name ?? item.customDishName ?? "Dish";
 }
 
+function dishImage(item: ReviewItem) {
+  return [
+    item.primaryMedia?.imageUrl,
+    item.imageUrl,
+    item.media?.[0]?.imageUrl,
+    item.menuItem?.imageUrl,
+    item.primaryMedia?.thumbnailUrl,
+    item.thumbnailUrl,
+    item.menuItem?.thumbnailUrl,
+  ].find((value): value is string => !!value?.trim());
+}
+
 export default function EditPostScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isDark } = useAppTheme();
@@ -147,6 +159,7 @@ export default function EditPostScreen() {
   }
 
   const isContent = post.type === "CONTENT";
+  const reviewHasCover = !!post.reviewPost?.coverImageUrl?.trim();
   const mediaUrl = isContent
     ? post.contentPost?.imageUrl
     : coverImageUri ?? post.reviewPost?.coverImageUrl;
@@ -192,39 +205,60 @@ export default function EditPostScreen() {
             {t(isContent ? "editContentHint" : "editReviewHint")}
           </Text>
 
-          <TouchableOpacity
-            activeOpacity={isContent ? 1 : 0.86}
-            disabled={isContent || saving}
-            onPress={() => {
-              void pickReviewImage("gallery", "cover", t("changeCover"))
-                .then((asset) => {
-                  if (asset?.uri) setCoverImageUri(asset.uri);
-                })
-                .catch((error) => {
-                  console.error("Failed to change review cover", error);
-                  Alert.alert(t("error"), t("editPostError"));
-                });
-            }}
-            className="mt-6 overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-gray-900"
-          >
-            {mediaUrl ? (
+          {isContent ? (
+            <View className="mt-6 overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-gray-900">
+              {mediaUrl ? (
+                <ProgressiveImage
+                  source={{ uri: mediaUrl }}
+                  className="h-52 w-full bg-gray-100 dark:bg-gray-800"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="h-28 items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  <ImageSquareIcon
+                    size={30}
+                    color={isDark ? "#9CA3AF" : "#747474"}
+                  />
+                </View>
+              )}
+              <Text className="px-4 py-3 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">
+                {t("mediaLocked")}
+              </Text>
+            </View>
+          ) : mediaUrl ? (
+            <View className="mt-6 overflow-hidden rounded-3xl bg-gray-100 dark:bg-gray-800">
               <ProgressiveImage
                 source={{ uri: mediaUrl }}
-                className="h-52 w-full bg-gray-100 dark:bg-gray-800"
+                style={{ width: "100%", aspectRatio: 4 / 3 }}
                 resizeMode="cover"
               />
-            ) : (
-              <View className="h-28 items-center justify-center bg-gray-100 dark:bg-gray-800">
-                <ImageSquareIcon
-                  size={30}
-                  color={isDark ? "#9CA3AF" : "#747474"}
-                />
-              </View>
-            )}
-            <Text className="px-4 py-3 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">
-              {t(isContent ? "mediaLocked" : "changeCover")}
-            </Text>
-          </TouchableOpacity>
+            </View>
+          ) : !reviewHasCover ? (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              disabled={saving}
+              onPress={() => {
+                void pickReviewImage("gallery", "cover", t("addCover"))
+                  .then((asset) => {
+                    if (asset?.uri) setCoverImageUri(asset.uri);
+                  })
+                  .catch((error) => {
+                    console.error("Failed to add review cover", error);
+                    Alert.alert(t("error"), t("editPostError"));
+                  });
+              }}
+              className="mt-6 h-14 flex-row items-center justify-center rounded-2xl bg-black dark:bg-white"
+            >
+              <ImageSquareIcon
+                size={21}
+                color={isDark ? "#171717" : "#FAF9F6"}
+                weight="bold"
+              />
+              <Text className="ml-2 font-bold text-white dark:text-black">
+                {t("addCover")}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           {isContent ? (
             <View className="mt-7">
@@ -256,7 +290,7 @@ export default function EditPostScreen() {
 
               <View className="mt-8 gap-4">
                 {visibleItems.map((item) => {
-                  const imageUrl = item.imageUrl ?? item.menuItem?.imageUrl;
+                  const imageUrl = dishImage(item);
 
                   return (
                     <View
@@ -267,11 +301,11 @@ export default function EditPostScreen() {
                         {imageUrl ? (
                           <ProgressiveImage
                             source={{ uri: imageUrl }}
-                            className="h-16 w-16 rounded-2xl bg-gray-100 dark:bg-gray-800"
+                            style={{ width: 92, aspectRatio: 4 / 3, borderRadius: 14 }}
                             resizeMode="cover"
                           />
                         ) : (
-                          <View className="h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                          <View style={{ width: 92, aspectRatio: 4 / 3 }} className="items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                             <ImageSquareIcon
                               size={24}
                               color={isDark ? "#9CA3AF" : "#747474"}
