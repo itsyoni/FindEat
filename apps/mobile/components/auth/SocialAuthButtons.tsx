@@ -26,6 +26,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
 const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
 type GoogleSignInModule = typeof import("@react-native-google-signin/google-signin");
+let googleModulePromise: Promise<GoogleSignInModule> | null = null;
+
+function loadGoogleModule() {
+  if (!googleModulePromise) {
+    googleModulePromise = import("@react-native-google-signin/google-signin").then(
+      (module) => {
+        module.GoogleSignin.configure({
+          ...(googleWebClientId ? { webClientId: googleWebClientId } : {}),
+          ...(googleIosClientId ? { iosClientId: googleIosClientId } : {}),
+          offlineAccess: false,
+        });
+        return module;
+      },
+    );
+  }
+  return googleModulePromise;
+}
 
 export default function SocialAuthButtons({
   showDivider = true,
@@ -38,7 +55,7 @@ export default function SocialAuthButtons({
   const { isDark } = useAppTheme();
   const { socialAuth } = useAuth();
   const [workingProvider, setWorkingProvider] = useState<"GOOGLE" | "APPLE" | null>(null);
-  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(Platform.OS === "ios");
   const [googleModule, setGoogleModule] = useState<GoogleSignInModule | null>(null);
   const [pendingAppleAuth, setPendingAppleAuth] = useState<SocialAuthInput | null>(null);
   const [username, setUsername] = useState("");
@@ -58,18 +75,13 @@ export default function SocialAuthButtons({
   const buttonText = isGlass ? "#F8F5EF" : isDark ? "#F5F2EC" : "#24221F";
 
   useEffect(() => {
-    void import("@react-native-google-signin/google-signin")
-      .then((module) => {
-        module.GoogleSignin.configure({
-          ...(googleWebClientId ? { webClientId: googleWebClientId } : {}),
-          ...(googleIosClientId ? { iosClientId: googleIosClientId } : {}),
-          offlineAccess: false,
-        });
-        setGoogleModule(module);
-      })
+    void loadGoogleModule()
+      .then(setGoogleModule)
       .catch(() => setGoogleModule(null));
     if (Platform.OS === "ios") {
-      void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+      void AppleAuthentication.isAvailableAsync()
+        .then(setAppleAvailable)
+        .catch(() => setAppleAvailable(false));
     }
   }, []);
 
@@ -112,13 +124,14 @@ export default function SocialAuthButtons({
     }
     try {
       setWorkingProvider("GOOGLE");
-      if (!googleModule) throw new Error(t("auth:socialAuthRequiresRebuild"));
+      const activeGoogleModule = googleModule ?? (await loadGoogleModule());
+      setGoogleModule(activeGoogleModule);
       if (Platform.OS === "android") {
-        await googleModule.GoogleSignin.hasPlayServices({
+        await activeGoogleModule.GoogleSignin.hasPlayServices({
           showPlayServicesUpdateDialog: true,
         });
       }
-      const result = await googleModule.GoogleSignin.signIn();
+      const result = await activeGoogleModule.GoogleSignin.signIn();
       if (result.type !== "success") return;
       if (!result.data.idToken) throw new Error(t("auth:socialAuthFailed"));
       await socialAuth({
@@ -192,7 +205,7 @@ export default function SocialAuthButtons({
         </View>
       ) : null}
 
-      {googleModule ? (
+      {Platform.OS !== "web" ? (
         <View style={{ minHeight: 54, justifyContent: "center" }}>
         {workingProvider === "GOOGLE" ? (
           <ActivityIndicator color="#D6A92D" />

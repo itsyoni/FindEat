@@ -40,14 +40,48 @@ import Animated, {
   FadeInDown,
   FadeOut,
   FadeOutDown,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 type AuthMode = "slides" | "actions" | "login" | "forgot-password";
 type AuthPage = "welcome" | "signup" | "verify-email";
 
+function PreAuthPaginationDot({ active }: { active: boolean }) {
+  const progress = useSharedValue(active ? 1 : 0);
+
+  useEffect(() => {
+    progress.set(withTiming(active ? 1 : 0, { duration: 170 }));
+  }, [active, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: 8 + progress.value * 22,
+    opacity: 0.55 + progress.value * 0.45,
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ["#F8F5EF", "#E4B83B"],
+    ),
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        { height: 8, borderRadius: 999 },
+        animatedStyle,
+      ]}
+    />
+  );
+}
+
 export default function AuthIndexScreen() {
   const slidesRef = useRef<ScrollView>(null);
-  const programmaticSlideTargetRef = useRef<number | null>(null);
+  const slideIndexRef = useRef(0);
+  const slideTransitioningRef = useRef(false);
+  const programmaticSlideAnimatingRef = useRef(false);
+  const slideSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width } = useWindowDimensions();
   const { user, isLoading: authLoading } = useAuth();
   const { isDark } = useAppTheme();
@@ -55,6 +89,9 @@ export default function AuthIndexScreen() {
   const [page, setPage] = useState<AuthPage>("welcome");
   const [authMode, setAuthMode] = useState<AuthMode>("slides");
   const [slideIndex, setSlideIndex] = useState(0);
+  const [slideTransitioning, setSlideTransitioning] = useState(false);
+  const [programmaticSlideAnimating, setProgrammaticSlideAnimating] =
+    useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
   const [languageSelectorOpen, setLanguageSelectorOpen] = useState(false);
   const isRtl = i18n.language.startsWith("he");
@@ -90,57 +127,122 @@ export default function AuthIndexScreen() {
     Keyboard.dismiss();
   }, [authMode, page]);
 
+  useEffect(
+    () => () => {
+      if (slideSettleTimerRef.current) {
+        clearTimeout(slideSettleTimerRef.current);
+      }
+    },
+    [],
+  );
+
   function openAuth(mode: "login" | "forgot-password" = "login") {
     setAuthMode(mode);
   }
 
-  function scrollToSlide(nextIndex: number, animated = true) {
+  function setSettledSlide(nextIndex: number) {
     const boundedIndex = Math.max(0, Math.min(slides.length - 1, nextIndex));
-    programmaticSlideTargetRef.current = animated ? boundedIndex : null;
+    slideIndexRef.current = boundedIndex;
     setSlideIndex(boundedIndex);
+  }
+
+  function setSlideTransitionActive(active: boolean) {
+    slideTransitioningRef.current = active;
+    setSlideTransitioning(active);
+  }
+
+  function scrollToSlide(nextIndex: number, animated = true) {
+    if (animated && slideTransitioningRef.current) return;
+
+    const boundedIndex = Math.max(0, Math.min(slides.length - 1, nextIndex));
+    if (boundedIndex === slideIndexRef.current) return;
+
+    if (animated) {
+      setSlideTransitionActive(true);
+      programmaticSlideAnimatingRef.current = true;
+      setProgrammaticSlideAnimating(true);
+      setSettledSlide(boundedIndex);
+      if (slideSettleTimerRef.current) {
+        clearTimeout(slideSettleTimerRef.current);
+      }
+      slideSettleTimerRef.current = setTimeout(() => {
+        finishSlideTransition(boundedIndex * width);
+      }, 650);
+    } else {
+      setSettledSlide(boundedIndex);
+    }
     slidesRef.current?.scrollTo({ x: boundedIndex * width, animated });
   }
 
   function advanceSlides() {
-    if (slideIndex < slides.length - 1) {
-      scrollToSlide(slideIndex + 1);
+    if (slideTransitioningRef.current) return;
+
+    const currentIndex = slideIndexRef.current;
+    if (currentIndex < slides.length - 1) {
+      scrollToSlide(currentIndex + 1);
       return;
     }
     setAuthMode("actions");
   }
 
-  function handleSlidesScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    const programmaticTarget = programmaticSlideTargetRef.current;
-    if (programmaticTarget !== null) {
-      const targetOffset = programmaticTarget * width;
-      if (Math.abs(event.nativeEvent.contentOffset.x - targetOffset) < 1) {
-        programmaticSlideTargetRef.current = null;
-      }
-      return;
-    }
-
-    const nextIndex = Math.max(
+  function slideIndexFromOffset(offsetX: number) {
+    return Math.max(
       0,
       Math.min(
         slides.length - 1,
-        Math.round(event.nativeEvent.contentOffset.x / width),
+        Math.round(offsetX / width),
       ),
     );
-    if (nextIndex !== slideIndex) setSlideIndex(nextIndex);
+  }
+
+  function finishSlideTransition(offsetX: number) {
+    if (slideSettleTimerRef.current) {
+      clearTimeout(slideSettleTimerRef.current);
+      slideSettleTimerRef.current = null;
+    }
+    setSettledSlide(slideIndexFromOffset(offsetX));
+    programmaticSlideAnimatingRef.current = false;
+    setProgrammaticSlideAnimating(false);
+    setSlideTransitionActive(false);
+  }
+
+  function handleSlidesScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (programmaticSlideAnimatingRef.current) return;
+    const visibleIndex = slideIndexFromOffset(event.nativeEvent.contentOffset.x);
+    if (visibleIndex !== slideIndexRef.current) {
+      setSettledSlide(visibleIndex);
+    }
+  }
+
+  function handleSlidesScrollBeginDrag() {
+    if (slideSettleTimerRef.current) {
+      clearTimeout(slideSettleTimerRef.current);
+      slideSettleTimerRef.current = null;
+    }
+    setSlideTransitionActive(true);
+  }
+
+  function handleSlidesMomentumBegin() {
+    if (slideSettleTimerRef.current) {
+      clearTimeout(slideSettleTimerRef.current);
+      slideSettleTimerRef.current = null;
+    }
+  }
+
+  function handleSlidesScrollEndDrag(
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) {
+    if (slideSettleTimerRef.current) clearTimeout(slideSettleTimerRef.current);
+    const offsetX = event.nativeEvent.contentOffset.x;
+    slideSettleTimerRef.current = setTimeout(() => {
+      finishSlideTransition(offsetX);
+    }, 120);
   }
 
   function handleSlidesMomentumEnd(
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) {
-    programmaticSlideTargetRef.current = null;
-    const nextIndex = Math.max(
-      0,
-      Math.min(
-        slides.length - 1,
-        Math.round(event.nativeEvent.contentOffset.x / width),
-      ),
-    );
-    setSlideIndex(nextIndex);
+    finishSlideTransition(event.nativeEvent.contentOffset.x);
   }
 
   function handleWelcomeBack() {
@@ -159,7 +261,8 @@ export default function AuthIndexScreen() {
       setAuthMode("slides");
       return;
     }
-    if (slideIndex > 0) scrollToSlide(slideIndex - 1);
+    if (slideTransitioningRef.current) return;
+    if (slideIndexRef.current > 0) scrollToSlide(slideIndexRef.current - 1);
   }
 
   function handleBack() {
@@ -426,7 +529,11 @@ export default function AuthIndexScreen() {
               pagingEnabled
               bounces={false}
               showsHorizontalScrollIndicator={false}
+              scrollEnabled={!programmaticSlideAnimating}
               onScroll={handleSlidesScroll}
+              onScrollBeginDrag={handleSlidesScrollBeginDrag}
+              onScrollEndDrag={handleSlidesScrollEndDrag}
+              onMomentumScrollBegin={handleSlidesMomentumBegin}
               onMomentumScrollEnd={handleSlidesMomentumEnd}
               scrollEventThrottle={16}
               style={{ flex: 1, direction: "ltr" }}
@@ -495,20 +602,18 @@ export default function AuthIndexScreen() {
                   <TouchableOpacity
                     key={index}
                     onPress={() => scrollToSlide(index)}
+                    disabled={slideTransitioning}
+                    hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={`${index + 1} / ${slides.length}`}
-                    style={{
-                      width: index === slideIndex ? 30 : 8,
-                      height: 8,
-                      borderRadius: 999,
-                      backgroundColor:
-                        index === slideIndex ? "#E4B83B" : "rgba(248,245,239,0.42)",
-                    }}
-                  />
+                  >
+                    <PreAuthPaginationDot active={index === slideIndex} />
+                  </TouchableOpacity>
                 ))}
               </View>
               <TouchableOpacity
                 onPress={advanceSlides}
+                disabled={slideTransitioning}
                 activeOpacity={0.8}
                 style={{
                   minHeight: 56,

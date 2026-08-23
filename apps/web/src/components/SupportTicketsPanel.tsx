@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowClockwise";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
-import type { SupportTicket, SupportTicketStatus } from "@findeat/types";
+import type { KnownIssueSeverity, KnownIssueStatus, PlannedFeatureStatus, SupportTicket, SupportTicketStatus } from "@findeat/types";
 import { request } from "../lib/api";
 
 const statuses: Array<"ALL" | SupportTicketStatus> = [
@@ -64,6 +64,13 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");
   const [status, setStatus] = useState<SupportTicketStatus>("OPEN");
+  const [publishing, setPublishing] = useState(false);
+  const [publicTitle, setPublicTitle] = useState("");
+  const [publicDescription, setPublicDescription] = useState("");
+  const [knownIssueStatus, setKnownIssueStatus] = useState<KnownIssueStatus>("INVESTIGATING");
+  const [severity, setSeverity] = useState<KnownIssueSeverity>("MEDIUM");
+  const [featureStatus, setFeatureStatus] = useState<PlannedFeatureStatus>("PLANNED");
+  const [targetLabel, setTargetLabel] = useState("");
   const relevantTickets = useMemo(
     () => tickets.filter((ticket) => matchesMode(ticket, mode)),
     [mode, tickets],
@@ -73,6 +80,15 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
     [filter, relevantTickets],
   );
   const selected = relevantTickets.find((ticket) => ticket.id === selectedId) ?? null;
+
+  function initializePublicEditor(ticket: SupportTicket) {
+    setPublicTitle(ticket.knownIssue?.title ?? ticket.plannedFeature?.title ?? ticket.subject);
+    setPublicDescription(ticket.knownIssue?.description ?? ticket.plannedFeature?.description ?? ticket.message);
+    setKnownIssueStatus(ticket.knownIssue?.status ?? "INVESTIGATING");
+    setSeverity(ticket.knownIssue?.severity ?? "MEDIUM");
+    setFeatureStatus(ticket.plannedFeature?.status ?? "PLANNED");
+    setTargetLabel(ticket.plannedFeature?.targetLabel ?? "");
+  }
 
   async function load() {
     setLoading(true);
@@ -106,6 +122,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
         setSelectedId(first?.id ?? null);
         setReply(first?.adminReply ?? "");
         setStatus(first?.status ?? "OPEN");
+        if (first) initializePublicEditor(first);
       })
       .catch((nextError: unknown) => {
         if (active) setError(nextError instanceof Error ? nextError.message : "Could not load support tickets");
@@ -120,6 +137,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
     setSelectedId(ticket.id);
     setReply(ticket.adminReply ?? "");
     setStatus(ticket.status);
+    initializePublicEditor(ticket);
   }
 
   async function save() {
@@ -136,6 +154,28 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
       setError(nextError instanceof Error ? nextError.message : "Could not update ticket");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function publish() {
+    if (!selected || (mode !== "bugs" && mode !== "features")) return;
+    setPublishing(true);
+    setError("");
+    try {
+      const updated = await request<SupportTicket>(`/admin/support-tickets/${selected.id}/publish`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: publicTitle,
+          description: publicDescription,
+          ...(mode === "bugs" ? { knownIssueStatus, severity } : { plannedFeatureStatus: featureStatus, targetLabel: targetLabel || undefined }),
+        }),
+      });
+      setTickets((current) => current.map((ticket) => ticket.id === updated.id ? updated : ticket));
+      setStatus(updated.status);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Could not publish this item");
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -171,10 +211,10 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
             </div>
           ) : filtered.map((ticket) => (
             <button key={ticket.id} className={`grid w-full grid-cols-[44px_minmax(0,1fr)] items-start gap-3 border-0 border-b border-line bg-transparent p-3.75 text-left text-ink hover:bg-soft ${selectedId === ticket.id ? "bg-soft shadow-[inset_3px_0_var(--accent)]" : ""}`} onClick={() => selectTicket(ticket)}>
-              {ticket.user?.avatarUrl ? <img className="size-11 rounded-full object-cover" src={ticket.user.avatarUrl} alt="" /> : <span className="grid size-11 place-items-center rounded-full bg-accent-soft font-black text-ink">{ticket.user?.username?.charAt(0) ?? "?"}</span>}
+              {ticket.user?.avatarUrl ? <img className="size-11 rounded-full object-cover" src={ticket.user.avatarUrl} alt="" /> : <span className="grid size-11 place-items-center rounded-full bg-accent-soft font-black text-ink">{(ticket.user?.username ?? ticket.submitterName)?.charAt(0)?.toUpperCase() ?? "?"}</span>}
               <span className="grid min-w-0 gap-1">
                 <span className="flex items-center justify-between gap-2">
-                  <strong className="truncate text-[13px]">{ticket.user?.username ?? "FindEat user"}</strong>
+                  <strong className="truncate text-[13px]">{ticket.user?.username ?? ticket.submitterName ?? "Website visitor"}</strong>
                   <time className="text-[11px] text-muted">{new Date(ticket.createdAt).toLocaleDateString()}</time>
                 </span>
                 <b className="truncate text-sm">{ticket.subject}</b>
@@ -191,7 +231,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
                 <div>
                   <span className="text-[11px] font-black tracking-[.08em] text-accent uppercase">{categoryLabels[selected.category]}</span>
                   <h3 className="my-1.25 text-[25px]">{selected.subject}</h3>
-                  <p className="m-0 text-[13px] text-muted">{selected.user?.username} · {selected.user?.email}</p>
+                  <p className="m-0 text-[13px] text-muted">{selected.user?.username ?? selected.submitterName ?? "Website visitor"}{selected.user?.email || selected.submitterEmail ? ` · ${selected.user?.email ?? selected.submitterEmail}` : ""}</p>
                   {selected.restaurant && <p className="m-0 mt-1 text-[13px] text-muted">Restaurant: <strong>{selected.restaurant.name}</strong></p>}
                 </div>
                 <span className={`whitespace-nowrap rounded-full px-2.5 py-1.75 text-[11px] font-black ${selected.status === "RESOLVED" || selected.status === "CLOSED" ? "bg-success-soft text-success" : "bg-soft text-ink"}`}>{statusLabels[selected.status]}</span>
@@ -213,6 +253,32 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
                         </a>
                       ),
                     )}
+                  </div>
+                </div>
+              ) : null}
+              {(mode === "bugs" || mode === "features") ? (
+                <div className="my-5.5 rounded-2xl border border-line bg-surface-subtle p-4.5">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <div><small className="block text-[11px] font-extrabold uppercase tracking-[.06em] text-accent">Public page</small><strong className="mt-1 block">Edit before publishing</strong></div>
+                    {(selected.knownIssue || selected.plannedFeature) ? <span className="rounded-full bg-success-soft px-2.5 py-1.5 text-[11px] font-black text-success">Published</span> : <span className="rounded-full bg-soft px-2.5 py-1.5 text-[11px] font-black text-muted">Not public</span>}
+                  </div>
+                  <div className="grid gap-3">
+                    <label className="grid gap-1.5 text-xs font-extrabold text-muted">Public title
+                      <input className="min-h-11 rounded-xl border border-line bg-surface px-3.5 text-sm text-ink outline-none focus:border-accent" value={publicTitle} onChange={(event) => setPublicTitle(event.target.value)} maxLength={140} />
+                    </label>
+                    <label className="grid gap-1.5 text-xs font-extrabold text-muted">Public description
+                      <textarea className="min-h-25 resize-y rounded-xl border border-line bg-surface p-3.5 text-sm leading-5 text-ink outline-none focus:border-accent" value={publicDescription} onChange={(event) => setPublicDescription(event.target.value)} maxLength={2000} />
+                    </label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {mode === "bugs" ? <>
+                        <label className="grid gap-1.5 text-xs font-extrabold text-muted">Public status<select className="min-h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink" value={knownIssueStatus} onChange={(event) => setKnownIssueStatus(event.target.value as KnownIssueStatus)}><option value="INVESTIGATING">Investigating</option><option value="IN_PROGRESS">In progress</option><option value="FIXED_NEXT_RELEASE">Fixed next release</option><option value="RESOLVED">Resolved</option></select></label>
+                        <label className="grid gap-1.5 text-xs font-extrabold text-muted">Severity<select className="min-h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink" value={severity} onChange={(event) => setSeverity(event.target.value as KnownIssueSeverity)}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select></label>
+                      </> : <>
+                        <label className="grid gap-1.5 text-xs font-extrabold text-muted">Roadmap status<select className="min-h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink" value={featureStatus} onChange={(event) => setFeatureStatus(event.target.value as PlannedFeatureStatus)}><option value="PLANNED">Planned</option><option value="IN_PROGRESS">In progress</option><option value="COMING_SOON">Coming soon</option><option value="RELEASED">Released</option></select></label>
+                        <label className="grid gap-1.5 text-xs font-extrabold text-muted">Target <span className="font-normal">(optional)</span><input className="min-h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-accent" value={targetLabel} onChange={(event) => setTargetLabel(event.target.value)} maxLength={80} placeholder="Later this year" /></label>
+                      </>}
+                    </div>
+                    <button type="button" onClick={() => void publish()} disabled={publishing || publicTitle.trim().length < 4 || publicDescription.trim().length < 10} className="min-h-11 rounded-xl border-0 bg-accent px-4 font-extrabold text-[#faf9f6] disabled:opacity-50">{publishing ? "Publishing…" : selected.knownIssue || selected.plannedFeature ? "Update public page" : "Publish to public page"}</button>
                   </div>
                 </div>
               ) : null}

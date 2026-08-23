@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { EyeIcon, EyeSlashIcon, MoonIcon, SunIcon } from '@phosphor-icons/react'
+import { BugIcon, EyeIcon, EyeSlashIcon, LightbulbIcon, MoonIcon, SunIcon } from '@phosphor-icons/react'
 import { request } from '../lib/api'
 import { useWebTheme } from '../hooks/useWebTheme'
 
@@ -97,6 +97,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           {error && <p className="m-0 rounded-[11px] border border-[#e8545438] bg-[#fff0f0] px-3.25 py-2.75 text-[13px] leading-[1.4] text-[#b32727] dark:bg-danger-soft dark:text-danger" role="alert">{error}</p>}
           <button className="mt-0.5 min-h-12.25 rounded-xl border-0 bg-accent px-4 py-3 font-extrabold text-[#faf9f6] shadow-[0_10px_24px_color-mix(in_srgb,var(--accent)_25%,transparent)] transition hover:-translate-y-px hover:brightness-95 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
         </form>
+        <div className="mt-6 border-t border-line pt-5">
+          <p className="m-0 mb-3 text-xs font-extrabold uppercase tracking-[.1em] text-muted">FindEat product updates</p>
+          <nav className="grid grid-cols-2 gap-2.5 max-[420px]:grid-cols-1">
+            <a href="/known-issues" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-soft px-3 text-sm font-extrabold text-ink no-underline hover:bg-surface-hover"><BugIcon size={18} weight="duotone" /> Known issues</a>
+            <a href="/upcoming" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-soft px-3 text-sm font-extrabold text-ink no-underline hover:bg-surface-hover"><LightbulbIcon size={18} weight="duotone" /> Upcoming</a>
+          </nav>
+        </div>
       </section>
     </main>
   )

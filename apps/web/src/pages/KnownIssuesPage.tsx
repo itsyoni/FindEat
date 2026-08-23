@@ -2,6 +2,7 @@ import { ArrowClockwiseIcon, BugIcon } from "@phosphor-icons/react";
 import type { KnownIssue } from "@findeat/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { KnownIssuesList } from "../components/known-issues/KnownIssuesList";
+import { PublicFeedbackDialog, type PublicFeedbackKind } from "../components/PublicFeedbackDialog";
 import { request } from "../lib/api";
 
 export function KnownIssuesPage() {
@@ -9,6 +10,7 @@ export function KnownIssuesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [resolvedOpen, setResolvedOpen] = useState(false);
+  const [feedbackKind, setFeedbackKind] = useState<PublicFeedbackKind | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,14 +36,15 @@ export function KnownIssuesPage() {
 
   return (
     <div className="min-h-dvh bg-[radial-gradient(circle_at_8%_2%,#fff0e9_0,transparent_30%)] bg-page text-ink dark:bg-[radial-gradient(circle_at_8%_2%,#3a211c_0,transparent_30%)]">
-      <header className="sticky top-0 z-40 flex h-19 items-center justify-between border-b border-line bg-surface/95 px-5 backdrop-blur-lg sm:px-11">
+      <header className="sticky top-0 z-40 flex min-h-19 flex-wrap items-center justify-between gap-3 border-b border-line bg-surface/95 px-5 py-3 backdrop-blur-lg sm:px-11">
         <a className="inline-flex items-center gap-2.5 text-ink no-underline" href="/">
           <span className="grid size-9 place-items-center rounded-xl bg-ink text-[19px] font-black text-surface">F</span>
           <strong className="text-lg tracking-[-.02em]">FindEat</strong>
         </a>
-        <a className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs font-extrabold text-ink no-underline hover:bg-surface-hover" href="/login">
-          Business sign in
-        </a>
+        <nav className="flex items-center gap-2 text-xs font-extrabold">
+          <a className="rounded-xl px-3.5 py-2.5 text-muted no-underline hover:bg-soft hover:text-ink" href="/upcoming">Upcoming features</a>
+          <a className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-ink no-underline hover:bg-surface-hover" href="/login">Business sign in</a>
+        </nav>
       </header>
 
       <main className="mx-auto w-full max-w-245 px-4.5 py-10 sm:px-8 sm:py-16">
@@ -52,8 +55,12 @@ export function KnownIssuesPage() {
           <p className="m-0 mt-5 text-xs font-black uppercase tracking-[.14em] text-accent">FindEat status</p>
           <h1 className="m-0 mt-2 text-[clamp(38px,7vw,64px)] leading-none tracking-[-.055em]">Known Issues</h1>
           <p className="m-0 mt-4 max-w-2xl text-base leading-7 text-muted">
-            We’re tracking these issues and working on them. If you’re experiencing one too, let us know from Help &amp; Feedback in the FindEat app.
+            We’re tracking these issues and working on them. Report something new here and it will go directly to the FindEat team for review.
           </p>
+          <div className="mt-6 flex flex-wrap gap-2.5">
+            <button type="button" onClick={() => setFeedbackKind("BUG")} className="inline-flex items-center gap-2 rounded-xl border-0 bg-accent px-4 py-3 text-sm font-extrabold text-[#faf9f6]"><BugIcon size={18} weight="fill" /> Spotted a bug?</button>
+            <button type="button" onClick={() => setFeedbackKind("FEATURE_REQUEST")} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm font-extrabold text-ink">Suggest a feature</button>
+          </div>
         </section>
 
         {loading ? (
@@ -94,6 +101,7 @@ export function KnownIssuesPage() {
         <div><strong>FindEat</strong><span className="ml-3 text-xs text-[#aaa39b]">Find places worth sharing.</span></div>
         <nav className="flex gap-4 text-xs font-bold"><a className="text-[#d8d2cb] no-underline" href="/privacy">Privacy</a><a className="text-[#d8d2cb] no-underline" href="/terms">Terms</a></nav>
       </footer>
+      <PublicFeedbackDialog kind={feedbackKind} onClose={() => setFeedbackKind(null)} />
     </div>
   );
 }

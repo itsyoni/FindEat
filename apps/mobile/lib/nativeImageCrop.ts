@@ -1,11 +1,22 @@
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import ImageCropPicker from "react-native-image-crop-picker";
-import { AppState, InteractionManager, Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 type CropperOptions = Parameters<typeof ImageCropPicker.openCropper>[0];
 
 function wait(milliseconds: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function waitForIdle() {
+  return new Promise<void>((resolve) => {
+    if (typeof globalThis.requestIdleCallback === "function") {
+      globalThis.requestIdleCallback(() => resolve(), { timeout: 500 });
+      return;
+    }
+
+    setTimeout(resolve, 0);
+  });
 }
 
 async function waitUntilAppIsActive() {
@@ -32,9 +43,7 @@ async function waitUntilAppIsActive() {
  */
 export async function waitForNativeImagePickerDismissal() {
   await waitUntilAppIsActive();
-  await new Promise<void>((resolve) => {
-    InteractionManager.runAfterInteractions(() => resolve());
-  });
+  await waitForIdle();
   await wait(Platform.OS === "ios" ? 240 : 80);
 }
 

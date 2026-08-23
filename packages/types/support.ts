@@ -31,12 +31,29 @@ export type SupportTicket = {
   adminReply?: string | null;
   handledById?: string | null;
   handledBy?: SupportTicketUser | null;
-  user?: SupportTicketUser;
+  user?: SupportTicketUser | null;
+  submitterName?: string | null;
+  submitterEmail?: string | null;
+  submittedFromWeb?: boolean;
   restaurantId?: string | null;
   restaurant?: {
     id: string;
     name: string;
     logoUrl?: string | null;
+  } | null;
+  knownIssue?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    status: import("./known-issue").KnownIssueStatus;
+    severity?: import("./known-issue").KnownIssueSeverity;
+  } | null;
+  plannedFeature?: {
+    id: string;
+    title: string;
+    description?: string | null;
+    status: import("./planned-feature").PlannedFeatureStatus;
+    targetLabel?: string | null;
   } | null;
   resolvedAt?: string | null;
   createdAt: string;
