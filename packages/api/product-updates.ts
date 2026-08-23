@@ -7,10 +7,8 @@ export function createProductUpdatesApi(client: AxiosInstance) {
       const { data } = await client.get<ProductUpdate[]>("/product-updates");
       return data;
     },
-    async unseen(limit = 3) {
-      const { data } = await client.get<ProductUpdate[]>("/product-updates/unseen", {
-        params: { limit },
-      });
+    async unseen() {
+      const { data } = await client.get<ProductUpdate[]>("/product-updates/unseen");
       return data;
     },
     async markSeen(id: string) {

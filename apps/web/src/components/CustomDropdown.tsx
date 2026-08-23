@@ -12,11 +12,15 @@ export function CustomDropdown({
   options,
   onChange,
   ariaLabel,
+  placement = "bottom",
+  matchTriggerWidth = false,
 }: {
   value: string;
   options: CustomDropdownOption[];
   onChange: (value: string) => void;
   ariaLabel: string;
+  placement?: "top" | "bottom";
+  matchTriggerWidth?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedValue, setHighlightedValue] = useState(value);
@@ -183,7 +187,7 @@ export function CustomDropdown({
         />
       </button>
       {isOpen ? (
-        <div className="custom-dropdown-menu [position:absolute] [z-index:60] [top:calc(100%_+_6px)] [left:0] [width:max(100%,_190px)] [max-height:280px] [overflow:auto] [padding:6px] [border:1px_solid_var(--line)] [border-radius:14px] [background:var(--surface)] [box-shadow:0_16px_38px_rgba(23,_18,_13,_0.18)] [&>button]:[display:flex] [&>button]:[align-items:center] [&>button]:[justify-content:space-between] [&>button]:[width:100%] [&>button]:[min-height:40px] [&>button]:[gap:12px] [&>button]:[padding:9px_10px] [&>button]:[border:0] [&>button]:[border-radius:9px] [&>button]:[background:transparent] [&>button]:[color:var(--ink)] [&>button]:[font:inherit] [&>button]:[font-size:11px] [&>button]:[text-align:left] [&>button>span]:[overflow:hidden] [&>button>span]:[text-overflow:ellipsis] [&>button>span]:[white-space:nowrap] [&>button>span:last-child:not(:first-child)]:[color:var(--muted)] [&>button>span:last-child:not(:first-child)]:[font-size:10px] [&>button>span:last-child:not(:first-child)]:[text-align:right] [&>button:hover]:[background:var(--surface-hover)] [&>button:hover]:[outline:0] [&>button:focus-visible]:[background:var(--surface-hover)] [&>button:focus-visible]:[outline:0] [&>button.highlighted]:[background:var(--surface-hover)] [&>button.highlighted]:[outline:0] [&>button.selected]:[background:var(--soft)] [&>button.selected]:[font-weight:900] [&>button.selected.highlighted]:[box-shadow:inset_0_0_0_1px_var(--line)] [.pro-range_&]:[width:100%] [.pro-range_&]:[min-width:100%]" role="listbox" aria-label={ariaLabel}>
+        <div className={`custom-dropdown-menu [position:absolute] [z-index:60] [left:0] [max-height:280px] [overflow:auto] [padding:6px] [border:1px_solid_var(--line)] [border-radius:14px] [background:var(--surface)] [box-shadow:0_16px_38px_rgba(23,_18,_13,_0.18)] [&>button]:[display:flex] [&>button]:[align-items:center] [&>button]:[justify-content:space-between] [&>button]:[width:100%] [&>button]:[min-height:40px] [&>button]:[gap:12px] [&>button]:[padding:9px_10px] [&>button]:[border:0] [&>button]:[border-radius:9px] [&>button]:[background:transparent] [&>button]:[color:var(--ink)] [&>button]:[font:inherit] [&>button]:[font-size:11px] [&>button]:[text-align:left] [&>button>span]:[overflow:hidden] [&>button>span]:[text-overflow:ellipsis] [&>button>span]:[white-space:nowrap] [&>button>span:last-child:not(:first-child)]:[color:var(--muted)] [&>button>span:last-child:not(:first-child)]:[font-size:10px] [&>button>span:last-child:not(:first-child)]:[text-align:right] [&>button:hover]:[background:var(--surface-hover)] [&>button:hover]:[outline:0] [&>button:focus-visible]:[background:var(--surface-hover)] [&>button:focus-visible]:[outline:0] [&>button.highlighted]:[background:var(--surface-hover)] [&>button.highlighted]:[outline:0] [&>button.selected]:[background:var(--soft)] [&>button.selected]:[font-weight:900] [&>button.selected.highlighted]:[box-shadow:inset_0_0_0_1px_var(--line)] [.pro-range_&]:[width:100%] [.pro-range_&]:[min-width:100%] ${placement === "top" ? "[top:auto] [bottom:calc(100%_+_6px)]" : "[top:calc(100%_+_6px)] [bottom:auto]"} ${matchTriggerWidth ? "[width:100%] [min-width:0]" : "[width:max(100%,_190px)]"}`} role="listbox" aria-label={ariaLabel}>
           {options.map((option) => (
             <button
               type="button"

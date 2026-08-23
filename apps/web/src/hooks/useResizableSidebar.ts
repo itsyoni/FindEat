@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -34,6 +35,7 @@ function readStoredSidebarWidth(storageKey: string) {
 
 export function useResizableSidebar(storageKey: string, activationKey?: string) {
   const sidebarRef = useRef<HTMLElement>(null);
+  const appliedLayoutRef = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(true);
   const [resizing, setResizing] = useState(false);
   const [width, setWidth] = useState(() => {
@@ -62,13 +64,17 @@ export function useResizableSidebar(storageKey: string, activationKey?: string) 
     return () => window.removeEventListener(SIDEBAR_WIDTH_SYNC_EVENT, syncWidth);
   }, [storageKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const sidebar = sidebarRef.current;
     const layout = sidebar?.parentElement;
     if (!sidebar || !layout) return;
 
     const desktop = window.matchMedia("(min-width: 801px)");
-    layout.style.transition = resizing
+    // A newly mounted admin/business layout starts at the stylesheet fallback
+    // width. Animating the first stored-width application makes the sidebar
+    // visibly grow on the first switch between the two areas.
+    const isNewLayoutElement = appliedLayoutRef.current !== layout;
+    layout.style.transition = resizing || isNewLayoutElement
       ? "none"
       : "grid-template-columns 220ms cubic-bezier(0.22, 1, 0.36, 1)";
     const syncLayout = () => {
@@ -80,6 +86,7 @@ export function useResizableSidebar(storageKey: string, activationKey?: string) 
     };
 
     syncLayout();
+    appliedLayoutRef.current = layout;
     desktop.addEventListener("change", syncLayout);
     window.localStorage.setItem(storageKey, String(width));
     window.dispatchEvent(
@@ -89,8 +96,6 @@ export function useResizableSidebar(storageKey: string, activationKey?: string) 
     );
     return () => {
       desktop.removeEventListener("change", syncLayout);
-      layout.style.removeProperty("grid-template-columns");
-      layout.style.removeProperty("transition");
     };
   }, [activationKey, open, resizing, storageKey, width]);
 

@@ -20,7 +20,7 @@ export default function WhatsNewModal() {
   useEffect(() => {
     if (!user?.id) return;
     let active = true;
-    api.productUpdates.unseen(3)
+    api.productUpdates.unseen()
       .then((next) => {
         if (active) {
           setUpdates(next);

@@ -8,13 +8,12 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useActiveCountry } from '@/contexts/ActiveCountryContext';
 import { router, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
-import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GiftIcon, GlobeHemisphereWestIcon, HeadsetIcon, LightbulbIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, RocketLaunchIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
+import { ArchiveIcon, BellIcon, BookmarkSimpleIcon, BugIcon, ChartLineUpIcon, DeviceMobileIcon, FileTextIcon, ForkKnifeIcon, GiftIcon, GlobeHemisphereWestIcon, HeadsetIcon, LockKeyIcon, MapPinIcon, MoonIcon, PersonArmsSpreadIcon, RocketLaunchIcon, ShieldCheckIcon, SignOutIcon, SparkleIcon, TagIcon, TrophyIcon } from 'phosphor-react-native';
 import { useTranslation } from 'react-i18next';
-import { Linking, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { useCallback, useState } from 'react';
 import { api } from '@/lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 
 export default function SettingsScreen() {
   const { t } = useTranslation(['settings', 'common', 'profile']);
@@ -53,15 +52,6 @@ export default function SettingsScreen() {
     ]);
   }
 
-  async function openKnownIssues() {
-    const url = `${process.env.EXPO_PUBLIC_WEB_URL ?? 'https://findeat.space'}/known-issues`;
-    try {
-      await WebBrowser.openBrowserAsync(url, { controlsColor: '#D97706' });
-    } catch {
-      await Linking.openURL(url);
-    }
-  }
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0B0B0A' : '#FBFAF8' }}>
       <SettingsHeader title={t('settings:title')} />
@@ -92,7 +82,7 @@ export default function SettingsScreen() {
             subtitle={t('settings:knownIssuesSubtitle')}
             value={activeIssueCount == null ? undefined : t('settings:activeIssueCount', { count: activeIssueCount })}
             valueEmphasis={Boolean(activeIssueCount)}
-            onPress={() => void openKnownIssues()}
+            onPress={() => router.push('/settings/known-issues')}
           />
           <SettingsRow
             icon={<RocketLaunchIcon size={23} color="#D97706" weight="duotone" />}
@@ -102,8 +92,6 @@ export default function SettingsScreen() {
             valueEmphasis={Boolean(upcomingFeatureCount)}
             onPress={() => router.push('/settings/upcoming-features')}
           />
-          <SettingsRow icon={<BugIcon size={23} color="#E4573D" weight="duotone" />} title={t('settings:reportBug')} subtitle={t('settings:reportBugSubtitle')} onPress={() => router.push('/settings/report-bug')} />
-          <SettingsRow icon={<LightbulbIcon size={23} color="#D1A928" weight="duotone" />} title={t('settings:suggestFeature')} subtitle={t('settings:suggestFeatureSubtitle')} onPress={() => router.push('/settings/suggest-feature')} />
           <SettingsRow icon={<HeadsetIcon size={23} color={color} />} title={t('settings:helpSupport')} subtitle={t('settings:helpSupportSubtitle')} onPress={() => router.push('/settings/help-support')} />
           <SettingsRow icon={<SparkleIcon size={23} color={color} />} title={t('settings:whatsNew')} subtitle={t('settings:whatsNewSubtitle')} onPress={() => router.push('/settings/whats-new')} />
           <SettingsRow icon={<FileTextIcon size={23} color={color} />} title={t('settings:termsOfService')} subtitle={t('settings:termsOfServiceSubtitle')} onPress={() => router.push('/settings/terms-of-service')} />

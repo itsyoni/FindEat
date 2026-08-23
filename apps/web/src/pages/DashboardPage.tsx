@@ -317,7 +317,10 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
     open: desktopSidebarOpen,
     setOpen: setDesktopSidebarOpen,
     startResize: startSidebarResize,
-  } = useResizableSidebar(SHARED_SIDEBAR_WIDTH_STORAGE_KEY, pathname);
+  } = useResizableSidebar(
+    SHARED_SIDEBAR_WIDTH_STORAGE_KEY,
+    `${pathname}:${account?.id ?? "loading"}:${restaurants.length}`,
+  );
   const [claims, setClaims] = useState<RestaurantClaim[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);

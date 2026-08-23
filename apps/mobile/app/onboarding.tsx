@@ -21,19 +21,23 @@ import {
   shouldRemoveFollowRelationship,
 } from "@findeat/utils";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
+import { Camera } from "expo-camera";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import {
-  BookmarkSimpleIcon,
+  BellIcon,
+  CameraIcon,
   CheckIcon,
-  ForkKnifeIcon,
+  ImageSquareIcon,
   MapPinIcon,
-  SparkleIcon,
   XIcon,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -47,23 +51,20 @@ import {
 } from "react-native";
 import Animated, {
   FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const FLOW: OnboardingStep[] = [
+type OnboardingScreenStep = Exclude<OnboardingStep, "COMPLETED"> | "NOTIFICATIONS_PERMISSION";
+
+const FLOW: OnboardingScreenStep[] = [
   "FOOD_PREFERENCES",
   "DIETARY_PREFERENCES",
   "ALLERGIES",
   "LOCATION",
   "SAVE_TUTORIAL",
   "DISH_REVIEWS",
+  "NOTIFICATIONS_PERMISSION",
   "SOCIAL_DISCOVERY",
-  "COMPLETION",
 ];
 
 const DIETARY_OPTIONS = [
@@ -82,7 +83,7 @@ export default function OnboardingScreen() {
   const { isDark } = useAppTheme();
   const { refreshUser } = useAuth();
   const [state, setState] = useState<OnboardingState | null>(null);
-  const [step, setStep] = useState<OnboardingStep>("FOOD_PREFERENCES");
+  const [step, setStep] = useState<OnboardingScreenStep>("FOOD_PREFERENCES");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -94,10 +95,13 @@ export default function OnboardingScreen() {
     try {
       const next = await api.onboarding.get();
       setState(next);
+      const resumedStep = next.onboardingStep;
       setStep(
-        next.onboardingStep && next.onboardingStep !== "COMPLETED"
-          ? next.onboardingStep
-          : "FOOD_PREFERENCES",
+        resumedStep === "COMPLETION"
+          ? "SOCIAL_DISCOVERY"
+          : resumedStep && resumedStep !== "COMPLETED"
+            ? resumedStep
+            : "FOOD_PREFERENCES",
       );
     } catch {
       setError(t("somethingWentWrong"));
@@ -112,10 +116,14 @@ export default function OnboardingScreen() {
   }, [load]);
 
   async function persist(
-    nextStep: OnboardingStep,
+    nextStep: OnboardingScreenStep,
     patch: Parameters<typeof api.onboarding.update>[0] = {},
   ) {
     if (saving) return;
+    if (nextStep === "NOTIFICATIONS_PERMISSION") {
+      setStep(nextStep);
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -131,19 +139,18 @@ export default function OnboardingScreen() {
 
   async function goBack() {
     if (index <= 0) return;
-    await persist(FLOW[index - 1]);
+    const previousStep = FLOW[index - 1];
+    if (previousStep === "NOTIFICATIONS_PERMISSION") {
+      setStep(previousStep);
+      return;
+    }
+    await persist(previousStep);
   }
 
   if (loading || !state) {
     return (
-      <SafeAreaView
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
-        }}
-      >
+      <OnboardingBackground isDark={isDark}>
+      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         {error ? (
           <View className="items-center px-8">
             <Text className="text-center text-gray-500 dark:text-gray-400">{error}</Text>
@@ -153,17 +160,13 @@ export default function OnboardingScreen() {
           <ActivityIndicator color="#D6A92D" />
         )}
       </SafeAreaView>
+      </OnboardingBackground>
     );
   }
 
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        minHeight: 0,
-        backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
-      }}
-    >
+    <OnboardingBackground isDark={isDark}>
+    <SafeAreaView style={{ flex: 1, minHeight: 0 }}>
       <View className="flex-row items-center px-5 pb-2 pt-3">
         {index > 0 ? (
           <TouchableOpacity
@@ -211,21 +214,25 @@ export default function OnboardingScreen() {
           <LocationStep state={state} saving={saving} persist={persist} />
         ) : null}
         {step === "SAVE_TUTORIAL" ? (
-          <SaveTutorialStep state={state} saving={saving} persist={persist} />
+          <CameraPermissionStep saving={saving} persist={persist} />
         ) : null}
         {step === "DISH_REVIEWS" ? (
-          <DishReviewStep saving={saving} persist={persist} />
+          <PhotosPermissionStep saving={saving} persist={persist} />
+        ) : null}
+        {step === "NOTIFICATIONS_PERMISSION" ? (
+          <NotificationsPermissionStep saving={saving} persist={persist} />
         ) : null}
         {step === "SOCIAL_DISCOVERY" ? (
-          <SocialStep state={state} saving={saving} persist={persist} />
-        ) : null}
-        {step === "COMPLETION" ? (
-          <CompletionStep
+          <SocialStep
             state={state}
             saving={saving}
-            onComplete={async () => {
+            onComplete={async (followedUserIds) => {
               setSaving(true);
               try {
+                await api.onboarding.update({
+                  step: "SOCIAL_DISCOVERY",
+                  progress: { followedUserIds },
+                });
                 await api.onboarding.complete();
                 await refreshUser();
                 router.replace("/(tabs)");
@@ -243,6 +250,34 @@ export default function OnboardingScreen() {
         <Text className="px-6 pb-2 text-center text-sm text-red-500">{error}</Text>
       ) : null}
     </SafeAreaView>
+    </OnboardingBackground>
+  );
+}
+
+function OnboardingBackground({ isDark, children }: { isDark: boolean; children: ReactNode }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
+      <Image
+        source={require("@/assets/images/auth-bg.png")}
+        contentFit="cover"
+        style={{ position: "absolute", inset: 0, opacity: isDark ? 0.55 : 0.38 }}
+      />
+      <BlurView
+        intensity={38}
+        tint={isDark ? "dark" : "light"}
+        blurMethod="dimezisBlurViewSdk31Plus"
+        style={{ position: "absolute", inset: 0 }}
+      />
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: isDark ? "rgba(11,11,10,0.72)" : "rgba(251,250,248,0.76)",
+        }}
+      />
+      {children}
+    </View>
   );
 }
 
@@ -521,7 +556,7 @@ type StepProps = {
   state: OnboardingState;
   saving: boolean;
   persist: (
-    nextStep: OnboardingStep,
+    nextStep: OnboardingScreenStep,
     patch?: Parameters<typeof api.onboarding.update>[0],
   ) => Promise<void>;
 };
@@ -582,6 +617,7 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
       <View className="px-6 pb-3">
         <PreferNotToSayCheckbox
           checked={preferNotToSay}
+          label={t("dietaryNoneOrPreferNotToSay")}
           onPress={() => {
             if (!reduceMotion) void Haptics.selectionAsync();
             setPreferNotToSay((current) => {
@@ -962,147 +998,163 @@ function LocationStep({ state, saving, persist }: StepProps) {
   );
 }
 
-function SaveTutorialStep({ state, saving, persist }: StepProps) {
+type PermissionStatus = "granted" | "denied" | "undetermined" | "limited";
+
+function CameraPermissionStep({ saving, persist }: Pick<StepProps, "saving" | "persist">) {
+  return (
+    <PermissionStep
+      icon={<CameraIcon size={52} color="#171715" weight="duotone" />}
+      titleKey="cameraTitle"
+      subtitleKey="cameraSubtitle"
+      grantedKey="cameraGranted"
+      requestLabelKey="enableCamera"
+      saving={saving}
+      load={async () => (await Camera.getCameraPermissionsAsync()).status}
+      request={async () => (await Camera.requestCameraPermissionsAsync()).status}
+      onContinue={() => void persist("DISH_REVIEWS")}
+    />
+  );
+}
+
+function PhotosPermissionStep({ saving, persist }: Pick<StepProps, "saving" | "persist">) {
+  return (
+    <PermissionStep
+      icon={<ImageSquareIcon size={52} color="#171715" weight="duotone" />}
+      titleKey="photosTitle"
+      subtitleKey="photosSubtitle"
+      grantedKey="photosGranted"
+      requestLabelKey="enablePhotos"
+      saving={saving}
+      load={async () => {
+        const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+        return permission.accessPrivileges === "limited" ? "limited" : permission.status;
+      }}
+      request={async () => {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        return permission.accessPrivileges === "limited" ? "limited" : permission.status;
+      }}
+      onContinue={() => void persist("NOTIFICATIONS_PERMISSION")}
+    />
+  );
+}
+
+function NotificationsPermissionStep({ saving, persist }: Pick<StepProps, "saving" | "persist">) {
+  return (
+    <PermissionStep
+      icon={<BellIcon size={52} color="#171715" weight="duotone" />}
+      titleKey="notificationsTitle"
+      subtitleKey="notificationsSubtitle"
+      grantedKey="notificationsGranted"
+      requestLabelKey="enableNotifications"
+      saving={saving}
+      load={async () => (await Notifications.getPermissionsAsync()).status}
+      request={async () => (await Notifications.requestPermissionsAsync()).status}
+      onContinue={() => void persist("SOCIAL_DISCOVERY")}
+    />
+  );
+}
+
+function PermissionStep({
+  icon,
+  titleKey,
+  subtitleKey,
+  grantedKey,
+  requestLabelKey,
+  saving,
+  load,
+  request,
+  onContinue,
+}: {
+  icon: ReactNode;
+  titleKey: string;
+  subtitleKey: string;
+  grantedKey: string;
+  requestLabelKey: string;
+  saving: boolean;
+  load: () => Promise<PermissionStatus>;
+  request: () => Promise<PermissionStatus>;
+  onContinue: () => void;
+}) {
   const { t } = useTranslation("onboarding");
-  const { reduceMotion } = useAccessibilityPreferences();
-  const [saved, setSaved] = useState(!!state.onboardingProgress?.saveTutorialCompleted);
-  const pulse = useSharedValue(1);
+  const [status, setStatus] = useState<PermissionStatus>("undetermined");
+  const [requesting, setRequesting] = useState(false);
+  const granted = status === "granted" || status === "limited";
 
   useEffect(() => {
-    if (saved || reduceMotion) {
-      pulse.value = 1;
-      return;
-    }
-    pulse.value = withRepeat(
-      withSequence(withTiming(1.13, { duration: 650 }), withTiming(1, { duration: 650 })),
-      -1,
-      true,
-    );
-  }, [pulse, reduceMotion, saved]);
-  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+    let active = true;
+    void load()
+      .then((nextStatus) => {
+        if (active) setStatus(nextStatus);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [load]);
 
-  async function saveDemo() {
-    if (saved) return;
-    setSaved(true);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  async function ask() {
+    setRequesting(true);
     try {
-      const next = await api.onboarding.update({
-        step: "SAVE_TUTORIAL",
-        progress: { saveTutorialCompleted: true },
-      });
-      // The server state is only onboarding metadata; no restaurant save is created.
-      void next;
-    } catch {
-      setSaved(false);
+      const nextStatus = await request();
+      setStatus(nextStatus);
+      if (nextStatus === "granted" || nextStatus === "limited") {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } finally {
+      setRequesting(false);
     }
   }
 
   return (
     <View className="flex-1">
-      <StepHeader title={t("saveTitle")} subtitle={!saved ? t("saveInstruction") : undefined} />
-      <View className="flex-1 px-6">
-        <View className="flex-1 overflow-hidden rounded-[28px] bg-ink shadow-sm">
-          <Image
-            source={require("@/assets/images/auth-bg.png")}
-            contentFit="cover"
-            style={{ flex: 1 }}
-          />
-          <LinearGradient
-            colors={["transparent", "rgba(11,11,10,0.78)"]}
-            className="absolute inset-0"
-          />
-          <View className="absolute bottom-5 left-5 right-5 flex-row items-end">
-            <View className="min-w-0 flex-1 pr-4">
-              <Text weight="bold" className="text-lg text-[#FAF9F6]">{t("demoRestaurant")}</Text>
-              <Text className="mt-1 text-[#FAF9F6]/85">{t("demoCaption")}</Text>
-            </View>
-            <Animated.View style={pulseStyle}>
-              <TouchableOpacity
-                onPress={() => void saveDemo()}
-                className={`h-14 w-14 items-center justify-center rounded-full ${
-                  saved ? "bg-[#F7D786]" : "bg-black/50"
-                }`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: saved }}
-                accessibilityLabel={t("saveInstruction")}
-              >
-                <BookmarkSimpleIcon
-                  size={29}
-                  color={saved ? "#171717" : "#FAF9F6"}
-                  weight={saved ? "fill" : "bold"}
-                />
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </View>
-        {saved ? (
-          <Animated.View entering={FadeIn.duration(220)} className="items-center py-4">
-            <Text weight="bold" className="text-[#9A6C00] dark:text-[#F7D786]">
-              {t("savedConfirmation")}
-            </Text>
-            <Text className="mt-1 text-center text-sm text-gray-500 dark:text-gray-400">
-              {t("saveExplanation")}
-            </Text>
+      <StepHeader title={t(titleKey)} subtitle={t(subtitleKey)} />
+      <View className="flex-1 items-center justify-center px-6">
+        <View className="w-full items-center rounded-[30px] border border-white/30 bg-white/65 px-6 py-10 shadow-sm dark:border-white/10 dark:bg-black/30">
+          <Animated.View
+            entering={FadeIn.duration(220)}
+            className="h-28 w-28 items-center justify-center rounded-[34px] bg-[#F7D786]"
+          >
+            {granted ? <CheckIcon size={54} color="#171715" weight="bold" /> : icon}
           </Animated.View>
+          <Text weight="black" className="mt-6 text-center text-2xl text-ink dark:text-white">
+            {granted ? t(grantedKey) : t("permissionPowerUp")}
+          </Text>
+          <Text className="mt-2 text-center text-gray-600 dark:text-gray-300">
+            {granted ? t("permissionReady") : t("permissionPrivate")}
+          </Text>
+        </View>
+      </View>
+      <View className="px-6 pb-3">
+        {granted || status === "denied" ? (
+          <PrimaryButton label={t("continue")} loading={saving} onPress={onContinue} />
+        ) : (
+          <PrimaryButton
+            label={t(requestLabelKey)}
+            loading={requesting}
+            onPress={() => void ask()}
+          />
+        )}
+        {!granted && status !== "denied" ? (
+          <TouchableOpacity
+            onPress={onContinue}
+            disabled={saving || requesting}
+            className="min-h-11 items-center justify-center"
+          >
+            <Text weight="bold" className="text-gray-600 dark:text-gray-300">{t("notNow")}</Text>
+          </TouchableOpacity>
         ) : null}
       </View>
-      <View className="px-6 pb-3">
-        <PrimaryButton
-          label={t("continue")}
-          disabled={!saved}
-          loading={saving}
-          onPress={() =>
-            void persist("DISH_REVIEWS", { progress: { saveTutorialCompleted: true } })
-          }
-        />
-      </View>
     </View>
   );
 }
 
-function DishReviewStep({
+function SocialStep({
+  state,
   saving,
-  persist,
-}: Pick<StepProps, "saving" | "persist">) {
-  const { t } = useTranslation("onboarding");
-  return (
-    <View className="flex-1">
-      <StepHeader title={t("dishTitle")} subtitle={t("dishSubtitle")} />
-      <View className="flex-1 justify-center px-6">
-        <View className="overflow-hidden rounded-[28px] bg-white shadow-sm dark:bg-[#1A1A19]">
-          <Image
-            source={require("@/assets/images/auth-bg.png")}
-            contentFit="cover"
-            style={{ width: "100%", aspectRatio: 1.45 }}
-          />
-          <View className="flex-row items-center p-5">
-            <View className="h-12 w-12 items-center justify-center rounded-2xl bg-[#F7D786]/35">
-              <ForkKnifeIcon size={25} color="#A36F00" weight="duotone" />
-            </View>
-            <View className="ml-3 flex-1">
-              <Text weight="bold" className="text-xl text-ink dark:text-white">{t("dishName")}</Text>
-              <Text className="mt-1 text-sm text-gray-500">{t("dishRatingLabel")}</Text>
-            </View>
-            <View className="h-16 w-16 items-center justify-center rounded-2xl bg-ink dark:bg-[#F7D786]">
-              <Text weight="black" className="text-2xl text-white dark:text-[#171717]">
-                {t("dishRating")}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      <View className="px-6 pb-3">
-        <PrimaryButton
-          label={t("continue")}
-          loading={saving}
-          onPress={() => void persist("SOCIAL_DISCOVERY")}
-        />
-      </View>
-    </View>
-  );
-}
-
-function SocialStep({ state, saving, persist }: StepProps) {
+  onComplete,
+}: Pick<StepProps, "state" | "saving"> & {
+  onComplete: (followedUserIds: string[]) => Promise<void>;
+}) {
   const { t } = useTranslation("onboarding");
   const [suggestions, setSuggestions] = useState<FollowSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1157,9 +1209,6 @@ function SocialStep({ state, saving, persist }: StepProps) {
     return t("follow");
   }
 
-  const finish = () =>
-    persist("COMPLETION", { progress: { followedUserIds: followedIds } });
-
   return (
     <View className="flex-1">
       <StepHeader title={t("socialTitle")} subtitle={t("socialSubtitle")} />
@@ -1196,55 +1245,12 @@ function SocialStep({ state, saving, persist }: StepProps) {
         )}
       </ScrollView>
       <View className="px-6 pb-3">
-        <PrimaryButton label={t("continue")} loading={saving} onPress={() => void finish()} />
+        <PrimaryButton
+          label={t("finish")}
+          loading={saving}
+          onPress={() => void onComplete(followedIds)}
+        />
       </View>
-    </View>
-  );
-}
-
-function CompletionStep({
-  state,
-  saving,
-  onComplete,
-}: {
-  state: OnboardingState;
-  saving: boolean;
-  onComplete: () => Promise<void>;
-}) {
-  const { t } = useTranslation("onboarding");
-  const rows = useMemo(() => {
-    const summary: string[] = [];
-    if (state.foodInterests.length) {
-      summary.push(state.foodInterests.slice(0, 3).map((item) => t(`foodInterests.${item}`)).join(" · "));
-    }
-    if (state.onboardingProgress?.locationChoice === "GRANTED") summary.push(`📍 ${t("nearYou")}`);
-    const followed = state.onboardingProgress?.followedUserIds?.length ?? 0;
-    if (followed) summary.push(`❤️ ${t("peopleFollowed", { count: followed })}`);
-    if (state.onboardingProgress?.saveTutorialCompleted) summary.push(`🔖 ${t("placeSaved")}`);
-    return summary;
-  }, [state, t]);
-
-  return (
-    <View className="flex-1 px-6 pb-3">
-      <View className="flex-1 items-center justify-center">
-        <Animated.View entering={FadeIn.duration(260)} className="h-24 w-24 items-center justify-center rounded-[30px] bg-[#F7D786]/40">
-          <SparkleIcon size={48} color="#B77D00" weight="duotone" />
-        </Animated.View>
-        <Text weight="black" className="mt-7 text-center text-4xl text-ink dark:text-white">
-          {t("readyTitle")}
-        </Text>
-        <Text className="mt-3 text-center text-base text-gray-500 dark:text-gray-400">
-          {t("readySubtitle")}
-        </Text>
-        <View className="mt-8 w-full gap-3 rounded-[26px] bg-white/70 p-5 dark:bg-white/5">
-          {rows.map((row) => (
-            <Text key={row} className="text-center text-base text-ink dark:text-white">
-              {row}
-            </Text>
-          ))}
-        </View>
-      </View>
-      <PrimaryButton label={t("finish")} loading={saving} onPress={() => void onComplete()} />
     </View>
   );
 }
