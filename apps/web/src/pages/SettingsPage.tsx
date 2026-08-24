@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/csr/ArrowSquareOut";
 import { DesktopIcon } from "@phosphor-icons/react/dist/csr/Desktop";
 import { FileTextIcon } from "@phosphor-icons/react/dist/csr/FileText";
@@ -5,6 +6,7 @@ import { MoonIcon } from "@phosphor-icons/react/dist/csr/Moon";
 import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
+import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { LEGAL_URLS } from "@findeat/legal";
 import type { WebThemePreference } from "../contexts/webThemeContext";
 import { useWebTheme } from "../hooks/useWebTheme";
@@ -135,6 +137,45 @@ export function SettingsPage() {
       <p className="mt-1.5 mb-0 text-center text-[11px] font-bold text-muted">
         FindEat for Business · Version {WEB_VERSION}
       </p>
+    </div>
+  );
+}
+
+export function SettingsOverlay({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-1000 grid place-items-center bg-[#171717]/50 p-3 backdrop-blur-lg"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="relative max-h-[94dvh] w-full max-w-3xl overflow-y-auto overscroll-contain rounded-[24px] border border-line bg-surface px-5 pt-14 pb-6 shadow-panel max-[520px]:max-h-[92dvh] max-[520px]:rounded-[22px] max-[520px]:px-4">
+        <button
+          type="button"
+          className="absolute top-4 right-4 z-10 grid size-9 place-items-center rounded-full border border-line bg-soft p-0 text-ink"
+          onClick={onClose}
+          aria-label="Close settings"
+        >
+          <XIcon size={17} weight="bold" />
+        </button>
+        <SettingsPage />
+      </div>
     </div>
   );
 }

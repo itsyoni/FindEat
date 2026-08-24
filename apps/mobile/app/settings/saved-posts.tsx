@@ -160,8 +160,8 @@ export default function SavedPostsScreen() {
           <View className="h-20 w-20 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950">
             <BookmarkSimpleIcon size={38} color="#D1A928" weight="fill" />
           </View>
-          <Text weight="bold" className="mt-5 text-xl text-black dark:text-white" style={textStyle}>{t("savedPostsEmpty")}</Text>
-          <Text className="mt-2 text-center leading-5 text-gray-500" style={textStyle}>{t("savedPostsEmptySubtitle")}</Text>
+          <Text weight="bold" className="mt-5 text-center text-xl text-black dark:text-white" style={[textStyle, { textAlign: "center" }]}>{t("savedPostsEmpty")}</Text>
+          <Text className="mt-2 text-center leading-5 text-gray-500" style={[textStyle, { textAlign: "center" }]}>{t("savedPostsEmptySubtitle")}</Text>
         </View>
       ) : (
         <FlatList

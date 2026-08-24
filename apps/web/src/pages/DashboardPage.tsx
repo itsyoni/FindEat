@@ -54,7 +54,7 @@ import { ProfilePage } from "./ProfilePage";
 import { ReviewsPage } from "./ReviewsPage";
 import { BadgesPage } from "./BadgesPage";
 import { OwnerSupportPage } from "./OwnerSupportPage";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsOverlay, SettingsPage } from "./SettingsPage";
 import { OffersPage } from "./OffersPage";
 import { ErrorPage } from "../components/ErrorPage";
 import {
@@ -312,6 +312,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const {
     sidebarRef,
     open: desktopSidebarOpen,
@@ -835,7 +836,13 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
               className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#FAF9F6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#FAF9F6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:[width:38px] max-[800px]:[height:38px] messages-trigger [text-decoration:none] ${section === "messages" ? "active" : ""}`}
               aria-label="Open messages"
               title="Messages"
-              onClick={() => setNotificationsOpen(false)}
+              onClick={(event) => {
+                setNotificationsOpen(false);
+                if (window.matchMedia("(max-width: 800px)").matches) {
+                  event.preventDefault();
+                  setMobileSettingsOpen(true);
+                }
+              }}
             >
               <ChatCircleDotsIcon size={21} weight="duotone" aria-hidden="true" />
               {messageUnreadCount > 0 ? (
@@ -973,6 +980,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
       </main>
+      {mobileSettingsOpen ? <SettingsOverlay onClose={() => setMobileSettingsOpen(false)} /> : null}
     </div>
   );
 }

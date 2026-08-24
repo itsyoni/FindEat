@@ -33,7 +33,7 @@ import { AccountAvatar } from "../components/AccountAvatar";
 import { RestaurantOwnershipManager } from "../components/RestaurantOwnershipManager";
 import { SupportTicketsPanel } from "../components/SupportTicketsPanel";
 import { ProductUpdatesAdmin } from "../components/ProductUpdatesAdmin";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsOverlay, SettingsPage } from "./SettingsPage";
 import { WEB_VERSION } from "../lib/version";
 import { UserIdentity } from "../components/UserIdentity";
 import { ModerationPanel } from "../components/ModerationPanel";
@@ -103,6 +103,7 @@ export function AdminPage({
   const [adminActivity, setAdminActivity] = useState<AdminActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [activityUnreadCount, setActivityUnreadCount] = useState(0);
   const [visitedSections, setVisitedSections] = useState<
     Set<AdminDashboardSection>
@@ -536,7 +537,11 @@ export function AdminPage({
               title="Settings"
               onClick={() => {
                 setNotificationsOpen(false);
-                onNavigate("settings");
+                if (window.matchMedia("(max-width: 800px)").matches) {
+                  setMobileSettingsOpen(true);
+                } else {
+                  onNavigate("settings");
+                }
               }}
             >
               <GearSixIcon size={21} weight="duotone" aria-hidden="true" />
@@ -803,6 +808,7 @@ export function AdminPage({
           ) : null}
         </div>
       </main>
+      {mobileSettingsOpen ? <SettingsOverlay onClose={() => setMobileSettingsOpen(false)} /> : null}
     </div>
   );
 }

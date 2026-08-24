@@ -417,17 +417,17 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
 
   return (
     <>
-      <div className="flex items-start justify-between gap-5 max-[800px]:gap-3.5">
-        <div>
+      <div className="flex items-start justify-between gap-5 max-[800px]:gap-3.5 max-[560px]:flex-col">
+        <div className="min-w-0">
           <p className="mb-2 text-xs font-black tracking-[.12em] text-accent">{panelCopy[mode].eyebrow}</p>
           <h2 className="mb-2 text-[clamp(28px,4vw,42px)] leading-tight tracking-[-.04em]">{panelCopy[mode].title}</h2>
           <p className="m-0 text-muted max-[800px]:hidden">{panelCopy[mode].description}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
-          {mode !== "support" ? <button className="flex min-h-11 items-center gap-1.75 rounded-xl border-0 bg-ink px-4 py-3 font-extrabold text-surface" onClick={() => setCreating(true)}>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 max-[560px]:grid max-[560px]:w-full max-[560px]:grid-cols-2">
+          {mode !== "support" ? <button className="flex min-h-11 items-center justify-center gap-1.75 rounded-xl border-0 bg-ink px-4 py-3 font-extrabold text-surface max-[380px]:px-2 max-[380px]:text-xs" onClick={() => setCreating(true)}>
             <PlusIcon size={18} weight="bold" /> {mode === "bugs" ? "Add bug" : "Add feature"}
           </button> : null}
-          <button className="flex min-h-11 items-center gap-1.75 rounded-xl border border-line bg-soft px-4 py-3 font-extrabold text-ink disabled:opacity-55" onClick={() => void load()} disabled={loading}>
+          <button className={`flex min-h-11 items-center justify-center gap-1.75 rounded-xl border border-line bg-soft px-4 py-3 font-extrabold text-ink disabled:opacity-55 max-[380px]:px-2 max-[380px]:text-xs ${mode === "support" ? "max-[560px]:col-span-2" : ""}`} onClick={() => void load()} disabled={loading}>
             <ArrowClockwiseIcon size={18} weight="bold" /> Refresh
           </button>
         </div>
@@ -442,8 +442,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,36%)_minmax(0,1fr)] overflow-hidden rounded-[22px] border border-line bg-surface shadow-panel max-[800px]:grid-cols-1 max-[800px]:grid-rows-1">
-        <section className={`min-h-0 overflow-y-auto overscroll-contain border-r border-line max-[800px]:border-r-0 max-[800px]:border-b-0 ${mobileDetailOpen ? "max-[800px]:hidden" : "max-[800px]:block"}`}>
+      <div className={`grid min-h-0 flex-1 overflow-hidden rounded-[22px] border border-line bg-surface shadow-panel max-[800px]:grid-cols-1 max-[800px]:grid-rows-1 ${mode === "support" ? "grid-cols-[minmax(280px,36%)_minmax(0,1fr)]" : "grid-cols-1"}`}>
+        <section className={`min-h-0 overflow-y-auto overscroll-contain border-line max-[800px]:border-r-0 max-[800px]:border-b-0 ${mode === "support" ? `border-r ${mobileDetailOpen ? "max-[800px]:hidden" : "max-[800px]:block"}` : "border-r-0"}`}>
           {loading ? <div className="grid min-h-75 place-items-center p-7 text-center text-muted">Loading requests…</div> : filtered.length === 0 ? (
             <div className="m-5 grid place-items-center rounded-2xl bg-soft p-8 text-center text-muted">
               <CheckCircleIcon size={30} weight="duotone" />
@@ -465,10 +465,21 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
           ))}
         </section>
 
-        <section className={`min-h-0 min-w-0 overflow-y-auto overscroll-contain p-7 max-[800px]:p-4 ${mobileDetailOpen ? "max-[800px]:block" : "max-[800px]:hidden"}`}>
+        {(mode === "support" || (selected && mobileDetailOpen)) ? <section
+          className={mode === "support"
+            ? `min-h-0 min-w-0 overflow-y-auto overscroll-contain p-7 max-[800px]:p-4 ${mobileDetailOpen ? "max-[800px]:block" : "max-[800px]:hidden"}`
+            : "fixed inset-0 z-1000 grid place-items-center overflow-hidden bg-[#171717]/55 p-4 backdrop-blur-md max-[560px]:items-end max-[560px]:p-2"}
+          role={mode === "support" ? undefined : "dialog"}
+          aria-modal={mode === "support" ? undefined : true}
+          aria-label={mode === "bugs" ? "Bug details" : mode === "features" ? "Feature details" : undefined}
+          onMouseDown={(event) => {
+            if (mode !== "support" && event.target === event.currentTarget) setMobileDetailOpen(false);
+          }}
+        >
+          <div className={mode === "support" ? "contents" : "max-h-[94dvh] w-full max-w-3xl overflow-y-auto overscroll-contain rounded-[24px] border border-line bg-surface p-7 shadow-panel max-[800px]:p-5 max-[560px]:max-h-[92dvh] max-[560px]:rounded-[22px] max-[560px]:p-4"}>
           {!selected ? <div className="grid min-h-75 place-items-center p-7 text-center text-muted">Select a request to read and reply.</div> : (
             <>
-              <button type="button" className="mb-4 hidden min-h-10 items-center gap-2 rounded-xl border-0 bg-soft px-3 text-sm font-extrabold text-ink max-[800px]:inline-flex" onClick={() => setMobileDetailOpen(false)}><ArrowLeftIcon size={17} weight="bold" /> Back to {mode === "bugs" ? "bugs" : mode === "features" ? "features" : "requests"}</button>
+              <button type="button" className={`mb-4 min-h-10 items-center gap-2 rounded-xl border-0 bg-soft px-3 text-sm font-extrabold text-ink ${mode === "support" ? "hidden max-[800px]:inline-flex" : "inline-flex"}`} onClick={() => setMobileDetailOpen(false)}><ArrowLeftIcon size={17} weight="bold" /> {mode === "support" ? "Back to requests" : "Close"}</button>
               <div className="flex items-start justify-between gap-5 border-b border-line pb-5">
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] font-black tracking-[.08em] text-accent uppercase">{categoryLabels[selected.category]}</span><span className="rounded-full bg-soft px-2 py-1 text-[10px] font-black uppercase tracking-[.06em] text-muted">From {sourceLabel(selected)}</span>{selected.platform ? <span className="rounded-full bg-accent-soft px-2 py-1 text-[10px] font-black text-ink">{selected.platform}</span> : null}</div>
@@ -607,7 +618,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
               {selected.handledBy && <small className="mt-3.5 block text-muted">Last handled by {selected.handledBy.username}</small>}
             </>
           )}
-        </section>
+          </div>
+        </section> : null}
       </div>
       {creating && mode !== "support" ? <div className="fixed inset-0 z-1000 grid place-items-center bg-[#171717]/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={mode === "bugs" ? "Add bug" : "Add feature"} onMouseDown={(event) => { if (event.target === event.currentTarget) setCreating(false); }}>
         <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-line bg-surface p-5 shadow-panel sm:p-6">
