@@ -31,6 +31,17 @@ export default function KnownIssueSuggestionCard({
               {issue.description}
             </Text>
           ) : null}
+          {issue.platforms.length ? (
+            <View className="mt-3 flex-row flex-wrap gap-1.5">
+              {issue.platforms.map((platform) => (
+                <View key={platform} className="rounded-full border border-amber-300/60 bg-amber-50 px-2.5 py-1 dark:border-amber-700/60 dark:bg-amber-950/50">
+                  <Text className="text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                    {platform}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       </View>
       <View className="mt-3 flex-row items-center justify-between gap-3">

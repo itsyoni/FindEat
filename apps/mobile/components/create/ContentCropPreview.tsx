@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -23,6 +23,8 @@ type Props = {
   sourceHeight: number;
   crop?: ContentCropRect;
   aspectRatio?: number;
+  canvasAspectRatio?: number;
+  cropShape?: "rectangle" | "circle";
   disabled?: boolean;
   onCropChange: (crop: ContentCropRect) => void;
 };
@@ -41,14 +43,26 @@ export default function ContentCropPreview({
   sourceHeight,
   crop,
   aspectRatio = CONTENT_ASPECT,
+  canvasAspectRatio,
+  cropShape = "rectangle",
   disabled = false,
   onCropChange,
 }: Props) {
   const [available, setAvailable] = useState({ width: 0, height: 0 });
-  const frame = useMemo(() => {
-    const width = Math.min(available.width, available.height * aspectRatio);
-    return { width, height: width / aspectRatio };
-  }, [aspectRatio, available.height, available.width]);
+  const canvasFrame = useMemo(() => {
+    const ratio = canvasAspectRatio ?? aspectRatio;
+    const width = Math.min(available.width, available.height * ratio);
+    return { width, height: width / ratio };
+  }, [aspectRatio, available.height, available.width, canvasAspectRatio]);
+  const frame = useMemo(
+    () =>
+      cropShape === "circle"
+        ? { width: canvasFrame.width, height: canvasFrame.width }
+        : canvasFrame,
+    [canvasFrame, cropShape],
+  );
+  const cropOffsetY =
+    cropShape === "circle" ? (canvasFrame.height - frame.height) / 2 : 0;
   const zoom = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -56,6 +70,7 @@ export default function ContentCropPreview({
   const gestureTranslateX = useSharedValue(0);
   const gestureTranslateY = useSharedValue(0);
   const gridOpacity = useSharedValue(0);
+  const initializedCropKey = useRef("");
 
   const geometry = useMemo(() => {
     if (!frame.width || !frame.height || !sourceWidth || !sourceHeight) {
@@ -101,6 +116,15 @@ export default function ContentCropPreview({
 
   useEffect(() => {
     if (!geometry || !frame.width || !frame.height) return;
+    const nextInitializationKey = [
+      sourceUri,
+      sourceWidth,
+      sourceHeight,
+      frame.width,
+      frame.height,
+    ].join(":");
+    if (initializedCropKey.current === nextInitializationKey) return;
+    initializedCropKey.current = nextInitializationKey;
     const initialCrop = crop;
     if (initialCrop?.width && initialCrop?.height) {
       const targetAspect = frame.width / frame.height;
@@ -195,6 +219,7 @@ export default function ContentCropPreview({
     () =>
       Gesture.Pan()
         .enabled(!disabled && !!geometry)
+        .maxPointers(1)
         .onBegin(() => {
           gestureTranslateX.set(translateX.get());
           gestureTranslateY.set(translateY.get());
@@ -260,7 +285,7 @@ export default function ContentCropPreview({
           );
           const ratio = nextZoom / gestureZoom.get();
           const focalX = event.focalX - frame.width / 2;
-          const focalY = event.focalY - frame.height / 2;
+          const focalY = event.focalY - cropOffsetY - frame.height / 2;
           const focalTranslateX =
             focalX - (focalX - gestureTranslateX.get()) * ratio;
           const focalTranslateY =
@@ -287,6 +312,7 @@ export default function ContentCropPreview({
         }),
     [
       cropFromTransform,
+      cropOffsetY,
       disabled,
       frame.height,
       frame.width,
@@ -310,6 +336,20 @@ export default function ContentCropPreview({
       height: displayedHeight,
       left: (frame.width - displayedWidth) / 2 + translateX.get(),
       top: (frame.height - displayedHeight) / 2 + translateY.get(),
+    };
+  });
+  const blurredImageStyle = useAnimatedStyle(() => {
+    if (!geometry) return {};
+    const displayedWidth = geometry.baseWidth * zoom.get();
+    const displayedHeight = geometry.baseHeight * zoom.get();
+    return {
+      width: displayedWidth,
+      height: displayedHeight,
+      left: (frame.width - displayedWidth) / 2 + translateX.get(),
+      top:
+        cropOffsetY +
+        (frame.height - displayedHeight) / 2 +
+        translateY.get(),
     };
   });
   const gridStyle = useAnimatedStyle(() => ({ opacity: gridOpacity.get() }));
@@ -340,8 +380,8 @@ export default function ContentCropPreview({
     >
       <View
         style={{
-          width: frame.width,
-          height: frame.height,
+          width: canvasFrame.width,
+          height: canvasFrame.height,
           overflow: "hidden",
           shadowColor: "#0B0B0A",
           shadowOpacity: 0.38,
@@ -352,36 +392,115 @@ export default function ContentCropPreview({
         {geometry ? (
           <GestureDetector gesture={combinedGesture}>
             <View className="flex-1 overflow-hidden">
+              {cropShape === "circle" ? (
+                <>
+                  <Animated.View
+                    style={[
+                      { position: "absolute" },
+                      blurredImageStyle,
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: sourceUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="fill"
+                      cachePolicy="none"
+                      blurRadius={18}
+                    />
+                  </Animated.View>
+                  <View
+                    pointerEvents="none"
+                    className="absolute inset-0 bg-black/25"
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      top: cropOffsetY,
+                      left: 0,
+                      width: frame.width,
+                      height: frame.height,
+                      overflow: "hidden",
+                      borderRadius: frame.width / 2,
+                    }}
+                  >
+                    <Animated.View
+                      style={[
+                        {
+                          position: "absolute",
+                          width: geometry.baseWidth,
+                          height: geometry.baseHeight,
+                          left: (frame.width - geometry.baseWidth) / 2,
+                          top: (frame.height - geometry.baseHeight) / 2,
+                        },
+                        imageStyle,
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: sourceUri }}
+                        style={{ width: "100%", height: "100%" }}
+                        contentFit="fill"
+                        cachePolicy="none"
+                        onError={(event) =>
+                          console.error("Crop image preview failed", {
+                            uri: sourceUri,
+                            error: event.error,
+                          })
+                        }
+                      />
+                    </Animated.View>
+                  </View>
+                </>
+              ) : (
+                <Animated.View
+                  style={[
+                    {
+                      position: "absolute",
+                      width: geometry.baseWidth,
+                      height: geometry.baseHeight,
+                      left: (frame.width - geometry.baseWidth) / 2,
+                      top: (frame.height - geometry.baseHeight) / 2,
+                    },
+                    imageStyle,
+                  ]}
+                >
+                  <Image
+                    source={{ uri: sourceUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="fill"
+                    cachePolicy="none"
+                    onError={(event) =>
+                      console.error("Crop image preview failed", {
+                        uri: sourceUri,
+                        error: event.error,
+                      })
+                    }
+                  />
+                </Animated.View>
+              )}
               <Animated.View
+                pointerEvents="none"
                 style={[
                   {
                     position: "absolute",
-                    width: geometry.baseWidth,
-                    height: geometry.baseHeight,
-                    left: (frame.width - geometry.baseWidth) / 2,
-                    top: (frame.height - geometry.baseHeight) / 2,
+                    top: cropOffsetY,
+                    left: 0,
+                    width: frame.width,
+                    height: frame.height,
+                    overflow: "hidden",
+                    borderRadius:
+                      cropShape === "circle" ? frame.width / 2 : 0,
                   },
-                  imageStyle,
+                  gridStyle,
                 ]}
               >
-                <Image
-                  source={{ uri: sourceUri }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="fill"
-                  cachePolicy="none"
-                  onError={(event) =>
-                    console.error("Crop image preview failed", {
-                      uri: sourceUri,
-                      error: event.error,
-                    })
-                  }
+                <View
+                  className="absolute inset-0 border border-white/80"
+                  style={{
+                    borderRadius:
+                      cropShape === "circle" ? frame.width / 2 : 0,
+                  }}
                 />
-              </Animated.View>
-              <Animated.View
-                pointerEvents="none"
-                style={[{ position: "absolute", inset: 0 }, gridStyle]}
-              >
-                <View className="absolute inset-0 border border-white/80" />
                 <View className="absolute bottom-0 left-1/3 top-0 w-px bg-white/65" />
                 <View className="absolute bottom-0 left-2/3 top-0 w-px bg-white/65" />
                 <View className="absolute left-0 right-0 top-1/3 h-px bg-white/65" />

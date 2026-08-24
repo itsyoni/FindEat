@@ -3,7 +3,7 @@ import AppBottomSheet from '@/components/common/AppBottomSheet';
 import FullScreenImageViewer from '@/components/common/FullScreenImageViewer';
 import { Restaurant } from '@findeat/types';
 import { router } from 'expo-router';
-import { CalendarCheckIcon, ChatCircleIcon, DotsThreeIcon, MapPinIcon } from 'phosphor-react-native';
+import { CalendarCheckIcon, ChatCircleIcon, DotsThreeIcon, FireIcon, MapPinIcon } from 'phosphor-react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
 import { useTranslation } from 'react-i18next';
@@ -59,10 +59,11 @@ type Props = {
   onToggleFollow: () => void;
   onOpenOptions: () => void;
   scrollY: SharedValue<number>;
+  hotRightNow?: boolean;
 };
 
-export default function RestaurantHeader({ restaurant, loading = false, onToggleFollow, onOpenOptions, scrollY }: Props) {
-  const { t } = useTranslation('restaurants');
+export default function RestaurantHeader({ restaurant, loading = false, onToggleFollow, onOpenOptions, scrollY, hotRightNow = false }: Props) {
+  const { t } = useTranslation(['restaurants', 'map']);
   const { isDark } = useAppTheme();
   const [logoOpen, setLogoOpen] = useState(false);
   const [locationActionsOpen, setLocationActionsOpen] = useState(false);
@@ -212,22 +213,34 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
             ))}
           </View>
         ) : null}
-        {location ? (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            className="mt-3 flex-row items-center rounded-full bg-blue-50 px-3 py-2 dark:bg-blue-950/40"
-            onPress={() => setLocationActionsOpen(true)}
-          >
-            <MapPinIcon size={16} color="#3B82F6" weight="fill" />
-            <Text
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              className="ml-1.5 max-w-72 text-center font-medium text-blue-600 dark:text-blue-400"
-            >
-              {location}
-            </Text>
-            <DirectionalIcon direction="forward" size={14} color="#3B82F6" weight="bold" />
-          </TouchableOpacity>
+        {location || hotRightNow ? (
+          <View className="mt-3 flex-row items-center justify-center gap-2 px-5">
+            {location ? (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                className="min-w-0 shrink flex-row items-center rounded-full bg-blue-50 px-3 py-2 dark:bg-blue-950/40"
+                onPress={() => setLocationActionsOpen(true)}
+              >
+                <MapPinIcon size={16} color="#3B82F6" weight="fill" />
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  className="ml-1.5 min-w-0 shrink text-center font-medium text-blue-600 dark:text-blue-400"
+                >
+                  {location}
+                </Text>
+                <DirectionalIcon direction="forward" size={14} color="#3B82F6" weight="bold" />
+              </TouchableOpacity>
+            ) : null}
+            {hotRightNow ? (
+              <View className="shrink-0 flex-row items-center rounded-full bg-[#FFF0E6] px-3 py-2 dark:bg-[#3A211C]">
+                <FireIcon size={15} color="#FF5B35" weight="fill" />
+                <Text className="ml-1.5 text-xs font-bold text-brand">
+                  {t('map:hotRightNow')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
         {restaurant.resolvedOpeningHours ? (
           <View className="mt-2">

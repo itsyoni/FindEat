@@ -125,6 +125,7 @@
   "chooseImageDescription": "Where would you like to get the image from?",
   "cropProfilePhoto": "Crop profile photo",
   "cropCoverPhoto": "Crop cover photo",
+  "cropImage": "Crop image",
   "imagePickerError": "Could not open or crop the selected image.",
   "takePhoto": "Take Photo",
   "profilePhoto": "Profile photo",

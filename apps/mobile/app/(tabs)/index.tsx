@@ -109,6 +109,12 @@ export default function HomeScreen() {
     () => exploreFeed.data?.pages.flatMap((page) => page.items) ?? [],
     [exploreFeed.data],
   );
+  const showingEmptyFollowing =
+    activeFeed === "FOLLOWING" &&
+    !authLoading &&
+    !followingFeed.isPending &&
+    !followingFeed.isError &&
+    followingPosts.length === 0;
   const refetchFollowingFeed = followingFeed.refetch;
 
   useFocusEffect(
@@ -362,9 +368,7 @@ export default function HomeScreen() {
   const topBarInset = insets.top + 56;
   const contentCardTopInset = snapsCollapsed ? 0 : insets.top + 150;
   const contentControlsTopInset = snapsCollapsed ? topBarInset : 0;
-  const followingEmptyTopInset = snapsCollapsed
-    ? contentControlsTopInset + 48
-    : contentCardTopInset;
+  const snapsHeaderExpanded = showingEmptyFollowing || !snapsCollapsed;
   const activeFeedRefreshing =
     activeFeed === "FOLLOWING"
       ? followingFeed.isRefetching
@@ -384,15 +388,30 @@ export default function HomeScreen() {
     );
   }, [snapsCollapsed, snapsProgress]);
 
+  useEffect(() => {
+    if (showingEmptyFollowing) setSnapsCollapsed(false);
+  }, [showingEmptyFollowing]);
+
   const snapsTrayAnimatedStyle = useAnimatedStyle(() => ({
     height: snapsTrayHeight * snapsProgress.value,
     opacity: Math.max(0, (snapsProgress.value - 0.7) / 0.3),
     overflow: "hidden",
   }));
 
+  const emptyFollowingSnapsScrollStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: showingEmptyFollowing
+          ? -Math.max(0, followingScrollOffset.get())
+          : 0,
+      },
+    ],
+  }));
+
   const homeFeedGesture = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(!showingEmptyFollowing)
         .manualActivation(true)
         .maxPointers(1)
         .onTouchesDown((event) => {
@@ -476,6 +495,7 @@ export default function HomeScreen() {
       gestureStartX,
       gestureStartY,
       refreshActiveFeed,
+      showingEmptyFollowing,
       snapsCollapsed,
     ],
   );
@@ -601,7 +621,10 @@ export default function HomeScreen() {
                   loadingMore={followingFeed.isFetchingNextPage}
                   loading={authLoading || followingFeed.isPending}
                   emptyComponent={
-                    <FollowingSuggestions topInset={followingEmptyTopInset} />
+                    <View style={{ paddingTop: topBarInset }}>
+                      <View style={{ height: snapsTrayHeight }} />
+                      <FollowingSuggestions topInset={0} />
+                    </View>
                   }
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
@@ -609,10 +632,14 @@ export default function HomeScreen() {
                   onDeletePost={deletePost}
                   onOpenSharePost={setSharePostId}
                   onOpenPostOptions={setOptionsPostId}
-                  preventTopOverscroll={snapsCollapsed}
-                  feedScrollEnabled={snapsCollapsed}
+                  preventTopOverscroll={
+                    showingEmptyFollowing ? false : snapsCollapsed
+                  }
+                  feedScrollEnabled={showingEmptyFollowing || snapsCollapsed}
                   nativeRefreshEnabled={false}
-                  onPullDownAtTop={openSnaps}
+                  onPullDownAtTop={
+                    showingEmptyFollowing ? undefined : openSnaps
+                  }
                   onScrollOffsetChange={(offset) => {
                     followingScrollOffset.set(offset);
                   }}
@@ -686,7 +713,7 @@ export default function HomeScreen() {
               >
                 <MagnifyingGlassIcon
                   size={28}
-                  color={!isDark && !snapsCollapsed ? "#171717" : "#FAF9F6"}
+                  color={!isDark && snapsHeaderExpanded ? "#171717" : "#FAF9F6"}
                   weight="bold"
                   style={iconShadow}
                 />
@@ -710,12 +737,12 @@ export default function HomeScreen() {
                             color: active
                               ? isDark
                                 ? "#FAF9F6"
-                                : !snapsCollapsed
+                                : snapsHeaderExpanded
                                   ? "#171717"
                                   : "#FAF9F6"
                               : isDark
                                 ? "rgba(255,255,255,0.65)"
-                                : !snapsCollapsed
+                                : snapsHeaderExpanded
                                   ? "rgba(23,23,23,0.55)"
                                   : "rgba(255,255,255,0.68)",
                           },
@@ -728,7 +755,7 @@ export default function HomeScreen() {
                           className="mt-1 h-0.5 rounded-full"
                           style={{
                             backgroundColor:
-                              isDark || snapsCollapsed ? "#FAF9F6" : "#171717",
+                              isDark || !snapsHeaderExpanded ? "#FAF9F6" : "#171717",
                           }}
                         />
                       ) : null}
@@ -746,7 +773,7 @@ export default function HomeScreen() {
               >
                 <BellIcon
                   size={27}
-                  color={!isDark && !snapsCollapsed ? "#171717" : "#FAF9F6"}
+                  color={!isDark && snapsHeaderExpanded ? "#171717" : "#FAF9F6"}
                   weight="fill"
                   style={iconShadow}
                 />
@@ -767,12 +794,16 @@ export default function HomeScreen() {
               pointerEvents="box-none"
             >
               <Animated.View
-                pointerEvents={snapsCollapsed ? "none" : "auto"}
+                pointerEvents={
+                  snapsCollapsed && !showingEmptyFollowing ? "none" : "auto"
+                }
                 style={snapsTrayAnimatedStyle}
               >
-                <SnapsTray overlay />
+                <Animated.View style={emptyFollowingSnapsScrollStyle}>
+                  <SnapsTray overlay />
+                </Animated.View>
               </Animated.View>
-              {snapsCollapsed ? (
+              {snapsCollapsed && !showingEmptyFollowing ? (
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t("expandSnaps")}

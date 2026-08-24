@@ -125,6 +125,7 @@
   "chooseImageDescription": "מאיפה תרצה לבחור תמונה?",
   "cropProfilePhoto": "חיתוך תמונת פרופיל",
   "cropCoverPhoto": "חיתוך תמונת קאבר",
+  "cropImage": "חיתוך תמונה",
   "imagePickerError": "לא ניתן לפתוח או לחתוך את התמונה שנבחרה.",
   "takePhoto": "צלם תמונה",
   "profilePhoto": "תמונת פרופיל",

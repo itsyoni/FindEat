@@ -243,6 +243,7 @@ export default function UserContentFeedScreen() {
           onOpenSharePost={setSharePostId}
           onOpenPostOptions={setOptionsPostId}
           initialIndex={initialIndex}
+          initialPostId={postId}
         />
 
       <PostOptionsBottomSheet

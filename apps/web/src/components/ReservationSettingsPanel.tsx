@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowSquareOutIcon, CalendarCheckIcon } from "@phosphor-icons/react";
+import { CalendarCheckIcon } from "@phosphor-icons/react";
 import type {
   ManagedRestaurant,
   ReservationProvider,
@@ -9,7 +9,7 @@ import { request } from "../lib/api";
 import { CustomDropdown } from "./CustomDropdown";
 
 const providerOptions = [
-  { value: "NONE", label: "No provider" },
+  { value: "NONE", label: "Choose a booking service" },
   { value: "ONTOP", label: "Ontopo" },
   { value: "TABIT", label: "Tabit" },
   { value: "OTHER", label: "Other provider" },
@@ -32,10 +32,6 @@ function initialConfig(restaurant: ManagedRestaurant): RestaurantReservationConf
   };
 }
 
-function providerName(provider: ReservationProvider) {
-  return providerOptions.find((option) => option.value === provider)?.label ?? "Provider";
-}
-
 export function ReservationSettingsPanel({
   restaurant,
   onSaved,
@@ -47,20 +43,12 @@ export function ReservationSettingsPanel({
   const [provider, setProvider] = useState<ReservationProvider>(initial.provider);
   const [enabled, setEnabled] = useState(initial.enabled);
   const [reservationUrl, setReservationUrl] = useState(initial.reservationUrl ?? "");
-  const [providerReference, setProviderReference] = useState(
-    typeof initial.providerMetadata?.reference === "string"
-      ? initial.providerMetadata.reference
-      : "",
-  );
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const previewEnabled = enabled && provider !== "NONE" && Boolean(reservationUrl.trim());
-
   function changeProvider(value: string) {
-    const nextProvider = value as ReservationProvider;
-    setProvider(nextProvider);
-    if (nextProvider === "NONE") setEnabled(false);
+    setProvider(value as ReservationProvider);
+    setStatus("");
   }
 
   async function save() {
@@ -93,9 +81,6 @@ export function ReservationSettingsPanel({
           provider,
           enabled,
           reservationUrl: provider === "NONE" ? null : cleanUrl || null,
-          providerMetadata: providerReference.trim()
-            ? { reference: providerReference.trim() }
-            : null,
         }),
       });
       await onSaved();
@@ -109,102 +94,103 @@ export function ReservationSettingsPanel({
 
   return (
     <section className="mt-6 overflow-visible rounded-[22px] border border-[var(--line)] bg-[var(--surface)] p-5 shadow-[0_12px_34px_rgba(24,18,12,0.06)] sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-start gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
             <CalendarCheckIcon size={23} weight="fill" />
           </span>
           <div>
             <p className="m-0 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--accent)]">Reservations</p>
-            <h3 className="m-0 mt-1 text-xl font-black text-[var(--ink)]">Booking link</h3>
+            <h3 className="m-0 mt-1 text-xl font-black text-[var(--ink)]">Online booking</h3>
             <p className="m-0 mt-1 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              FindEat sends guests to your booking provider. Availability, confirmation, and changes stay with that provider.
+              Add your existing booking page so guests can open it directly from your FindEat profile.
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          disabled={provider === "NONE"}
-          onClick={() => setEnabled((current) => !current)}
-          className={`flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${
-            enabled
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
-              : "border-[var(--line)] bg-[var(--soft)] text-[var(--muted)]"
-          }`}
-        >
-          <span className={`h-2.5 w-2.5 rounded-full ${enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
-          {enabled ? "Booking enabled" : "Booking disabled"}
-        </button>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
-          Provider
-          <CustomDropdown
-            value={provider}
-            options={providerOptions}
-            onChange={changeProvider}
-            ariaLabel="Reservation provider"
-          />
-        </label>
-        <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
-          Reservation link
-          <input
-            type="url"
-            inputMode="url"
-            disabled={provider === "NONE"}
-            placeholder="https://booking-provider.com/your-restaurant"
-            value={reservationUrl}
-            onChange={(event) => setReservationUrl(event.target.value)}
-            className="h-12 min-w-0 rounded-xl border border-[#dcdad5] bg-[var(--surface)] px-3.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--ink)] focus:shadow-[0_0_0_3px_#17171710] disabled:cursor-not-allowed disabled:opacity-45 dark:border-[var(--line)]"
-          />
-        </label>
-        <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)] md:col-span-2">
-          Provider reference <span className="font-medium text-[var(--muted)]">(optional)</span>
-          <input
-            disabled={provider === "NONE"}
-            placeholder="Location or account reference supplied by your provider"
-            value={providerReference}
-            onChange={(event) => setProviderReference(event.target.value)}
-            className="h-12 min-w-0 rounded-xl border border-[#dcdad5] bg-[var(--surface)] px-3.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--ink)] focus:shadow-[0_0_0_3px_#17171710] disabled:cursor-not-allowed disabled:opacity-45 dark:border-[var(--line)]"
-          />
-        </label>
-      </div>
-
-      <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--soft)] p-4">
-        <p className="m-0 text-xs font-extrabold uppercase tracking-[0.1em] text-[var(--muted)]">Guest preview</p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="m-0 font-black text-[var(--ink)]">Book a Table</p>
-            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
-              {provider === "NONE" ? "Choose a provider to preview the button" : `Booking via ${providerName(provider)}`}
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={!previewEnabled}
-            onClick={() => window.open(reservationUrl.trim(), "_blank", "noopener,noreferrer")}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--ink)] px-4 text-sm font-extrabold text-[var(--surface)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={() => {
+          setEnabled((current) => !current);
+          setStatus("");
+        }}
+        className="mt-6 flex w-full items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--soft)] p-4 text-left transition hover:border-[var(--muted)]"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-black text-[var(--ink)]">Show a Book a Table button</span>
+          <span className="mt-1 block text-xs leading-5 text-[var(--muted)]">
+            {enabled
+              ? "Guests can open your booking page from the restaurant profile."
+              : "Turn this on to let guests book from your restaurant profile."}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className={`text-xs font-extrabold ${enabled ? "text-emerald-600 dark:text-emerald-300" : "text-[var(--muted)]"}`}>
+            {enabled ? "On" : "Off"}
+          </span>
+          <span
+            aria-hidden="true"
+            className={`relative h-7 w-12 rounded-full transition ${enabled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-700"}`}
           >
-            Preview booking
-            <ArrowSquareOutIcon size={17} weight="bold" />
-          </button>
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? "translate-x-6" : "translate-x-1"}`} />
+          </span>
+        </span>
+      </button>
+
+      {enabled ? (
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
+            Booking service
+            <CustomDropdown
+              value={provider}
+              options={providerOptions}
+              onChange={changeProvider}
+              ariaLabel="Booking service"
+            />
+          </label>
+          <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
+            Your booking page link
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="https://booking-service.com/your-restaurant"
+              value={reservationUrl}
+              onChange={(event) => {
+                setReservationUrl(event.target.value);
+                setStatus("");
+              }}
+              className="h-12 min-w-0 rounded-xl border border-[#dcdad5] bg-[var(--surface)] px-3.5 text-sm text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--ink)] focus:shadow-[0_0_0_3px_#17171710] dark:border-[var(--line)]"
+            />
+          </label>
+          <p className="m-0 text-xs leading-5 text-[var(--muted)] md:col-span-2">
+            Copy the public booking link from Ontopo, Tabit, or your other booking service. FindEat will open that page when a guest taps Book a Table.
+          </p>
         </div>
-      </div>
+      ) : (
+        <div className="mt-4 rounded-xl bg-[var(--soft)] px-4 py-3 text-sm text-[var(--muted)]">
+          Online booking is hidden from guests. Your saved link will remain here if you turn it back on.
+        </div>
+      )}
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className={`text-sm ${status === "Reservation settings saved" ? "font-bold text-emerald-600" : "text-[var(--muted)]"}`}>
-          {status}
-        </span>
+        <div>
+          <span className={`text-sm ${status === "Reservation settings saved" ? "font-bold text-emerald-600" : "text-[var(--muted)]"}`}>
+            {status}
+          </span>
+          {!status && enabled ? (
+            <p className="m-0 text-xs text-[var(--muted)]">Save when you are ready to make the button available.</p>
+          ) : null}
+        </div>
         <button
           type="button"
           disabled={saving}
           onClick={() => void save()}
           className="min-h-11 rounded-xl bg-[var(--ink)] px-5 text-sm font-extrabold text-[var(--surface)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-55"
         >
-          {saving ? "Saving…" : "Save reservation settings"}
+          {saving ? "Saving…" : "Save booking settings"}
         </button>
       </div>
     </section>

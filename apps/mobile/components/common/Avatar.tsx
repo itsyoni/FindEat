@@ -19,6 +19,8 @@ type Props = {
   fallbackType?: "user" | "restaurant" | "group";
   userId?: string | null;
   showSnapIndicator?: boolean;
+  snapIndicatorStrokeWidth?: number;
+  snapIndicatorViewedColor?: string;
 };
 
 export default function Avatar({
@@ -30,6 +32,8 @@ export default function Avatar({
   fallbackType = "user",
   userId,
   showSnapIndicator = true,
+  snapIndicatorStrokeWidth = 2.5,
+  snapIndicatorViewedColor = "#9CA3AF",
 }: Props) {
   const resolvedUri = uri?.trim() || thumbnailUrl?.trim() || null;
   const snapIndicator = useSnapIndicator({
@@ -117,8 +121,12 @@ export default function Avatar({
             cy={(size + 12) / 2}
             r={(size + 8) / 2}
             fill="none"
-            stroke={snapIndicator === "unseen" ? "url(#unseenSnapRing)" : "#9CA3AF"}
-            strokeWidth={2.5}
+            stroke={
+              snapIndicator === "unseen"
+                ? "url(#unseenSnapRing)"
+                : snapIndicatorViewedColor
+            }
+            strokeWidth={snapIndicatorStrokeWidth}
           />
         </Svg>
       ) : null}

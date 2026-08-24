@@ -4,11 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSnaps } from "@/hooks/useSnaps";
 import { router } from "expo-router";
 import { PlusIcon } from "phosphor-react-native";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSnapIndicatorLookup } from "@/contexts/SnapIndicatorContext";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { userDisplayName } from "@/lib/userIdentity";
+import { LinearGradient } from "expo-linear-gradient";
 
 type Props = {
   overlay?: boolean;
@@ -64,18 +66,50 @@ export default function SnapsTray({
     ownGroup?.user.avatarUrl ||
     ownGroup?.user.avatarThumbnailUrl;
 
-  function snapRingStyle(color: string) {
-    return {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      borderWidth: 2,
-      borderColor: color,
-      padding: 2,
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-      backgroundColor: "transparent",
-    };
+  function SnapRing({
+    children,
+    status,
+  }: {
+    children: ReactNode;
+    status: "unseen" | "viewed" | "empty";
+  }) {
+    const ringColor =
+      status === "viewed"
+        ? watchedRingColor
+        : isDark
+          ? "#374151"
+          : "#D1D5DB";
+    const ringColors =
+      status === "unseen"
+        ? (["#FFD447", "#FF9F1C", "#FF5B35"] as const)
+        : ([ringColor, ringColor] as const);
+    return (
+      <LinearGradient
+        colors={ringColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          width: 66,
+          height: 66,
+          borderRadius: 33,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <View
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6",
+          }}
+        >
+          {children}
+        </View>
+      </LinearGradient>
+    );
   }
 
   return (
@@ -100,29 +134,23 @@ export default function SnapsTray({
             }
           >
             {ownGroup ? (
-              <View
-                style={snapRingStyle(
-                  ownSnapIndicator === "viewed" ? watchedRingColor : "#FF5B35",
-                )}
-              >
+              <SnapRing status={ownSnapIndicator ?? "viewed"}>
                 <Avatar
                   uri={ownAvatarUrl}
                   username={user?.username}
                   size={56}
                   showSnapIndicator={false}
                 />
-              </View>
+              </SnapRing>
             ) : (
-              <View
-                style={snapRingStyle(isDark ? "#374151" : "#D1D5DB")}
-              >
+              <SnapRing status="empty">
                 <Avatar
                   uri={ownAvatarUrl}
                   username={user?.username}
                   size={56}
                   showSnapIndicator={false}
                 />
-              </View>
+              </SnapRing>
             )}
             <TouchableOpacity
               accessibilityRole="button"
@@ -164,25 +192,23 @@ export default function SnapsTray({
             className="w-17.5 items-center"
           >
             {snapIndicatorFor({ userId: group.user.id }) === "unseen" ? (
-              <View style={snapRingStyle("#FF5B35")}>
+              <SnapRing status="unseen">
                 <Avatar
                   uri={group.user.avatarUrl || group.user.avatarThumbnailUrl}
                   username={group.user.username}
                   size={56}
                   showSnapIndicator={false}
                 />
-              </View>
+              </SnapRing>
             ) : (
-              <View
-                style={snapRingStyle(watchedRingColor)}
-              >
+              <SnapRing status="viewed">
                 <Avatar
                   uri={group.user.avatarUrl || group.user.avatarThumbnailUrl}
                   username={group.user.username}
                   size={56}
                   showSnapIndicator={false}
                 />
-              </View>
+              </SnapRing>
             )}
             <Text
               numberOfLines={1}

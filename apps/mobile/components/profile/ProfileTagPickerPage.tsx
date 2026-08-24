@@ -1,12 +1,23 @@
 import Text from "@/components/common/AppText";
+import SelectionPill from "@/components/common/SelectionPill";
 import { DirectionalBackIcon } from "@/components/common/icons/DirectionalIcon";
 import { TextInput } from "@/components/common";
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { CheckCircleIcon, MagnifyingGlassIcon } from "phosphor-react-native";
+import {
+  CheckCircleIcon,
+  CheckIcon,
+  MagnifyingGlassIcon,
+} from "phosphor-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { FlatList, Modal, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -160,15 +171,17 @@ export default function ProfileTagPickerPage({
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t("searchTags", { name: fieldLabel })}
-            autoCapitalize="none"
-            autoCorrect={false}
-            leftIcon={<MagnifyingGlassIcon size={20} color={isDark ? "#9CA3AF" : "#737373"} />}
-            className="mb-3 border-0 bg-[#F1EFEA] dark:bg-gray-900"
-          />
+          {field !== "favoriteCuisines" ? (
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t("searchTags", { name: fieldLabel })}
+              autoCapitalize="none"
+              autoCorrect={false}
+              leftIcon={<MagnifyingGlassIcon size={20} color={isDark ? "#9CA3AF" : "#737373"} />}
+              className="mb-3 border-0 bg-[#F1EFEA] dark:bg-gray-900"
+            />
+          ) : null}
 
           {field === "pronouns" && (
             <View className="mb-3 flex-row items-center gap-2">
@@ -205,6 +218,58 @@ export default function ProfileTagPickerPage({
             </View>
           )}
 
+          {field === "favoriteCuisines" ? (
+            <View className="flex-1">
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingTop: 12, paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <Text className="mb-4 text-sm leading-5 text-gray-500 dark:text-gray-400">
+                  {t("favoriteCuisinesPlaceholder")}
+                </Text>
+                <View className="flex-row flex-wrap gap-2.5">
+                  {PROFILE_TAG_OPTIONS.favoriteCuisines.map((option) => (
+                    <SelectionPill
+                      key={option}
+                      label={getProfileTagLabel(t, option)}
+                      selected={draft.includes(option)}
+                      disabled={choseNone}
+                      onPress={() => toggle(option)}
+                    />
+                  ))}
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => toggle(NONE_OPTION)}
+                activeOpacity={0.75}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: choseNone }}
+                className="mb-3 min-h-12 flex-row items-center"
+              >
+                <View
+                  className="h-6 w-6 items-center justify-center rounded-lg border"
+                  style={{
+                    borderColor: choseNone
+                      ? "#D6A92D"
+                      : isDark
+                        ? "rgba(250,249,246,0.35)"
+                        : "rgba(23,23,21,0.3)",
+                    backgroundColor: choseNone ? "#D6A92D" : "transparent",
+                  }}
+                >
+                  {choseNone ? (
+                    <CheckIcon size={17} color="#171715" weight="bold" />
+                  ) : null}
+                </View>
+                <Text className="ml-3 text-base text-black dark:text-white">
+                  {t("preferNotToAnswer")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+          <>
           <View className="mb-2 min-h-10 flex-row items-center justify-between">
             <Text className="text-sm text-gray-500 dark:text-gray-400">
               {fieldLabel}
@@ -256,6 +321,8 @@ export default function ProfileTagPickerPage({
               );
             }}
           />
+          </>
+          )}
           </View>
         </SafeAreaView>
       </SafeAreaProvider>

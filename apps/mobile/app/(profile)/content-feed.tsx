@@ -124,6 +124,7 @@ export default function ProfileContentFeedScreen() {
           onToggleLike={toggleLike}
           onOpenComments={openComments}
           initialIndex={initialIndex}
+          initialPostId={postId}
           onToggleWantToTry={toggleWantToTry}
           onDeletePost={deletePost}
           onOpenSharePost={setSharePostId}

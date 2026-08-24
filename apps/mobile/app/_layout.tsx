@@ -57,7 +57,6 @@ import { SnapIndicatorProvider } from "@/contexts/SnapIndicatorContext";
 import AppErrorBoundary from "@/components/common/AppErrorBoundary";
 import { VisitDetectionProvider } from "@/contexts/VisitDetectionContext";
 import { ActiveCountryProvider } from "@/contexts/ActiveCountryContext";
-import { CoachMarkProvider } from "@/contexts/CoachMarkContext";
 import { setAudioModeAsync } from "expo-audio";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -135,7 +134,6 @@ export default function RootLayout() {
               <AppAlertProvider>
                 <QueryClientProvider client={queryClient}>
                   <AuthProvider>
-                    <CoachMarkProvider>
                     <ActiveCountryProvider>
                     <SnapIndicatorProvider>
                       <ToastProvider>
@@ -157,7 +155,6 @@ export default function RootLayout() {
                       </ToastProvider>
                     </SnapIndicatorProvider>
                     </ActiveCountryProvider>
-                    </CoachMarkProvider>
                   </AuthProvider>
                 </QueryClientProvider>
               </AppAlertProvider>

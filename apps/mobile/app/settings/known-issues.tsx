@@ -9,7 +9,7 @@ import type { KnownIssue } from "@findeat/types";
 import { router } from "expo-router";
 import { BugIcon, CheckCircleIcon } from "phosphor-react-native";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from "react-native";
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -57,7 +57,11 @@ export default function KnownIssuesScreen() {
     const affected = !affectedIds.has(issue.id);
     setWorkingId(issue.id);
     try {
-      const result = await api.knownIssues.setAffected(issue.id, affected);
+      const result = await api.knownIssues.setAffected(
+        issue.id,
+        affected,
+        Platform.OS === "ios" ? "iOS" : "Android",
+      );
       setAffectedIds((current) => {
         const next = new Set(current);
         if (affected) next.add(issue.id);
@@ -66,7 +70,9 @@ export default function KnownIssuesScreen() {
       });
       setIssues((current) =>
         current.map((item) =>
-          item.id === issue.id ? { ...item, affectedCount: result.affectedCount } : item,
+          item.id === issue.id
+            ? { ...item, affectedCount: result.affectedCount, platforms: result.platforms }
+            : item,
         ),
       );
     } catch {

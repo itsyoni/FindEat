@@ -48,6 +48,7 @@ type Props = {
   onPullDownAtTop?: () => void;
   onScrollOffsetChange?: (offset: number) => void;
   initialIndex?: number;
+  initialPostId?: string;
   loading?: boolean;
   emptyComponent?: ReactElement | null;
   active?: boolean;
@@ -70,6 +71,7 @@ export default function ContentFeed({
   onToggleWantToTry,
   onDeletePost,
   initialIndex = 0,
+  initialPostId,
   onOpenSharePost,
   onOpenPostOptions,
   preventTopOverscroll = false,
@@ -85,8 +87,14 @@ export default function ContentFeed({
 }: Props) {
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
   const [visiblePostIndex, setVisiblePostIndex] = useState(initialIndex);
+  const [activePostId, setActivePostId] = useState<string | null>(
+    initialPostId ?? posts[initialIndex]?.id ?? null,
+  );
   const listRef = useRef<FlatList<Post>>(null);
   const appliedInitialPostIdRef = useRef<string | null>(null);
+  const pendingInitialPostIdRef = useRef<string | null>(
+    initialPostId ?? posts[initialIndex]?.id ?? null,
+  );
   const scrollOffsetRef = useRef(initialIndex * height);
   const dragStartRef = useRef({ index: initialIndex, offset: initialIndex * height });
   const gestureScrollOffset = useSharedValue(initialIndex * height);
@@ -99,28 +107,44 @@ export default function ContentFeed({
   }, [posts]);
 
   useEffect(() => {
-    const initialPost = posts[initialIndex];
-    if (!initialPost || initialIndex <= 0) return;
+    const selectedIndex = initialPostId
+      ? posts.findIndex((post) => post.id === initialPostId)
+      : initialIndex;
+    const initialPost = posts[selectedIndex];
+    if (!initialPost || selectedIndex < 0) return;
     if (appliedInitialPostIdRef.current === initialPost.id) return;
     appliedInitialPostIdRef.current = initialPost.id;
+    pendingInitialPostIdRef.current = initialPost.id;
+    setActivePostId(initialPost.id);
+    setVisiblePostIndex(selectedIndex);
 
     const scrollToSelectedPost = () => {
-      const offset = initialIndex * height;
+      const offset = selectedIndex * height;
       listRef.current?.scrollToOffset({ offset, animated: false });
       scrollOffsetRef.current = offset;
       gestureScrollOffset.set(offset);
-      setVisiblePostIndex(initialIndex);
     };
     const frame = requestAnimationFrame(scrollToSelectedPost);
     return () => cancelAnimationFrame(frame);
-  }, [gestureScrollOffset, height, initialIndex, posts]);
+  }, [gestureScrollOffset, height, initialIndex, initialPostId, posts]);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<Post>[] }) => {
-      const index = viewableItems.find(
+      const visibleItem = viewableItems.find(
         (item) => item.isViewable && typeof item.index === "number",
-      )?.index;
-      if (typeof index === "number") {
+      );
+      const index = visibleItem?.index;
+      const visiblePostId = visibleItem?.item?.id;
+      const pendingInitialPostId = pendingInitialPostIdRef.current;
+
+      // FlatList can briefly report the first rendered row before it has
+      // applied initialScrollIndex. Keep the selected profile post active
+      // until that post is actually visible so its video is not paused.
+      if (pendingInitialPostId && visiblePostId !== pendingInitialPostId) return;
+
+      if (typeof index === "number" && visiblePostId) {
+        pendingInitialPostIdRef.current = null;
         setVisiblePostIndex(index);
+        setActivePostId(visiblePostId);
         prefetchUpcomingPosts(postsRef.current, index);
       }
     },
@@ -262,6 +286,7 @@ export default function ContentFeed({
   }
 
   const lockTopOverscroll = preventTopOverscroll && visiblePostIndex === 0;
+  const hasPosts = posts.length > 0;
 
   return (
     <View style={{ flex: 1 }}>
@@ -283,12 +308,12 @@ export default function ContentFeed({
         removeClippedSubviews
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={contentViewabilityConfig}
-        pagingEnabled={Platform.OS !== "android"}
-        snapToInterval={Platform.OS === "android" ? height : undefined}
+        pagingEnabled={hasPosts && Platform.OS !== "android"}
+        snapToInterval={hasPosts && Platform.OS === "android" ? height : undefined}
         snapToAlignment="start"
-        disableIntervalMomentum={Platform.OS === "android"}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onScrollEndDrag={handleScrollEndDrag}
+        disableIntervalMomentum={hasPosts && Platform.OS === "android"}
+        onScrollBeginDrag={hasPosts ? handleScrollBeginDrag : undefined}
+        onScrollEndDrag={hasPosts ? handleScrollEndDrag : undefined}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         scrollEnabled={feedScrollEnabled && !isPinchingMedia}
@@ -296,7 +321,7 @@ export default function ContentFeed({
         alwaysBounceVertical={!lockTopOverscroll}
         overScrollMode={lockTopOverscroll ? "never" : "auto"}
         showsVerticalScrollIndicator={false}
-        decelerationRate="fast"
+        decelerationRate={hasPosts ? "fast" : "normal"}
         initialScrollIndex={initialIndex}
         onScrollToIndexFailed={({ index }) => {
           requestAnimationFrame(() => {
@@ -319,7 +344,7 @@ export default function ContentFeed({
           <ContentPost
             post={item}
             height={height}
-            isActive={active && index === visiblePostIndex}
+            isActive={active && item.id === activePostId}
             contentTopInset={contentTopInset}
             controlsTopInset={controlsTopInset}
             bottomAuthorBarHeight={bottomAuthorBarHeight}

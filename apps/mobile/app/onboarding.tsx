@@ -1,5 +1,6 @@
 import Avatar from "@/components/common/Avatar";
 import Text from "@/components/common/AppText";
+import SelectionPill from "@/components/common/SelectionPill";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import RelationshipActionButton from "@/components/profile/RelationshipActionButton";
 import { useAccessibilityPreferences } from "@/contexts/AccessibilityContext";
@@ -9,6 +10,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import {
   ALLERGEN_OPTIONS,
+  CUISINE_OPTIONS,
   FOOD_INTERESTS,
   type FollowSuggestion,
   type OnboardingProgress,
@@ -80,6 +82,25 @@ const DIETARY_OPTIONS = [
 ] as const;
 
 type DietaryOption = (typeof DIETARY_OPTIONS)[number];
+
+function favoriteCuisinesFromInterests(interests: string[]) {
+  const mapped = interests.flatMap((interest) => {
+    if (interest === "SUSHI") return ["JAPANESE"];
+    if (
+      interest === "BURGERS" ||
+      interest === "STEAKHOUSES" ||
+      interest === "BBQ"
+    ) {
+      return ["AMERICAN"];
+    }
+    if (interest === "TACOS") return ["MEXICAN"];
+    return [interest];
+  });
+
+  return [...new Set(mapped)].filter((value) =>
+    (CUISINE_OPTIONS as readonly string[]).includes(value),
+  );
+}
 
 export default function OnboardingScreen() {
   const { t } = useTranslation("onboarding");
@@ -372,57 +393,6 @@ function PrimaryButton({
   );
 }
 
-function ChoiceChip({
-  label,
-  selected,
-  onPress,
-  disabled = false,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  const { isDark } = useAppTheme();
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.75}
-      style={{
-        minHeight: 48,
-        flexDirection: "row",
-        alignItems: "center",
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: selected
-          ? "#D6A92D"
-          : isDark
-            ? "rgba(250,249,246,0.14)"
-            : "rgba(23,23,21,0.12)",
-        backgroundColor: selected
-          ? isDark
-            ? "rgba(214,169,45,0.2)"
-            : "rgba(247,215,134,0.35)"
-          : isDark
-            ? "rgba(250,249,246,0.06)"
-            : "rgba(250,249,246,0.72)",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        opacity: disabled ? 0.42 : 1,
-      }}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={label}
-    >
-      <Text style={{ color: isDark ? "#FAF9F6" : "#171715", fontSize: 16 }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 function PreferNotToSayCheckbox({
   checked,
   onPress,
@@ -513,7 +483,7 @@ function FoodPreferencesStep({
       >
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {FOOD_INTERESTS.map((interest) => (
-            <ChoiceChip
+            <SelectionPill
               key={interest}
               label={t(`foodInterests.${interest}`)}
               selected={selected.includes(interest)}
@@ -553,6 +523,9 @@ function FoodPreferencesStep({
           onPress={() =>
             void persist("DIETARY_PREFERENCES", {
               foodInterests: preferNotToSay ? [] : selected,
+              favoriteCuisines: preferNotToSay
+                ? []
+                : favoriteCuisinesFromInterests(selected),
               progress: { foodPreferencesPreferNotToSay: preferNotToSay },
             })
           }
@@ -614,7 +587,7 @@ function DietaryPreferencesStep({ state, saving, persist }: StepProps) {
       >
         <View className="flex-row flex-wrap gap-2.5">
           {DIETARY_OPTIONS.map((option) => (
-            <ChoiceChip
+            <SelectionPill
               key={option}
               label={t(`dietary.${option}`)}
               selected={selected.includes(option)}
@@ -700,7 +673,7 @@ function AllergiesStep({ state, saving, persist }: StepProps) {
       >
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {ALLERGEN_OPTIONS.map((allergen) => (
-            <ChoiceChip
+            <SelectionPill
               key={allergen}
               label={t(`allergen.${allergen}`)}
               selected={selected.includes(allergen)}

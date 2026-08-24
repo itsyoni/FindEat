@@ -34,7 +34,6 @@ import type { LocationObject } from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import ContextualCoachMark from "@/components/onboarding/ContextualCoachMark";
 import { FlatList, Switch, TouchableOpacity, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import {
@@ -509,7 +508,10 @@ export default function MapScreen() {
   const heatmapRestaurantIdsKey = heatmapRestaurantIds.join(",");
 
   useEffect(() => {
-    if (!activityHeatmapEnabled || !heatmapRestaurantIdsKey) return;
+    if (!heatmapRestaurantIdsKey) {
+      setActivityHeatPoints([]);
+      return;
+    }
     let active = true;
     void api.restaurants
       .activityHeatmap(heatmapRestaurantIds)
@@ -522,7 +524,7 @@ export default function MapScreen() {
     return () => {
       active = false;
     };
-  }, [activityHeatmapEnabled, heatmapRestaurantIds, heatmapRestaurantIdsKey]);
+  }, [heatmapRestaurantIds, heatmapRestaurantIdsKey]);
 
   const activityHeatmapShape = useMemo(
     () => ({
@@ -755,6 +757,24 @@ export default function MapScreen() {
       selectedBadgeKeys,
     ],
   );
+
+  // Opening the map from a restaurant profile is a dedicated focus flow.
+  // The regular focus loader deliberately pauses while restaurantId exists,
+  // so this path must load the requested restaurant (and the surrounding map
+  // results) before the route parameter is consumed.
+  useEffect(() => {
+    if (
+      !filtersHydrated ||
+      !restaurantId ||
+      handledRestaurantIdRef.current === restaurantId
+    ) {
+      return;
+    }
+
+    restaurantFocusActiveRef.current = true;
+    setLoading(true);
+    void loadRestaurants();
+  }, [filtersHydrated, loadRestaurants, restaurantId]);
 
   useEffect(() => {
     if (
@@ -1450,7 +1470,6 @@ export default function MapScreen() {
       edges={["top"]}
       style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
-      <ContextualCoachMark markKey="map" style={{ top: 72 }} />
       {isCitySearching ? (
         <Animated.View
           key="city-search"
@@ -2201,6 +2220,9 @@ export default function MapScreen() {
               renderItem={({ item }) => (
                 <MapRestaurantListCard
                   restaurant={item}
+                  hotRightNow={
+                    activityPointByRestaurantId.get(item.id)?.state === "hot"
+                  }
                   onOpen={() =>
                     router.push({
                       pathname: "/restaurants/[id]",

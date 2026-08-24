@@ -31,11 +31,16 @@ export function createKnownIssuesApi(api: AxiosInstance) {
       return data;
     },
 
-    async setAffected(id: string, affected: boolean) {
+    async setAffected(
+      id: string,
+      affected: boolean,
+      platform?: "iOS" | "Android" | "Web",
+    ) {
       const { data } = await api.post<{
         affected: boolean;
         affectedCount: number;
-      }>(`/known-issues/${id}/affected`, { affected });
+        platforms: string[];
+      }>(`/known-issues/${id}/affected`, { affected, platform });
       return data;
     },
 

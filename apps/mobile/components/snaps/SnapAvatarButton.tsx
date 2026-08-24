@@ -6,7 +6,6 @@ import { useRef, useState } from "react";
 import {
   type StyleProp,
   TouchableOpacity,
-  View,
   type ViewStyle,
 } from "react-native";
 
@@ -34,7 +33,6 @@ export default function SnapAvatarButton({
   style,
   onPressWithoutSnap,
   showProfilePictureOnLongPress = true,
-  indicatorPlacement = "inset",
 }: Props) {
   const indicator = useSnapIndicator({ userId, username, avatarUrl });
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -72,46 +70,14 @@ export default function SnapAvatarButton({
         delayLongPress={280}
         style={style}
       >
-        {indicatorPlacement === "outside" && indicator ? (
-          <View
-            style={{
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Avatar
-              uri={avatarUrl}
-              username={username}
-              userId={userId}
-              size={size}
-              showSnapIndicator={false}
-            />
-            <View
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                top: -3,
-                right: -3,
-                bottom: -3,
-                left: -3,
-                borderRadius: (size + 6) / 2,
-                borderWidth: 1.5,
-                borderColor:
-                  indicator === "unseen" ? "#FF5B35" : "#9CA3AF",
-              }}
-            />
-          </View>
-        ) : (
-          <Avatar
-            uri={avatarUrl}
-            username={username}
-            userId={userId}
-            size={size}
-          />
-        )}
+        <Avatar
+          uri={avatarUrl}
+          username={username}
+          userId={userId}
+          size={size}
+          snapIndicatorStrokeWidth={1.75}
+          snapIndicatorViewedColor="#6B7280"
+        />
       </TouchableOpacity>
       {showProfilePictureOnLongPress ? (
         <FullScreenImageViewer

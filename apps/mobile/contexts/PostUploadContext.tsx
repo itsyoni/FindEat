@@ -135,7 +135,7 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
       void runner((progress) =>
         updateTask(id, { progress: boundedProgress(progress) }),
       )
-        .then((result) => {
+        .then(async (result) => {
           updateTask(id, { status: "completed", progress: 1, result });
           if (result.type === "post") {
             result.afterUpload?.();
@@ -148,20 +148,26 @@ export function PostUploadProvider({ children }: { children: ReactNode }) {
               refetchType: "active",
             });
           } else {
+            // A feed request that started before creation completed can return
+            // without the new Snap and overwrite the authoritative create
+            // response. Stop that request before publishing the new cache state.
+            await queryClient.cancelQueries({ queryKey: snapsQueryKey });
             queryClient.setQueryData<SnapGroup[]>(snapsQueryKey, (current) =>
               upsertUploadedSnap(current, result.snap),
             );
-            void queryClient
-              .invalidateQueries({
-                queryKey: snapsQueryKey,
-                refetchType: "all",
-              })
-              .finally(() => {
-                queryClient.setQueryData<SnapGroup[]>(
-                  snapsQueryKey,
-                  (current) => upsertUploadedSnap(current, result.snap),
-                );
-              });
+
+            // Reconcile shortly afterward, while preserving the create result
+            // if the read endpoint is briefly behind the write endpoint.
+            setTimeout(() => {
+              void queryClient
+                .refetchQueries({ queryKey: snapsQueryKey, type: "active" })
+                .finally(() => {
+                  queryClient.setQueryData<SnapGroup[]>(
+                    snapsQueryKey,
+                    (current) => upsertUploadedSnap(current, result.snap),
+                  );
+                });
+            }, 1_500);
           }
           void AccessibilityInfo.announceForAccessibility(
             t(

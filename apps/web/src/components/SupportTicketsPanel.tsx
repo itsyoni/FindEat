@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowClockwise";
+import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
@@ -62,6 +63,8 @@ const featureStatusOptions = [
   { value: "RELEASED", label: "Released" },
 ];
 
+const platformOptions = ["iOS", "Android", "Web"] as const;
+
 const categoryLabels = {
   BUG: "App problem",
   FEATURE_REQUEST: "Feature suggestion",
@@ -120,6 +123,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
   const [affectedAreaOptions, setAffectedAreaOptions] = useState<string[]>([]);
   const [forgottenAffectedAreas, setForgottenAffectedAreas] = useState<string[]>(readForgottenAffectedAreas);
   const [affectedAreaInputFocused, setAffectedAreaInputFocused] = useState(false);
+  const [workaround, setWorkaround] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -131,8 +136,11 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
   const [newAffectedAreas, setNewAffectedAreas] = useState<string[]>([]);
   const [newAffectedAreaDraft, setNewAffectedAreaDraft] = useState("");
   const [newAffectedAreaInputFocused, setNewAffectedAreaInputFocused] = useState(false);
+  const [newWorkaround, setNewWorkaround] = useState("");
+  const [newPlatforms, setNewPlatforms] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const relevantTickets = useMemo(
     () => tickets.filter((ticket) => matchesMode(ticket, mode)),
     [mode, tickets],
@@ -175,6 +183,12 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
     setTargetLabel(ticket.plannedFeature?.targetLabel ?? "");
     setIsPublic(ticket.knownIssue?.isPublic ?? true);
     setAffectedAreas(ticket.knownIssue?.affectedAreas ?? []);
+    setWorkaround(ticket.knownIssue?.workaround ?? "");
+    setPlatforms(ticket.knownIssue?.platforms?.length
+      ? ticket.knownIssue.platforms
+      : ticket.platform
+        ? [ticket.platform]
+        : []);
     setAffectedAreaDraft("");
     setAffectedAreaInputFocused(false);
   }
@@ -268,6 +282,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
     setReply(ticket.adminReply ?? "");
     setStatus(ticket.status);
     initializePublicEditor(ticket);
+    setMobileDetailOpen(true);
   }
 
   function addNewAffectedArea(value = newAffectedAreaDraft) {
@@ -276,6 +291,13 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
     setNewAffectedAreas((current) => [...current, next]);
     setAffectedAreaOptions((current) => current.some((item) => item.toLocaleLowerCase() === next.toLocaleLowerCase()) ? current : [...current, next].sort());
     setNewAffectedAreaDraft("");
+  }
+
+  function togglePlatform(value: string, creation = false) {
+    const setter = creation ? setNewPlatforms : setPlatforms;
+    setter((current) => current.includes(value)
+      ? current.filter((platform) => platform !== value)
+      : [...current, value]);
   }
 
   async function save() {
@@ -306,7 +328,14 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
           category: mode === "bugs" ? "BUG" : "FEATURE_REQUEST",
           subject: newTitle.trim(),
           ...(mode === "bugs"
-            ? { knownIssueStatus: newKnownIssueStatus, severity: newSeverity, isPublic: newIsPublic, affectedAreas: newAffectedAreas }
+            ? {
+                knownIssueStatus: newKnownIssueStatus,
+                severity: newSeverity,
+                isPublic: newIsPublic,
+                affectedAreas: newAffectedAreas,
+                platforms: newPlatforms,
+                workaround: newWorkaround.trim() || undefined,
+              }
             : { plannedFeatureStatus: newFeatureStatus, targetLabel: newTargetLabel.trim() || undefined, isPublic: newIsPublic }),
         }),
       });
@@ -322,6 +351,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
       setNewIsPublic(true);
       setNewAffectedAreas([]);
       setNewAffectedAreaDraft("");
+      setNewPlatforms([]);
+      setNewWorkaround("");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Could not create this draft");
     } finally {
@@ -362,7 +393,9 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
         body: JSON.stringify({
           title: publicTitle,
           description: publicDescription,
-          ...(mode === "bugs" ? { knownIssueStatus, severity, isPublic, affectedAreas } : { plannedFeatureStatus: featureStatus, targetLabel: targetLabel || undefined }),
+          ...(mode === "bugs"
+            ? { knownIssueStatus, severity, isPublic, affectedAreas, platforms, workaround: workaround.trim() || undefined }
+            : { plannedFeatureStatus: featureStatus, targetLabel: targetLabel || undefined }),
         }),
       });
       setTickets((current) => current.map((ticket) => ticket.id === updated.id ? updated : ticket));
@@ -372,6 +405,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
         setAffectedAreas(publishedAreas);
         setAffectedAreaDraft("");
         setAffectedAreaOptions((current) => [...new Set([...current, ...publishedAreas])].sort());
+        setPlatforms(updated.knownIssue?.platforms ?? platforms);
+        setWorkaround(updated.knownIssue?.workaround ?? workaround);
       }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Could not publish this item");
@@ -407,8 +442,8 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,36%)_minmax(0,1fr)] overflow-hidden rounded-[22px] border border-line bg-surface shadow-panel max-[800px]:grid-cols-1 max-[800px]:grid-rows-[minmax(130px,36%)_minmax(0,1fr)]">
-        <section className="min-h-0 overflow-y-auto overscroll-contain border-r border-line max-[800px]:border-r-0 max-[800px]:border-b">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,36%)_minmax(0,1fr)] overflow-hidden rounded-[22px] border border-line bg-surface shadow-panel max-[800px]:grid-cols-1 max-[800px]:grid-rows-1">
+        <section className={`min-h-0 overflow-y-auto overscroll-contain border-r border-line max-[800px]:border-r-0 max-[800px]:border-b-0 ${mobileDetailOpen ? "max-[800px]:hidden" : "max-[800px]:block"}`}>
           {loading ? <div className="grid min-h-75 place-items-center p-7 text-center text-muted">Loading requests…</div> : filtered.length === 0 ? (
             <div className="m-5 grid place-items-center rounded-2xl bg-soft p-8 text-center text-muted">
               <CheckCircleIcon size={30} weight="duotone" />
@@ -416,7 +451,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
               <p className="m-0">There are no requests with this status.</p>
             </div>
           ) : filtered.map((ticket) => (
-            <button key={ticket.id} className={`grid w-full grid-cols-[44px_minmax(0,1fr)] items-start gap-3 border-0 border-b border-line bg-transparent p-3.75 text-left text-ink hover:bg-soft ${selectedId === ticket.id ? "bg-soft shadow-[inset_3px_0_var(--accent)]" : ""}`} onClick={() => selectTicket(ticket)}>
+            <button key={ticket.id} className={`grid w-full grid-cols-[44px_minmax(0,1fr)] items-start gap-3 border-0 border-b border-line bg-transparent p-3.75 text-left text-ink hover:bg-soft max-[800px]:min-h-20 max-[800px]:p-4 ${selectedId === ticket.id ? "bg-soft shadow-[inset_3px_0_var(--accent)]" : ""}`} onClick={() => selectTicket(ticket)}>
               {ticket.user?.avatarUrl ? <img className="size-11 rounded-full object-cover" src={ticket.user.avatarUrl} alt="" /> : <span className="grid size-11 place-items-center rounded-full bg-accent-soft font-black text-ink">{(ticket.user?.username ?? ticket.submitterName)?.charAt(0)?.toUpperCase() ?? "?"}</span>}
               <span className="grid min-w-0 gap-1">
                 <span className="flex items-center justify-between gap-2">
@@ -430,12 +465,13 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
           ))}
         </section>
 
-        <section className="min-h-0 min-w-0 overflow-y-auto overscroll-contain p-7 max-[800px]:p-5">
+        <section className={`min-h-0 min-w-0 overflow-y-auto overscroll-contain p-7 max-[800px]:p-4 ${mobileDetailOpen ? "max-[800px]:block" : "max-[800px]:hidden"}`}>
           {!selected ? <div className="grid min-h-75 place-items-center p-7 text-center text-muted">Select a request to read and reply.</div> : (
             <>
+              <button type="button" className="mb-4 hidden min-h-10 items-center gap-2 rounded-xl border-0 bg-soft px-3 text-sm font-extrabold text-ink max-[800px]:inline-flex" onClick={() => setMobileDetailOpen(false)}><ArrowLeftIcon size={17} weight="bold" /> Back to {mode === "bugs" ? "bugs" : mode === "features" ? "features" : "requests"}</button>
               <div className="flex items-start justify-between gap-5 border-b border-line pb-5">
                 <div>
-                  <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] font-black tracking-[.08em] text-accent uppercase">{categoryLabels[selected.category]}</span><span className="rounded-full bg-soft px-2 py-1 text-[10px] font-black uppercase tracking-[.06em] text-muted">From {sourceLabel(selected)}</span></div>
+                  <div className="flex flex-wrap items-center gap-2"><span className="text-[11px] font-black tracking-[.08em] text-accent uppercase">{categoryLabels[selected.category]}</span><span className="rounded-full bg-soft px-2 py-1 text-[10px] font-black uppercase tracking-[.06em] text-muted">From {sourceLabel(selected)}</span>{selected.platform ? <span className="rounded-full bg-accent-soft px-2 py-1 text-[10px] font-black text-ink">{selected.platform}</span> : null}</div>
                   <h3 className="my-1.25 text-[25px]">{selected.subject}</h3>
                   <p className="m-0 text-[13px] text-muted">{selected.user?.username ?? selected.submitterName ?? "Website visitor"}{selected.user?.email || selected.submitterEmail ? ` · ${selected.user?.email ?? selected.submitterEmail}` : ""}</p>
                   {selected.restaurant && <p className="m-0 mt-1 text-[13px] text-muted">Restaurant: <strong>{selected.restaurant.name}</strong></p>}
@@ -485,6 +521,18 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
                       </>}
                     </div>
                     {mode === "bugs" ? <>
+                      <div className="grid gap-2">
+                        <span className="text-xs font-extrabold text-muted">Platforms</span>
+                        <div className="flex flex-wrap gap-2">
+                          {platformOptions.map((platform) => {
+                            const selectedPlatform = platforms.includes(platform);
+                            return <button key={platform} type="button" aria-pressed={selectedPlatform} onClick={() => togglePlatform(platform)} className={`min-h-9 rounded-full border px-3.5 text-xs font-extrabold transition ${selectedPlatform ? "border-ink bg-ink text-surface" : "border-line bg-soft text-ink hover:border-ink/30"}`}>{platform}</button>;
+                          })}
+                        </div>
+                      </div>
+                      <label className="grid gap-1.5 text-xs font-extrabold text-muted">Workaround <span className="font-normal">(optional)</span>
+                        <textarea className="min-h-22 resize-y rounded-xl border border-line bg-surface p-3.5 text-sm leading-5 text-ink outline-none focus:border-accent" value={workaround} onChange={(event) => setWorkaround(event.target.value)} maxLength={2000} placeholder="Explain what users can do until this is fixed" />
+                      </label>
                       <div className="grid gap-2">
                         <span className="text-xs font-extrabold text-muted">Affected areas</span>
                         <div className="relative min-w-0">
@@ -574,6 +622,18 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
                 <div className="grid gap-1.5 text-xs font-extrabold text-muted"><span>Status</span><CustomDropdown ariaLabel="New bug status" value={newKnownIssueStatus} options={knownIssueStatusOptions} matchTriggerWidth onChange={(value) => setNewKnownIssueStatus(value as KnownIssueStatus)} /></div>
                 <div className="grid gap-1.5 text-xs font-extrabold text-muted"><span>Severity</span><CustomDropdown ariaLabel="New bug severity" value={newSeverity} options={severityOptions} matchTriggerWidth onChange={(value) => setNewSeverity(value as KnownIssueSeverity)} /></div>
               </div>
+              <div className="grid gap-2">
+                <span className="text-xs font-extrabold text-muted">Platforms</span>
+                <div className="flex flex-wrap gap-2">
+                  {platformOptions.map((platform) => {
+                    const selectedPlatform = newPlatforms.includes(platform);
+                    return <button key={platform} type="button" aria-pressed={selectedPlatform} onClick={() => togglePlatform(platform, true)} className={`min-h-9 rounded-full border px-3.5 text-xs font-extrabold transition ${selectedPlatform ? "border-ink bg-ink text-surface" : "border-line bg-soft text-ink hover:border-ink/30"}`}>{platform}</button>;
+                  })}
+                </div>
+              </div>
+              <label className="grid gap-1.5 text-xs font-extrabold text-muted">Workaround <span className="font-normal">(optional)</span>
+                <textarea className="min-h-22 resize-y rounded-xl border border-line bg-surface p-3.5 text-sm leading-5 text-ink outline-none focus:border-accent" value={newWorkaround} onChange={(event) => setNewWorkaround(event.target.value)} maxLength={2000} placeholder="Explain what users can do until this is fixed" />
+              </label>
               <div className="grid gap-2">
                 <span className="text-xs font-extrabold text-muted">Affected areas</span>
                 <div className="relative min-w-0">

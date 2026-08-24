@@ -61,6 +61,7 @@ export type OnboardingProgress = {
 
 export type OnboardingState = {
   foodInterests: string[];
+  favoriteCuisines: string[];
   foodPreferences: string[];
   dietaryRestrictions: string[];
   restaurantDietaryRequirements: string[];
@@ -75,6 +76,7 @@ export type UpdateOnboardingInput = Partial<
   Pick<
     OnboardingState,
     | "foodInterests"
+    | "favoriteCuisines"
     | "foodPreferences"
     | "dietaryRestrictions"
     | "restaurantDietaryRequirements"

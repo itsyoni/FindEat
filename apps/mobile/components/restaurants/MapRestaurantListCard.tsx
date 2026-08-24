@@ -6,6 +6,7 @@ import {
   BookmarkSimpleIcon,
   CheckCircleIcon,
   HeartIcon,
+  FireIcon,
   MapTrifoldIcon,
   PlusIcon,
   StarIcon,
@@ -23,6 +24,7 @@ type Props = {
   onShowOnMap: () => void;
   onAdd?: () => void;
   added?: boolean;
+  hotRightNow?: boolean;
 };
 
 function formatRating(rating?: number | null) {
@@ -43,6 +45,7 @@ export default function MapRestaurantListCard({
   onShowOnMap,
   onAdd,
   added = false,
+  hotRightNow = false,
 }: Props) {
   const { t } = useTranslation(["map", "restaurants", "common"]);
   const { isDark } = useAppTheme();
@@ -142,10 +145,25 @@ export default function MapRestaurantListCard({
             />
           </View>
 
-          {location ? (
-            <Text numberOfLines={2} className="mt-1 text-sm leading-5 text-gray-500">
-              {location}
-            </Text>
+          {location || hotRightNow ? (
+            <View className="mt-1 flex-row items-center gap-2">
+              {location ? (
+                <Text
+                  numberOfLines={1}
+                  className="min-w-0 flex-1 text-sm leading-5 text-gray-500"
+                >
+                  {location}
+                </Text>
+              ) : null}
+              {hotRightNow ? (
+                <View className="shrink-0 flex-row items-center rounded-full bg-[#FFF0E6] px-2 py-1 dark:bg-[#3A211C]">
+                  <FireIcon size={12} color="#FF5B35" weight="fill" />
+                  <Text className="ml-1 text-[10px] font-bold text-brand">
+                    {t("map:hotRightNow")}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           ) : null}
 
           <View className="mt-auto flex-row flex-wrap items-center gap-x-3 gap-y-2 pt-2">

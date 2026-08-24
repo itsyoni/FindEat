@@ -57,7 +57,13 @@ type Props = {
   onDelete: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
   aspectRatio?: number;
+  canvasAspectRatio?: number;
+  cropShape?: "rectangle" | "circle";
   showMediaStrip?: boolean;
+  showEditorTools?: boolean;
+  showHeaderCounter?: boolean;
+  headerTitle?: string;
+  primaryActionLabel?: string;
 };
 
 export default function ContentMediaEditor({
@@ -76,7 +82,13 @@ export default function ContentMediaEditor({
   onDelete,
   onReorder,
   aspectRatio,
+  canvasAspectRatio,
+  cropShape = "rectangle",
   showMediaStrip = true,
+  showEditorTools = true,
+  showHeaderCounter = true,
+  headerTitle,
+  primaryActionLabel,
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
@@ -180,17 +192,19 @@ export default function ContentMediaEditor({
           </TouchableOpacity>
           <View className="flex-1 items-center">
             <Text className="text-base font-bold" style={{ color: foreground }}>
-              {t("editPhotos")}
+              {headerTitle ?? t("editPhotos")}
             </Text>
-            <Text
-              className="mt-0.5 text-xs"
-              style={{ color: mutedForeground }}
-            >
-              {t("photoCount", {
-                current: selectedIndex + 1,
-                total: media.length,
-              })}
-            </Text>
+            {showHeaderCounter ? (
+              <Text
+                className="mt-0.5 text-xs"
+                style={{ color: mutedForeground }}
+              >
+                {t("photoCount", {
+                  current: selectedIndex + 1,
+                  total: media.length,
+                })}
+              </Text>
+            ) : null}
           </View>
           <TouchableOpacity
             accessibilityRole="button"
@@ -200,7 +214,9 @@ export default function ContentMediaEditor({
               busy || media.length === 0 ? "opacity-40" : ""
             }`}
           >
-            <Text className="font-bold text-black">{t("next")}</Text>
+            <Text className="font-bold text-black">
+              {primaryActionLabel ?? t("next")}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -224,10 +240,13 @@ export default function ContentMediaEditor({
               }
               crop={selectedMedia.crop}
               aspectRatio={aspectRatio}
+              canvasAspectRatio={canvasAspectRatio}
+              cropShape={cropShape}
               disabled={busy}
               onCropChange={handleCropChange}
             />
           ) : null}
+          {showEditorTools ? (
           <View className="absolute right-3 top-3 gap-3">
             <EditorTool
               label={t("rotate")}
@@ -281,6 +300,7 @@ export default function ContentMediaEditor({
               }
             />
           </View>
+          ) : null}
           {busy ? (
             <View className="absolute inset-0 items-center justify-center bg-black/45">
               <ActivityIndicator color="#F7D786" size="large" />

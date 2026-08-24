@@ -1,5 +1,8 @@
-import { AppAlert as Alert } from "@/lib/appAlert";
-import { AppButton, IconButton, Skeleton, SkeletonPulse } from "@/components/common";
+import {
+  AppAlert as Alert,
+  type AppAlertButton,
+} from "@/lib/appAlert";
+import { AppButton, Skeleton, SkeletonPulse } from "@/components/common";
 import ConfettiBurst from "@/components/common/feedback/ConfettiBurst";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import Text from "@/components/common/AppText";
@@ -15,10 +18,9 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@findeat/utils";
 import { uploadImage } from "@/lib/uploadImage";
 import { normalizeFrontCameraPhoto } from "@/lib/normalizeCameraPhoto";
-import {
-  openNativeImageCropper,
-  prepareImageForNativeCrop,
-} from "@/lib/nativeImageCrop";
+import SingleImageCropEditor, {
+  type EditableImage,
+} from "@/components/create/SingleImageCropEditor";
 import * as ImagePicker from "expo-image-picker";
 import {
   CameraView,
@@ -71,9 +73,12 @@ export default function EditProfileScreen() {
     useState<CameraType>("front");
   const [profileCameraFlash, setProfileCameraFlash] =
     useState<FlashMode>("off");
-  const [profileCameraCaptureUri, setProfileCameraCaptureUri] = useState<
-    string | null
-  >(null);
+  const [profileCameraCapture, setProfileCameraCapture] =
+    useState<EditableImage | null>(null);
+  const [pendingProfileImage, setPendingProfileImage] = useState<{
+    image: EditableImage;
+    kind: "avatar" | "cover";
+  } | null>(null);
   const [profileCameraCapturing, setProfileCameraCapturing] = useState(false);
   const [profileCameraApplying, setProfileCameraApplying] = useState(false);
   const [profileCameraPickingLibrary, setProfileCameraPickingLibrary] =
@@ -192,12 +197,31 @@ export default function EditProfileScreen() {
 
   if (initialLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
+      <SafeAreaView
+        edges={["bottom"]}
+        style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
+      >
         <SkeletonPulse>
-          <View className="flex-row items-center px-5 pt-4"><Skeleton width={42} height={42} circle /><Skeleton width="38%" height={24} radius={9} style={{ marginLeft: 10 }} /></View>
-          <View className="px-5 pb-10">
-            <Skeleton height={192} radius={24} style={{ marginTop: 24 }} />
-            <View className="mt-8 items-center"><Skeleton width={96} height={96} circle /><Skeleton width={150} height={13} radius={6} style={{ marginTop: 12 }} /></View>
+          <View className="relative">
+            <Skeleton height={288} radius={0} />
+            <SafeAreaView
+              edges={["top"]}
+              style={{ position: "absolute", left: 0, right: 0, top: 0 }}
+            >
+              <View className="flex-row items-center px-4 pt-2">
+                <Skeleton width={44} height={44} circle />
+                <Skeleton width="38%" height={24} radius={9} style={{ marginLeft: 10 }} />
+              </View>
+            </SafeAreaView>
+          </View>
+          <View
+            className="-mt-7 rounded-t-[30px] px-5 pb-10"
+            style={{ backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
+          >
+            <View className="items-center">
+              <Skeleton width={112} height={112} circle style={{ marginTop: -56 }} />
+              <Skeleton width={150} height={13} radius={6} style={{ marginTop: 12 }} />
+            </View>
             <Skeleton width="28%" height={21} radius={8} style={{ marginTop: 32, marginBottom: 14 }} />
             {[0, 1].map((item) => <View key={item} className="mb-5 gap-2"><Skeleton width="26%" height={11} radius={5} /><Skeleton height={52} radius={14} /></View>)}
             <View className="mb-5 gap-2"><Skeleton width="16%" height={11} radius={5} /><Skeleton height={104} radius={14} /></View>
@@ -273,14 +297,14 @@ export default function EditProfileScreen() {
     }
     setProfileCameraFacing("front");
     setProfileCameraFlash("off");
-    setProfileCameraCaptureUri(null);
+    setProfileCameraCapture(null);
     setProfileCameraOpen(true);
   }
 
   function closeProfileCamera() {
     if (profileCameraApplying) return;
     setProfileCameraOpen(false);
-    setProfileCameraCaptureUri(null);
+    setProfileCameraCapture(null);
   }
 
   async function takeProfileCameraPhoto() {
@@ -296,7 +320,11 @@ export default function EditProfileScreen() {
         profileCameraFacing === "front"
           ? await normalizeFrontCameraPhoto(photo.uri)
           : photo;
-      setProfileCameraCaptureUri(corrected.uri);
+      setProfileCameraCapture({
+        uri: corrected.uri,
+        width: Math.max(1, Math.round(corrected.width)),
+        height: Math.max(1, Math.round(corrected.height)),
+      });
     } catch (error) {
       console.error("Could not capture profile photo", error);
       Alert.alert(t("common:error"), t("profile:imagePickerError"));
@@ -321,28 +349,16 @@ export default function EditProfileScreen() {
       if (result.canceled || !result.assets[0]?.uri) return;
 
       const asset = result.assets[0];
-      const cropSource = await prepareImageForNativeCrop(
-        asset.uri,
-        asset.width,
-        asset.height,
-      );
-      const image = await openNativeImageCropper({
-        width: 1000,
-        height: 1000,
-        cropping: true,
-        cropperCircleOverlay: true,
-        freeStyleCropEnabled: false,
-        mediaType: "photo",
-        compressImageQuality: 0.8,
-        forceJpg: true,
-        cropperToolbarTitle: t("profile:cropProfilePhoto"),
-        path: cropSource,
+      setPendingProfileImage({
+        kind: "avatar",
+        image: {
+          uri: asset.uri,
+          width: Math.max(1, Math.round(asset.width)),
+          height: Math.max(1, Math.round(asset.height)),
+        },
       });
-      setNewAvatarUri(
-        image.path.startsWith("/") ? `file://${image.path}` : image.path,
-      );
       setProfileCameraOpen(false);
-      setProfileCameraCaptureUri(null);
+      setProfileCameraCapture(null);
     } catch (error) {
       if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
         console.error("Could not open profile camera gallery", error);
@@ -354,55 +370,20 @@ export default function EditProfileScreen() {
   }
 
   async function applyProfileCameraPhoto() {
-    if (!profileCameraCaptureUri || profileCameraApplying) return;
+    if (!profileCameraCapture || profileCameraApplying) return;
 
-    try {
-      setProfileCameraApplying(true);
-      const image = await openNativeImageCropper({
-        width: 1000,
-        height: 1000,
-        cropping: true,
-        cropperCircleOverlay: true,
-        freeStyleCropEnabled: false,
-        mediaType: "photo",
-        compressImageQuality: 0.8,
-        forceJpg: true,
-        cropperToolbarTitle: t("profile:cropProfilePhoto"),
-        path: profileCameraCaptureUri,
-      });
-      setNewAvatarUri(
-        image.path.startsWith("/") ? `file://${image.path}` : image.path,
-      );
-      setProfileCameraOpen(false);
-      setProfileCameraCaptureUri(null);
-    } catch (error) {
-      if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
-        console.error("Could not crop profile camera photo", error);
-        Alert.alert(t("common:error"), t("profile:imagePickerError"));
-      }
-    } finally {
-      setProfileCameraApplying(false);
-    }
+    setProfileCameraApplying(true);
+    setPendingProfileImage({
+      kind: "avatar",
+      image: profileCameraCapture,
+    });
+    setProfileCameraOpen(false);
+    setProfileCameraCapture(null);
+    setProfileCameraApplying(false);
   }
 
-  async function pickImage(
-    aspect: [number, number],
-    onSelect: (uri: string) => void,
-  ) {
-    const isAvatar = aspect[0] === aspect[1];
-    const cropOptions = {
-      width: isAvatar ? 1000 : 1800,
-      height: isAvatar ? 1000 : 600,
-      cropping: true,
-      cropperCircleOverlay: isAvatar,
-      freeStyleCropEnabled: false,
-      mediaType: "photo" as const,
-      compressImageQuality: 0.8,
-      forceJpg: true,
-      cropperToolbarTitle: isAvatar
-        ? t("profile:cropProfilePhoto")
-        : t("profile:cropCoverPhoto"),
-    };
+  async function pickImage(kind: "avatar" | "cover") {
+    const isAvatar = kind === "avatar";
 
     async function openCamera() {
       try {
@@ -421,25 +402,19 @@ export default function EditProfileScreen() {
           mediaTypes: ["images"],
           allowsEditing: false,
           quality: 0.9,
-          cameraType: isAvatar
-            ? ImagePicker.CameraType.front
-            : ImagePicker.CameraType.back,
+          cameraType: ImagePicker.CameraType.back,
         });
         if (result.canceled || !result.assets[0]?.uri) return;
 
         const captured = result.assets[0];
-        // Let the system camera finish dismissing before presenting the
-        // cropper, otherwise iOS can fail to open the crop screen.
-        const cropSource = await prepareImageForNativeCrop(
-          captured.uri,
-          captured.width,
-          captured.height,
-        );
-        const image = await openNativeImageCropper({
-          ...cropOptions,
-          path: cropSource,
+        setPendingProfileImage({
+          kind,
+          image: {
+            uri: captured.uri,
+            width: Math.max(1, Math.round(captured.width)),
+            height: Math.max(1, Math.round(captured.height)),
+          },
         });
-        onSelect(image.path.startsWith("/") ? `file://${image.path}` : image.path);
       } catch (error) {
         if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
           console.error("Could not open profile camera or crop photo", error);
@@ -461,18 +436,14 @@ export default function EditProfileScreen() {
         if (result.canceled || !result.assets[0]) return;
 
         const asset = result.assets[0];
-        const cropSource = await prepareImageForNativeCrop(
-          asset.uri,
-          asset.width,
-          asset.height,
-        );
-        const image = await openNativeImageCropper({
-          ...cropOptions,
-          path: cropSource,
+        setPendingProfileImage({
+          kind,
+          image: {
+            uri: asset.uri,
+            width: Math.max(1, Math.round(asset.width)),
+            height: Math.max(1, Math.round(asset.height)),
+          },
         });
-        onSelect(
-          image.path.startsWith("/") ? `file://${image.path}` : image.path,
-        );
       } catch (error) {
         if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
           console.error("Could not open profile gallery or crop photo", error);
@@ -496,34 +467,54 @@ export default function EditProfileScreen() {
       }
     }
 
+    const actions: AppAlertButton[] = [
+      {
+        text: t("profile:takePhoto"),
+        icon: "camera",
+        onPress: openCamera,
+      },
+      {
+        text: t("profile:chooseFromLibrary"),
+        icon: "gallery",
+        onPress: openLibrary,
+      },
+    ];
+
+    if (isAvatar && displayedAvatar) {
+      actions.push({
+        text: t("profile:removeProfilePicture"),
+        icon: "trash",
+        style: "destructive",
+        onPress: removeProfilePicture,
+      });
+    }
+
+    actions.push({
+      text: t("common:cancel"),
+      icon: "close",
+      style: "cancel",
+    });
+
     Alert.alert(
-      t("profile:chooseImage"),
+      isAvatar
+        ? t("profile:profilePhoto")
+        : t(
+            newCoverUri || coverUrl
+              ? "profile:changeCoverPhoto"
+              : "profile:addCoverPhoto",
+          ),
       t("profile:chooseImageDescription"),
-      [
-        {
-          text: t("profile:takePhoto"),
-          onPress: openCamera,
-        },
-        {
-          text: t("profile:chooseFromLibrary"),
-          onPress: openLibrary,
-        },
-        {
-          text: t("profile:removeProfilePicture"),
-          style: "destructive",
-          onPress: removeProfilePicture,
-        },
-        {
-          text: t("common:cancel"),
-          style: "cancel",
-        },
-      ],
-      { tone: "default", illustration: "none" },
+      actions,
+      {
+        tone: "default",
+        illustration: "none",
+        cancelable: true,
+      },
     );
   }
 
   async function pickAvatar() {
-    await pickImage([1, 1], setNewAvatarUri);
+    await pickImage("avatar");
   }
 
   function handleBack() {
@@ -553,6 +544,30 @@ export default function EditProfileScreen() {
     );
   }
 
+  if (pendingProfileImage) {
+    const isAvatar = pendingProfileImage.kind === "avatar";
+    return (
+      <SingleImageCropEditor
+        image={pendingProfileImage.image}
+        aspectRatio={isAvatar ? 1 : 4 / 3}
+        outputWidth={isAvatar ? 1000 : 1200}
+        outputHeight={isAvatar ? 1000 : 900}
+        canvasAspectRatio={isAvatar ? 9 / 16 : undefined}
+        cropShape={isAvatar ? "circle" : "rectangle"}
+        showEditorTools={false}
+        showHeaderCounter={false}
+        headerTitle={t("profile:cropImage")}
+        primaryActionLabel={t("common:done")}
+        onCancel={() => setPendingProfileImage(null)}
+        onApply={(image) => {
+          if (isAvatar) setNewAvatarUri(image.uri);
+          else setNewCoverUri(image.uri);
+          setPendingProfileImage(null);
+        }}
+      />
+    );
+  }
+
   if (profileCameraOpen) {
     const cameraGranted = cameraPermission?.granted === true;
 
@@ -560,9 +575,9 @@ export default function EditProfileScreen() {
       <View style={{ flex: 1, backgroundColor: "#0B0B0A" }}>
         {cameraGranted ? (
           <>
-            {profileCameraCaptureUri ? (
+            {profileCameraCapture ? (
               <ProgressiveImage
-                source={{ uri: profileCameraCaptureUri }}
+                source={{ uri: profileCameraCapture.uri }}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
               />
@@ -595,7 +610,7 @@ export default function EditProfileScreen() {
                   <Text className="text-lg font-bold text-[#FAF9F6]">
                     {t("profile:profilePhoto")}
                   </Text>
-                  {profileCameraCaptureUri ? (
+                  {profileCameraCapture ? (
                     <View className="h-11 w-11" />
                   ) : (
                     <TouchableOpacity
@@ -624,13 +639,13 @@ export default function EditProfileScreen() {
                   )}
                 </View>
 
-                {profileCameraCaptureUri ? (
+                {profileCameraCapture ? (
                   <View className="flex-row gap-3">
                     <TouchableOpacity
                       accessibilityRole="button"
                       disabled={profileCameraApplying}
                       onPress={() => {
-                        setProfileCameraCaptureUri(null);
+                        setProfileCameraCapture(null);
                       }}
                       className="items-center justify-center rounded-2xl bg-[#242422]/95 px-5 py-4"
                       style={{ width: 0, flexGrow: 1, flexShrink: 1 }}
@@ -752,37 +767,18 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView
+      edges={["bottom"]}
       style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
     >
       <View style={{ flex: 1 }}>
         <KeyboardAwareFormScrollView
           className="flex-1 bg-canvas dark:bg-black"
-          contentInsetAdjustmentBehavior="automatic"
+          contentInsetAdjustmentBehavior="never"
           bottomOffset={28}
         >
-        <View className="flex-row items-center px-5 pt-4">
-          <IconButton
-            icon={DirectionalBackIcon}
-            variant="ghost"
-            onPress={handleBack}
-          />
-
-          <Text className="ml-2 text-2xl font-bold text-black dark:text-white">
-            {t("profile:editProfile")}
-          </Text>
-        </View>
-        <View className="px-5 pb-10">
-          <ProfileCompletion
-            percentage={profileCompletion}
-            completed={completion.completed}
-            total={completion.total}
-          />
-
-          <TouchableOpacity
-            onPress={() => pickImage([3, 1], setNewCoverUri)}
-            className="mt-6"
-          >
-            <View className="h-48 overflow-hidden rounded-3xl bg-gray-100 dark:bg-gray-800">
+          <View className="relative">
+          <View>
+            <View className="h-72 overflow-hidden bg-gray-100 dark:bg-gray-800">
               {newCoverUri || coverUrl ? (
                 <ProgressiveImage
                   source={{ uri: newCoverUri ?? coverUrl ?? "" }}
@@ -790,29 +786,88 @@ export default function EditProfileScreen() {
                   contentFit="cover"
                 />
               ) : (
-                <View className="h-full w-full items-center justify-center">
-                  <Text className="text-gray-500">
-                    {t("profile:addCoverPhoto")}
-                  </Text>
-                </View>
+                <View className="h-full w-full" />
               )}
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => void pickImage("cover")}
+                className="absolute bottom-10 right-4 rounded-full bg-[#171717]/75 px-3 py-2"
+              >
+                <Text className="text-xs font-bold text-[#FAF9F6]">
+                  {newCoverUri || coverUrl
+                    ? t("profile:changeCoverPhoto")
+                    : t("profile:addCoverPhoto")}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Text className="mt-3 text-center font-semibold text-black dark:text-white">
-              {newCoverUri || coverUrl
-                ? t("profile:changeCoverPhoto")
-                : t("profile:addCoverPhoto")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={pickAvatar}
-            className={"mt-8 items-center"}
-          >
-            <Avatar uri={displayedAvatar} username={username} size={96} />
+          </View>
 
-            <Text className="mt-3 font-semibold text-black dark:text-white">
-              {t("profile:changeProfilePhoto")}
-            </Text>
-          </TouchableOpacity>
+          <SafeAreaView
+            edges={["top"]}
+            pointerEvents="box-none"
+            style={{ position: "absolute", left: 0, right: 0, top: 0 }}
+          >
+            <View className="flex-row items-center px-4 pt-2">
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("common:back")}
+                onPress={handleBack}
+                className="h-11 w-11 items-center justify-center rounded-full bg-[#171717]/55"
+              >
+                <DirectionalBackIcon size={24} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+              <Text
+                className="ml-3 text-2xl font-bold text-[#FAF9F6]"
+                style={{
+                  textShadowColor: "rgba(0,0,0,0.75)",
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 4,
+                }}
+              >
+                {t("profile:editProfile")}
+              </Text>
+            </View>
+          </SafeAreaView>
+          </View>
+
+          <View
+            className="-mt-7 rounded-t-[30px] px-5 pb-10"
+            style={{ backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}
+          >
+            <TouchableOpacity
+              onPress={pickAvatar}
+              activeOpacity={0.85}
+              className="items-center self-center"
+              style={{ marginTop: -56 }}
+            >
+              <View
+                className="items-center justify-center rounded-full"
+                style={{
+                  width: 112,
+                  height: 112,
+                  borderWidth: 2,
+                  borderColor: isDark ? "#0B0B0A" : "#FBFAF8",
+                  backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
+                }}
+              >
+                <Avatar
+                  uri={displayedAvatar}
+                  username={username}
+                  size={104}
+                  showSnapIndicator={false}
+                />
+              </View>
+
+              <Text className="mt-2 font-semibold text-black dark:text-white">
+                {t("profile:changeProfilePhoto")}
+              </Text>
+            </TouchableOpacity>
+
+            <ProfileCompletion
+              percentage={profileCompletion}
+              completed={completion.completed}
+              total={completion.total}
+            />
 
           <SectionTitle title={t("profile:account")} />
 

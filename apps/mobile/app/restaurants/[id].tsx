@@ -11,7 +11,7 @@ import ReportBottomSheet from "@/components/moderation/ReportBottomSheet";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import { useRestaurantPosts } from "@/hooks/useRestaurantPosts";
 import { api } from "@/lib/api";
-import type { RestaurantPostSection } from "@findeat/types";
+import type { RestaurantActivityState, RestaurantPostSection } from "@findeat/types";
 import { getErrorMessage } from "@findeat/utils";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -29,7 +29,6 @@ import RestaurantAboutBottomSheet from "@/components/restaurants/RestaurantAbout
 import PlaceStatusBookmark, { getPlaceStatusLabelKey } from "@/components/restaurants/PlaceStatusBookmark";
 import { CaretDownIcon, MedalIcon } from "phosphor-react-native";
 import RestaurantBadgesBottomSheet from "@/components/restaurants/RestaurantBadgesBottomSheet";
-import ContextualCoachMark from "@/components/onboarding/ContextualCoachMark";
 
 type RestaurantTab = RestaurantPostSection | "MENU";
 
@@ -49,10 +48,28 @@ export default function RestaurantScreen() {
   const [reportOpen, setReportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
+  const [activityState, setActivityState] =
+    useState<RestaurantActivityState>("none");
 
   useEffect(() => {
     if (user?.id && id) void recordVisitDetectionRestaurantView(user.id);
   }, [id, user?.id]);
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    setActivityState("none");
+    void api.restaurants
+      .activityHeatmap([id])
+      .then((points) => {
+        if (active) setActivityState(points[0]?.state ?? "none");
+      })
+      .catch(() => {
+        if (active) setActivityState("none");
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -217,7 +234,6 @@ export default function RestaurantScreen() {
 
   return (
     <>
-      <ContextualCoachMark markKey="restaurant" style={{ top: 72 }} />
       <Animated.ScrollView
         style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         contentContainerStyle={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
@@ -226,6 +242,7 @@ export default function RestaurantScreen() {
       >
       <RestaurantHeader
         restaurant={restaurant}
+        hotRightNow={activityState === "hot"}
         scrollY={scrollY}
         onToggleFollow={toggleFollow}
         onOpenOptions={() => setOptionsOpen(true)}

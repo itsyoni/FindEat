@@ -19,7 +19,7 @@ export default function ProfileAvatarRing({
 }: Props) {
   const { isDark } = useAppTheme();
   const hasSnap = snapIndicator !== null;
-  const outerDiameter = size + 16;
+  const outerDiameter = size + (hasSnap ? 16 : 8);
 
   return (
     <View

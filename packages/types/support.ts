@@ -13,6 +13,8 @@ export type SupportTicketStatus =
   | "RESOLVED"
   | "CLOSED";
 
+export type SupportTicketPlatform = "iOS" | "Android" | "Web";
+
 type SupportTicketUser = {
   id: string;
   displayName: string;
@@ -36,6 +38,7 @@ export type SupportTicket = {
   submitterName?: string | null;
   submitterEmail?: string | null;
   submittedFromWeb?: boolean;
+  platform?: SupportTicketPlatform | null;
   restaurantId?: string | null;
   restaurant?: {
     id: string;
@@ -49,6 +52,8 @@ export type SupportTicket = {
     status: import("./known-issue").KnownIssueStatus;
     severity?: import("./known-issue").KnownIssueSeverity;
     isPublic?: boolean;
+    workaround?: string | null;
+    platforms?: string[];
     affectedAreas?: string[];
   } | null;
   plannedFeature?: {
@@ -68,5 +73,6 @@ export type CreateSupportTicketInput = Pick<
   "category" | "subject" | "message"
 > & {
   restaurantId?: string;
+  platform?: SupportTicketPlatform;
   attachments?: Array<{ type: "IMAGE" | "VIDEO"; url: string }>;
 };
