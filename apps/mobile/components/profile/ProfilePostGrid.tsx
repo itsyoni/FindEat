@@ -110,6 +110,7 @@ export default function ProfilePostGrid({
 }: Props) {
   const { t } = useTranslation("profile");
   const { isDark } = useAppTheme();
+  const profilePosts = posts.filter((post) => !post.authorRestaurantId);
 
   if (loading) {
     return (
@@ -129,7 +130,7 @@ export default function ProfilePostGrid({
     );
   }
 
-  if (posts.length === 0) {
+  if (profilePosts.length === 0) {
     const isReview = type === "REVIEW";
     const Icon = isReview ? StarIcon : ImagesSquareIcon;
 
@@ -169,7 +170,7 @@ export default function ProfilePostGrid({
       className="flex-row flex-wrap"
       style={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
     >
-      {posts.map((post) => {
+      {profilePosts.map((post) => {
         const imageUrl = getPostImage(post);
         const thumbnailUrl = getPostThumbnail(post);
         const videoUrl = getPostVideo(post);

@@ -56,6 +56,8 @@ import {
   HeartIcon,
   FireIcon,
   CheersIcon,
+  CaretDownIcon,
+  CaretUpIcon,
   MapPinIcon,
   PlayIcon,
   PlusIcon,
@@ -86,6 +88,7 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "");
 // The marker is 48px wide. Cluster only when markers would substantially
 // overlap, so nearby restaurants remain individually discoverable for longer.
 const MARKER_CLUSTER_RADIUS = 42;
+const COLLAPSED_FOLDER_LIMIT = 5;
 
 type MapSearchResult = MapRecentSearch;
 
@@ -282,6 +285,7 @@ export default function MapScreen() {
   const [currentMapZoom, setCurrentMapZoom] = useState(13);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [placeLists, setPlaceLists] = useState<PlaceListSummary[]>([]);
+  const [foldersExpanded, setFoldersExpanded] = useState(false);
   const [selectedListIds, setSelectedListIds] = useState<string[]>([]);
   const [selectedListDetails, setSelectedListDetails] = useState<
     PlaceListDetail[]
@@ -380,7 +384,13 @@ export default function MapScreen() {
   useEffect(() => {
     if (!user?.id) return;
     const timer = setTimeout(() => {
-      void getMapRecentSearches(user.id).then(setRecentMapSearches);
+      void getMapRecentSearches(user.id).then((items) =>
+        setRecentMapSearches(
+          items.filter(
+            (item) => item.source !== "AREA" || item.areaType !== "COUNTRY",
+          ),
+        ),
+      );
     }, 0);
     return () => clearTimeout(timer);
   }, [user?.id]);
@@ -508,10 +518,7 @@ export default function MapScreen() {
   const heatmapRestaurantIdsKey = heatmapRestaurantIds.join(",");
 
   useEffect(() => {
-    if (!heatmapRestaurantIdsKey) {
-      setActivityHeatPoints([]);
-      return;
-    }
+    if (!heatmapRestaurantIdsKey) return;
     let active = true;
     void api.restaurants
       .activityHeatmap(heatmapRestaurantIds)
@@ -526,10 +533,18 @@ export default function MapScreen() {
     };
   }, [heatmapRestaurantIds, heatmapRestaurantIdsKey]);
 
+  const visibleActivityHeatPoints = useMemo(() => {
+    if (!heatmapRestaurantIdsKey) return [];
+    const restaurantIds = new Set(heatmapRestaurantIds);
+    return activityHeatPoints.filter((point) =>
+      restaurantIds.has(point.restaurantId),
+    );
+  }, [activityHeatPoints, heatmapRestaurantIds, heatmapRestaurantIdsKey]);
+
   const activityHeatmapShape = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: (activityHeatmapEnabled ? activityHeatPoints : []).map(
+      features: (activityHeatmapEnabled ? visibleActivityHeatPoints : []).map(
         (point) => ({
           type: "Feature" as const,
           id: point.restaurantId,
@@ -541,14 +556,16 @@ export default function MapScreen() {
         }),
       ),
     }),
-    [activityHeatPoints, activityHeatmapEnabled],
+    [activityHeatmapEnabled, visibleActivityHeatPoints],
   );
   const activityPointByRestaurantId = useMemo(
     () =>
       new Map(
-        activityHeatPoints.map((point) => [point.restaurantId, point] as const),
+        visibleActivityHeatPoints.map(
+          (point) => [point.restaurantId, point] as const,
+        ),
       ),
-    [activityHeatPoints],
+    [visibleActivityHeatPoints],
   );
   const selectedCityRequestKey = selectedCities
     .map((city) => `${city.googlePlaceId}:${city.latitude}:${city.longitude}`)
@@ -1109,11 +1126,13 @@ export default function MapScreen() {
   );
 
   const searchMapAreasForMap = useCallback(
-    (query: string) =>
-      api.restaurants.searchMapAreas(
+    async (query: string) => {
+      const areas = await api.restaurants.searchMapAreas(
         query,
         i18n.resolvedLanguage ?? i18n.language,
-      ),
+      );
+      return areas.filter((area) => area.areaType !== "COUNTRY");
+    },
     [i18n.language, i18n.resolvedLanguage],
   );
 
@@ -1222,6 +1241,7 @@ export default function MapScreen() {
 
   const selectCity = useCallback(
     async (city: CityFilterLocation) => {
+      if (city.areaType === "COUNTRY") return;
       const alreadySelected = selectedCities.some(
         (selected) => selected.googlePlaceId === city.googlePlaceId,
       );
@@ -1289,6 +1309,14 @@ export default function MapScreen() {
   }, [fitSelectedCities, isCitySearching, isSearching, loading, viewMode]);
 
   function renderAreaSearchResult(city: CityFilterLocation) {
+    const countryLabel =
+      city.country?.trim() ||
+      city.formattedAddress
+        ?.split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .at(-1) ||
+      null;
     return (
       <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-900">
         <View className="h-13 w-13 items-center justify-center rounded-full bg-brand-soft dark:bg-gray-800">
@@ -1301,6 +1329,14 @@ export default function MapScreen() {
           >
             {city.name}
           </Text>
+          {countryLabel ? (
+            <Text
+              numberOfLines={1}
+              className="mt-1 text-sm text-gray-500 dark:text-gray-400"
+            >
+              {countryLabel}
+            </Text>
+          ) : null}
         </View>
       </View>
     );
@@ -1429,6 +1465,9 @@ export default function MapScreen() {
   const selectedLists = placeLists.filter((list) =>
     selectedListIds.includes(list.id),
   );
+  const visiblePlaceLists = foldersExpanded
+    ? placeLists
+    : placeLists.slice(0, COLLAPSED_FOLDER_LIMIT);
   const selectedListTitle =
     selectedLists.length === 1
       ? selectedLists[0].systemType
@@ -1542,7 +1581,10 @@ export default function MapScreen() {
             }}
             rightAccessory={
               <TouchableOpacity
-                onPress={() => setFiltersOpen(true)}
+                onPress={() => {
+                  setFoldersExpanded(false);
+                  setFiltersOpen(true);
+                }}
                 className="relative h-full aspect-square items-center justify-center rounded-2xl bg-ink"
               >
                 <FunnelIcon size={21} color="#FAF9F6" weight="fill" />
@@ -1657,7 +1699,8 @@ export default function MapScreen() {
                   ) : null,
                 )}
 
-                {activityHeatmapEnabled && activityHeatPoints.length > 0 ? (
+                {activityHeatmapEnabled &&
+                visibleActivityHeatPoints.length > 0 ? (
                   <Mapbox.ShapeSource
                     id="restaurant-activity-heatmap-source"
                     shape={activityHeatmapShape}
@@ -2628,7 +2671,7 @@ export default function MapScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
-            {placeLists.map((list) => {
+            {visiblePlaceLists.map((list) => {
               const selected = selectedListIds.includes(list.id);
               const previewUri =
                 list.coverUrl ??
@@ -2710,6 +2753,25 @@ export default function MapScreen() {
                 </TouchableOpacity>
               );
             })}
+            {placeLists.length > COLLAPSED_FOLDER_LIMIT ? (
+              <TouchableOpacity
+                onPress={() => setFoldersExpanded((current) => !current)}
+                className="flex-row items-center justify-center rounded-xl py-2.5"
+              >
+                <Text className="mr-1.5 font-semibold text-gray-600 dark:text-gray-300">
+                  {foldersExpanded
+                    ? t("map:showFewerFolders")
+                    : t("map:showMoreFolders", {
+                        count: placeLists.length - COLLAPSED_FOLDER_LIMIT,
+                      })}
+                </Text>
+                {foldersExpanded ? (
+                  <CaretUpIcon size={16} color={isDark ? "#D1D5DB" : "#4B5563"} />
+                ) : (
+                  <CaretDownIcon size={16} color={isDark ? "#D1D5DB" : "#4B5563"} />
+                )}
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           <Text className="mb-2 mt-6 font-bold text-black dark:text-white">

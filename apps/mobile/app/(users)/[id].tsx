@@ -77,7 +77,10 @@ export default function UserProfileScreen() {
   const hasSnap = snapIndicator !== null;
 
   const posts = useMemo(
-    () => filterPostsByType(user?.posts, activeFeed),
+    () =>
+      filterPostsByType(user?.posts, activeFeed).filter(
+        (post) => !post.authorRestaurantId,
+      ),
     [user, activeFeed],
   );
 

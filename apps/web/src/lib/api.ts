@@ -41,10 +41,11 @@ export async function request<T = unknown>(path: string, init?: RequestInit): Pr
   if (existing) return existing as Promise<T>
 
   const pending = (async () => {
+    const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData
     const response = await fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },

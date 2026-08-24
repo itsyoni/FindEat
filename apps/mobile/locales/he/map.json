@@ -59,6 +59,8 @@
   "folderPlaces_one": "מקום אחד",
   "folderPlaces_two": "שני מקומות",
   "folderPlaces_other": "{{count}} מקומות",
+  "showMoreFolders": "הצגת {{count}} נוספות",
+  "showFewerFolders": "הצגת פחות",
   "distance": "מרחק",
   "anyDistance": "כל מרחק",
   "resetFilters": "איפוס",

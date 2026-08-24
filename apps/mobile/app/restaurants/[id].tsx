@@ -191,7 +191,7 @@ export default function RestaurantScreen() {
         style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
         contentContainerStyle={{ backgroundColor: isDark ? "#0B0B0A" : "#FAF9F6" }}
       >
-        <RestaurantHeader restaurant={null} loading scrollY={scrollY} onToggleFollow={() => undefined} onOpenOptions={() => undefined} />
+        <RestaurantHeader restaurant={null} loading scrollY={scrollY} onToggleFollow={() => undefined} onOpenOptions={() => undefined} onCreateReview={() => undefined} />
         <SkeletonPulse>
           <View className="flex-row gap-3 bg-surface px-5 pb-5 dark:bg-black">
             {[0, 1, 2].map((item) => <Skeleton key={item} width="31%" height={62} radius={12} />)}
@@ -246,6 +246,7 @@ export default function RestaurantScreen() {
         scrollY={scrollY}
         onToggleFollow={toggleFollow}
         onOpenOptions={() => setOptionsOpen(true)}
+        onCreateReview={() => openCreateFlow("/create/review")}
       />
 
       <View className="bg-surface px-5 pb-5 dark:bg-black">

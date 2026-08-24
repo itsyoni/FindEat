@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
@@ -15,14 +15,32 @@ import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { ForkKnifeIcon } from "@phosphor-icons/react/dist/csr/ForkKnife";
 import { MartiniIcon } from "@phosphor-icons/react/dist/csr/Martini";
-import type { Dish, Menu, MenuSectionType } from "@findeat/types";
+import { MagicWandIcon } from "@phosphor-icons/react/dist/csr/MagicWand";
+import type { Dish, Menu, MenuCollection, MenuSectionType } from "@findeat/types";
 import { DishEditorModal } from "../components/DishEditorModal";
 import { DishFoodTags } from "../components/DishFoodTags";
 import { DishInsightsModal } from "../components/DishInsightsModal";
+import { MenuImportModal } from "../components/MenuImportModal";
 import { foodTagLabel } from "../lib/foodTags";
 import { request, uploadImage } from "../lib/api";
 import { confirmAction } from "../lib/appConfirm";
 import { promptAction } from "../lib/appPrompt";
+
+const MENU_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function minutesFromTime(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function formatMenuSchedule(menu: MenuCollection) {
+  const days = menu.activeDays.length === 0
+    ? "Every day"
+    : menu.activeDays.map((day) => MENU_DAYS[day]).join(", ");
+  if (menu.startMinute == null || menu.endMinute == null) return `${days} · All day`;
+  const time = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+  return `${days} · ${time(menu.startMinute)}–${time(menu.endMinute)}`;
+}
 
 function DishRowFoodTags({
   allergens = [],
@@ -84,6 +102,16 @@ export function MenuPage({
   const [newTitle, setNewTitle] = useState("");
   const [newSectionType, setNewSectionType] = useState<MenuSectionType>("FOOD");
   const [createSectionOpen, setCreateSectionOpen] = useState(false);
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const [collections, setCollections] = useState<MenuCollection[]>([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [createCollectionOpen, setCreateCollectionOpen] = useState(false);
+  const [editingCollectionId, setEditingCollectionId] = useState<string | null>(null);
+  const [collectionName, setCollectionName] = useState("");
+  const [collectionDays, setCollectionDays] = useState<number[]>([]);
+  const [collectionTimed, setCollectionTimed] = useState(false);
+  const [collectionStart, setCollectionStart] = useState("08:00");
+  const [collectionEnd, setCollectionEnd] = useState("12:00");
   const [openMenu, setOpenMenu] = useState<string | null>(menus[0]?.id ?? null);
   const [dishMenu, setDishMenu] = useState<string | null>(null);
   const [dishName, setDishName] = useState("");
@@ -120,9 +148,16 @@ export function MenuPage({
   >({});
   const [updatingSectionTypeId, setUpdatingSectionTypeId] = useState<string | null>(null);
 
+  const collectionMenus = useMemo(
+    () => selectedCollectionId
+      ? menus.filter((menu) => menu.collectionId === selectedCollectionId)
+      : menus,
+    [menus, selectedCollectionId],
+  );
+
   const orderedMenus = useMemo(() => {
-    if (!menuOrderIds) return menus;
-    const byId = new Map(menus.map((menu) => [menu.id, menu]));
+    if (!menuOrderIds) return collectionMenus;
+    const byId = new Map(collectionMenus.map((menu) => [menu.id, menu]));
     const ordered = menuOrderIds.flatMap((id) => {
       const menu = byId.get(id);
       if (!menu) return [];
@@ -130,7 +165,32 @@ export function MenuPage({
       return [menu];
     });
     return [...ordered, ...byId.values()];
-  }, [menuOrderIds, menus]);
+  }, [collectionMenus, menuOrderIds]);
+
+  const loadCollections = useCallback(async () => {
+    const next = await request<MenuCollection[]>(
+      `/business/menus/collections/list?restaurantId=${encodeURIComponent(restaurantId)}`,
+      { cache: "reload" },
+    );
+    setCollections(next);
+    setSelectedCollectionId((current) => current && next.some((item) => item.id === current)
+      ? current
+      : next.find((item) => item.isDefault)?.id ?? next[0]?.id ?? null);
+  }, [restaurantId]);
+
+  useEffect(() => {
+    let active = true;
+    void request<MenuCollection[]>(
+      `/business/menus/collections/list?restaurantId=${encodeURIComponent(restaurantId)}`,
+    ).then((next) => {
+      if (!active) return;
+      setCollections(next);
+      setSelectedCollectionId(next.find((item) => item.isDefault)?.id ?? next[0]?.id ?? null);
+    }).catch((nextError: unknown) => {
+      if (active) setError(nextError instanceof Error ? nextError.message : "Could not load menus");
+    });
+    return () => { active = false; };
+  }, [restaurantId]);
 
   useEffect(() => () => dragCleanupRef.current?.(), []);
 
@@ -165,6 +225,7 @@ export function MenuPage({
           title: newTitle,
           sectionType: newSectionType,
           restaurantId,
+          collectionId: selectedCollectionId,
         }),
       });
       setNewTitle("");
@@ -178,6 +239,46 @@ export function MenuPage({
           : "Could not create menu section",
       );
     }
+  }
+
+  async function createCollection(event: FormEvent) {
+    event.preventDefault();
+    if (!collectionName.trim()) return;
+    setError("");
+    try {
+      const created = await request<MenuCollection>(editingCollectionId ? `/business/menus/collections/${editingCollectionId}` : "/business/menus/collections", {
+        method: editingCollectionId ? "PATCH" : "POST",
+        body: JSON.stringify({
+          restaurantId,
+          name: collectionName.trim(),
+          activeDays: collectionDays,
+          startMinute: collectionTimed ? minutesFromTime(collectionStart) : null,
+          endMinute: collectionTimed ? minutesFromTime(collectionEnd) : null,
+        }),
+      });
+      setCollectionName("");
+      setCollectionDays([]);
+      setCollectionTimed(false);
+      setCreateCollectionOpen(false);
+      setEditingCollectionId(null);
+      await loadCollections();
+      setSelectedCollectionId(created.id);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Could not create menu");
+    }
+  }
+
+  function openCollectionEditor(collection?: MenuCollection) {
+    setEditingCollectionId(collection?.id ?? null);
+    setCollectionName(collection?.name ?? "");
+    setCollectionDays(collection?.activeDays ?? []);
+    setCollectionTimed(collection?.startMinute != null && collection?.endMinute != null);
+    const toTime = (minute: number | null | undefined, fallback: string) => minute == null
+      ? fallback
+      : `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+    setCollectionStart(toTime(collection?.startMinute, "08:00"));
+    setCollectionEnd(toTime(collection?.endMinute, "12:00"));
+    setCreateCollectionOpen(true);
   }
 
   async function createDish(event: FormEvent) {
@@ -471,19 +572,67 @@ export function MenuPage({
             Build the menu customers see on your FindEat profile.
           </p>
         </div>
-        <button
-          type="button"
-          className="primary [.login-card_&]:[min-height:49px] [.login-card_&]:[margin-top:2px] [.login-card_&]:[background:var(--accent)] [.login-card_&]:[color:#faf9f6] [.login-card_&]:[box-shadow:0_10px_24px_color-mix(in_srgb,_var(--accent)_25%,_transparent)] [.login-card_&]:[transition:background-color_0.16s_ease,_box-shadow_0.16s_ease,_transform_0.16s_ease] [.login-card_&:hover:not(:disabled)]:[background:color-mix(in_srgb,_var(--accent)_88%,_#9c2e19)] [.login-card_&:hover:not(:disabled)]:[box-shadow:0_13px_28px_color-mix(in_srgb,_var(--accent)_31%,_transparent)] [.login-card_&:hover:not(:disabled)]:[transform:translateY(-1px)] [.login-card_&:active:not(:disabled)]:[transform:translateY(0)] [.login-card_&:disabled]:[cursor:not-allowed] [border:0] [border-radius:12px] [padding:12px_17px] [font-weight:800] [background:var(--ink)] [color:#faf9f6] [&:hover]:[background:#333] [&:disabled]:[opacity:0.55] [.error-page-actions_&]:[background:var(--accent)] [.error-page-actions_&]:[color:#171717] [.error-page-actions_&]:[box-shadow:0_12px_30px_color-mix(in_srgb,_var(--accent)_25%,_transparent)] [.error-page-actions_&:hover]:[background:color-mix(in_srgb,_var(--accent)_88%,_var(--ink))] [.error-page-actions_&:hover]:[transform:translateY(-1px)] [&.compact]:[padding:9px_13px] [&.compact]:[font-size:12px] [&.compact]:[white-space:nowrap] [.owner-support-form_&]:[width:100%] dark:[color:#171717] dark:[&:hover]:[background:color-mix(in_srgb,_var(--ink)_82%,_var(--accent))] menu-add-section-button [display:inline-flex] [align-items:center] [justify-content:center] [gap:8px]"
-          onClick={() => {
-            setError("");
-            setCreateSectionOpen(true);
-          }}
-        >
-          <PlusIcon size={18} weight="bold" aria-hidden="true" />
-          Add section
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="secondary inline-flex items-center justify-center gap-2" onClick={() => openCollectionEditor()}>
+            <PlusIcon size={18} weight="bold" aria-hidden="true" /> New menu
+          </button>
+          <button
+            type="button"
+            className="secondary inline-flex items-center justify-center gap-2"
+            disabled={!selectedCollectionId}
+            onClick={() => {
+              setError("");
+              setImportMenuOpen(true);
+            }}
+          >
+            <MagicWandIcon size={18} weight="duotone" aria-hidden="true" /> Import file
+          </button>
+          <button
+            type="button"
+            className="primary menu-add-section-button inline-flex items-center justify-center gap-2"
+            disabled={!selectedCollectionId}
+            onClick={() => {
+              setError("");
+              setCreateSectionOpen(true);
+            }}
+          >
+            <PlusIcon size={18} weight="bold" aria-hidden="true" /> Add section
+          </button>
+        </div>
       </div>
       {error && <p className="error [color:#b32727] [font-size:13px] [color:var(--danger)] banner [padding:12px_16px] [border-radius:12px] [background:#fff0f0] [.support-admin-content>&]:[flex:0_0_auto] [.support-admin-content>.admin-support-slot>&]:[flex:0_0_auto] [background:var(--danger-soft)] [color:var(--danger)]">{error}</p>}
+      <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+        {collections.map((collection) => (
+          <button
+            type="button"
+            key={collection.id}
+            className={`min-w-fit rounded-2xl border px-4 py-3 text-left ${selectedCollectionId === collection.id ? "border-accent bg-accent-soft text-ink" : "border-line bg-surface text-ink"}`}
+            onClick={() => {
+              setSelectedCollectionId(collection.id);
+              setMenuOrderIds(null);
+              setOpenMenu(menus.find((menu) => menu.collectionId === collection.id)?.id ?? null);
+            }}
+          >
+            <strong className="block text-sm">{collection.name}</strong>
+            <small className="mt-1 block whitespace-nowrap text-[10px] text-muted">{formatMenuSchedule(collection)}</small>
+          </button>
+        ))}
+      </div>
+      {collections.find((item) => item.id === selectedCollectionId) ? <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3"><div className="min-w-0"><strong className="block truncate text-sm">{collections.find((item) => item.id === selectedCollectionId)?.name}</strong><small className="mt-1 block text-[11px] text-muted">{formatMenuSchedule(collections.find((item) => item.id === selectedCollectionId)!)}</small></div><button type="button" className="secondary compact" onClick={() => openCollectionEditor(collections.find((item) => item.id === selectedCollectionId))}>Edit schedule</button></div> : null}
+      {createCollectionOpen && (
+        <div className="fixed inset-0 z-120 grid place-items-center bg-[#17171770] p-6 backdrop-blur-sm max-[520px]:items-end max-[520px]:p-0" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateCollectionOpen(false); }}>
+          <form className="w-full max-w-125 rounded-3xl border border-line bg-surface p-6 shadow-panel max-[520px]:rounded-b-none" onSubmit={createCollection}>
+            <div className="flex items-center justify-between"><div className="grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent"><ForkKnifeIcon size={24} weight="duotone" /></div><button type="button" className="grid size-10 place-items-center rounded-xl border border-line bg-surface p-0 text-ink" onClick={() => setCreateCollectionOpen(false)} aria-label="Close"><XIcon size={19} weight="bold" /></button></div>
+            <h3 className="mt-5 mb-1 text-2xl">{editingCollectionId ? "Edit menu" : "Create a menu"}</h3>
+            <p className="mt-0 mb-5 text-sm leading-5 text-muted">Create Breakfast, Brunch, Dinner, Drinks, or any menu guests should switch between.</p>
+            <label className="grid gap-2 text-xs font-extrabold">Menu name<input className="min-h-12 rounded-xl border border-line bg-surface px-3 text-ink" autoFocus value={collectionName} onChange={(event) => setCollectionName(event.target.value)} placeholder="For example, Brunch" maxLength={80} /></label>
+            <fieldset className="mt-5 border-0 p-0"><legend className="mb-2 text-xs font-extrabold">Available days <span className="font-normal text-muted">(none means every day)</span></legend><div className="flex flex-wrap gap-2">{MENU_DAYS.map((label, day) => <button type="button" key={label} className={`rounded-full border px-3 py-2 text-xs font-bold ${collectionDays.includes(day) ? "border-accent bg-accent-soft text-ink" : "border-line bg-soft text-muted"}`} onClick={() => setCollectionDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort())}>{label}</button>)}</div></fieldset>
+            <label className="mt-5 flex items-center gap-3 rounded-xl border border-line bg-soft px-3 py-3 text-sm font-bold"><input type="checkbox" checked={collectionTimed} onChange={(event) => setCollectionTimed(event.target.checked)} /> Only available during certain hours</label>
+            {collectionTimed ? <div className="mt-3 grid grid-cols-2 gap-3"><label className="grid gap-2 text-xs font-extrabold">From<input type="time" className="min-h-12 rounded-xl border border-line bg-surface px-3 text-ink" value={collectionStart} onChange={(event) => setCollectionStart(event.target.value)} /></label><label className="grid gap-2 text-xs font-extrabold">Until<input type="time" className="min-h-12 rounded-xl border border-line bg-surface px-3 text-ink" value={collectionEnd} onChange={(event) => setCollectionEnd(event.target.value)} /></label></div> : null}
+            <div className="mt-6 flex gap-2"><button type="button" className="secondary flex-1" onClick={() => setCreateCollectionOpen(false)}>Cancel</button><button className="primary flex-1" disabled={!collectionName.trim()}>{editingCollectionId ? "Save menu" : "Create menu"}</button></div>
+          </form>
+        </div>
+      )}
       {createSectionOpen && (
         <div
           className="menu-section-create-backdrop [position:fixed] [z-index:120] [inset:0] [display:grid] [place-items:center] [padding:24px] [background:#17171770] [backdrop-filter:blur(5px)] max-[520px]:[align-items:end] max-[520px]:[padding:0]"
@@ -561,7 +710,7 @@ export function MenuPage({
           </form>
         </div>
       )}
-      {menus.length === 0 ? (
+      {collectionMenus.length === 0 ? (
         <div className="empty [padding:65px_20px] [border:1px_dashed_#d8d5cf] [border-radius:20px] [text-align:center] [color:var(--muted)] [&_span]:[font-size:35px] [&_h3]:[color:var(--ink)] [&_h3]:[margin:12px_0_6px]">
           <ListDashesIcon size={34} weight="duotone" aria-hidden="true" />
           <h3>Your menu is empty</h3>
@@ -869,6 +1018,14 @@ export function MenuPage({
         />
       )}
       {editingDish && <DishEditorModal dish={editingDish} onClose={() => setEditingDish(null)} onSaved={reload} />}
+      {importMenuOpen && selectedCollectionId && collections.find((item) => item.id === selectedCollectionId) && (
+        <MenuImportModal
+          restaurantId={restaurantId}
+          collection={collections.find((item) => item.id === selectedCollectionId)!}
+          onClose={() => setImportMenuOpen(false)}
+          onImported={reload}
+        />
+      )}
     </div>
   );
 }

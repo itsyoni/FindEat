@@ -19,7 +19,10 @@ export async function getMapRecentSearches(userId: string) {
   const stored = await AsyncStorage.getItem(storageKey(userId));
   if (!stored) return [];
   try {
-    return JSON.parse(stored) as MapRecentSearch[];
+    const searches = JSON.parse(stored) as MapRecentSearch[];
+    return searches.filter(
+      (item) => item.source !== "AREA" || item.areaType !== "COUNTRY",
+    );
   } catch {
     return [];
   }
@@ -29,6 +32,9 @@ export async function addMapRecentSearch(
   userId: string,
   result: MapRecentSearch,
 ) {
+  if (result.source === "AREA" && result.areaType === "COUNTRY") {
+    return getMapRecentSearches(userId);
+  }
   const current = await getMapRecentSearches(userId);
   const key = resultKey(result);
   const updated = [

@@ -1,4 +1,4 @@
-import type { Menu } from "./menu";
+import type { Menu, MenuCollection } from "./menu";
 import type { UserRestaurant, UserSummary } from "./user";
 import type { Post } from "./post";
 import type { RestaurantReservationConfig } from "./reservation";
@@ -154,6 +154,7 @@ export type RestaurantPostPreview = {
   videoUrl?: string | null;
   thumbnailUrl?: string | null;
   rating?: number | null;
+  createdAt?: string;
   author: UserSummary;
   _count: {
     likes: number;
@@ -313,6 +314,7 @@ export type Restaurant = {
   userRestaurant?: UserRestaurant | null;
 
   menus: Menu[];
+  menuCollections?: MenuCollection[];
   posts: RestaurantPostPreview[];
   averageRating?: number | null;
   reviewsCount?: number;

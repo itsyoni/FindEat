@@ -56,7 +56,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         </div>
         <p className="mt-5 mb-2 text-xs font-extrabold tracking-[.12em] text-accent">FINDEAT FOR BUSINESS</p>
         <h1 className="mb-4 text-[42px] leading-[1.02] tracking-[-.04em] max-[520px]:text-4xl">Run your restaurant in one place.</h1>
-        <p className="m-0 leading-[1.55] text-muted">Manage your public details and menus. Create official posts from the FindEat mobile app.</p>
+        <p className="m-0 leading-[1.55] text-muted">Manage your public details and menus. Create official photo posts from your computer or mobile browser.</p>
         <form className="mt-7 grid gap-4.25" onSubmit={submit}>
           <label className="grid gap-2 text-[13px] font-bold text-ink">
             Email

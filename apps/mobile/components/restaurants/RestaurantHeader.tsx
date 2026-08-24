@@ -3,7 +3,7 @@ import AppBottomSheet from '@/components/common/AppBottomSheet';
 import FullScreenImageViewer from '@/components/common/FullScreenImageViewer';
 import { Restaurant } from '@findeat/types';
 import { router } from 'expo-router';
-import { CalendarCheckIcon, ChatCircleIcon, DotsThreeIcon, FireIcon, MapPinIcon } from 'phosphor-react-native';
+import { CalendarCheckIcon, ChatCircleIcon, DotsThreeIcon, FireIcon, MapPinIcon, NotePencilIcon } from 'phosphor-react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import DirectionalIcon from '@/components/common/icons/DirectionalIcon';
 import { useTranslation } from 'react-i18next';
@@ -58,11 +58,12 @@ type Props = {
   loading?: boolean;
   onToggleFollow: () => void;
   onOpenOptions: () => void;
+  onCreateReview: () => void;
   scrollY: SharedValue<number>;
   hotRightNow?: boolean;
 };
 
-export default function RestaurantHeader({ restaurant, loading = false, onToggleFollow, onOpenOptions, scrollY, hotRightNow = false }: Props) {
+export default function RestaurantHeader({ restaurant, loading = false, onToggleFollow, onOpenOptions, onCreateReview, scrollY, hotRightNow = false }: Props) {
   const { t } = useTranslation(['restaurants', 'map']);
   const { isDark } = useAppTheme();
   const [logoOpen, setLogoOpen] = useState(false);
@@ -179,9 +180,32 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
             <TouchableOpacity onPress={() => router.back()} className="h-11 w-11 items-center justify-center rounded-full bg-black/45">
               <DirectionalIcon direction="back" variant="arrow" size={24} color="#FAF9F6" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={onOpenOptions} className="h-11 w-11 items-center justify-center rounded-full bg-black/45">
-              <DotsThreeIcon size={25} color="#FAF9F6" weight="bold" />
-            </TouchableOpacity>
+            <View className="flex-row items-center gap-2">
+              {reservation && reservationProvider ? (
+                <TouchableOpacity
+                  accessibilityRole="link"
+                  accessibilityLabel={t('bookTableWith', { provider: reservationProvider })}
+                  activeOpacity={0.78}
+                  disabled={booking}
+                  onPress={() => void openReservation()}
+                  className={`h-11 w-11 items-center justify-center rounded-full bg-black/45 ${booking ? 'opacity-60' : ''}`}
+                >
+                  <CalendarCheckIcon size={21} color="#FAF9F6" weight="bold" />
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                onPress={onCreateReview}
+                activeOpacity={0.78}
+                accessibilityRole="button"
+                accessibilityLabel={t('writeReview')}
+                className="h-11 w-11 items-center justify-center rounded-full bg-black/45"
+              >
+                <NotePencilIcon size={21} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onOpenOptions} className="h-11 w-11 items-center justify-center rounded-full bg-black/45">
+                <DotsThreeIcon size={25} color="#FAF9F6" weight="bold" />
+              </TouchableOpacity>
+            </View>
           </View>
         </SafeAreaView>
       </View>
@@ -251,26 +275,6 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
           <View className="mt-3">
             <HappyHourBadge restaurant={restaurant} />
           </View>
-        ) : null}
-        {reservation && reservationProvider ? (
-          <TouchableOpacity
-            accessibilityRole="link"
-            accessibilityLabel={t('bookTableWith', { provider: reservationProvider })}
-            activeOpacity={0.75}
-            disabled={booking}
-            onPress={() => void openReservation()}
-            className="mt-3 min-w-48 flex-row items-center justify-center rounded-full bg-amber-100 px-4 py-2.5 dark:bg-amber-950/70"
-          >
-            <CalendarCheckIcon size={18} color="#D97706" weight="fill" />
-            <View className="ml-2">
-              <Text className="text-sm font-bold text-amber-900 dark:text-amber-100">
-                {booking ? t('openingBooking') : t('bookTable')}
-              </Text>
-              <Text className="text-[10px] text-amber-800/70 dark:text-amber-200/70">
-                {t('bookingVia', { provider: reservationProvider })}
-              </Text>
-            </View>
-          </TouchableOpacity>
         ) : null}
         <RestaurantStats
           averageRating={averageRating}

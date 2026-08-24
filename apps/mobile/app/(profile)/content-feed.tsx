@@ -32,7 +32,10 @@ export default function ProfileContentFeedScreen() {
   const [optionsPostId, setOptionsPostId] = useState<string | null>(null);
 
   const posts = useMemo(
-    () => filterPostsByType(profile?.posts, "CONTENT"),
+    () =>
+      filterPostsByType(profile?.posts, "CONTENT").filter(
+        (post) => !post.authorRestaurantId,
+      ),
     [profile?.posts],
   );
 

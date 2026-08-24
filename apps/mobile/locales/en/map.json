@@ -57,6 +57,8 @@
   "placesInFolders": "Places in {{count}} folders",
   "folderPlaces_one": "1 place",
   "folderPlaces_other": "{{count}} places",
+  "showMoreFolders": "Show {{count}} more",
+  "showFewerFolders": "Show fewer",
   "distance": "Distance",
   "anyDistance": "Any distance",
   "resetFilters": "Reset",

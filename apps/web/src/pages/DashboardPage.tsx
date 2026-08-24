@@ -14,6 +14,7 @@ import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { ForkKnifeIcon } from "@phosphor-icons/react/dist/csr/ForkKnife";
 import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/csr/SidebarSimple";
 import { GiftIcon } from "@phosphor-icons/react/dist/csr/Gift";
+import { ImageSquareIcon } from "@phosphor-icons/react/dist/csr/ImageSquare";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
@@ -56,6 +57,7 @@ import { BadgesPage } from "./BadgesPage";
 import { OwnerSupportPage } from "./OwnerSupportPage";
 import { SettingsOverlay, SettingsPage } from "./SettingsPage";
 import { OffersPage } from "./OffersPage";
+import { OfficialPostsPage } from "./OfficialPostsPage";
 import { ErrorPage } from "../components/ErrorPage";
 import {
   adminPaths,
@@ -750,7 +752,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             id="business-restaurant-management"
             label="Restaurant management"
             icon={<ForkKnifeIcon size={20} weight="duotone" />}
-            active={["menu", "reviews", "badges", "offers", "profile"].includes(section)}
+            active={["menu", "reviews", "badges", "offers", "posts", "profile"].includes(section)}
           >
           <AppLink
             to={businessPaths.menu}
@@ -776,6 +778,12 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             className={section === "offers" ? "active" : ""}
           >
             <GiftIcon className="nav-icon" size={20} weight="duotone" /> Offers and rewards
+          </AppLink>
+          <AppLink
+            to={businessPaths.posts}
+            className={section === "posts" ? "active" : ""}
+          >
+            <ImageSquareIcon className="nav-icon" size={20} weight="duotone" /> Official posts
           </AppLink>
           <AppLink
             to={businessPaths.profile}
@@ -902,6 +910,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
               reviewCount={reviews.length}
               onOpenMenu={() => navigateTo(businessPaths.menu)}
               onOpenProfile={() => navigateTo(businessPaths.profile)}
+              onOpenOfficialPosts={() => navigateTo(businessPaths.posts)}
             />
           </div>
         )}
@@ -943,6 +952,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         {(section === "offers" || visitedSections.has("offers")) && (
           <div className="dashboard-page-slot [min-height:0] [overflow-y:auto] [overscroll-behavior:contain] [&[hidden]]:[display:none] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0]" hidden={section !== "offers"}>
             <OffersPage key={restaurant.id} restaurant={restaurant} />
+          </div>
+        )}
+        {(section === "posts" || visitedSections.has("posts")) && (
+          <div className="dashboard-page-slot [min-height:0] [overflow-y:auto] [overscroll-behavior:contain] [&[hidden]]:[display:none]" hidden={section !== "posts"}>
+            <OfficialPostsPage key={restaurant.id} restaurant={restaurant} />
           </div>
         )}
         {(section === "messages" || visitedSections.has("messages")) && (

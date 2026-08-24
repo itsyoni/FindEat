@@ -15,6 +15,8 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Dimensions, TouchableOpacity, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { BOTTOM_TAB_BAR_BASE_HEIGHT } from "@/constants/layout";
 
 const { height } = Dimensions.get("window");
 
@@ -34,6 +36,10 @@ export default function RestaurantPostFeedScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const feed = useRestaurantPostFeed(restaurantId, section, postId);
+  const standaloneBottomBarHeight = Math.max(
+    BOTTOM_TAB_BAR_BASE_HEIGHT,
+    BOTTOM_TAB_BAR_BASE_HEIGHT + insets.bottom,
+  );
   const [commentsPostId, setCommentsPostId] = useState<string | null>(null);
   const [sharePostId, setSharePostId] = useState<string | null>(null);
   const [optionsPostId, setOptionsPostId] = useState<string | null>(null);
@@ -103,6 +109,7 @@ export default function RestaurantPostFeedScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
       <Stack.Screen options={{ headerShown: false }} />
+      {!isReviewFeed ? <StatusBar style="light" /> : null}
       <SafeAreaView
         edges={["top"]}
         pointerEvents="box-none"
@@ -145,6 +152,7 @@ export default function RestaurantPostFeedScreen() {
           loading={feed.isPending}
           initialIndex={initialIndex}
           height={height}
+          bottomAuthorBarHeight={standaloneBottomBarHeight}
           contentTopInset={0}
           refreshing={feed.isRefetching && !feed.isFetchingNextPage}
           onRefresh={refresh}

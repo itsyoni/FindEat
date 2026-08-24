@@ -37,7 +37,10 @@ export default function ProfileScreen() {
   });
 
   const posts = useMemo(
-    () => filterPostsByType(profile?.posts, activeFeed),
+    () =>
+      filterPostsByType(profile?.posts, activeFeed).filter(
+        (post) => !post.authorRestaurantId,
+      ),
     [profile?.posts, activeFeed],
   );
 

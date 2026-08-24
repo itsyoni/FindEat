@@ -1,5 +1,5 @@
 import { useAppTheme } from "@/contexts/ThemeContext";
-import { Restaurant } from "@findeat/types";
+import type { MenuCollection, Restaurant } from "@findeat/types";
 import {
   BookOpenIcon,
   MagnifyingGlassIcon,
@@ -24,7 +24,7 @@ export default function RestaurantMenuSection({
   const { isDark } = useAppTheme();
   const { t } = useTranslation("restaurants");
   const [query, setQuery] = useState("");
-  const [selectedMenuId, setSelectedMenuId] = useState("ALL");
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [favoriteOverrides, setFavoriteOverrides] = useState<
     Record<string, boolean>
   >({});
@@ -40,20 +40,54 @@ export default function RestaurantMenuSection({
     [],
   );
 
+  const menuCollections = useMemo<MenuCollection[]>(() => {
+    if (restaurant.menuCollections?.length) return restaurant.menuCollections.filter((menu) => menu.isActive !== false);
+    return [{
+      id: "legacy-menu",
+      name: t("menu"),
+      activeDays: [],
+      isDefault: true,
+      isActive: true,
+      isActiveNow: true,
+      displayOrder: 0,
+      timezone: restaurant.openingHours?.timezone ?? "UTC",
+      restaurantId: restaurant.id,
+      sections: restaurant.menus,
+    }];
+  }, [restaurant.id, restaurant.menuCollections, restaurant.menus, restaurant.openingHours?.timezone, t]);
+  const effectiveCollectionId = selectedCollectionId && menuCollections.some((menu) => menu.id === selectedCollectionId)
+    ? selectedCollectionId
+    : menuCollections.find((menu) => menu.isActiveNow)?.id
+      ?? menuCollections.find((menu) => menu.isDefault)?.id
+      ?? menuCollections[0]?.id;
+  const activeMenus = useMemo(() => {
+    const selected = menuCollections.find((menu) => menu.id === effectiveCollectionId);
+    if (selected?.sections) return selected.sections;
+    return restaurant.menus.filter((menu) => menu.collectionId === effectiveCollectionId);
+  }, [effectiveCollectionId, menuCollections, restaurant.menus]);
+  const activeDishIds = useMemo(
+    () => new Set(activeMenus.flatMap((menu) => menu.items.map((item) => item.id))),
+    [activeMenus],
+  );
+  const visibleFeaturedItems = useMemo(
+    () => featuredItems.filter((item) => activeDishIds.has(item.id)),
+    [activeDishIds, featuredItems],
+  );
+
   const availableCount = useMemo(
     () =>
-      restaurant.menus.reduce(
+      activeMenus.reduce(
         (total, menu) =>
           total +
           menu.items.filter((item) => item.isAvailable !== false).length,
         0,
       ),
-    [restaurant.menus],
+    [activeMenus],
   );
 
   const popularItems = useMemo(
     () =>
-      restaurant.menus
+      activeMenus
         .flatMap((menu) => menu.items)
         .filter((item) => (item.reviewsCount ?? 0) > 0)
         .sort(
@@ -62,7 +96,7 @@ export default function RestaurantMenuSection({
             (b.averageRating ?? 0) - (a.averageRating ?? 0),
         )
         .slice(0, 3),
-    [restaurant.menus],
+    [activeMenus],
   );
   const popularIds = useMemo(
     () => new Set(popularItems.map((item) => item.id)),
@@ -71,19 +105,18 @@ export default function RestaurantMenuSection({
 
   const favoriteItems = useMemo(
     () =>
-      restaurant.menus
+      activeMenus
         .flatMap((menu) => menu.items)
         .filter(
           (item) => (favoriteOverrides[item.id] ?? item.isFavorite) === true,
         ),
-    [favoriteOverrides, restaurant.menus],
+    [activeMenus, favoriteOverrides],
   );
 
   const visibleMenus = useMemo(() => {
     const cleanQuery = query.trim().toLocaleLowerCase();
 
-    return restaurant.menus
-      .filter((menu) => selectedMenuId === "ALL" || menu.id === selectedMenuId)
+    return activeMenus
       .map((menu) => ({
         ...menu,
         items: menu.items
@@ -112,7 +145,7 @@ export default function RestaurantMenuSection({
           ),
       }))
       .filter((menu) => menu.items.length > 0 || !cleanQuery);
-  }, [favoriteOverrides, query, restaurant.menus, selectedMenuId]);
+  }, [activeMenus, favoriteOverrides, query]);
 
   const visibleItemCount = visibleMenus.reduce(
     (total, menu) => total + menu.items.length,
@@ -146,10 +179,10 @@ export default function RestaurantMenuSection({
             {t("availableDishCount", { count: availableCount })}
           </Text>
         </View>
-        {featuredItems.length > 0 && (
+        {visibleFeaturedItems.length > 0 && (
           <View className="rounded-full bg-amber-100 px-3 py-1.5 dark:bg-amber-950">
             <Text className="text-xs font-bold text-amber-800 dark:text-amber-300">
-              {t("featuredCount", { count: featuredItems.length })}
+              {t("featuredCount", { count: visibleFeaturedItems.length })}
             </Text>
           </View>
         )}
@@ -183,50 +216,31 @@ export default function RestaurantMenuSection({
         className="-mx-6 mt-4"
         contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
       >
-        <TouchableOpacity
-          onPress={() => setSelectedMenuId("ALL")}
-          className={`rounded-full px-4 py-2.5 ${
-            selectedMenuId === "ALL"
-              ? "bg-black dark:bg-white"
-              : "border border-line bg-white dark:border-gray-700 dark:bg-gray-900"
-          }`}
-        >
-          <Text
-            className={`text-sm font-bold ${
-              selectedMenuId === "ALL"
-                ? "text-white dark:text-black"
-                : "text-black dark:text-white"
-            }`}
-          >
-            {t("allMenuSections")}
-          </Text>
-        </TouchableOpacity>
-        {restaurant.menus.map((menu) => (
+        {menuCollections.map((menu) => (
           <TouchableOpacity
             key={menu.id}
-            onPress={() => setSelectedMenuId(menu.id)}
+            onPress={() => setSelectedCollectionId(menu.id)}
             className={`rounded-full px-4 py-2.5 ${
-              selectedMenuId === menu.id
+              effectiveCollectionId === menu.id
                 ? "bg-black dark:bg-white"
                 : "border border-line bg-white dark:border-gray-700 dark:bg-gray-900"
             }`}
           >
             <Text
               className={`text-sm font-bold ${
-                selectedMenuId === menu.id
+              effectiveCollectionId === menu.id
                   ? "text-white dark:text-black"
                   : "text-black dark:text-white"
               }`}
             >
-              {menu.title}
+              {menu.name}
             </Text>
+            {menu.isActiveNow ? <Text className={`mt-0.5 text-[9px] font-bold ${effectiveCollectionId === menu.id ? "text-white/70 dark:text-black/60" : "text-emerald-600 dark:text-emerald-400"}`}>{t("menuAvailableNow")}</Text> : null}
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {!query.trim() &&
-        selectedMenuId === "ALL" &&
-        favoriteItems.length > 0 && (
+      {!query.trim() && favoriteItems.length > 0 && (
           <View className="mt-7">
             <Text className="text-xl font-bold text-black dark:text-white">
               {t("favoriteDishes")}
@@ -245,9 +259,7 @@ export default function RestaurantMenuSection({
           </View>
         )}
 
-      {!query.trim() &&
-        selectedMenuId === "ALL" &&
-        featuredItems.length > 0 && (
+      {!query.trim() && visibleFeaturedItems.length > 0 && (
           <View className="mt-7">
             <Text className="text-xl font-bold text-black dark:text-white">
               {t("restaurantPicks")}
@@ -255,7 +267,7 @@ export default function RestaurantMenuSection({
             <Text className="mt-1 text-sm text-gray-500">
               {t("restaurantPicksHint")}
             </Text>
-            {featuredItems.slice(0, 3).map((item) => (
+            {visibleFeaturedItems.slice(0, 3).map((item) => (
               <DishCard
                 key={`featured-${item.id}`}
                 item={item}
@@ -266,7 +278,7 @@ export default function RestaurantMenuSection({
           </View>
         )}
 
-      {!query.trim() && selectedMenuId === "ALL" && popularItems.length > 0 && (
+      {!query.trim() && popularItems.length > 0 && (
         <View className="mt-7">
           <Text className="text-xl font-bold text-black dark:text-white">
             {t("popularDishes")}

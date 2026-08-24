@@ -160,11 +160,29 @@ export type DishSearchResult = Dish & {
 
 export type MenuSectionType = "FOOD" | "DRINKS";
 
+export type MenuCollection = {
+  id: string;
+  name: string;
+  description?: string | null;
+  activeDays: number[];
+  startMinute?: number | null;
+  endMinute?: number | null;
+  timezone: string;
+  isDefault: boolean;
+  isActive: boolean;
+  isActiveNow?: boolean;
+  displayOrder: number;
+  restaurantId: string;
+  sections?: Menu[];
+};
+
 export type Menu = {
   id: string;
   title: string;
   description?: string | null;
   sectionType?: MenuSectionType;
   displayOrder?: number;
+  collectionId?: string;
+  collection?: MenuCollection;
   items: Dish[];
 };

@@ -724,25 +724,47 @@ export default function ReviewPost({
           showsHorizontalScrollIndicator={false}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={reviewViewabilityConfig}
-          renderItem={({ item }) => (
-            <View style={{ width }} className="h-96 bg-gray-100">
-              {item.imageUrl ? (
-                <PinchZoomImage
-                  uri={item.imageUrl}
-                  thumbnailUrl={item.thumbnailUrl}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="cover"
-                  onDoubleTap={handleDoubleTapLike}
-                  onPinchStart={() => setIsPinchingMedia(true)}
-                  onPinchEnd={() => setIsPinchingMedia(false)}
-                />
-              ) : (
-                <View className="h-full w-full items-center justify-center bg-gray-900">
-                  <Text className="text-white">No image</Text>
-                </View>
-              )}
+          renderItem={({ item }) => {
+            const dishCoverFallbackUrl =
+              item.type === "DISH" && !item.imageUrl
+                ? review?.coverImageUrl
+                : null;
 
-              {item.type === "DISH" && item.perspectives.length > 1 ? (
+            return (
+              <View style={{ width }} className="h-96 bg-gray-100">
+                {item.imageUrl ? (
+                  <PinchZoomImage
+                    uri={item.imageUrl}
+                    thumbnailUrl={item.thumbnailUrl}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode="cover"
+                    onDoubleTap={handleDoubleTapLike}
+                    onPinchStart={() => setIsPinchingMedia(true)}
+                    onPinchEnd={() => setIsPinchingMedia(false)}
+                  />
+                ) : dishCoverFallbackUrl ? (
+                  <View className="h-full w-full overflow-hidden bg-gray-900">
+                    <ProgressiveImage
+                      source={{ uri: dishCoverFallbackUrl }}
+                      thumbnailUrl={review?.coverThumbnailUrl}
+                      style={{
+                        width: "108%",
+                        height: "108%",
+                        marginLeft: "-4%",
+                        marginTop: "-4%",
+                      }}
+                      contentFit="cover"
+                      blurRadius={20}
+                    />
+                    <View className="absolute inset-0 bg-black/25" />
+                  </View>
+                ) : (
+                  <View className="h-full w-full items-center justify-center bg-gray-900">
+                    <Text className="text-white">No image</Text>
+                  </View>
+                )}
+
+                {item.type === "DISH" && item.perspectives.length > 1 ? (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -819,9 +841,9 @@ export default function ReviewPost({
                       </TouchableOpacity>
                     ))}
                 </ScrollView>
-              ) : null}
+                ) : null}
 
-              {item.type === "COVER" && coverRatingPerspectives.length > 1 ? (
+                {item.type === "COVER" && coverRatingPerspectives.length > 1 ? (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -882,9 +904,9 @@ export default function ReviewPost({
                       </TouchableOpacity>
                     ))}
                 </ScrollView>
-              ) : null}
+                ) : null}
 
-              {item.type === "COVER" && (
+                {item.type === "COVER" && (
                 <View
                   pointerEvents="none"
                   className="absolute inset-0 justify-end p-5"
@@ -982,9 +1004,9 @@ export default function ReviewPost({
                     ))}
                   </View>
                 </View>
-              )}
+                )}
 
-              {item.type === "DISH" && (
+                {item.type === "DISH" && (
                 <View
                   className="absolute bottom-0 left-0 right-0 p-5"
                   style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
@@ -1031,9 +1053,10 @@ export default function ReviewPost({
                     )}
                   </View>
                 </View>
-              )}
-            </View>
-          )}
+                )}
+              </View>
+            );
+          }}
         />
       </View>
 

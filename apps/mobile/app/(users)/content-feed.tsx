@@ -58,7 +58,10 @@ export default function UserContentFeedScreen() {
 
     const user = await api.users.get(userId);
 
-    return user.posts.filter((post: Post) => post.type === "CONTENT");
+    return user.posts.filter(
+      (post: Post) =>
+        post.type === "CONTENT" && !post.authorRestaurantId,
+    );
   }, [userId]);
 
   const loadPosts = useCallback(async () => {

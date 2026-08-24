@@ -72,6 +72,7 @@
   "hasOptions": "{{tag}} options",
   "cuisineMatch": "Matches your {{tag}} preference",
   "menu": "Menu",
+  "menuAvailableNow": "Now",
   "official": "Official",
   "community": "Community",
   "notFound": "Restaurant not found",
