@@ -10,7 +10,7 @@ import {
 } from "@/lib/creatorInsightsPromotion";
 import { PostType } from "@findeat/types/post";
 import { filterPostsByType } from "@findeat/utils/posts";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Animated, {
@@ -26,10 +26,13 @@ type PromotionState = {
 };
 
 export default function ProfileScreen() {
+  const { feed } = useLocalSearchParams<{ feed?: PostType }>();
   const { t } = useTranslation(["common", "profile"]);
   const { isDark } = useAppTheme();
   const { profile, loading, refresh } = useMyProfile();
-  const [activeFeed, setActiveFeed] = useState<PostType>("CONTENT");
+  const [selectedFeed, setSelectedFeed] = useState<PostType>("CONTENT");
+  const activeFeed =
+    feed === "CONTENT" || feed === "REVIEW" ? feed : selectedFeed;
   const [promotionState, setPromotionState] = useState<PromotionState | null>(null);
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -51,8 +54,8 @@ export default function ProfileScreen() {
   );
 
   useEffect(() => {
-    router.prefetch("/(profile)/content-feed");
-    router.prefetch("/(profile)/reviews-feed");
+    router.prefetch("/profile-content-feed");
+    router.prefetch("/profile-reviews-feed");
   }, []);
 
   useEffect(() => {
@@ -113,7 +116,10 @@ export default function ProfileScreen() {
 
       <Tabs
         activeTab={activeFeed}
-        onChange={setActiveFeed}
+        onChange={(nextFeed) => {
+          if (feed) router.setParams({ feed: undefined });
+          setSelectedFeed(nextFeed);
+        }}
         tabs={[
           { label: t("common:content"), value: "CONTENT" },
           { label: t("common:reviews"), value: "REVIEW" },
@@ -131,8 +137,8 @@ export default function ProfileScreen() {
           router.push({
             pathname:
               activeFeed === "CONTENT"
-                ? "/(profile)/content-feed"
-                : "/(profile)/reviews-feed",
+                ? "/profile-content-feed"
+                : "/profile-reviews-feed",
             params: { postId },
           });
         }}

@@ -9,7 +9,9 @@ export function notificationText(item: AppNotification, t: TFunction) {
     return `${item.title || name}: ${item.body}`;
   }
   if (
-    (item.type === 'POST_LIKE' || item.type === 'COMMENT_LIKE') &&
+    (item.type === 'POST_LIKE' ||
+      item.type === 'COMMENT_LIKE' ||
+      item.type === 'REVIEW_CONTRIBUTION') &&
     (item.aggregationCount ?? 1) > 1
   ) {
     return t(`aggregatedTypes.${item.type}`, {
@@ -21,6 +23,12 @@ export function notificationText(item: AppNotification, t: TFunction) {
 }
 
 export function notificationHref(item: AppNotification): Href | null {
+  if (item.type === 'RESTAURANT_MENU_PUBLISHED' && item.postId) {
+    return {
+      pathname: '/posts/match-dishes/[id]',
+      params: { id: item.postId },
+    };
+  }
   if (item.type === 'RESTAURANT_DISPUTE') return '/settings/restaurant-disputes';
   if (item.type === 'MODERATION_ACTION' || item.type === 'APPEAL_DECISION') {
     return '/settings/moderation-actions';

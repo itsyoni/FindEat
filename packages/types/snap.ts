@@ -33,6 +33,7 @@ export type Snap = {
   durationMs?: number | null;
   caption?: string | null;
   textOverlay?: SnapTextOverlay | null;
+  textOverlays?: SnapTextOverlay[];
   createdAt: string;
   expiresAt: string;
   viewedAt?: string | null;
@@ -62,6 +63,7 @@ type CreateSnapBase = SoundAttachmentInput & {
   caption?: string;
   restaurantId?: string;
   textOverlay?: SnapTextOverlay;
+  textOverlays?: SnapTextOverlay[];
 };
 
 export type CreateSnapInput = CreateSnapBase &

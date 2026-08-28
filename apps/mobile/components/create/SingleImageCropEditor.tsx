@@ -1,16 +1,19 @@
 import ContentMediaEditor from "@/components/create/ContentMediaEditor";
+import ImageMarkupEditor from "@/components/create/ImageMarkupEditor";
 import { useToast } from "@/contexts/ToastContext";
 import { useGallerySaveFeedback } from "@/hooks/useGallerySaveFeedback";
 import type { PhotoFilterId } from "@/lib/photoFilters";
 import type { ContentMediaDraft } from "@/lib/postDrafts";
+import type { ContentCropRect } from "@/components/create/ContentCropPreview";
 import { defaultImageCrop, renderImageCrop } from "@/lib/renderContentCrop";
 import {
   MediaLibraryPermissionError,
   saveImageToGallery,
 } from "@/lib/saveImageToGallery";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PencilSimpleIcon, TextAaIcon } from "phosphor-react-native";
 
 export type EditableImage = {
   uri: string;
@@ -29,13 +32,18 @@ type Props = {
   showHeaderCounter?: boolean;
   headerTitle?: string;
   primaryActionLabel?: string;
+  enableTextOverlay?: boolean;
+  enableDrawing?: boolean;
+  initialMarkupTool?: "text" | "draw";
+  initialCrop?: ContentCropRect;
   onCancel: () => void;
-  onApply: (image: EditableImage) => void;
+  onApply: (image: EditableImage) => void | Promise<void>;
 };
 
 function mediaFromImage(
   image: EditableImage,
   aspectRatio: number,
+  initialCrop?: ContentCropRect,
 ): ContentMediaDraft {
   return {
     id: `single-photo-${Date.now()}`,
@@ -47,7 +55,8 @@ function mediaFromImage(
     originalHeight: image.height,
     width: image.width,
     height: image.height,
-    crop: defaultImageCrop(image.width, image.height, aspectRatio),
+    crop:
+      initialCrop ?? defaultImageCrop(image.width, image.height, aspectRatio),
   };
 }
 
@@ -62,15 +71,24 @@ export default function SingleImageCropEditor({
   showHeaderCounter = true,
   headerTitle,
   primaryActionLabel,
+  enableTextOverlay = false,
+  enableDrawing = false,
+  initialMarkupTool,
+  initialCrop,
   onCancel,
   onApply,
 }: Props) {
-  const { t } = useTranslation(["create", "common"]);
+  const { t } = useTranslation(["create", "common", "snaps"]);
   const { showToast } = useToast();
   const [media, setMedia] = useState<ContentMediaDraft[]>(() => [
-    mediaFromImage(image, aspectRatio),
+    mediaFromImage(image, aspectRatio, initialCrop),
   ]);
   const [busy, setBusy] = useState(false);
+  const [markupImage, setMarkupImage] = useState<EditableImage | null>(null);
+  const [markupTool, setMarkupTool] = useState<"text" | "draw" | undefined>(
+    initialMarkupTool,
+  );
+  const openedInitialMarkup = useRef(false);
   const {
     status: gallerySaveStatus,
     isSaving: savingToGallery,
@@ -210,7 +228,7 @@ export default function SingleImageCropEditor({
         outputWidth,
         outputHeight,
       );
-      onApply({
+      await onApply({
         uri: rendered.uri,
         width: rendered.width,
         height: rendered.height,
@@ -232,6 +250,60 @@ export default function SingleImageCropEditor({
     t,
   ]);
 
+  const openMarkup = useCallback(
+    async (tool: "text" | "draw") => {
+      if (!selected || busy) return;
+      setBusy(true);
+      try {
+        const sourceUri = selected.cropSourceUri ?? selected.uri;
+        const sourceWidth = selected.cropSourceWidth ?? selected.width;
+        const sourceHeight = selected.cropSourceHeight ?? selected.height;
+        const crop =
+          selected.crop ??
+          defaultImageCrop(sourceWidth, sourceHeight, aspectRatio);
+        const rendered = await renderImageCrop(
+          sourceUri,
+          crop,
+          outputWidth,
+          outputHeight,
+        );
+        setMarkupTool(tool);
+        setMarkupImage(rendered);
+      } catch (error) {
+        console.error("Could not open image markup", error);
+        showToast(t("imageCropErrorBody"), { kind: "error" });
+      } finally {
+        setBusy(false);
+      }
+    }, [aspectRatio, busy, outputHeight, outputWidth, selected, showToast, t],
+  );
+
+  useEffect(() => {
+    if (!initialMarkupTool || openedInitialMarkup.current) return;
+    openedInitialMarkup.current = true;
+    void openMarkup(initialMarkupTool);
+  }, [initialMarkupTool, openMarkup]);
+
+  if (markupImage) {
+    return (
+      <ImageMarkupEditor
+        image={markupImage}
+        allowText={enableTextOverlay}
+        allowDrawing={enableDrawing}
+        initialTool={markupTool}
+        onCancel={() => setMarkupImage(null)}
+        onApply={async (edited) => {
+          if (initialMarkupTool) {
+            await onApply(edited);
+            return;
+          }
+          setMedia([mediaFromImage(edited, aspectRatio)]);
+          setMarkupImage(null);
+        }}
+      />
+    );
+  }
+
   return (
     <ContentMediaEditor
       media={media}
@@ -246,6 +318,40 @@ export default function SingleImageCropEditor({
       showHeaderCounter={showHeaderCounter}
       headerTitle={headerTitle}
       primaryActionLabel={primaryActionLabel}
+      additionalEditorTools={[
+        ...(enableTextOverlay
+          ? [
+              {
+                key: "text",
+                label: t("snaps:textTool"),
+                onPress: () => void openMarkup("text"),
+                icon: (
+                  <TextAaIcon
+                    size={23}
+                    color="#FFFFFFCC"
+                    weight="bold"
+                  />
+                ),
+              },
+            ]
+          : []),
+        ...(enableDrawing
+          ? [
+              {
+                key: "draw",
+                label: t("common:draw"),
+                onPress: () => void openMarkup("draw"),
+                icon: (
+                  <PencilSimpleIcon
+                    size={23}
+                    color="#FFFFFFCC"
+                    weight="bold"
+                  />
+                ),
+              },
+            ]
+          : []),
+      ]}
       onSelect={() => undefined}
       onBack={onCancel}
       onNext={() => void finishEditing()}

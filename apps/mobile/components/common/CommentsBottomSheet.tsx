@@ -935,9 +935,11 @@ export default function CommentsBottomSheet({
                       <Text className="mx-1 text-sm text-gray-400">·</Text>
                       <Text className="shrink-0 text-sm font-bold text-amber-600 dark:text-amber-400">
                         {t(
-                        item.authorRole === "CREATOR"
-                          ? "pollCreator"
-                          : "commentCollaborator",
+                        item.authorRole === "OWNER"
+                          ? "restaurantOwner"
+                          : item.authorRole === "CREATOR"
+                            ? "pollCreator"
+                            : "commentCollaborator",
                         )}
                       </Text>
                     </>

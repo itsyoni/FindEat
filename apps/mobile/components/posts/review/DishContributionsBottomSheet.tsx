@@ -26,7 +26,7 @@ export default function DishContributionsBottomSheet({
 }: Props) {
   const { t } = useTranslation("collaborativeReview");
   const contributions = item?.contributions ?? [];
-  const dishName = item?.menuItem?.name ?? item?.customDishName ?? t("dish");
+  const dishName = item?.customDishName ?? item?.menuItem?.name ?? t("dish");
 
   return (
     <AppBottomSheet

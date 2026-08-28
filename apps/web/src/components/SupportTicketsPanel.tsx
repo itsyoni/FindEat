@@ -128,6 +128,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
   const [creating, setCreating] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [newKnownIssueStatus, setNewKnownIssueStatus] = useState<KnownIssueStatus>("INVESTIGATING");
   const [newSeverity, setNewSeverity] = useState<KnownIssueSeverity>("MEDIUM");
   const [newFeatureStatus, setNewFeatureStatus] = useState<PlannedFeatureStatus>("PLANNED");
@@ -328,6 +329,9 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
           category: mode === "bugs" ? "BUG" : "FEATURE_REQUEST",
           subject: newTitle.trim(),
           ...(mode === "bugs"
+            ? { message: newDescription.trim() || undefined }
+            : {}),
+          ...(mode === "bugs"
             ? {
                 knownIssueStatus: newKnownIssueStatus,
                 severity: newSeverity,
@@ -344,6 +348,7 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
       setFilter("ALL");
       setCreating(false);
       setNewTitle("");
+      setNewDescription("");
       setNewKnownIssueStatus("INVESTIGATING");
       setNewSeverity("MEDIUM");
       setNewFeatureStatus("PLANNED");
@@ -624,12 +629,15 @@ export function SupportTicketsPanel({ mode = "support" }: { mode?: SupportPanelM
       {creating && mode !== "support" ? <div className="fixed inset-0 z-1000 grid place-items-center bg-[#171717]/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={mode === "bugs" ? "Add bug" : "Add feature"} onMouseDown={(event) => { if (event.target === event.currentTarget) setCreating(false); }}>
         <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-line bg-surface p-5 shadow-panel sm:p-6">
           <div className="flex items-start justify-between gap-4">
-            <div><p className="m-0 text-xs font-black uppercase tracking-[.1em] text-accent">Admin entry</p><h3 className="m-0 mt-1 text-2xl font-black text-ink">{mode === "bugs" ? "Add a bug" : "Add a feature"}</h3><p className="m-0 mt-2 text-sm leading-5 text-muted">Add the information users should see. A separate details paragraph is not required.</p></div>
+            <div><p className="m-0 text-xs font-black uppercase tracking-[.1em] text-accent">Admin entry</p><h3 className="m-0 mt-1 text-2xl font-black text-ink">{mode === "bugs" ? "Add a bug" : "Add a feature"}</h3><p className="m-0 mt-2 text-sm leading-5 text-muted">{mode === "bugs" ? "Describe what is happening so users know whether they are affected." : "Add the information users should see."}</p></div>
             <button type="button" className="grid size-9 shrink-0 place-items-center rounded-full border border-line bg-soft text-ink" onClick={() => setCreating(false)} aria-label="Close"><XIcon size={17} weight="bold" /></button>
           </div>
           <div className="mt-5 grid gap-4">
             <label className="grid gap-1.5 text-xs font-extrabold text-muted">Title<input autoFocus className="min-h-11 rounded-xl border border-line bg-surface px-3.5 text-sm text-ink outline-none focus:border-accent" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} maxLength={140} /></label>
             {mode === "bugs" ? <>
+              <label className="grid gap-1.5 text-xs font-extrabold text-muted">Description <span className="font-normal">(optional)</span>
+                <textarea className="min-h-28 resize-y rounded-xl border border-line bg-surface p-3.5 text-sm leading-5 text-ink outline-none focus:border-accent" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} maxLength={2000} placeholder="Explain the problem, when it happens, and what users may notice" />
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5 text-xs font-extrabold text-muted"><span>Status</span><CustomDropdown ariaLabel="New bug status" value={newKnownIssueStatus} options={knownIssueStatusOptions} matchTriggerWidth onChange={(value) => setNewKnownIssueStatus(value as KnownIssueStatus)} /></div>
                 <div className="grid gap-1.5 text-xs font-extrabold text-muted"><span>Severity</span><CustomDropdown ariaLabel="New bug severity" value={newSeverity} options={severityOptions} matchTriggerWidth onChange={(value) => setNewSeverity(value as KnownIssueSeverity)} /></div>

@@ -24,7 +24,6 @@ import { MenuImportModal } from "../components/MenuImportModal";
 import { foodTagLabel } from "../lib/foodTags";
 import { request, uploadImage } from "../lib/api";
 import { confirmAction } from "../lib/appConfirm";
-import { promptAction } from "../lib/appPrompt";
 
 const MENU_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -127,6 +126,17 @@ export function MenuPage({
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
   const [insightsDish, setInsightsDish] = useState<Dish | null>(null);
   const [openDishOptions, setOpenDishOptions] = useState<string | null>(null);
+  const [removedDishIds, setRemovedDishIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [removedMenuIds, setRemovedMenuIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [editingSection, setEditingSection] = useState<Menu | null>(null);
+  const [editSectionTitle, setEditSectionTitle] = useState("");
+  const [editSectionType, setEditSectionType] =
+    useState<MenuSectionType>("FOOD");
+  const [savingSectionEdit, setSavingSectionEdit] = useState(false);
   const [error, setError] = useState("");
   const [menuOrderIds, setMenuOrderIds] = useState<string[] | null>(null);
   const [draggedMenuId, setDraggedMenuId] = useState<string | null>(null);
@@ -143,16 +153,22 @@ export function MenuPage({
   const dragPointerOffsetRef = useRef({ x: 0, y: 0 });
   const dragScrollContainerRef = useRef<HTMLElement | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
-  const [sectionTypeOverrides, setSectionTypeOverrides] = useState<
-    Record<string, MenuSectionType>
-  >({});
-  const [updatingSectionTypeId, setUpdatingSectionTypeId] = useState<string | null>(null);
+  const visibleMenus = useMemo(
+    () =>
+      menus
+        .filter((menu) => !removedMenuIds.has(menu.id))
+        .map((menu) => ({
+          ...menu,
+          items: menu.items.filter((dish) => !removedDishIds.has(dish.id)),
+        })),
+    [menus, removedDishIds, removedMenuIds],
+  );
 
   const collectionMenus = useMemo(
     () => selectedCollectionId
-      ? menus.filter((menu) => menu.collectionId === selectedCollectionId)
-      : menus,
-    [menus, selectedCollectionId],
+      ? visibleMenus.filter((menu) => menu.collectionId === selectedCollectionId)
+      : visibleMenus,
+    [visibleMenus, selectedCollectionId],
   );
 
   const orderedMenus = useMemo(() => {
@@ -195,13 +211,12 @@ export function MenuPage({
   useEffect(() => () => dragCleanupRef.current?.(), []);
 
   function menuSectionType(menu: Menu): MenuSectionType {
-    return sectionTypeOverrides[menu.id] ??
-      (menu.sectionType === "DRINKS" ? "DRINKS" : "FOOD");
+    return menu.sectionType === "DRINKS" ? "DRINKS" : "FOOD";
   }
   const popularDishIds = useMemo(
     () =>
       new Set(
-        menus
+        visibleMenus
           .flatMap((menu) => menu.items)
           .filter((dish) => (dish.reviewsCount ?? 0) > 0)
           .sort(
@@ -212,7 +227,7 @@ export function MenuPage({
           .slice(0, 3)
           .map((dish) => dish.id),
       ),
-    [menus],
+    [visibleMenus],
   );
 
   async function createMenu(event: FormEvent) {
@@ -340,61 +355,55 @@ export function MenuPage({
       confirmLabel: "Delete dish",
       tone: "destructive",
     }))) return;
-    await request(`/business/menus/dishes/${id}`, { method: "DELETE" });
-    await reload();
-  }
-
-  async function editMenu(menu: Menu) {
-    const title = await promptAction({
-      title: "Rename menu section",
-      message: "Choose the title guests will see on the restaurant menu.",
-      initialValue: menu.title,
-      placeholder: "Section name",
-      confirmLabel: "Save name",
-    });
-    if (title === null || !title.trim()) return;
-    await request(`/business/menus/${menu.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ title: title.trim() }),
-    });
-    await reload();
-  }
-
-  async function updateMenuSectionType(
-    menu: Menu,
-    sectionType: MenuSectionType,
-  ) {
-    const previousType = menuSectionType(menu);
-    if (previousType === sectionType || updatingSectionTypeId === menu.id) return;
-    setError("");
-    setSectionTypeOverrides((current) => ({ ...current, [menu.id]: sectionType }));
-    setUpdatingSectionTypeId(menu.id);
+    setOpenDishOptions(null);
+    setRemovedDishIds((current) => new Set(current).add(id));
     try {
-      const updated = await request<Menu>(`/business/menus/${menu.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ sectionType }),
-      });
-      if (updated.sectionType !== sectionType) {
-        throw new Error("The menu section type was not saved. Please try again.");
-      }
+      await request(`/business/menus/dishes/${id}`, { method: "DELETE" });
       await reload();
-      setSectionTypeOverrides((current) => {
-        const next = { ...current };
-        delete next[menu.id];
-        return next;
-      });
     } catch (nextError) {
-      setSectionTypeOverrides((current) => ({
-        ...current,
-        [menu.id]: previousType,
-      }));
+      setRemovedDishIds((current) => {
+        const restored = new Set(current);
+        restored.delete(id);
+        return restored;
+      });
       setError(
         nextError instanceof Error
           ? nextError.message
-          : "Could not update menu section type",
+          : "Could not delete dish",
+      );
+    }
+  }
+
+  function openSectionEditor(menu: Menu) {
+    setError("");
+    setEditingSection(menu);
+    setEditSectionTitle(menu.title);
+    setEditSectionType(menuSectionType(menu));
+  }
+
+  async function saveSectionEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingSection || !editSectionTitle.trim() || savingSectionEdit) return;
+    setError("");
+    setSavingSectionEdit(true);
+    try {
+      await request<Menu>(`/business/menus/${editingSection.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: editSectionTitle.trim(),
+          sectionType: editSectionType,
+        }),
+      });
+      await reload();
+      setEditingSection(null);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Could not update menu section",
       );
     } finally {
-      setUpdatingSectionTypeId(null);
+      setSavingSectionEdit(false);
     }
   }
 
@@ -558,8 +567,24 @@ export function MenuPage({
       confirmLabel: "Delete section",
       tone: "destructive",
     }))) return;
-    await request(`/business/menus/${menu.id}`, { method: "DELETE" });
-    await reload();
+    setRemovedMenuIds((current) => new Set(current).add(menu.id));
+    setOpenMenu((current) => current === menu.id ? null : current);
+    setMenuOrderIds((current) => current?.filter((id) => id !== menu.id) ?? null);
+    try {
+      await request(`/business/menus/${menu.id}`, { method: "DELETE" });
+      await reload();
+    } catch (nextError) {
+      setRemovedMenuIds((current) => {
+        const restored = new Set(current);
+        restored.delete(menu.id);
+        return restored;
+      });
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Could not delete menu section",
+      );
+    }
   }
 
   return (
@@ -572,24 +597,24 @@ export function MenuPage({
             Build the menu customers see on your FindEat profile.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="secondary inline-flex items-center justify-center gap-2" onClick={() => openCollectionEditor()}>
-            <PlusIcon size={18} weight="bold" aria-hidden="true" /> New menu
+        <div className="flex flex-wrap gap-2.5 max-[520px]:grid max-[520px]:w-full max-[520px]:grid-cols-2">
+          <button type="button" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-sm font-extrabold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-soft hover:shadow-md active:translate-y-0 max-[520px]:w-full" onClick={() => openCollectionEditor()}>
+            <span className="grid size-7 place-items-center rounded-lg bg-soft text-ink"><PlusIcon size={16} weight="bold" aria-hidden="true" /></span> New menu
           </button>
           <button
             type="button"
-            className="secondary inline-flex items-center justify-center gap-2"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-sm font-extrabold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-soft hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-[520px]:w-full"
             disabled={!selectedCollectionId}
             onClick={() => {
               setError("");
               setImportMenuOpen(true);
             }}
           >
-            <MagicWandIcon size={18} weight="duotone" aria-hidden="true" /> Import file
+            <span className="grid size-7 place-items-center rounded-lg bg-accent-soft text-accent"><MagicWandIcon size={17} weight="duotone" aria-hidden="true" /></span> Import file
           </button>
           <button
             type="button"
-            className="primary menu-add-section-button inline-flex items-center justify-center gap-2"
+            className="menu-add-section-button inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-accent bg-accent px-5 py-3 text-sm font-extrabold text-[#faf9f6] shadow-[0_8px_22px_color-mix(in_srgb,var(--accent)_28%,transparent)] transition-all hover:-translate-y-0.5 hover:brightness-95 hover:shadow-[0_11px_26px_color-mix(in_srgb,var(--accent)_34%,transparent)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 max-[520px]:col-span-2 max-[520px]:w-full dark:text-[#171717]"
             disabled={!selectedCollectionId}
             onClick={() => {
               setError("");
@@ -627,9 +652,26 @@ export function MenuPage({
             <p className="mt-0 mb-5 text-sm leading-5 text-muted">Create Breakfast, Brunch, Dinner, Drinks, or any menu guests should switch between.</p>
             <label className="grid gap-2 text-xs font-extrabold">Menu name<input className="min-h-12 rounded-xl border border-line bg-surface px-3 text-ink" autoFocus value={collectionName} onChange={(event) => setCollectionName(event.target.value)} placeholder="For example, Brunch" maxLength={80} /></label>
             <fieldset className="mt-5 border-0 p-0"><legend className="mb-2 text-xs font-extrabold">Available days <span className="font-normal text-muted">(none means every day)</span></legend><div className="flex flex-wrap gap-2">{MENU_DAYS.map((label, day) => <button type="button" key={label} className={`rounded-full border px-3 py-2 text-xs font-bold ${collectionDays.includes(day) ? "border-accent bg-accent-soft text-ink" : "border-line bg-soft text-muted"}`} onClick={() => setCollectionDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort())}>{label}</button>)}</div></fieldset>
-            <label className="mt-5 flex items-center gap-3 rounded-xl border border-line bg-soft px-3 py-3 text-sm font-bold"><input type="checkbox" checked={collectionTimed} onChange={(event) => setCollectionTimed(event.target.checked)} /> Only available during certain hours</label>
+            <label className="mt-5 !flex w-full !flex-row !items-center gap-3 rounded-xl border border-line bg-soft px-3 py-3 text-sm font-bold text-ink">
+              <input className="!m-0 !h-4 !min-h-0 !w-4 !min-w-0 shrink-0 !p-0" type="checkbox" checked={collectionTimed} onChange={(event) => setCollectionTimed(event.target.checked)} />
+              <span className="min-w-0 flex-1 text-ink">Only available during certain hours</span>
+            </label>
             {collectionTimed ? <div className="mt-3 grid grid-cols-2 gap-3"><label className="grid gap-2 text-xs font-extrabold">From<input type="time" className="min-h-12 rounded-xl border border-line bg-surface px-3 text-ink" value={collectionStart} onChange={(event) => setCollectionStart(event.target.value)} /></label><label className="grid gap-2 text-xs font-extrabold">Until<input type="time" className="min-h-12 rounded-xl border border-line bg-surface px-3 text-ink" value={collectionEnd} onChange={(event) => setCollectionEnd(event.target.value)} /></label></div> : null}
-            <div className="mt-6 flex gap-2"><button type="button" className="secondary flex-1" onClick={() => setCreateCollectionOpen(false)}>Cancel</button><button className="primary flex-1" disabled={!collectionName.trim()}>{editingCollectionId ? "Save menu" : "Create menu"}</button></div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="min-h-12 rounded-2xl border border-line bg-soft px-4 py-3 text-sm font-extrabold text-ink shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-accent hover:bg-surface hover:shadow-md active:translate-y-0 active:shadow-sm"
+                onClick={() => setCreateCollectionOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="min-h-12 rounded-2xl border border-accent bg-accent px-4 py-3 text-sm font-extrabold text-[#faf9f6] shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:brightness-95 hover:shadow-md active:translate-y-0 active:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 dark:text-[#171717]"
+                disabled={!collectionName.trim()}
+              >
+                {editingCollectionId ? "Save menu" : "Create menu"}
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -710,9 +752,97 @@ export function MenuPage({
           </form>
         </div>
       )}
+      {editingSection && (
+        <div
+          className="fixed inset-0 z-[120] grid place-items-center bg-[#17171770] p-6 backdrop-blur-[5px] max-[520px]:items-end max-[520px]:p-0"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !savingSectionEdit) {
+              setEditingSection(null);
+            }
+          }}
+        >
+          <form
+            className="w-[min(470px,100%)] max-h-[calc(100dvh-48px)] overflow-y-auto rounded-3xl border border-line bg-surface p-6 shadow-[0_30px_90px_#0005] max-[520px]:max-h-[calc(100dvh-12px)] max-[520px]:w-full max-[520px]:rounded-b-none max-[520px]:px-4 max-[520px]:pt-5 max-[520px]:pb-[calc(16px+env(safe-area-inset-bottom))]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-menu-section-title"
+            onSubmit={(event) => void saveSectionEdit(event)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent">
+                <PencilSimpleIcon size={23} weight="duotone" aria-hidden="true" />
+              </div>
+              <button
+                type="button"
+                className="grid size-10 place-items-center rounded-xl border border-line bg-surface p-0 text-ink transition-colors hover:bg-soft"
+                aria-label="Close"
+                disabled={savingSectionEdit}
+                onClick={() => setEditingSection(null)}
+              >
+                <XIcon size={19} weight="bold" aria-hidden="true" />
+              </button>
+            </div>
+            <h3 id="edit-menu-section-title" className="mt-5 mb-1 text-2xl tracking-[-0.025em] text-ink">
+              Edit section
+            </h3>
+            <p className="mt-0 mb-6 text-sm leading-6 text-muted">
+              Update the section name and choose what it contains.
+            </p>
+            <label className="grid gap-2 text-xs font-extrabold text-ink" htmlFor="edit-menu-section-name">
+              Section name
+              <input
+                id="edit-menu-section-name"
+                autoFocus
+                className="min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-ink outline-none transition-colors focus:border-accent"
+                value={editSectionTitle}
+                maxLength={80}
+                onChange={(event) => setEditSectionTitle(event.target.value)}
+              />
+            </label>
+            <fieldset className="mt-5 grid grid-cols-2 gap-2 border-0 p-0 max-[420px]:grid-cols-1">
+              <legend className="col-span-full mb-2 text-xs font-extrabold text-ink">
+                Section type
+              </legend>
+              <button
+                type="button"
+                className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 text-left transition-all ${editSectionType === "FOOD" ? "border-warning-border bg-warning-soft text-ink shadow-sm" : "border-line bg-soft text-muted hover:border-warning-border"}`}
+                onClick={() => setEditSectionType("FOOD")}
+              >
+                <ForkKnifeIcon size={21} weight="duotone" />
+                <span className="min-w-0"><strong className="block text-xs">Food</strong><small className="mt-1 block text-[9px]">Dishes and desserts</small></span>
+              </button>
+              <button
+                type="button"
+                className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 text-left transition-all ${editSectionType === "DRINKS" ? "border-warning-border bg-warning-soft text-ink shadow-sm" : "border-line bg-soft text-muted hover:border-warning-border"}`}
+                onClick={() => setEditSectionType("DRINKS")}
+              >
+                <MartiniIcon size={21} weight="duotone" />
+                <span className="min-w-0"><strong className="block text-xs">Drinks</strong><small className="mt-1 block text-[9px]">Coffee, wine, and cocktails</small></span>
+              </button>
+            </fieldset>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="min-h-12 rounded-2xl border border-line bg-soft px-4 py-3 text-sm font-extrabold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface hover:shadow-md active:translate-y-0"
+                disabled={savingSectionEdit}
+                onClick={() => setEditingSection(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="min-h-12 rounded-2xl border border-accent bg-accent px-4 py-3 text-sm font-extrabold text-[#faf9f6] shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 dark:text-[#171717]"
+                disabled={!editSectionTitle.trim() || savingSectionEdit}
+              >
+                {savingSectionEdit ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {collectionMenus.length === 0 ? (
         <div className="empty [padding:65px_20px] [border:1px_dashed_#d8d5cf] [border-radius:20px] [text-align:center] [color:var(--muted)] [&_span]:[font-size:35px] [&_h3]:[color:var(--ink)] [&_h3]:[margin:12px_0_6px]">
-          <ListDashesIcon size={34} weight="duotone" aria-hidden="true" />
+          <ListDashesIcon className="mx-auto block" size={34} weight="duotone" aria-hidden="true" />
           <h3>Your menu is empty</h3>
           <p>Add your first section, then fill it with dishes.</p>
         </div>
@@ -819,7 +949,9 @@ export function MenuPage({
                     </div>
                     <div className="dish-row-side [position:relative] [display:flex] [align-items:center] [justify-content:flex-end] [gap:9px] [min-width:0] max-[800px]:[grid-column:2] max-[800px]:[justify-content:flex-start] max-[800px]:[flex-wrap:wrap]">
                       <strong className="dish-price [padding:7px_11px] [border-radius:10px] [background:var(--soft)] [font-size:14px] [white-space:nowrap] max-[600px]:[padding:6px_9px] max-[600px]:[font-size:12px]">
-                        {dish.price == null ? "—" : `₪${dish.price.toFixed(2)}`}
+                        {dish.price == null
+                          ? "—"
+                          : `₪${Number.isInteger(dish.price) ? dish.price : dish.price.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}`}
                       </strong>
                       <button
                         type="button"
@@ -969,37 +1101,21 @@ export function MenuPage({
                       >
                         + Add dish
                       </button>
-                      <div className="menu-section-type-toggle [display:inline-flex] [align-items:center] [gap:3px] [margin-left:5px] [padding:3px] [border:1px_solid_var(--line)] [border-radius:11px] [background:var(--soft)] [&>button]:[display:flex] [&>button]:[align-items:center] [&>button]:[gap:5px] [&>button]:[min-height:30px] [&>button]:[padding:5px_9px] [&>button]:[border:0] [&>button]:[border-radius:8px] [&>button]:[background:transparent] [&>button]:[color:var(--muted)] [&>button]:[font-size:10px] [&>button]:[font-weight:850] [&>button.selected]:[background:var(--surface)] [&>button.selected]:[color:var(--ink)] [&>button.selected]:[box-shadow:0_2px_8px_#271c1112] [&>button:disabled]:[cursor:wait] [&>button:disabled]:[opacity:0.75]" role="group" aria-label={`Type for ${menu.title}`}>
-                        <button
-                          type="button"
-                          className={effectiveSectionType === "FOOD" ? "selected" : ""}
-                          disabled={updatingSectionTypeId === menu.id}
-                          onClick={() => void updateMenuSectionType(menu, "FOOD")}
-                        >
-                          <ForkKnifeIcon size={14} weight="bold" /> Food
-                        </button>
-                        <button
-                          type="button"
-                          className={effectiveSectionType === "DRINKS" ? "selected" : ""}
-                          disabled={updatingSectionTypeId === menu.id}
-                          onClick={() => void updateMenuSectionType(menu, "DRINKS")}
-                        >
-                          <MartiniIcon size={14} weight="bold" /> Drinks
-                        </button>
-                      </div>
                     </div>
-                    <div className="menu-section-management-actions [&_.text-button]:[margin-left:0]">
+                    <div className="menu-section-management-actions">
                       <button
-                        className="text-button [border:0] [background:none] [font-weight:700] [margin-left:10px] [color:#555] [color:var(--muted)]"
-                        onClick={() => void editMenu(menu)}
+                        type="button"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-xs font-extrabold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-soft hover:shadow-md active:translate-y-0"
+                        onClick={() => openSectionEditor(menu)}
                       >
-                        Rename section
+                        <PencilSimpleIcon size={16} weight="bold" /> Edit section
                       </button>
                       <button
-                        className="text-danger [color:#b54635] [border:0] [background:none] [font-weight:700] [color:var(--danger)]"
+                        type="button"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-2 text-xs font-extrabold text-danger shadow-sm transition-all hover:-translate-y-0.5 hover:border-danger/50 hover:shadow-md active:translate-y-0"
                         onClick={() => void deleteMenu(menu)}
                       >
-                        Delete section
+                        <TrashIcon size={16} weight="bold" /> Delete section
                       </button>
                     </div>
                   </div>
@@ -1013,7 +1129,7 @@ export function MenuPage({
       {insightsDish && (
         <DishInsightsModal
           dish={insightsDish}
-          allDishes={menus.flatMap((menu) => menu.items)}
+          allDishes={visibleMenus.flatMap((menu) => menu.items)}
           onClose={() => setInsightsDish(null)}
         />
       )}

@@ -62,6 +62,7 @@ import type {
 import {
   CameraView,
   useCameraPermissions,
+  useMicrophonePermissions,
   type CameraType,
   type FlashMode,
 } from "expo-camera";
@@ -180,6 +181,7 @@ export default function CreateContentScreen() {
   const detailsScrollRef = useRef<KeyboardAwareScrollViewRef>(null);
   const recordingStartedAtRef = useRef(0);
   const recordingStopRequestedRef = useRef(false);
+  const recordingOperationActiveRef = useRef(false);
   const cameraZoomRef = useRef(0);
   const pinchStartZoomRef = useRef(0);
   const pinchStartDistanceRef = useRef(0);
@@ -191,6 +193,8 @@ export default function CreateContentScreen() {
   const cameraPinchingRef = useRef(false);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] =
+    useMicrophonePermissions();
   const [step, setStep] = useState<Step>("CAMERA");
   const [media, setMedia] = useState<ContentMediaDraft[]>([]);
   const [availableDraft, setAvailableDraft] =
@@ -218,6 +222,7 @@ export default function CreateContentScreen() {
     fail: failGallerySave,
   } = useGallerySaveFeedback();
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraSessionKey, setCameraSessionKey] = useState(0);
   const [pictureSize, setPictureSize] = useState<string>();
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
   const [flashMode, setFlashMode] = useState<FlashMode>("off");
@@ -383,6 +388,13 @@ export default function CreateContentScreen() {
   useEffect(
     () => () => {
       if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      if (recordingOperationActiveRef.current) {
+        try {
+          cameraRef.current?.stopRecording();
+        } catch {
+          // The native camera may already have disposed its recording session.
+        }
+      }
     },
     [],
   );
@@ -579,17 +591,52 @@ export default function CreateContentScreen() {
     t,
   ]);
 
+  const ensureMicrophonePermission = useCallback(async () => {
+    if (microphonePermission?.granted) return true;
+
+    const nextPermission = await requestMicrophonePermission();
+    if (nextPermission.granted) return true;
+
+    const actions = nextPermission.canAskAgain
+      ? [{ text: t("cancel"), style: "cancel" as const }]
+      : [
+          { text: t("cancel"), style: "cancel" as const },
+          {
+            text: t("openSettings"),
+            onPress: () => void Linking.openSettings(),
+          },
+        ];
+    Alert.alert(
+      t("microphonePermissionTitle"),
+      t("microphonePermissionBody"),
+      actions,
+    );
+    return false;
+  }, [microphonePermission?.granted, requestMicrophonePermission, t]);
+
+  const enterVideoMode = useCallback(async () => {
+    if (!(await ensureMicrophonePermission())) return;
+    setCameraReady(false);
+    setCaptureMode("video");
+  }, [ensureMicrophonePermission]);
+
   const toggleCameraRecording = useCallback(async () => {
     const camera = cameraRef.current;
     if (!camera || !cameraReady) return;
     if (recording) {
       recordingStopRequestedRef.current = true;
-      camera.stopRecording();
+      try {
+        camera.stopRecording();
+      } catch (error) {
+        console.warn("content camera stop recording failed", error);
+      }
       return;
     }
-    if (capturing) return;
+    if (capturing || recordingOperationActiveRef.current) return;
+    if (!(await ensureMicrophonePermission())) return;
 
     try {
+      recordingOperationActiveRef.current = true;
       setCapturing(true);
       setRecording(true);
       recordingStartedAtRef.current = Date.now();
@@ -616,13 +663,24 @@ export default function CreateContentScreen() {
       setStep("DETAILS");
     } catch (error) {
       console.error("content camera recording failed", error);
-      showToast(t("videoPickerErrorBody"), { kind: "error" });
+      setCameraReady(false);
+      setCaptureMode("picture");
+      setCameraSessionKey((current) => current + 1);
+      showToast(t("videoRecordingErrorBody"), { kind: "error" });
     } finally {
+      recordingOperationActiveRef.current = false;
       recordingStopRequestedRef.current = false;
       setRecording(false);
       setCapturing(false);
     }
-  }, [cameraReady, capturing, recording, showToast, t]);
+  }, [
+    cameraReady,
+    capturing,
+    ensureMicrophonePermission,
+    recording,
+    showToast,
+    t,
+  ]);
 
   const handleCameraReady = useCallback(async () => {
     const camera = cameraRef.current;
@@ -1418,7 +1476,7 @@ export default function CreateContentScreen() {
               }}
             >
               <CameraView
-                key={`${cameraFacing}-${captureMode}`}
+                key={`${cameraFacing}-${captureMode}-${cameraSessionKey}`}
                 ref={cameraRef}
                 style={{ position: "absolute", inset: 0 }}
                 facing={cameraFacing}
@@ -1621,10 +1679,7 @@ export default function CreateContentScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     disabled={recording}
-                    onPress={() => {
-                      setCameraReady(false);
-                      setCaptureMode("video");
-                    }}
+                    onPress={() => void enterVideoMode()}
                     className="items-center py-2"
                   >
                     <Text

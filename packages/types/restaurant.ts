@@ -155,11 +155,56 @@ export type RestaurantPostPreview = {
   thumbnailUrl?: string | null;
   rating?: number | null;
   createdAt?: string;
+  publishedBy?: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl?: string | null;
+  } | null;
   author: UserSummary;
   _count: {
     likes: number;
     comments: number;
   };
+};
+
+export type RestaurantPermission =
+  | "VIEW_OVERVIEW"
+  | "VIEW_ANALYTICS"
+  | "MANAGE_MENU"
+  | "VIEW_REVIEWS"
+  | "MANAGE_OFFERS"
+  | "PUBLISH_POSTS"
+  | "MANAGE_PROFILE"
+  | "MANAGE_MESSAGES"
+  | "VIEW_NOTIFICATIONS"
+  | "CONTACT_SUPPORT";
+
+export type RestaurantTeamRole = {
+  id: string;
+  name: string;
+  permissions: RestaurantPermission[];
+};
+
+export type RestaurantTeamMember = {
+  id: string;
+  role: string;
+  teamRoleId: string | null;
+  createdAt: string;
+  teamRole: RestaurantTeamRole | null;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    email: string;
+    avatarUrl: string | null;
+  };
+};
+
+export type RestaurantTeam = {
+  members: RestaurantTeamMember[];
+  roles: RestaurantTeamRole[];
+  availablePermissions: RestaurantPermission[];
 };
 
 export type RestaurantMembership = {
@@ -204,6 +249,8 @@ export type ManagedRestaurant = {
   averageRating?: number | null;
   reviewsCount?: number;
   accessRole?: "OWNER" | "MANAGER" | "ADMIN" | null;
+  teamRole?: RestaurantTeamRole | null;
+  permissions?: RestaurantPermission[];
   status?: RestaurantStatus;
   earnedBadges?: RestaurantEarnedBadge[];
 };

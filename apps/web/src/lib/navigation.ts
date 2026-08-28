@@ -12,6 +12,7 @@ export const businessPaths: Record<BusinessDashboardSection, string> = {
   badges: "/badges",
   offers: "/offers",
   posts: "/official-posts",
+  team: "/team",
   messages: "/messages",
   notifications: "/home",
   profile: "/restaurant-profile",

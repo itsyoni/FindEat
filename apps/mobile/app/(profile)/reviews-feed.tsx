@@ -25,6 +25,13 @@ export default function ProfileReviewsFeedScreen() {
   const [sharePostId, setSharePostId] = useState<string | null>(null);
   const [optionsPostId, setOptionsPostId] = useState<string | null>(null);
 
+  function returnToProfile() {
+    router.dismissTo({
+      pathname: "/(tabs)/profile",
+      params: { feed: "REVIEW" },
+    });
+  }
+
   const posts = useMemo(
     () => filterPostsByType(profile?.posts, "REVIEW"),
     [profile?.posts],
@@ -65,8 +72,7 @@ export default function ProfileReviewsFeedScreen() {
       removePostFromAppCache(queryClient, postId);
       void refresh();
       setOptionsPostId(null);
-      if (router.canGoBack()) router.back();
-      else router.replace("/(tabs)/profile");
+      returnToProfile();
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Could not delete post");
@@ -77,7 +83,7 @@ export default function ProfileReviewsFeedScreen() {
   if (loading || !profile) {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
-        <ProfileReviewBackButton />
+        <ProfileReviewBackButton onPress={returnToProfile} />
         <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
           <ReviewFeed posts={[]} loading contentTopInset={56} refreshing={false} onRefresh={refresh} onToggleLike={toggleLike} onOpenComments={openComments} onToggleWantToTry={toggleWantToTry} onOpenSharePost={setSharePostId} onOpenPostOptions={setOptionsPostId} />
         </SafeAreaView>
@@ -87,7 +93,7 @@ export default function ProfileReviewsFeedScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
-      <ProfileReviewBackButton />
+      <ProfileReviewBackButton onPress={returnToProfile} />
       <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
         <ReviewFeed
           posts={posts}
@@ -126,7 +132,7 @@ export default function ProfileReviewsFeedScreen() {
   );
 }
 
-function ProfileReviewBackButton() {
+function ProfileReviewBackButton({ onPress }: { onPress: () => void }) {
   return (
     <SafeAreaView
       edges={["top"]}
@@ -136,7 +142,7 @@ function ProfileReviewBackButton() {
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Back"
-        onPress={() => router.back()}
+        onPress={onPress}
         className="ml-4 mt-2 h-11 w-11 items-center justify-center rounded-full bg-black/50"
       >
         <DirectionalIcon direction="back" size={24} color="#FAF9F6" />

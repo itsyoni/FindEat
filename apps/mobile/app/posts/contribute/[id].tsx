@@ -37,7 +37,7 @@ import RatingPicker from "@/components/review-creator/components/RatingPicker";
 type ScreenMode = "LIST" | "PICK_DISH" | "EDIT_EXISTING" | "EDIT_NEW";
 
 function itemName(item: ReviewItem, fallback: string) {
-  return item.menuItem?.name ?? item.customDishName ?? fallback;
+  return item.customDishName ?? item.menuItem?.name ?? fallback;
 }
 
 function itemImage(item: ReviewItem) {

@@ -73,9 +73,6 @@ export default function PostOptionsBottomSheet({
   const hasConnectedReview =
     activePost?.linkedPosts?.some((linkedPost) => linkedPost.type === "REVIEW") ??
     false;
-  const hasReviewCollaboration =
-    activePost?.type === "REVIEW" &&
-    (activePost.reviewParticipants?.length ?? 0) > 0;
   const canRequestReviewJoin =
     activePost?.type === "REVIEW" &&
     !activePost.canDelete &&
@@ -226,6 +223,13 @@ export default function PostOptionsBottomSheet({
     router.push({ pathname: "/posts/edit/[id]", params: { id } });
   }
 
+  function contributeToReview() {
+    if (!postId) return;
+    const id = postId;
+    closeSheet();
+    router.push({ pathname: "/posts/contribute/[id]", params: { id } });
+  }
+
   function manageConnections() {
     if (!postId) return;
     const id = postId;
@@ -264,13 +268,6 @@ export default function PostOptionsBottomSheet({
     const id = postId;
     closeSheet();
     router.push({ pathname: "/posts/collaborators/[id]", params: { id } });
-  }
-
-  function editSharedReviewFeedback() {
-    if (!postId) return;
-    const id = postId;
-    closeSheet();
-    router.push({ pathname: "/posts/contribute/[id]", params: { id } });
   }
 
   async function requestToJoinReview() {
@@ -514,10 +511,10 @@ export default function PostOptionsBottomSheet({
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-base font-bold text-black dark:text-white">
-                  {t("editPost")}
+                  {t(activePost.type === "REVIEW" ? "editReviewTitle" : "editPost")}
                 </Text>
                 <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                  {t("editPostHint")}
+                  {t(activePost.type === "REVIEW" ? "editReviewCombinedHint" : "editPostHint")}
                 </Text>
               </View>
               <DirectionalIcon
@@ -602,32 +599,6 @@ export default function PostOptionsBottomSheet({
                   weight="bold"
                 />
               </TouchableOpacity>
-              {hasReviewCollaboration ? (
-                <TouchableOpacity
-                  activeOpacity={0.72}
-                  accessibilityRole="button"
-                  className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
-                  onPress={editSharedReviewFeedback}
-                >
-                  <View className="h-11 w-11 items-center justify-center rounded-full bg-yellow-50 dark:bg-yellow-950/40">
-                    <NotePencilIcon size={21} color="#D4A72C" weight="fill" />
-                  </View>
-                  <View className="ml-3 flex-1">
-                    <Text className="text-base font-bold text-black dark:text-white">
-                      {t("manageSharedReviewFeedback")}
-                    </Text>
-                    <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                      {t("manageSharedReviewFeedbackHint")}
-                    </Text>
-                  </View>
-                  <DirectionalIcon
-                    direction="forward"
-                    size={18}
-                    color={isDark ? "#6B7280" : "#9CA3AF"}
-                    weight="bold"
-                  />
-                </TouchableOpacity>
-              ) : null}
               </>
             ) : null}
 
@@ -801,23 +772,25 @@ export default function PostOptionsBottomSheet({
                   </TouchableOpacity>
                 </>
               ) : null}
-              {activePost?.type === "REVIEW" && activePost.canContribute ? (
+              {activePost?.type === "REVIEW" &&
+              !activePost.canDelete &&
+              activePost.canContribute ? (
                 <>
                   <TouchableOpacity
                     activeOpacity={0.72}
                     accessibilityRole="button"
                     className="mb-3 flex-row items-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900"
-                    onPress={editSharedReviewFeedback}
+                    onPress={contributeToReview}
                   >
                     <View className="h-11 w-11 items-center justify-center rounded-full bg-yellow-50 dark:bg-yellow-950/40">
                       <NotePencilIcon size={21} color="#D4A72C" weight="fill" />
                     </View>
                     <View className="ml-3 flex-1">
                       <Text className="text-base font-bold text-black dark:text-white">
-                        {t("editSharedReviewFeedback")}
+                        {t("contributeToReview")}
                       </Text>
                       <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                        {t("editSharedReviewFeedbackHint")}
+                        {t("contributeToReviewHint")}
                       </Text>
                     </View>
                     <DirectionalIcon

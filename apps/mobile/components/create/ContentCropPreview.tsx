@@ -404,7 +404,7 @@ export default function ContentCropPreview({
                       source={{ uri: sourceUri }}
                       style={{ width: "100%", height: "100%" }}
                       contentFit="fill"
-                      cachePolicy="none"
+                      cachePolicy="memory-disk"
                       blurRadius={18}
                     />
                   </Animated.View>
@@ -440,7 +440,7 @@ export default function ContentCropPreview({
                         source={{ uri: sourceUri }}
                         style={{ width: "100%", height: "100%" }}
                         contentFit="fill"
-                        cachePolicy="none"
+                        cachePolicy="memory-disk"
                         onError={(event) =>
                           console.error("Crop image preview failed", {
                             uri: sourceUri,
@@ -468,7 +468,7 @@ export default function ContentCropPreview({
                     source={{ uri: sourceUri }}
                     style={{ width: "100%", height: "100%" }}
                     contentFit="fill"
-                    cachePolicy="none"
+                    cachePolicy="memory-disk"
                     onError={(event) =>
                       console.error("Crop image preview failed", {
                         uri: sourceUri,

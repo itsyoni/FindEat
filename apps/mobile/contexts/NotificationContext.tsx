@@ -187,6 +187,8 @@ function openPushData(data?: Record<string, unknown>) {
   if (visitRoute) router.push(visitRoute);
   else if (type === "PROFILE_TAG_UNLOCKED") router.push("/settings/profile-tags");
   else if (type === "CREATOR_LEVEL_UP") router.push("/settings/creator-levels");
+  else if (type === "RESTAURANT_MENU_PUBLISHED" && postId)
+    router.push({ pathname: "/posts/match-dishes/[id]", params: { id: postId } });
   else if (conversationId) router.push(`/chats/${conversationId}`);
   else if (postId)
     router.push({

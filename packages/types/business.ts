@@ -83,6 +83,7 @@ export type BusinessDashboardSection =
   | "badges"
   | "offers"
   | "posts"
+  | "team"
   | "messages"
   | "notifications"
   | "profile"

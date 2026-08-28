@@ -15,6 +15,7 @@ import { ForkKnifeIcon } from "@phosphor-icons/react/dist/csr/ForkKnife";
 import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/csr/SidebarSimple";
 import { GiftIcon } from "@phosphor-icons/react/dist/csr/Gift";
 import { ImageSquareIcon } from "@phosphor-icons/react/dist/csr/ImageSquare";
+import { UsersThreeIcon } from "@phosphor-icons/react/dist/csr/UsersThree";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
@@ -58,6 +59,7 @@ import { OwnerSupportPage } from "./OwnerSupportPage";
 import { SettingsOverlay, SettingsPage } from "./SettingsPage";
 import { OffersPage } from "./OffersPage";
 import { OfficialPostsPage } from "./OfficialPostsPage";
+import { TeamPage } from "./TeamPage";
 import { ErrorPage } from "../components/ErrorPage";
 import {
   adminPaths,
@@ -83,6 +85,18 @@ function normalizeRestaurantSetup(restaurant: ManagedRestaurant) {
     missingSetupFields,
     setupComplete: missingSetupFields.length === 0,
   };
+}
+
+function canRestaurant(
+  restaurant: ManagedRestaurant | undefined,
+  permission: NonNullable<ManagedRestaurant["permissions"]>[number],
+) {
+  return !!restaurant && (
+    restaurant.accessRole === "OWNER" ||
+    restaurant.accessRole === "ADMIN" ||
+    restaurant.accessRole === "MANAGER" ||
+    restaurant.permissions?.includes(permission) === true
+  );
 }
 
 function RestaurantSwitcher({
@@ -436,7 +450,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   ]);
 
   useRestaurantActivitySocket({
-    restaurantId: activeRestaurantId,
+    restaurantId: canRestaurant(restaurant, "VIEW_NOTIFICATIONS")
+      ? activeRestaurantId
+      : undefined,
     onConnected: refreshLiveActivity,
     onNotification: handleLiveActivity,
   });
@@ -447,8 +463,12 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   }, [activeRestaurantId, loadRestaurantConversations]);
 
   useInboxSocket({
-    conversationIds: conversations.map((conversation) => conversation.id),
-    userId: account?.id,
+    conversationIds: canRestaurant(restaurant, "MANAGE_MESSAGES")
+      ? conversations.map((conversation) => conversation.id)
+      : [],
+    userId: canRestaurant(restaurant, "MANAGE_MESSAGES")
+      ? account?.id
+      : undefined,
     onConnected: refreshLiveInbox,
     onMessage: refreshLiveInbox,
   });
@@ -493,14 +513,15 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           setSelectedRestaurantId(nextRestaurantId);
           localStorage.setItem("findeat-selected-restaurant", nextRestaurantId);
         }
+        const selectedRestaurant = nextRestaurants.find((item) => item.id === nextRestaurantId)!;
         const [nextMenus, nextReviews, nextConversations, nextNotifications] =
           await Promise.all([
-            request<Menu[]>(
+            canRestaurant(selectedRestaurant, "MANAGE_MENU") ? request<Menu[]>(
               `/business/menus?restaurantId=${encodeURIComponent(nextRestaurantId)}`,
-            ),
-            loadRestaurantReviews(nextRestaurantId),
-            fetchRestaurantConversations(nextRestaurantId, me.id),
-            fetchRestaurantNotifications(nextRestaurantId),
+            ) : Promise.resolve([]),
+            canRestaurant(selectedRestaurant, "VIEW_REVIEWS") ? loadRestaurantReviews(nextRestaurantId) : Promise.resolve([]),
+            canRestaurant(selectedRestaurant, "MANAGE_MESSAGES") ? fetchRestaurantConversations(nextRestaurantId, me.id) : Promise.resolve([]),
+            canRestaurant(selectedRestaurant, "VIEW_NOTIFICATIONS") ? fetchRestaurantNotifications(nextRestaurantId) : Promise.resolve({ items: [], unreadCount: 0, nextCursor: null }),
           ]);
         setMenus(nextMenus);
         setReviews(nextReviews);
@@ -742,62 +763,68 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           >
             <HouseIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Overview
           </AppLink>
-          <AppLink
+          {canRestaurant(restaurant, "VIEW_ANALYTICS") && <AppLink
             to={businessPaths.dashboard}
             className={section === "dashboard" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
           >
             <ChartLineUpIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Dashboard <small className="nav-premium [margin-left:auto] [padding:2px_5px] [border-radius:5px] [background:#fff0cc] [color:#8a6200] [font-size:8px] [font-weight:900] max-[800px]:[display:none] [background:var(--warning-soft)] [color:var(--warning)]">PRO</small>
-          </AppLink>
+          </AppLink>}
           <SidebarNavGroup
             id="business-restaurant-management"
             label="Restaurant management"
             icon={<ForkKnifeIcon size={20} weight="duotone" />}
-            active={["menu", "reviews", "badges", "offers", "posts", "profile"].includes(section)}
+            active={["menu", "reviews", "badges", "offers", "posts", "profile", "team"].includes(section)}
           >
-          <AppLink
+          {canRestaurant(restaurant, "MANAGE_MENU") && <AppLink
             to={businessPaths.menu}
             className={section === "menu" ? "active" : ""}
           >
             <ListDashesIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Menu
-          </AppLink>
-          <AppLink
+          </AppLink>}
+          {canRestaurant(restaurant, "VIEW_REVIEWS") && <AppLink
             to={businessPaths.reviews}
             className={section === "reviews" ? "active" : ""}
           >
             <StarIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Reviews
-          </AppLink>
-          <AppLink
+          </AppLink>}
+          {canRestaurant(restaurant, "VIEW_REVIEWS") && <AppLink
             to={businessPaths.badges}
             className={section === "badges" ? "active" : ""}
           >
             <MedalIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Badges
             {(restaurant.earnedBadges?.length ?? 0) > 0 && <small className="nav-count [margin-left:auto] [min-width:22px] [padding:3px_6px] [border-radius:20px] [background:#ffe4da] [color:#a6382a] [text-align:center] [font-size:10px] [font-weight:900] [&.neutral]:[background:#ebe9e5] [&.neutral]:[color:#555] [&.neutral]:[background:var(--neutral-chip)] [&.neutral]:[color:var(--neutral-chip-text)] [background:var(--accent-soft)] [color:var(--accent-dark)]">{restaurant.earnedBadges?.length}</small>}
-          </AppLink>
-          <AppLink
+          </AppLink>}
+          {canRestaurant(restaurant, "MANAGE_OFFERS") && <AppLink
             to={businessPaths.offers}
             className={section === "offers" ? "active" : ""}
           >
             <GiftIcon className="nav-icon" size={20} weight="duotone" /> Offers and rewards
-          </AppLink>
-          <AppLink
+          </AppLink>}
+          {canRestaurant(restaurant, "PUBLISH_POSTS") && <AppLink
             to={businessPaths.posts}
             className={section === "posts" ? "active" : ""}
           >
             <ImageSquareIcon className="nav-icon" size={20} weight="duotone" /> Official posts
-          </AppLink>
-          <AppLink
+          </AppLink>}
+          {canRestaurant(restaurant, "MANAGE_PROFILE") && <AppLink
             to={businessPaths.profile}
             className={section === "profile" ? "active" : ""}
           >
             <StorefrontIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Restaurant profile
-          </AppLink>
+          </AppLink>}
+          {(restaurant.accessRole === "OWNER" || restaurant.accessRole === "ADMIN") && <AppLink
+            to={businessPaths.team}
+            className={section === "team" ? "active" : ""}
+          >
+            <UsersThreeIcon className="nav-icon" size={20} weight="duotone" /> Team & roles
+          </AppLink>}
           </SidebarNavGroup>
-          <AppLink
+          {canRestaurant(restaurant, "CONTACT_SUPPORT") && <AppLink
             to={businessPaths.support}
             className={section === "support" ? "active overflow-hidden! text-ellipsis! whitespace-nowrap! bg-[#ffffff22]! font-bold! tracking-[-0.012em]! text-[#faf9f6]!" : "overflow-hidden! text-ellipsis! whitespace-nowrap! text-[#faf9f6]!"}
           >
             <HeadsetIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Help and support
-          </AppLink>
+          </AppLink>}
         </nav>
         <div className="aside-footer [margin-top:auto] [padding:16px_10px_0] [border-top:1px_solid_var(--line)] [&_p]:[margin-bottom:5px] [&_p]:[font-weight:800] [&_p]:[font-size:13px] [&_small]:[display:block] [&_small]:[color:var(--muted)] [&_small]:[line-height:1.45] [&_button]:[margin-top:18px] [&_button]:[padding:0] [&_button]:[border:0] [&_button]:[background:none] [&_button]:[color:#a13c2a] [&_button]:[font-weight:700] [&_.sidebar-account>button]:[display:grid] [&_.sidebar-account>button]:[place-items:center] [&_.sidebar-account>button]:[width:34px] [&_.sidebar-account>button]:[height:34px] [&_.sidebar-account>button]:[margin:0] [&_.sidebar-account>button]:[padding:0] [&_.sidebar-account>button]:[border:1px_solid_var(--line)] [&_.sidebar-account>button]:[border-radius:11px] [&_.sidebar-account>button]:[background:var(--surface-subtle)] [&_.sidebar-account>button]:[color:var(--muted)] [&_.sidebar-account>button]:[transition:background-color_.16s_ease,color_.16s_ease] [&_.sidebar-account>button:hover]:[background:var(--danger-soft)] [&_.sidebar-account>button:hover]:[color:var(--danger)] max-[800px]:[display:none] [&_.web-version]:[display:block] [&_.web-version]:[margin-top:12px] [&_.web-version]:[color:color-mix(in_srgb,var(--muted)_72%,transparent)] [&_.web-version]:[font-size:9px] [&_.web-version]:[font-weight:800] [&_.web-version]:[letter-spacing:.06em] [&_.web-version]:[text-align:center] [&_.web-version]:[text-transform:uppercase] [&_button]:[color:var(--danger)]">
           <div className="sidebar-account [display:grid] [grid-template-columns:auto_minmax(0,1fr)_34px] [align-items:center] [gap:11px] [&>div]:[min-width:0] [&_strong]:[display:block] [&_strong]:[overflow:hidden] [&_strong]:[text-overflow:ellipsis] [&_strong]:[white-space:nowrap] [&_small]:[display:block] [&_small]:[overflow:hidden] [&_small]:[text-overflow:ellipsis] [&_small]:[white-space:nowrap] [&_strong]:[font-size:12px] [&_small]:[margin-top:2px] [&_small]:[font-size:9px]">
@@ -957,6 +984,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         {(section === "posts" || visitedSections.has("posts")) && (
           <div className="dashboard-page-slot [min-height:0] [overflow-y:auto] [overscroll-behavior:contain] [&[hidden]]:[display:none]" hidden={section !== "posts"}>
             <OfficialPostsPage key={restaurant.id} restaurant={restaurant} />
+          </div>
+        )}
+        {(section === "team" || visitedSections.has("team")) && (
+          <div className="dashboard-page-slot min-h-0 overflow-y-auto overscroll-contain [&[hidden]]:hidden" hidden={section !== "team"}>
+            <TeamPage key={restaurant.id} restaurant={restaurant} />
           </div>
         )}
         {(section === "messages" || visitedSections.has("messages")) && (

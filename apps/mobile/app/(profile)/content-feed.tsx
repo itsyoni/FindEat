@@ -31,6 +31,13 @@ export default function ProfileContentFeedScreen() {
   const [sharePostId, setSharePostId] = useState<string | null>(null);
   const [optionsPostId, setOptionsPostId] = useState<string | null>(null);
 
+  function returnToProfile() {
+    router.dismissTo({
+      pathname: "/(tabs)/profile",
+      params: { feed: "CONTENT" },
+    });
+  }
+
   const posts = useMemo(
     () =>
       filterPostsByType(profile?.posts, "CONTENT").filter(
@@ -76,8 +83,7 @@ export default function ProfileContentFeedScreen() {
       await api.posts.delete(postId);
       removePostFromAppCache(queryClient, postId);
       void refresh();
-      if (router.canGoBack()) router.back();
-      else router.replace("/(tabs)/profile");
+      returnToProfile();
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Could not delete post");
@@ -111,7 +117,7 @@ export default function ProfileContentFeedScreen() {
       >
         <TouchableOpacity
           className="ml-4 mt-2 h-11 w-11 items-center justify-center rounded-full bg-black/50"
-          onPress={() => router.back()}
+          onPress={returnToProfile}
         >
           <DirectionalIcon direction="back" size={24} color="#FAF9F6" />
         </TouchableOpacity>

@@ -18,7 +18,9 @@ export function useRestaurantActivitySocket({
     const token = getAccessToken();
     if (!restaurantId || !token) return;
 
-    const socket = io(`${API_URL}/notifications`, { auth: { token } });
+    const socket = io(`${API_URL}/notifications`, {
+      auth: { token, workspace: "business" },
+    });
 
     socket.on("connect", onConnected);
     socket.on("notification", (notification: AppNotification) => {

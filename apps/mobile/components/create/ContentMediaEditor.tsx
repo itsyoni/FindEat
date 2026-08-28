@@ -64,6 +64,13 @@ type Props = {
   showHeaderCounter?: boolean;
   headerTitle?: string;
   primaryActionLabel?: string;
+  additionalEditorTools?: {
+    key: string;
+    label: string;
+    icon: ReactNode;
+    disabled?: boolean;
+    onPress: () => void;
+  }[];
 };
 
 export default function ContentMediaEditor({
@@ -89,6 +96,7 @@ export default function ContentMediaEditor({
   showHeaderCounter = true,
   headerTitle,
   primaryActionLabel,
+  additionalEditorTools = [],
 }: Props) {
   const { t } = useTranslation(["create", "common"]);
   const { isDark } = useAppTheme();
@@ -248,6 +256,15 @@ export default function ContentMediaEditor({
           ) : null}
           {showEditorTools ? (
           <View className="absolute right-3 top-3 gap-3">
+            {additionalEditorTools.map((tool) => (
+              <EditorTool
+                key={tool.key}
+                label={tool.label}
+                disabled={busy || !!tool.disabled}
+                onPress={tool.onPress}
+                icon={tool.icon}
+              />
+            ))}
             <EditorTool
               label={t("rotate")}
               disabled={busy}

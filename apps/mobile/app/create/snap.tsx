@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import { getVideoDurationMs } from "@/lib/videoDuration";
-import { cropPostImage } from "@/lib/cropPostImage";
 import {
   MediaLibraryPermissionError,
   saveImageToGallery,
@@ -16,6 +15,20 @@ import SoundPickerModal from "@/components/sounds/SoundPickerModal";
 import SoundPlayback from "@/components/sounds/SoundPlayback";
 import ReviewParticipantsStep from "@/components/review-creator/steps/ReviewParticipantsStep";
 import AnimatedGallerySaveIcon from "@/components/common/AnimatedGallerySaveIcon";
+import ImageMarkupEditor, {
+  type ImageMarkupState,
+} from "@/components/create/ImageMarkupEditor";
+import type { EditableImage } from "@/components/create/SingleImageCropEditor";
+import ContentCropPreview, {
+  type ContentCropRect,
+} from "@/components/create/ContentCropPreview";
+import CustomColorPicker from "@/components/create/CustomColorPicker";
+import ImageEyedropper from "@/components/create/ImageEyedropper";
+import {
+  defaultImageCrop,
+} from "@/lib/renderContentCrop";
+import { renderImageMarkup } from "@/lib/renderImageMarkup";
+import { sampleImageColor } from "@/lib/sampleImageColor";
 import { useGallerySaveFeedback } from "@/hooks/useGallerySaveFeedback";
 import type { PhotoFilterId } from "@/lib/photoFilters";
 import {
@@ -37,9 +50,11 @@ import { Image } from "expo-image";
 import {
   CameraView,
   type CameraType,
+  type FocusMode,
   type FlashMode,
   useCameraPermissions,
 } from "expo-camera";
+import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { router, Stack } from "expo-router";
@@ -48,14 +63,15 @@ import {
   AtIcon,
   CaretDownIcon,
   CameraIcon,
-  CropIcon,
+  EyedropperIcon,
   FadersHorizontalIcon,
-  FlipHorizontalIcon,
   ImagesIcon,
   LightningIcon,
   LightningSlashIcon,
   MapPinPlusIcon,
   PaperPlaneTiltIcon,
+  PaletteIcon,
+  PencilSimpleIcon,
   TextAaIcon,
   XIcon,
   LockIcon,
@@ -75,6 +91,9 @@ import {
   ActivityIndicator,
   Keyboard,
   Linking,
+  type NativeSyntheticEvent,
+  type NativeTouchEvent,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text as NativeText,
@@ -86,6 +105,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const SNAP_TEXT_MIN_WIDTH = 112;
 const SNAP_TEXT_MAX_WIDTH_RATIO = 0.8;
+const SNAP_TEXT_MIN_SIZE = 4;
+const SNAP_TEXT_MAX_SIZE = 240;
 
 function snapTextOverlayWidth(
   text: string,
@@ -105,12 +126,89 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function readableColorForeground(color: string) {
+  const normalized = color.replace(/^#/, "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return "#171717";
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  const brightness = red * 0.299 + green * 0.587 + blue * 0.114;
+  return brightness > 155 ? "#171717" : "#FAF9F6";
+}
+
+function snapRenderDimensions(crop: ContentCropRect) {
+  const width = 1080;
+  const aspect =
+    crop.width > 0 && crop.height > 0 ? crop.width / crop.height : 9 / 16;
+  return {
+    width,
+    height: Math.max(1920, Math.round(width / aspect)),
+  };
+}
+
+function renderSnapImageCrop(
+  uri: string,
+  sourceWidth: number,
+  sourceHeight: number,
+  crop: ContentCropRect,
+) {
+  const target = snapRenderDimensions(crop);
+  return renderImageMarkup(
+    uri,
+    target.width,
+    target.height,
+    [],
+    null,
+    null,
+    { ...crop, sourceWidth, sourceHeight },
+  );
+}
+
+function cropsMatch(
+  first: ContentCropRect | null,
+  second: ContentCropRect,
+) {
+  if (!first) return false;
+  // Allow the tiny sub-pixel normalization performed when the rendered image
+  // is fitted back into a device whose screen ratio does not divide evenly.
+  const tolerance = Math.max(4, second.width * 0.004);
+  return (
+    Math.abs(first.originX - second.originX) < tolerance &&
+    Math.abs(first.originY - second.originY) < tolerance &&
+    Math.abs(first.width - second.width) < tolerance &&
+    Math.abs(first.height - second.height) < tolerance
+  );
+}
+
+type SnapDrawingDraft = {
+  baseImage: EditableImage;
+  crop: ContentCropRect;
+  markup: ImageMarkupState;
+  renderedUri: string;
+  renderedCrop: ContentCropRect;
+};
+
+type EditableSnapTextOverlay = SnapTextOverlay & { editorId: string };
+
+function newTextOverlayId() {
+  return `snap-text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export default function CreateSnapScreen() {
   const { t } = useTranslation(["snaps", "common"]);
   const { t: tSound } = useTranslation("sound");
   const queryClient = useQueryClient();
   const { startPostUpload } = usePostUpload();
   const cameraRef = useRef<CameraView>(null);
+  const cameraZoomRef = useRef(0);
+  const pinchStartZoomRef = useRef(0);
+  const pinchStartDistanceRef = useRef(0);
+  const cameraTouchStartRef = useRef<{
+    x: number;
+    y: number;
+    startedAt: number;
+  } | null>(null);
+  const cameraPinchingRef = useRef(false);
   const captionInputRef = useRef<TextInput>(null);
   const overlayTextInputRef = useRef<TextInput>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -120,6 +218,7 @@ export default function CreateSnapScreen() {
     width: number;
     height: number;
   } | null>(null);
+  const [imageCrop, setImageCrop] = useState<ContentCropRect | null>(null);
   const [photoFilter, setPhotoFilter] = useState<PhotoFilterId>("ORIGINAL");
   const [filterPickerOpen, setFilterPickerOpen] = useState(false);
   const [FilterPicker, setFilterPicker] = useState<ComponentType<{
@@ -132,17 +231,40 @@ export default function CreateSnapScreen() {
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null);
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
+  const [cameraZoom, setCameraZoom] = useState(0);
   const [flash, setFlash] = useState<FlashMode>("off");
   const [cameraReady, setCameraReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [cameraAutofocus, setCameraAutofocus] =
+    useState<FocusMode>("off");
+  const [cameraFocusPoint, setCameraFocusPoint] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const focusStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [caption, setCaption] = useState("");
-  const [textOverlay, setTextOverlay] = useState<SnapTextOverlay | null>(null);
-  const textOverlayRef = useRef<SnapTextOverlay | null>(null);
+  const [textOverlays, setTextOverlays] = useState<EditableSnapTextOverlay[]>([]);
+  const [textOverlay, setTextOverlay] = useState<EditableSnapTextOverlay | null>(null);
+  const textOverlayRef = useRef<EditableSnapTextOverlay | null>(null);
   const [editingOverlayText, setEditingOverlayText] = useState(false);
+  const [textColorOptionsOpen, setTextColorOptionsOpen] = useState(false);
+  const [textCustomColorOpen, setTextCustomColorOpen] = useState(false);
+  const [textEyedropperActive, setTextEyedropperActive] = useState(false);
+  const [movingOverlayText, setMovingOverlayText] = useState(false);
+  const [resizingOverlayText, setResizingOverlayText] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 1, height: 1 });
   const canvasSizeRef = useRef({ width: 1, height: 1 });
   const overlayDragStartRef = useRef({ x: 0, y: 0 });
   const overlaySizeStartRef = useRef(32);
+  const overlayTextFrameRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const overlayPanTouchRef = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    startedOnText: boolean;
+  } | null>(null);
+  const overlayPinchAnchorIdRef = useRef<number | null>(null);
   const [overlayGesture, setOverlayGesture] = useState<ReturnType<
     typeof Gesture.Simultaneous
   > | null>(null);
@@ -153,7 +275,10 @@ export default function CreateSnapScreen() {
   const [mentionPeople, setMentionPeople] = useState<ReviewInviteeDraft[]>([]);
   const [choosingMention, setChoosingMention] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [editingPhoto, setEditingPhoto] = useState(false);
+  const [snapDrawingImage, setSnapDrawingImage] =
+    useState<EditableImage | null>(null);
+  const [snapDrawingDraft, setSnapDrawingDraft] =
+    useState<SnapDrawingDraft | null>(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const {
     status: gallerySaveStatus,
@@ -164,24 +289,56 @@ export default function CreateSnapScreen() {
   } = useGallerySaveFeedback();
   const publishStartedRef = useRef(false);
 
-  function updateTextOverlay(next: SnapTextOverlay | null) {
+  function updateTextOverlay(next: EditableSnapTextOverlay | null) {
     textOverlayRef.current = next;
     setTextOverlay(next);
   }
 
-  function editTextOverlay() {
-    if (!textOverlayRef.current) {
-      updateTextOverlay({
-        text: "",
-        x: 0.28,
-        y: 0.35,
-        font: "MODERN",
-        fontSize: 32,
-        color: "#FAF9F6",
-        bold: false,
-        italic: false,
-      });
+  function commitActiveTextOverlay() {
+    const current = textOverlayRef.current;
+    if (current?.text.trim()) {
+      const committed = { ...current, text: current.text.trim() };
+      setTextOverlays((items) => [
+        ...items.filter((item) => item.editorId !== committed.editorId),
+        committed,
+      ]);
     }
+    updateTextOverlay(null);
+  }
+
+  function createTextOverlay() {
+    commitActiveTextOverlay();
+    const canvasWidth = canvasSizeRef.current.width;
+    const initialWidth = Math.min(
+      Math.max(SNAP_TEXT_MIN_WIDTH, canvasWidth * 0.8),
+      canvasWidth,
+    );
+    updateTextOverlay({
+      editorId: newTextOverlayId(),
+      text: "",
+      x:
+        canvasWidth > 1
+          ? Math.max(0, (canvasWidth - initialWidth) / 2 / canvasWidth)
+          : 0.1,
+      y: 0.35,
+      font: "MODERN",
+      fontSize: 32,
+      color: "#FAF9F6",
+      bold: false,
+      italic: false,
+    });
+    setEditingOverlayText(true);
+    requestAnimationFrame(() => overlayTextInputRef.current?.focus());
+  }
+
+  function editTextOverlay(editorId: string) {
+    const selected = textOverlays.find((item) => item.editorId === editorId);
+    if (!selected) return;
+    commitActiveTextOverlay();
+    setTextOverlays((items) =>
+      items.filter((item) => item.editorId !== editorId),
+    );
+    updateTextOverlay(selected);
     setEditingOverlayText(true);
     requestAnimationFrame(() => overlayTextInputRef.current?.focus());
   }
@@ -189,30 +346,37 @@ export default function CreateSnapScreen() {
   function patchTextOverlay(patch: Partial<SnapTextOverlay>) {
     const current = textOverlayRef.current;
     if (!current) return;
+    const canvasWidth = canvasSizeRef.current.width;
+    const currentWidth = snapTextOverlayWidth(
+      current.text,
+      canvasWidth,
+      current.fontSize,
+    );
+    const currentCenterX = current.x + currentWidth / canvasWidth / 2;
     const next = { ...current, ...patch };
     const width = snapTextOverlayWidth(
       next.text,
-      canvasSizeRef.current.width,
+      canvasWidth,
       next.fontSize,
     );
     next.x = clamp(
-      next.x,
+      "text" in patch || "fontSize" in patch
+        ? currentCenterX - width / canvasWidth / 2
+        : next.x,
       0,
-      Math.max(0, 1 - width / canvasSizeRef.current.width),
+      Math.max(0, 1 - width / canvasWidth),
     );
     updateTextOverlay(next);
   }
 
   function finishTextOverlayEditing() {
-    const current = textOverlayRef.current;
-    if (!current?.text.trim()) {
-      updateTextOverlay(null);
-    } else {
-      updateTextOverlay({ ...current, text: current.text.trim() });
-    }
     overlayTextInputRef.current?.blur();
     Keyboard.dismiss();
+    commitActiveTextOverlay();
     setEditingOverlayText(false);
+    setTextColorOptionsOpen(false);
+    setTextCustomColorOpen(false);
+    setTextEyedropperActive(false);
   }
 
   function applyMention() {
@@ -231,6 +395,7 @@ export default function CreateSnapScreen() {
       });
     } else {
       updateTextOverlay({
+        editorId: newTextOverlayId(),
         text: mentionText,
         x: 0.28,
         y: 0.35,
@@ -246,24 +411,89 @@ export default function CreateSnapScreen() {
     requestAnimationFrame(() => overlayTextInputRef.current?.focus());
   }
 
-  function cycleTextColor() {
-    const current = textOverlayRef.current;
-    if (!current) return;
-    const index = SNAP_TEXT_COLORS.indexOf(
-      current.color as (typeof SNAP_TEXT_COLORS)[number],
-    );
-    patchTextOverlay({
-      color: SNAP_TEXT_COLORS[(index + 1) % SNAP_TEXT_COLORS.length],
-    });
+  function applyTextColor(color: string) {
+    patchTextOverlay({ color });
+  }
+
+  async function sampleTextColorFromImage(
+    normalizedX: number,
+    normalizedY: number,
+  ) {
+    if (!imageUri || !imageSize) {
+      throw new Error("No snap image is available for color sampling.");
+    }
+    try {
+      return await sampleImageColor({
+        uri: imageUri,
+        normalizedX,
+        normalizedY,
+        sourceWidth: imageSize.width,
+        sourceHeight: imageSize.height,
+        crop: imageCrop,
+      });
+    } catch (error) {
+      console.warn("Could not sample snap text color", error);
+      Alert.alert(
+        t("common:error"),
+        t("common:colorSampleError", {
+          defaultValue: "Could not pick that color. Try another point.",
+        }),
+      );
+      throw error;
+    }
   }
 
   useEffect(() => {
+    function touchStartedOnText(x: number, y: number) {
+      const frame = overlayTextFrameRef.current;
+      const padding = 14;
+      return (
+        x >= frame.x - padding &&
+        x <= frame.x + frame.width + padding &&
+        y >= frame.y - padding &&
+        y <= frame.y + frame.height + padding
+      );
+    }
+
     const pan = Gesture.Pan()
+      .manualActivation(true)
       .minDistance(3)
       .runOnJS(true)
-      .onBegin(() => {
+      .onTouchesDown((event) => {
+        if (event.numberOfTouches !== 1) return;
+        const touch = event.changedTouches[0] ?? event.allTouches[0];
+        if (!touch) return;
+        const startedOnText = touchStartedOnText(touch.x, touch.y);
+        overlayPanTouchRef.current = {
+          id: touch.id,
+          x: touch.x,
+          y: touch.y,
+          startedOnText,
+        };
+        if (startedOnText && overlayPinchAnchorIdRef.current === null) {
+          overlayPinchAnchorIdRef.current = touch.id;
+        }
+      })
+      .onTouchesMove((event, manager) => {
+        const start = overlayPanTouchRef.current;
+        if (!start) return;
+        if (event.numberOfTouches > 1) {
+          manager.fail();
+          return;
+        }
+        const touch =
+          event.allTouches.find((item) => item.id === start.id) ??
+          event.changedTouches[0];
+        if (!touch) return;
+        const distance = Math.hypot(touch.x - start.x, touch.y - start.y);
+        if (distance < 3) return;
+        if (start.startedOnText) manager.activate();
+        else manager.fail();
+      })
+      .onStart(() => {
         const current = textOverlayRef.current;
         if (!current) return;
+        setMovingOverlayText(true);
         overlayDragStartRef.current = { x: current.x, y: current.y };
         Keyboard.dismiss();
       })
@@ -291,10 +521,36 @@ export default function CreateSnapScreen() {
         };
         textOverlayRef.current = next;
         setTextOverlay(next);
+      })
+      .onFinalize(() => {
+        overlayPanTouchRef.current = null;
+        setMovingOverlayText(false);
       });
     const pinch = Gesture.Pinch()
+      .manualActivation(true)
       .runOnJS(true)
-      .onBegin(() => {
+      .onTouchesDown((event) => {
+        for (const touch of event.changedTouches) {
+          if (touchStartedOnText(touch.x, touch.y)) {
+            overlayPinchAnchorIdRef.current = touch.id;
+            break;
+          }
+        }
+      })
+      .onTouchesMove((event, manager) => {
+        if (event.numberOfTouches < 2) return;
+        const anchorId = overlayPinchAnchorIdRef.current;
+        if (
+          anchorId !== null &&
+          event.allTouches.some((touch) => touch.id === anchorId)
+        ) {
+          manager.activate();
+        } else {
+          manager.fail();
+        }
+      })
+      .onStart(() => {
+        setResizingOverlayText(true);
         overlaySizeStartRef.current =
           textOverlayRef.current?.fontSize ?? overlaySizeStartRef.current;
         Keyboard.dismiss();
@@ -306,8 +562,8 @@ export default function CreateSnapScreen() {
           ...current,
           fontSize: clamp(
             Math.round(overlaySizeStartRef.current * gesture.scale),
-            18,
-            56,
+            SNAP_TEXT_MIN_SIZE,
+            SNAP_TEXT_MAX_SIZE,
           ),
         };
         const width = snapTextOverlayWidth(
@@ -322,6 +578,10 @@ export default function CreateSnapScreen() {
         );
         textOverlayRef.current = next;
         setTextOverlay(next);
+      })
+      .onFinalize(() => {
+        overlayPinchAnchorIdRef.current = null;
+        setResizingOverlayText(false);
       });
     setOverlayGesture(Gesture.Simultaneous(pan, pinch));
   }, []);
@@ -330,7 +590,20 @@ export default function CreateSnapScreen() {
     if (!imageUri || savingToGallery) return;
     beginGallerySave();
     try {
-      await saveImageToGallery(imageUri);
+      const savedImage =
+        imageSize
+          ? await (() => {
+              const crop = imageCrop ??
+                defaultImageCrop(imageSize.width, imageSize.height, 9 / 16);
+              return renderSnapImageCrop(
+                imageUri,
+                imageSize.width,
+                imageSize.height,
+                crop,
+              );
+            })()
+          : { uri: imageUri };
+      await saveImageToGallery(savedImage.uri);
       completeGallerySave();
     } catch (error) {
       failGallerySave();
@@ -356,6 +629,7 @@ export default function CreateSnapScreen() {
         setImageSize({ width: filtered.width, height: filtered.height });
       }
       setPhotoFilter(filterId);
+      setSnapDrawingDraft(null);
     } catch (error) {
       console.error("snap filter failed", error);
       Alert.alert(t("common:error"), t("common:photoFilterFailed"));
@@ -363,57 +637,21 @@ export default function CreateSnapScreen() {
     }
   }
 
-  async function cropSnapPhoto() {
-    if (!imageUri || editingPhoto) return;
-    setEditingPhoto(true);
-    try {
-      const cropped = await cropPostImage({
-        uri: imageUri,
-        width: imageSize?.width ?? 1080,
-        height: imageSize?.height ?? 1920,
-        aspect: "SNAP",
-        toolbarTitle: t("snaps:cropPhoto"),
-      });
-      if (!cropped) return;
-      setImageUri(cropped.uri);
-      setImageFilterSourceUri(cropped.uri);
-      setImageSize({ width: cropped.width, height: cropped.height });
-      setPhotoFilter("ORIGINAL");
-    } catch (error) {
-      console.error("snap crop failed", error);
-      Alert.alert(t("common:error"), t("snaps:editPhotoError"));
-    } finally {
-      setEditingPhoto(false);
+  function openSnapDrawing() {
+    if (!imageUri || !imageSize) return;
+    const canResume =
+      snapDrawingDraft?.renderedUri === imageUri &&
+      cropsMatch(imageCrop, snapDrawingDraft.renderedCrop);
+    if (canResume && snapDrawingDraft) {
+      setSnapDrawingImage(snapDrawingDraft.baseImage);
+      return;
     }
-  }
-
-  async function transformSnapPhoto(
-    operation: "rotate" | "flip",
-  ) {
-    if (!imageUri || editingPhoto) return;
-    setEditingPhoto(true);
-    try {
-      const context = ImageManipulator.manipulate(imageUri);
-      if (operation === "rotate") context.rotate(90);
-      else context.flip("horizontal");
-      const rendered = await context.renderAsync();
-      const transformed = await rendered.saveAsync({
-        compress: 0.92,
-        format: SaveFormat.JPEG,
-      });
-      setImageUri(transformed.uri);
-      setImageFilterSourceUri(transformed.uri);
-      setImageSize({
-        width: transformed.width,
-        height: transformed.height,
-      });
-      setPhotoFilter("ORIGINAL");
-    } catch (error) {
-      console.error(`snap ${operation} failed`, error);
-      Alert.alert(t("common:error"), t("snaps:editPhotoError"));
-    } finally {
-      setEditingPhoto(false);
-    }
+    setSnapDrawingDraft(null);
+    setSnapDrawingImage({
+      uri: imageUri,
+      width: imageSize.width,
+      height: imageSize.height,
+    });
   }
 
   async function openSnapFilters() {
@@ -456,15 +694,142 @@ export default function CreateSnapScreen() {
     }
   }, [cameraPermission, requestCameraPermission]);
 
+  useEffect(
+    () => () => {
+      if (focusStartTimerRef.current) {
+        clearTimeout(focusStartTimerRef.current);
+      }
+      if (focusResetTimerRef.current) {
+        clearTimeout(focusResetTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  function focusCamera(x: number, y: number) {
+    if (!cameraReady || capturing || imageUri || videoUri) return;
+    setCameraFocusPoint({ x, y });
+    void Haptics.selectionAsync();
+
+    if (focusStartTimerRef.current) {
+      clearTimeout(focusStartTimerRef.current);
+    }
+    if (focusResetTimerRef.current) {
+      clearTimeout(focusResetTimerRef.current);
+    }
+
+    // Expo Camera exposes a one-shot autofocus mode, but not a coordinate
+    // focus method. Resetting the mode first ensures every tap starts a fresh
+    // autofocus pass rather than reusing the previous lock.
+    setCameraAutofocus("off");
+    focusStartTimerRef.current = setTimeout(() => {
+      setCameraAutofocus("on");
+      focusStartTimerRef.current = null;
+      focusResetTimerRef.current = setTimeout(() => {
+        setCameraAutofocus("off");
+        setCameraFocusPoint(null);
+        focusResetTimerRef.current = null;
+      }, 900);
+    }, 35);
+  }
+
+  function setCameraZoomValue(value: number) {
+    const nextZoom = clamp(value, 0, 0.8);
+    cameraZoomRef.current = nextZoom;
+    setCameraZoom(nextZoom);
+  }
+
+  function cameraTouchDistance(touches: NativeTouchEvent["touches"]) {
+    if (touches.length < 2) return 0;
+    const [first, second] = touches;
+    return Math.hypot(
+      second.locationX - first.locationX,
+      second.locationY - first.locationY,
+    );
+  }
+
+  function handleCameraTouchStart(
+    event: NativeSyntheticEvent<NativeTouchEvent>,
+  ) {
+    const { touches } = event.nativeEvent;
+    if (touches.length >= 2) {
+      cameraPinchingRef.current = true;
+      pinchStartDistanceRef.current = cameraTouchDistance(touches);
+      pinchStartZoomRef.current = cameraZoomRef.current;
+      cameraTouchStartRef.current = null;
+      return;
+    }
+
+    const touch = touches[0];
+    if (!touch) return;
+    cameraPinchingRef.current = false;
+    cameraTouchStartRef.current = {
+      x: touch.locationX,
+      y: touch.locationY,
+      startedAt: Date.now(),
+    };
+  }
+
+  function handleCameraTouchMove(
+    event: NativeSyntheticEvent<NativeTouchEvent>,
+  ) {
+    const { touches } = event.nativeEvent;
+    if (touches.length < 2) return;
+
+    if (!cameraPinchingRef.current) {
+      cameraPinchingRef.current = true;
+      pinchStartDistanceRef.current = cameraTouchDistance(touches);
+      pinchStartZoomRef.current = cameraZoomRef.current;
+      cameraTouchStartRef.current = null;
+    }
+
+    const startDistance = pinchStartDistanceRef.current;
+    if (startDistance <= 0) return;
+    const scale = cameraTouchDistance(touches) / startDistance;
+    setCameraZoomValue(
+      pinchStartZoomRef.current + Math.log2(Math.max(scale, 0.1)) * 0.24,
+    );
+  }
+
+  function handleCameraTouchEnd(
+    event: NativeSyntheticEvent<NativeTouchEvent>,
+  ) {
+    if (cameraPinchingRef.current) {
+      if (event.nativeEvent.touches.length === 0) {
+        cameraPinchingRef.current = false;
+        pinchStartDistanceRef.current = 0;
+      }
+      return;
+    }
+
+    const started = cameraTouchStartRef.current;
+    const ended = event.nativeEvent.changedTouches[0];
+    cameraTouchStartRef.current = null;
+    if (!started || !ended || Date.now() - started.startedAt > 300) return;
+    if (
+      Math.hypot(ended.locationX - started.x, ended.locationY - started.y) > 12
+    ) {
+      return;
+    }
+
+    focusCamera(ended.locationX, ended.locationY);
+  }
+
   async function takePhoto() {
     if (!cameraRef.current || !cameraReady || capturing) return;
     setCapturing(true);
     try {
+      const previewSize = canvasSizeRef.current;
+      const previewAspect =
+        previewSize.width > 1 && previewSize.height > 1
+          ? previewSize.width / previewSize.height
+          : 9 / 16;
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.9,
         mirror: false,
       });
       if (photo?.uri) {
+        setSnapDrawingDraft(null);
         if (cameraFacing === "front") {
           const context = ImageManipulator.manipulate(photo.uri);
           context.flip("horizontal");
@@ -476,12 +841,23 @@ export default function CreateSnapScreen() {
           setImageUri(corrected.uri);
           setImageFilterSourceUri(corrected.uri);
           setImageSize({ width: corrected.width, height: corrected.height });
+          setImageCrop(
+            defaultImageCrop(
+              corrected.width,
+              corrected.height,
+              previewAspect,
+            ),
+          );
         } else {
           setImageUri(photo.uri);
           setImageFilterSourceUri(photo.uri);
           setImageSize({ width: photo.width, height: photo.height });
+          setImageCrop(
+            defaultImageCrop(photo.width, photo.height, previewAspect),
+          );
         }
         setPhotoFilter("ORIGINAL");
+        setTextOverlays([]);
         updateTextOverlay(null);
       }
     } catch {
@@ -503,13 +879,14 @@ export default function CreateSnapScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],
       quality: 0.9,
-      allowsEditing: true,
+      allowsEditing: false,
       videoMaxDuration: 10,
       videoExportPreset: ImagePicker.VideoExportPreset.HighestQuality,
       selectionLimit: 1,
     });
     if (!result.canceled && result.assets[0]?.uri) {
       const asset = result.assets[0];
+      setSnapDrawingDraft(null);
       if (asset.type === "video") {
         const duration = await getVideoDurationMs(asset.uri);
         if (duration > 10_250) {
@@ -522,7 +899,9 @@ export default function CreateSnapScreen() {
         setImageUri(null);
         setImageFilterSourceUri(null);
         setImageSize(null);
+        setImageCrop(null);
         setPhotoFilter("ORIGINAL");
+        setTextOverlays([]);
         updateTextOverlay(null);
         setVideoUri(asset.uri);
         setVideoDurationMs(Math.min(10_000, duration));
@@ -532,7 +911,9 @@ export default function CreateSnapScreen() {
         setImageUri(asset.uri);
         setImageFilterSourceUri(asset.uri);
         setImageSize({ width: asset.width, height: asset.height });
+        setImageCrop(defaultImageCrop(asset.width, asset.height, 9 / 16));
         setPhotoFilter("ORIGINAL");
+        setTextOverlays([]);
         updateTextOverlay(null);
       }
     }
@@ -545,12 +926,17 @@ export default function CreateSnapScreen() {
     setPublishing(true);
     publishStartedRef.current = true;
     const pendingImageUri = imageUri;
+    const pendingImageSize = imageSize;
+    const pendingImageCrop = imageCrop;
     const pendingVideoUri = videoUri;
     const pendingVideoDurationMs = videoDurationMs;
     const pendingCaption = caption.trim() || undefined;
-    const pendingTextOverlay = textOverlay?.text.trim()
-      ? { ...textOverlay, text: textOverlay.text.trim() }
-      : undefined;
+    const pendingTextOverlays = [...textOverlays, ...(textOverlay ? [textOverlay] : [])]
+      .filter((item) => item.text.trim())
+      .map(({ editorId: _editorId, ...item }) => ({
+        ...item,
+        text: item.text.trim(),
+      }));
     const pendingSoundSelection = soundSelection;
     const pendingRestaurant = restaurant;
     const clientRequestId = `snap-${Date.now()}-${Math.random()
@@ -558,6 +944,7 @@ export default function CreateSnapScreen() {
       .slice(2, 12)}`;
     let uploadedImageUrl: string | null = null;
     let uploadedVideoUrl: string | null = null;
+    let preparedImageUri: string | null = null;
     let resolvedRestaurantId: string | undefined;
     let restaurantResolved = false;
 
@@ -572,8 +959,29 @@ export default function CreateSnapScreen() {
             "snap",
           );
         } else if (pendingImageUri && !uploadedImageUrl) {
+          if (!preparedImageUri) {
+            preparedImageUri = pendingImageSize
+              ? await (async () => {
+                  const crop =
+                    pendingImageCrop ??
+                    defaultImageCrop(
+                      pendingImageSize.width,
+                      pendingImageSize.height,
+                      9 / 16,
+                    );
+                  return (
+                    await renderSnapImageCrop(
+                      pendingImageUri,
+                      pendingImageSize.width,
+                      pendingImageSize.height,
+                      crop,
+                    )
+                  ).uri;
+                })()
+              : pendingImageUri;
+          }
           uploadedImageUrl = await uploadImage(
-            pendingImageUri,
+            preparedImageUri,
             "snap",
             (progress) => reportProgress(0.08 + progress * 0.78),
           );
@@ -603,7 +1011,8 @@ export default function CreateSnapScreen() {
         const shared = {
           clientRequestId,
           caption: pendingCaption,
-          textOverlay: pendingTextOverlay,
+          textOverlay: pendingTextOverlays[0],
+          textOverlays: pendingTextOverlays,
           restaurantId: resolvedRestaurantId,
           soundId: pendingSoundSelection?.sound.id,
           soundStartTimeMs: pendingSoundSelection?.soundStartTimeMs,
@@ -699,6 +1108,12 @@ export default function CreateSnapScreen() {
       : restaurant?.name;
   const restaurantLogoUrl =
     restaurant?.source === "FINDEAT" ? restaurant.restaurant.logoUrl : null;
+  const textColorIsCustom = Boolean(
+    textOverlay &&
+      !SNAP_TEXT_COLORS.some(
+        (item) => item.toUpperCase() === textOverlay.color.toUpperCase(),
+      ),
+  );
   const textOverlayWidth = textOverlay
     ? snapTextOverlayWidth(
         textOverlay.text,
@@ -706,6 +1121,74 @@ export default function CreateSnapScreen() {
         textOverlay.fontSize,
       )
     : 0;
+  const displayedTextOverlayWidth =
+    editingOverlayText && canvasSize.width > 1
+      ? Math.max(textOverlayWidth, canvasSize.width * 0.82)
+      : textOverlayWidth;
+  const displayedTextOverlayLeft = textOverlay
+    ? clamp(
+        textOverlay.x * canvasSize.width -
+          (displayedTextOverlayWidth - textOverlayWidth) / 2,
+        0,
+        Math.max(0, canvasSize.width - displayedTextOverlayWidth),
+      )
+    : 0;
+  if (snapDrawingImage) {
+    const drawingCrop =
+      snapDrawingDraft?.crop ??
+      imageCrop ??
+      defaultImageCrop(
+        snapDrawingImage.width,
+        snapDrawingImage.height,
+        canvasSize.width > 1 && canvasSize.height > 1
+          ? canvasSize.width / canvasSize.height
+          : 9 / 16,
+      );
+    const drawingTarget = snapRenderDimensions(drawingCrop);
+    return (
+      <ImageMarkupEditor
+        key={snapDrawingImage.uri}
+        image={snapDrawingImage}
+        allowText={false}
+        allowDrawing
+        immersive
+        crop={drawingCrop}
+        outputWidth={drawingTarget.width}
+        outputHeight={drawingTarget.height}
+        initialStrokes={snapDrawingDraft?.markup.strokes}
+        initialTextMarkup={snapDrawingDraft?.markup.textMarkup}
+        initialFillColor={snapDrawingDraft?.markup.fillColor}
+        initialFillAfterStrokeIndex={
+          snapDrawingDraft?.markup.fillAfterStrokeIndex
+        }
+        initialTool="draw"
+        onCancel={() => setSnapDrawingImage(null)}
+        onApply={async (edited, markup) => {
+          await Image.prefetch(edited.uri, {
+            cachePolicy: "memory-disk",
+          }).catch(() => false);
+          const renderedCrop = defaultImageCrop(
+            edited.width,
+            edited.height,
+            edited.width / edited.height,
+          );
+          setImageUri(edited.uri);
+          setImageFilterSourceUri(edited.uri);
+          setImageSize({ width: edited.width, height: edited.height });
+          setImageCrop(renderedCrop);
+          setSnapDrawingDraft({
+            baseImage: snapDrawingImage,
+            crop: drawingCrop,
+            markup,
+            renderedUri: edited.uri,
+            renderedCrop,
+          });
+          setPhotoFilter("ORIGINAL");
+          setSnapDrawingImage(null);
+        }}
+      />
+    );
+  }
   return (
     <View
       style={styles.screen}
@@ -731,11 +1214,26 @@ export default function CreateSnapScreen() {
               volume={soundSelection?.originalAudioVolume ?? 1}
             />
           ) : (
-            <Image
-              source={{ uri: imageUri! }}
-              contentFit="cover"
-              style={StyleSheet.absoluteFill}
-            />
+            <View style={StyleSheet.absoluteFill}>
+              <ContentCropPreview
+                sourceUri={imageUri!}
+                sourceWidth={imageSize?.width ?? 1080}
+                sourceHeight={imageSize?.height ?? 1920}
+                crop={imageCrop ?? undefined}
+                aspectRatio={9 / 16}
+                canvasAspectRatio={
+                  canvasSize.width > 0 && canvasSize.height > 0
+                    ? canvasSize.width / canvasSize.height
+                    : 9 / 16
+                }
+                disabled={
+                  editingOverlayText ||
+                  movingOverlayText ||
+                  resizingOverlayText
+                }
+                onCropChange={setImageCrop}
+              />
+            </View>
           )}
           <SoundPlayback
             sound={soundSelection?.sound}
@@ -743,45 +1241,81 @@ export default function CreateSnapScreen() {
             volume={soundSelection?.soundVolume}
             playing={!soundPickerOpen}
           />
-          <View style={[StyleSheet.absoluteFill, styles.previewScrim]} />
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, styles.previewScrim]}
+          />
+          {textOverlays.map((item) => (
+            <Pressable
+              key={item.editorId}
+              accessibilityRole="button"
+              accessibilityLabel={item.text}
+              onPress={() => editTextOverlay(item.editorId)}
+              style={[
+                styles.savedTextOverlay,
+                {
+                  left: item.x * canvasSize.width,
+                  top: item.y * canvasSize.height,
+                  width: snapTextOverlayWidth(
+                    item.text,
+                    canvasSize.width,
+                    item.fontSize,
+                  ),
+                },
+              ]}
+            >
+              <NativeText
+                style={[styles.textOverlayInput, snapTextStyle(item)]}
+              >
+                {item.text}
+              </NativeText>
+            </Pressable>
+          ))}
           {textOverlay && overlayGesture ? (
             <GestureDetector gesture={overlayGesture}>
               <View
                 collapsable={false}
-                style={[
-                  styles.textOverlay,
-                  {
-                    left: textOverlay.x * canvasSize.width,
-                    top: textOverlay.y * canvasSize.height,
-                    width: textOverlayWidth,
-                  },
-                ]}
+                pointerEvents={editingOverlayText ? "auto" : "box-none"}
+                style={styles.textGestureCanvas}
               >
-                <TextInput
-                  ref={overlayTextInputRef}
-                  value={textOverlay.text}
-                  onChangeText={(text) => patchTextOverlay({ text })}
-                  onFocus={() => setEditingOverlayText(true)}
-                  onBlur={() => {
-                    const current = textOverlayRef.current;
-                    if (current?.text.trim()) {
-                      updateTextOverlay({
-                        ...current,
-                        text: current.text.trim(),
-                      });
-                    }
+                <View
+                  onLayout={({ nativeEvent }) => {
+                    overlayTextFrameRef.current = nativeEvent.layout;
                   }}
-                  placeholder={t("snaps:textPlaceholder")}
-                  placeholderTextColor="rgba(250,249,246,0.75)"
-                  maxLength={120}
-                  multiline
-                  selectTextOnFocus={false}
                   style={[
-                    styles.textOverlayInput,
-                    snapTextStyle(textOverlay),
-                    editingOverlayText && styles.textOverlayInputEditing,
+                    styles.textOverlay,
+                    {
+                      left: displayedTextOverlayLeft,
+                      top: textOverlay.y * canvasSize.height,
+                      width: displayedTextOverlayWidth,
+                    },
                   ]}
-                />
+                >
+                  <TextInput
+                    ref={overlayTextInputRef}
+                    value={textOverlay.text}
+                    onChangeText={(text) => patchTextOverlay({ text })}
+                    onFocus={() => setEditingOverlayText(true)}
+                    onBlur={() => {
+                      const current = textOverlayRef.current;
+                      if (current?.text.trim()) {
+                        updateTextOverlay({
+                          ...current,
+                          text: current.text.trim(),
+                        });
+                      }
+                    }}
+                    placeholder={t("snaps:textPlaceholder")}
+                    placeholderTextColor="rgba(250,249,246,0.75)"
+                    maxLength={120}
+                    multiline
+                    selectTextOnFocus={false}
+                    style={[
+                      styles.textOverlayInput,
+                      snapTextStyle(textOverlay),
+                    ]}
+                  />
+                </View>
               </View>
             </GestureDetector>
           ) : null}
@@ -792,7 +1326,10 @@ export default function CreateSnapScreen() {
                 setImageUri(null);
                 setImageFilterSourceUri(null);
                 setImageSize(null);
+                setImageCrop(null);
+                setSnapDrawingDraft(null);
                 setPhotoFilter("ORIGINAL");
+                setTextOverlays([]);
                 updateTextOverlay(null);
                 setVideoUri(null);
                 setVideoDurationMs(null);
@@ -876,7 +1413,10 @@ export default function CreateSnapScreen() {
                   })}
                   <SnapEditorTool
                     label={t("snaps:textColor")}
-                    onPress={cycleTextColor}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setTextColorOptionsOpen((current) => !current);
+                    }}
                     icon={
                       <View
                         style={{
@@ -897,11 +1437,7 @@ export default function CreateSnapScreen() {
                       <NativeText
                         style={{
                           color: textOverlay.bold ? "#F7D786" : "#FAF9F6",
-                          fontFamily: snapTextFontFamily(
-                            textOverlay.font,
-                            true,
-                            textOverlay.italic,
-                          ),
+                          fontFamily: "CabinetBold",
                           fontSize: 25,
                         }}
                       >
@@ -918,16 +1454,9 @@ export default function CreateSnapScreen() {
                       <NativeText
                         style={{
                           color: textOverlay.italic ? "#F7D786" : "#FAF9F6",
-                          fontFamily: snapTextFontFamily(
-                            textOverlay.font,
-                            textOverlay.bold,
-                            true,
-                          ),
+                          fontFamily: "CabinetBold",
                           fontSize: 25,
-                          fontStyle:
-                            textOverlay.font === "HANDWRITTEN"
-                              ? "italic"
-                              : "normal",
+                          fontStyle: "italic",
                         }}
                       >
                         I
@@ -939,7 +1468,7 @@ export default function CreateSnapScreen() {
                 <>
                   <SnapEditorTool
                     label={t("snaps:textTool")}
-                    onPress={editTextOverlay}
+                    onPress={createTextOverlay}
                     icon={
                       <TextAaIcon
                         size={25}
@@ -999,7 +1528,6 @@ export default function CreateSnapScreen() {
                     <>
                       <SnapEditorTool
                         label={t("snaps:effects")}
-                        disabled={editingPhoto}
                         onPress={() => void openSnapFilters()}
                         icon={
                           <FadersHorizontalIcon
@@ -1010,26 +1538,13 @@ export default function CreateSnapScreen() {
                         }
                       />
                       <SnapEditorTool
-                        label={t("snaps:crop")}
-                        disabled={editingPhoto}
-                        onPress={() => void cropSnapPhoto()}
-                        icon={<CropIcon size={25} color="#FAF9F6" weight="bold" />}
-                      />
-                      <SnapEditorTool
-                        label={t("snaps:rotate")}
-                        disabled={editingPhoto}
-                        onPress={() => void transformSnapPhoto("rotate")}
-                        icon={<ArrowsClockwiseIcon size={25} color="#FAF9F6" weight="bold" />}
-                      />
-                      <SnapEditorTool
-                        label={t("snaps:flip")}
-                        disabled={editingPhoto}
-                        onPress={() => void transformSnapPhoto("flip")}
-                        icon={<FlipHorizontalIcon size={25} color="#FAF9F6" weight="bold" />}
+                        label={t("common:draw")}
+                        onPress={openSnapDrawing}
+                        icon={<PencilSimpleIcon size={25} color="#FAF9F6" weight="bold" />}
                       />
                       <SnapEditorTool
                         label={t("common:save")}
-                        disabled={savingToGallery || editingPhoto}
+                        disabled={savingToGallery}
                         onPress={() => void saveSnapPhotoToGallery()}
                         icon={
                           <AnimatedGallerySaveIcon
@@ -1067,14 +1582,101 @@ export default function CreateSnapScreen() {
             </ScrollView>
           </SafeAreaView>
 
+          {editingOverlayText && textColorOptionsOpen ? (
+            <SafeAreaView edges={["bottom"]} style={styles.textColorTray}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.textColorTrayContent}
+              >
+                {SNAP_TEXT_COLORS.map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    accessibilityRole="button"
+                    accessibilityLabel={item}
+                    onPress={() => applyTextColor(item)}
+                    style={[
+                      styles.textColorSwatch,
+                      { backgroundColor: item },
+                      textOverlay?.color === item && styles.textColorSwatchSelected,
+                    ]}
+                  />
+                ))}
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common:customColor")}
+                  onPress={() => setTextCustomColorOpen(true)}
+                  style={[
+                    styles.textColorAction,
+                    textColorIsCustom && {
+                      backgroundColor: textOverlay?.color,
+                    },
+                    textColorIsCustom && styles.textColorSwatchSelected,
+                  ]}
+                >
+                  <PaletteIcon
+                    size={19}
+                    color={
+                      textColorIsCustom && textOverlay
+                        ? readableColorForeground(textOverlay.color)
+                        : "#171717"
+                    }
+                    weight="bold"
+                  />
+                </TouchableOpacity>
+                {imageUri ? (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common:eyedropper", {
+                      defaultValue: "Eyedropper",
+                    })}
+                    onPress={() => {
+                      setTextColorOptionsOpen(false);
+                      setTextEyedropperActive(true);
+                    }}
+                    style={styles.textColorEyedropperAction}
+                  >
+                    <EyedropperIcon size={19} color="#FAF9F6" weight="bold" />
+                  </TouchableOpacity>
+                ) : null}
+              </ScrollView>
+            </SafeAreaView>
+          ) : null}
+
+          {textEyedropperActive ? (
+            <ImageEyedropper
+              value={textOverlay?.color ?? "#FAF9F6"}
+              onSample={sampleTextColorFromImage}
+              onChange={applyTextColor}
+              onComplete={(picked) => {
+                applyTextColor(picked);
+                setTextEyedropperActive(false);
+                void Haptics.selectionAsync();
+              }}
+            />
+          ) : null}
+
+          {textCustomColorOpen && textOverlay ? (
+            <CustomColorPicker
+              value={textOverlay.color}
+              onChange={applyTextColor}
+              onClose={() => setTextCustomColorOpen(false)}
+            />
+          ) : null}
+
           {!editingOverlayText ? (
             <KeyboardAvoidingView
-            behavior="padding"
-            automaticOffset
-            style={styles.previewKeyboardArea}
-          >
-            <SafeAreaView edges={["bottom"]} style={styles.previewComposer}>
-              <View className="flex-row items-end gap-3">
+              pointerEvents="box-none"
+              behavior="padding"
+              automaticOffset
+              style={styles.previewKeyboardArea}
+            >
+              <SafeAreaView
+                pointerEvents="box-none"
+                edges={["bottom"]}
+                style={styles.previewComposer}
+              >
+                <View className="flex-row items-end gap-3">
                 <TextInput
                   ref={captionInputRef}
                   value={caption}
@@ -1116,19 +1718,9 @@ export default function CreateSnapScreen() {
                     />
                   )}
                 </TouchableOpacity>
-              </View>
-            </SafeAreaView>
+                </View>
+              </SafeAreaView>
             </KeyboardAvoidingView>
-          ) : null}
-          {editingPhoto ? (
-            <View
-              pointerEvents="auto"
-              className="absolute inset-0 z-50 items-center justify-center bg-black/30"
-            >
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-[#171717CC]">
-                <ActivityIndicator color="#F7D786" />
-              </View>
-            </View>
           ) : null}
         </>
       ) : !cameraPermission ? (
@@ -1207,14 +1799,46 @@ export default function CreateSnapScreen() {
           <CameraView
             ref={cameraRef}
             active={!imageUri && !videoUri}
+            autofocus={cameraAutofocus}
             facing={cameraFacing}
             mirror={false}
             flash={flash}
             mode="picture"
+            zoom={cameraZoom}
             onCameraReady={() => setCameraReady(true)}
             style={StyleSheet.absoluteFill}
           />
-          <SafeAreaView edges={["top", "bottom"]} style={styles.cameraControls}>
+          <View
+            accessible={false}
+            onTouchStart={handleCameraTouchStart}
+            onTouchMove={handleCameraTouchMove}
+            onTouchEnd={handleCameraTouchEnd}
+            onTouchCancel={() => {
+              cameraPinchingRef.current = false;
+              cameraTouchStartRef.current = null;
+              pinchStartDistanceRef.current = 0;
+            }}
+            style={StyleSheet.absoluteFill}
+          />
+          {cameraFocusPoint ? (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.cameraFocusReticle,
+                {
+                  left: cameraFocusPoint.x - 32,
+                  top: cameraFocusPoint.y - 32,
+                },
+              ]}
+            >
+              <View style={styles.cameraFocusCenter} />
+            </View>
+          ) : null}
+          <SafeAreaView
+            edges={["top", "bottom"]}
+            pointerEvents="box-none"
+            style={styles.cameraControls}
+          >
             <View className="flex-row items-center justify-between px-5">
               <TouchableOpacity
                 accessibilityLabel={t("common:close")}
@@ -1261,9 +1885,10 @@ export default function CreateSnapScreen() {
               <TouchableOpacity
                 accessibilityLabel={t("snaps:flipCamera")}
                 onPress={() =>
-                  setCameraFacing((current) =>
-                    current === "back" ? "front" : "back",
-                  )
+                  setCameraFacing((current) => {
+                    setCameraZoomValue(0);
+                    return current === "back" ? "front" : "back";
+                  })
                 }
                 className="h-12 w-12 items-center justify-center"
               >
@@ -1321,6 +1946,17 @@ const styles = StyleSheet.create({
   },
   textOverlay: {
     position: "absolute",
+  },
+  savedTextOverlay: {
+    position: "absolute",
+    zIndex: 17,
+  },
+  textGestureCanvas: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     zIndex: 18,
   },
   textOverlayInput: {
@@ -1337,11 +1973,50 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 5,
   },
-  textOverlayInputEditing: {
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: "rgba(250,249,246,0.82)",
-    backgroundColor: "transparent",
+  textColorTray: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 8,
+    zIndex: 45,
+  },
+  textColorTrayContent: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 29,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(20,20,19,0.82)",
+  },
+  textColorSwatch: {
+    width: 28,
+    height: 28,
+    borderWidth: 1,
+    borderColor: "rgba(250,249,246,0.45)",
+    borderRadius: 14,
+  },
+  textColorSwatchSelected: {
+    borderWidth: 3,
+    borderColor: "#F7D786",
+  },
+  textColorAction: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 15,
+    backgroundColor: "#FAF9F6",
+  },
+  textColorEyedropperAction: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(250,249,246,0.32)",
+    borderRadius: 15,
+    backgroundColor: "rgba(11,11,10,0.55)",
   },
   previewToolRail: {
     position: "absolute",
@@ -1390,6 +2065,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "space-between",
     backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  cameraFocusReticle: {
+    position: "absolute",
+    width: 64,
+    height: 64,
+    zIndex: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#F7D786",
+    borderRadius: 8,
+    shadowColor: "#0B0B0A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  cameraFocusCenter: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#F7D786",
   },
   permissionState: {
     flex: 1,

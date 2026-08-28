@@ -20,7 +20,8 @@
   "emptyBody": "לייקים, תגובות, עוקבים והודעות יופיעו כאן.",
   "aggregatedTypes": {
     "POST_LIKE": "{{name}} ועוד {{count}} אהבו את הפוסט שלך",
-    "COMMENT_LIKE": "{{name}} ועוד {{count}} אהבו את התגובה שלך"
+    "COMMENT_LIKE": "{{name}} ועוד {{count}} אהבו את התגובה שלך",
+    "REVIEW_CONTRIBUTION": "{{name}} ועוד {{count}} הוסיפו משוב לביקורת המשותפת שלך"
   },
   "types": {
     "RESTAURANT_DISPUTE": "יש לבדוק את המסעדה בפוסט שלך",
@@ -54,6 +55,7 @@
     "REVIEW_JOIN_REQUEST": "{{name}} ביקש/ה להצטרף לביקורת שלך",
     "REVIEW_JOIN_REQUEST_APPROVED": "{{name}} אישר/ה את בקשתך להצטרף לביקורת",
     "REVIEW_JOINED": "{{name}} הצטרף/ה לביקורת המשותפת שלך",
-    "REVIEW_CONTRIBUTION": "{{name}} הוסיף/ה את החוויה שלו/ה לביקורת המשותפת"
+    "REVIEW_CONTRIBUTION": "{{name}} הוסיף/ה את החוויה שלו/ה לביקורת המשותפת",
+    "RESTAURANT_MENU_PUBLISHED": "מסעדה שביקרת בה הוסיפה תפריט רשמי — אפשר להתאים את המנות שלך"
   }
 }

@@ -13,7 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import {
   ImageSquareIcon,
-  TrashIcon,
+  LinkSimpleIcon,
+  MinusIcon,
 } from "phosphor-react-native";
 import DirectionalIcon from "@/components/common/icons/DirectionalIcon";
 import { useEffect, useMemo, useState } from "react";
@@ -23,7 +24,7 @@ import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 function dishName(item: ReviewItem) {
-  return item.menuItem?.name ?? item.customDishName ?? "Dish";
+  return item.customDishName ?? item.menuItem?.name ?? "Dish";
 }
 
 function dishImage(item: ReviewItem) {
@@ -48,7 +49,6 @@ export default function EditPostScreen() {
   const [caption, setCaption] = useState("");
   const [summary, setSummary] = useState("");
   const [coverImageUri, setCoverImageUri] = useState<string | null>(null);
-  const [itemTexts, setItemTexts] = useState<Record<string, string>>({});
   const [removedItemIds, setRemovedItemIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,14 +68,6 @@ export default function EditPostScreen() {
         setPost(nextPost);
         setCaption(nextPost.contentPost?.caption ?? "");
         setSummary(nextPost.reviewPost?.summary ?? "");
-        setItemTexts(
-          Object.fromEntries(
-            (nextPost.reviewPost?.items ?? []).map((item) => [
-              item.id,
-              item.text ?? "",
-            ]),
-          ),
-        );
       })
       .catch((error) => {
         console.error("Failed to open post editor", error);
@@ -101,12 +93,9 @@ export default function EditPostScreen() {
     return (
       coverImageUri !== null ||
       summary !== (post.reviewPost?.summary ?? "") ||
-      removedItemIds.length > 0 ||
-      (post.reviewPost?.items ?? []).some(
-        (item) => itemTexts[item.id] !== (item.text ?? ""),
-      )
+      removedItemIds.length > 0
     );
-  }, [caption, coverImageUri, itemTexts, post, removedItemIds.length, summary]);
+  }, [caption, coverImageUri, post, removedItemIds.length, summary]);
 
   async function saveChanges() {
     if (!post || saving || !isDirty) return;
@@ -123,12 +112,7 @@ export default function EditPostScreen() {
           : await api.posts.updateReview(post.id, {
               coverImageUrl: uploadedCoverImageUrl,
               summary,
-              items: (post.reviewPost?.items ?? [])
-                .filter((item) => !removedItemIds.includes(item.id))
-                .map((item) => ({
-                  id: item.id,
-                  text: itemTexts[item.id] ?? "",
-                })),
+              items: [],
               removedItemIds,
             });
 
@@ -277,35 +261,112 @@ export default function EditPostScreen() {
             <>
               <View className="mt-7">
                 <Text className="mb-3 text-lg font-bold text-black dark:text-white">
-                  {t("reviewText")}
+                  {t("reviewCaption")}
                 </Text>
                 <TextInput
                   value={summary}
                   onChangeText={setSummary}
                   multiline
-                  placeholder={t("reviewText")}
-                  className="bg-white dark:bg-gray-900"
+                  placeholder={t("reviewCaptionPlaceholder")}
+                  className="min-h-24 rounded-none border-0 bg-transparent px-0 dark:border-0 dark:bg-transparent"
+                  style={{ minHeight: 96, paddingTop: 8, paddingBottom: 14 }}
                 />
+                <View className="h-px bg-gray-200 dark:bg-gray-800" />
+              </View>
+
+              <View className="mt-7 overflow-hidden rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                <TouchableOpacity
+                  activeOpacity={0.84}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/posts/match-dishes/[id]",
+                      params: { id: post.id },
+                    })
+                  }
+                  className="flex-row items-center gap-3 px-4 py-4"
+                >
+                  <View className="h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/50">
+                    <LinkSimpleIcon size={22} color="#D97706" weight="bold" />
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-bold text-black dark:text-white">
+                      {t("matchDishesAction")}
+                    </Text>
+                    <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {t("matchDishesEditHint")}
+                    </Text>
+                  </View>
+                  <DirectionalIcon direction="forward" size={20} color={isDark ? "#9CA3AF" : "#747474"} weight="bold" />
+                </TouchableOpacity>
+
+                {(post.reviewParticipants?.length ?? 0) > 0 ? (
+                  <>
+                    <View className="ml-[70px] h-px bg-gray-100 dark:bg-gray-800" />
+                    <TouchableOpacity
+                      activeOpacity={0.84}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/posts/contribute/[id]",
+                          params: { id: post.id },
+                        })
+                      }
+                      className="flex-row items-center gap-3 px-4 py-4"
+                    >
+                      <View className="h-11 w-11 items-center justify-center rounded-2xl bg-yellow-50 dark:bg-yellow-950/40">
+                        <ImageSquareIcon size={22} color="#D4A72C" weight="bold" />
+                      </View>
+                      <View className="min-w-0 flex-1">
+                        <Text className="font-bold text-black dark:text-white">
+                          {t("sharedReviewDetails")}
+                        </Text>
+                        <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {t("sharedReviewDetailsHint")}
+                        </Text>
+                      </View>
+                      <DirectionalIcon direction="forward" size={20} color={isDark ? "#9CA3AF" : "#747474"} weight="bold" />
+                    </TouchableOpacity>
+                  </>
+                ) : null}
               </View>
 
               <View className="mt-8 gap-4">
+                <View className="flex-row items-end justify-between">
+                  <Text className="text-xl font-bold text-black dark:text-white">
+                    {t("reviewDishes")}
+                  </Text>
+                  <Text className="text-sm text-gray-400">{t("tapDishToEdit")}</Text>
+                </View>
                 {visibleItems.map((item) => {
                   const imageUrl = dishImage(item);
 
                   return (
-                    <View
+                    <TouchableOpacity
                       key={item.id}
-                      className="overflow-hidden rounded-3xl border border-line bg-white dark:border-gray-800 dark:bg-gray-900"
+                      activeOpacity={0.82}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/posts/edit/[id]/dish/[itemId]",
+                          params: { id: post.id, itemId: item.id },
+                        })
+                      }
+                      className="flex-row rounded-[22px] border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
+                      style={{
+                        shadowColor: "#171717",
+                        shadowOpacity: 0.05,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 3 },
+                        elevation: 1,
+                      }}
                     >
-                      <View className="flex-row items-center gap-3 p-4">
+                      <View className="flex-row flex-1 items-center gap-3">
                         {imageUrl ? (
                           <ProgressiveImage
                             source={{ uri: imageUrl }}
-                            style={{ width: 92, aspectRatio: 4 / 3, borderRadius: 14 }}
+                            style={{ width: 112, height: 84, borderRadius: 14 }}
                             resizeMode="cover"
                           />
                         ) : (
-                          <View style={{ width: 92, aspectRatio: 4 / 3 }} className="items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                          <View style={{ width: 112, height: 84 }} className="items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                             <ImageSquareIcon
                               size={24}
                               color={isDark ? "#9CA3AF" : "#747474"}
@@ -326,33 +387,26 @@ export default function EditPostScreen() {
                           )}
                         </View>
                         <TouchableOpacity
-                          onPress={() =>
+                          accessibilityLabel={t("removeDish")}
+                          onPress={(event) => {
+                            event.stopPropagation();
                             setRemovedItemIds((current) => [
                               ...current,
                               item.id,
-                            ])
-                          }
-                          className="h-10 w-10 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40"
+                            ]);
+                          }}
+                          className="h-8 w-8 items-center justify-center rounded-full bg-red-500"
                         >
-                          <TrashIcon size={19} color="#EF4444" weight="fill" />
+                          <MinusIcon size={17} color="#FAF9F6" weight="bold" />
                         </TouchableOpacity>
-                      </View>
-
-                      <View className="px-4 pb-4">
-                        <TextInput
-                          value={itemTexts[item.id] ?? ""}
-                          onChangeText={(text) =>
-                            setItemTexts((current) => ({
-                              ...current,
-                              [item.id]: text,
-                            }))
-                          }
-                          multiline
-                          placeholder={t("dishNote")}
-                          className="bg-gray-50 dark:bg-black"
+                        <DirectionalIcon
+                          direction="forward"
+                          size={18}
+                          color={isDark ? "#9CA3AF" : "#747474"}
+                          weight="bold"
                         />
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>

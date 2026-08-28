@@ -23,7 +23,6 @@ import {
   PaperPlaneTiltIcon,
   PaperclipIcon,
   GifIcon,
-  CropIcon,
   PlayCircleIcon,
   StarIcon,
   UsersThreeIcon,
@@ -44,7 +43,11 @@ import {
   TextInput as RNTextInput,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  initialWindowMetrics,
+  SafeAreaProvider,
+  SafeAreaView,
+} from "react-native-safe-area-context";
 import type { Socket } from "socket.io-client";
 import { io } from "socket.io-client";
 import ChatSkeleton, { ChatHeaderSkeleton } from "@/components/chats/ChatSkeleton";
@@ -73,10 +76,12 @@ import { useQuery } from "@tanstack/react-query";
 import ContentVideo from "@/components/posts/content/ContentVideo";
 import GifPickerBottomSheet, { type GifSelection } from "@/components/common/GifPickerBottomSheet";
 import * as ImagePicker from "expo-image-picker";
-import ImageCropPicker from "react-native-image-crop-picker";
 import { uploadImage, uploadVideo } from "@/lib/uploadImage";
 import FullScreenImageViewer from "@/components/common/FullScreenImageViewer";
 import AdaptiveGif from "@/components/common/AdaptiveGif";
+import SingleImageCropEditor, {
+  type EditableImage,
+} from "@/components/create/SingleImageCropEditor";
 
 type PendingChatImage = {
   uri: string;
@@ -1147,43 +1152,17 @@ export default function ChatScreen() {
     }
   }
 
-  async function cropPendingChatImage() {
-    if (!pendingChatImage || preparingChatImage) return;
-    try {
-      const cropped = await ImageCropPicker.openCropper({
-        path: pendingChatImage.uri,
-        mediaType: "photo",
-        width: 1200,
-        height: 1500,
-        cropping: true,
-        freeStyleCropEnabled: false,
-        cropperCircleOverlay: false,
-        compressImageQuality: 0.9,
-        forceJpg: true,
-        cropperToolbarTitle: t("cropPhoto"),
-      });
-      setPendingChatImage({
-        uri: cropped.path.startsWith("/") ? `file://${cropped.path}` : cropped.path,
-        width: Math.max(1, cropped.width),
-        height: Math.max(1, cropped.height),
-      });
-    } catch (error) {
-      if ((error as { code?: string }).code !== "E_PICKER_CANCELLED") {
-        console.error("Could not crop chat image", error);
-        showToast(t("mediaSendError"), { kind: "error" });
-      }
-    }
-  }
-
-  async function sendPendingChatImage() {
-    if (!pendingChatImage || preparingChatImage) return;
+  async function sendPendingChatImage(editedImage?: EditableImage) {
+    const image = editedImage ?? pendingChatImage;
+    if (!image || preparingChatImage) return;
     try {
       setPreparingChatImage(true);
-      const imageUrl = await uploadImage(pendingChatImage.uri, "other");
+      const imageUrl = await uploadImage(image.uri, "other");
       const sent = await sendMediaPayload({ type: "IMAGE", imageUrl });
       if (sent) setPendingChatImage(null);
     } catch (error) {
       console.error("Could not prepare chat image", error);
+      setPendingChatImage(image);
       showToast(t("mediaSendError"), { kind: "error" });
     } finally {
       setPreparingChatImage(false);
@@ -2117,74 +2096,28 @@ export default function ChatScreen() {
         visible={!!pendingChatImage}
         animationType="fade"
         presentationStyle="fullScreen"
-        statusBarTranslucent
-        navigationBarTranslucent
         onRequestClose={() => {
           if (!preparingChatImage) setPendingChatImage(null);
         }}
       >
-        <View className="flex-1 bg-[#0B0B0A]">
-          <SafeAreaView className="flex-1" edges={["top", "bottom"]}>
-            <View className="h-16 flex-row items-center justify-between px-3">
-              <TouchableOpacity
-                disabled={preparingChatImage}
-                onPress={() => setPendingChatImage(null)}
-                className="h-11 w-11 items-center justify-center"
-              >
-                <XIcon size={27} color="#FAF9F6" weight="bold" />
-              </TouchableOpacity>
-              <Text className="text-lg font-bold text-[#FAF9F6]">
-                {t("previewPhoto")}
-              </Text>
-              <View className="h-11 w-11" />
-            </View>
-
-            <View className="flex-1 items-center justify-center overflow-hidden bg-[#11110F]">
-              {pendingChatImage ? (
-                <RNImage
-                  source={{ uri: pendingChatImage.uri }}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="contain"
-                />
-              ) : null}
-            </View>
-
-            <View className="flex-row gap-3 px-4 pb-2 pt-4">
-              <TouchableOpacity
-                disabled={preparingChatImage}
-                onPress={() => void cropPendingChatImage()}
-                className="flex-1 flex-row items-center justify-center rounded-2xl border border-white/25"
-                style={{ height: 52 }}
-              >
-                <CropIcon size={21} color="#FAF9F6" weight="bold" />
-                <Text className="ml-2 font-bold text-[#FAF9F6]">
-                  {t("cropPhoto")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                disabled={preparingChatImage}
-                onPress={() => void sendPendingChatImage()}
-                className="flex-1 flex-row items-center justify-center rounded-2xl bg-brand"
-                style={{ height: 52 }}
-              >
-                {preparingChatImage ? (
-                  <ActivityIndicator color="#FAF9F6" />
-                ) : (
-                  <>
-                    <Text className="mr-2 font-bold text-[#FAF9F6]">
-                      {t("sendPhoto")}
-                    </Text>
-                    <PaperPlaneTiltIcon
-                      size={20}
-                      color="#FAF9F6"
-                      weight="fill"
-                    />
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </View>
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+          {pendingChatImage ? (
+            <SingleImageCropEditor
+              key={`${pendingChatImage.uri}-${pendingChatImage.width}-${pendingChatImage.height}`}
+              image={pendingChatImage}
+              aspectRatio={4 / 5}
+              outputWidth={1200}
+              outputHeight={1500}
+              showHeaderCounter={false}
+              headerTitle={t("editPhoto")}
+              primaryActionLabel={t("sendPhoto")}
+              enableTextOverlay
+              enableDrawing
+              onCancel={() => setPendingChatImage(null)}
+              onApply={sendPendingChatImage}
+            />
+          ) : null}
+        </SafeAreaProvider>
       </Modal>
       <MessageActionsBottomSheet
         message={selectedMessage}

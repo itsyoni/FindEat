@@ -401,6 +401,26 @@ export function createPostsApi(api: AxiosInstance) {
       return data;
     },
 
+    async linkReviewDishToMenu(
+      postId: string,
+      itemId: string,
+      menuItemId: string | null,
+    ) {
+      const { data } = await api.patch<Post>(
+        `/posts/${postId}/review/items/${itemId}/menu-link`,
+        { menuItemId },
+      );
+      return data;
+    },
+
+    async updateReviewDish(postId: string, itemId: string, text: string) {
+      const { data } = await api.patch<Post>(
+        `/posts/${postId}/review/items/${itemId}`,
+        { text },
+      );
+      return data;
+    },
+
     async like(id: string) {
       const { data } = await api.post<{
         ok: boolean;

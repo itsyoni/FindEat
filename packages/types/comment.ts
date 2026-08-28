@@ -21,7 +21,7 @@ export type Comment = {
   isPinned: boolean;
   pinnedAt?: string | null;
   isAuthorNote?: boolean;
-  authorRole?: "CREATOR" | "COLLABORATOR" | null;
+  authorRole?: "CREATOR" | "COLLABORATOR" | "OWNER" | null;
   canPin: boolean;
   mentions?: { user: UserSummary }[];
 };

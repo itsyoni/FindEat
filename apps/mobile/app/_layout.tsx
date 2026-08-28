@@ -242,6 +242,8 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen name="(posts)/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="profile-content-feed" options={{ headerShown: false }} />
+        <Stack.Screen name="profile-reviews-feed" options={{ headerShown: false }} />
         <Stack.Screen name="posts/edit/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="posts/connections/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="posts/contribute/[id]" options={{ headerShown: false }} />

@@ -649,31 +649,34 @@ export default function SnapViewerScreen() {
         </Text>
       ) : null}
       {!mediaOnly ? <View style={[StyleSheet.absoluteFill, styles.scrim]} /> : null}
-      {currentSnap.textOverlay?.text ? (
+      {(currentSnap.textOverlays?.length
+        ? currentSnap.textOverlays
+        : currentSnap.textOverlay
+          ? [currentSnap.textOverlay]
+          : []
+      ).map((overlay, index) => (
         <View
+          key={`${index}-${overlay.text}`}
           pointerEvents="none"
           style={{
             position: "absolute",
             zIndex: 3,
-            left: currentSnap.textOverlay.x * snapViewport.width,
-            top: currentSnap.textOverlay.y * snapViewport.height,
+            left: overlay.x * snapViewport.width,
+            top: overlay.y * snapViewport.height,
             width: snapTextOverlayWidth(
-              currentSnap.textOverlay.text,
+              overlay.text,
               snapViewport.width,
-              currentSnap.textOverlay.fontSize,
+              overlay.fontSize,
             ),
           }}
         >
           <Text
-            style={[
-              styles.snapTextOverlay,
-              snapTextStyle(currentSnap.textOverlay),
-            ]}
+            style={[styles.snapTextOverlay, snapTextStyle(overlay)]}
           >
-            {currentSnap.textOverlay.text}
+            {overlay.text}
           </Text>
         </View>
-      ) : null}
+      ))}
 
       <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.safeArea}>
       <SafeAreaView

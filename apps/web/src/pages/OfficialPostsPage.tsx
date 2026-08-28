@@ -61,7 +61,7 @@ export function OfficialPostsPage({ restaurant }: { restaurant: ManagedRestauran
     setError("");
     try {
       const page = await request<RestaurantPostsPage>(
-        `/restaurants/${restaurant.id}/posts?section=OFFICIAL&limit=30`,
+        `/restaurants/${restaurant.id}/business/official-posts`,
         { cache: "reload" },
       );
       setPosts(page.items);
@@ -75,7 +75,7 @@ export function OfficialPostsPage({ restaurant }: { restaurant: ManagedRestauran
   useEffect(() => {
     let active = true;
     void request<RestaurantPostsPage>(
-      `/restaurants/${restaurant.id}/posts?section=OFFICIAL&limit=30`,
+      `/restaurants/${restaurant.id}/business/official-posts`,
     )
       .then((page) => {
         if (active) setPosts(page.items);
@@ -229,7 +229,7 @@ export function OfficialPostsPage({ restaurant }: { restaurant: ManagedRestauran
         <div className="grid grid-cols-3 gap-3 max-[820px]:grid-cols-2 max-[480px]:grid-cols-1">
           {posts.map((post) => <article key={post.id} className="overflow-hidden rounded-[20px] border border-line bg-surface shadow-panel">
             {post.imageUrl ? <img className="aspect-4/5 w-full bg-soft object-cover" src={post.imageUrl} alt="" /> : <div className="grid aspect-4/5 place-items-center bg-soft text-muted"><ImageSquareIcon size={30} weight="duotone" /></div>}
-            <div className="p-4"><p className="m-0 line-clamp-3 text-sm leading-5 text-ink">{post.description || "Official photo update"}</p><small className="mt-2 block text-[11px] text-muted">{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Published"}</small></div>
+            <div className="p-4"><p className="m-0 line-clamp-3 text-sm leading-5 text-ink">{post.description || "Official photo update"}</p><small className="mt-2 block text-[11px] text-muted">{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Published"}{post.publishedBy ? ` · by ${post.publishedBy.displayName || `@${post.publishedBy.username}`}` : ""}</small></div>
           </article>)}
         </div>
       ) : <div className="grid min-h-45 place-items-center rounded-[22px] border border-dashed border-line bg-surface p-6 text-center text-sm text-muted">Your restaurant’s official posts will appear here.</div>}

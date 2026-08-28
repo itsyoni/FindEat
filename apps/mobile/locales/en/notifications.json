@@ -20,7 +20,8 @@
   "emptyBody": "Likes, comments, follows and messages will appear here.",
   "aggregatedTypes": {
     "POST_LIKE": "{{name}} and {{count}} more liked your post",
-    "COMMENT_LIKE": "{{name}} and {{count}} more liked your comment"
+    "COMMENT_LIKE": "{{name}} and {{count}} more liked your comment",
+    "REVIEW_CONTRIBUTION": "{{name}} and {{count}} more added feedback to your shared review"
   },
   "types": {
     "RESTAURANT_DISPUTE": "Check the restaurant on your post",
@@ -54,6 +55,7 @@
     "REVIEW_JOIN_REQUEST": "{{name}} asked to join your review",
     "REVIEW_JOIN_REQUEST_APPROVED": "{{name}} approved your request to join their review",
     "REVIEW_JOINED": "{{name}} joined your shared review",
-    "REVIEW_CONTRIBUTION": "{{name}} added feedback to your shared review"
+    "REVIEW_CONTRIBUTION": "{{name}} added feedback to your shared review",
+    "RESTAURANT_MENU_PUBLISHED": "A restaurant you reviewed added its official menu — match your dishes"
   }
 }
