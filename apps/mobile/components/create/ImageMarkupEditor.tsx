@@ -12,7 +12,9 @@ import ImageEyedropper from "@/components/create/ImageEyedropper";
 import { sampleImageColor } from "@/lib/sampleImageColor";
 import {
   renderImageMarkup,
+  renderMarkupOverlay,
   type MarkupBrush,
+  type ImageMarkupState,
   type ImageTextMarkup,
   type MarkupPoint,
   type MarkupStroke,
@@ -28,7 +30,7 @@ import {
   TrashIcon,
 } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -47,12 +49,7 @@ import Svg, { Path } from "react-native-svg";
 
 type Tool = "text" | "draw";
 
-export type ImageMarkupState = {
-  strokes: MarkupStroke[];
-  textMarkup: ImageTextMarkup | null;
-  fillColor: string | null;
-  fillAfterStrokeIndex: number;
-};
+export type { ImageMarkupState } from "@/lib/renderImageMarkup";
 
 type Props = {
   image: EditableImage;
@@ -67,6 +64,10 @@ type Props = {
   initialFillColor?: string | null;
   initialFillAfterStrokeIndex?: number;
   initialTool?: Tool;
+  background?: ReactNode;
+  markupOnly?: boolean;
+  title?: string;
+  onImageReady?: () => void;
   onCancel: () => void;
   onApply: (
     image: EditableImage,
@@ -230,6 +231,10 @@ export default function ImageMarkupEditor({
   initialFillColor = null,
   initialFillAfterStrokeIndex = 0,
   initialTool,
+  background,
+  markupOnly = false,
+  title,
+  onImageReady,
   onCancel,
   onApply,
 }: Props) {
@@ -266,6 +271,20 @@ export default function ImageMarkupEditor({
   const [frame, setFrame] = useState({ width: 1, height: 1 });
   const [busy, setBusy] = useState(false);
   const textInputRef = useRef<TextInput>(null);
+  const initialTextFocusRequestedRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      initialTool !== "text" ||
+      !textMarkup ||
+      initialTextFocusRequestedRef.current
+    ) {
+      return;
+    }
+    initialTextFocusRequestedRef.current = true;
+    const frameId = requestAnimationFrame(() => textInputRef.current?.focus());
+    return () => cancelAnimationFrame(frameId);
+  }, [initialTool, textMarkup]);
 
   const drawingGesture = useMemo(
     () =>
@@ -456,28 +475,42 @@ export default function ImageMarkupEditor({
         ? outputHeight ??
           Math.max(1, Math.round(1080 * (crop.height / crop.width)))
         : image.height;
-      const edited = await renderImageMarkup(
-        image.uri,
-        renderedWidth,
-        renderedHeight,
-        strokes,
-        textMarkup,
-        fillColor,
-        crop
-          ? {
-              ...crop,
-              sourceWidth: image.width,
-              sourceHeight: image.height,
-            }
-          : null,
-        fillAfterStrokeIndex,
-      );
-      await onApply(edited, {
+      const markup = {
         strokes,
         textMarkup,
         fillColor,
         fillAfterStrokeIndex,
-      });
+      };
+      const hasMarkup =
+        strokes.length > 0 || !!textMarkup?.text.trim() || !!fillColor;
+      const edited = markupOnly
+        ? hasMarkup
+          ? await renderMarkupOverlay(
+              renderedWidth,
+              renderedHeight,
+              strokes,
+              textMarkup,
+              fillColor,
+              fillAfterStrokeIndex,
+            )
+          : image
+        : await renderImageMarkup(
+            image.uri,
+            renderedWidth,
+            renderedHeight,
+            strokes,
+            textMarkup,
+            fillColor,
+            crop
+              ? {
+                  ...crop,
+                  sourceWidth: image.width,
+                  sourceHeight: image.height,
+                }
+              : null,
+            fillAfterStrokeIndex,
+          );
+      await onApply(edited, markup);
     } catch (error) {
       console.error("Could not apply image markup", error);
       showToast(t("create:imageEditError"), { kind: "error" });
@@ -528,7 +561,7 @@ export default function ImageMarkupEditor({
               textShadowRadius: immersive ? 5 : 0,
             }}
           >
-            {t("common:editPhoto")}
+            {title ?? t("common:editPhoto")}
           </Text>
           <TouchableOpacity onPress={() => void finish()} disabled={busy} className="h-11 min-w-16 items-center justify-center rounded-full bg-brand px-4">
             {busy ? <ActivityIndicator color="#171717" /> : <Text className="font-bold text-[#171717]">{t("common:done")}</Text>}
@@ -541,7 +574,7 @@ export default function ImageMarkupEditor({
               onLayout={({ nativeEvent }) => setFrame(nativeEvent.layout)}
               style={{ width: "100%", aspectRatio: canvasAspect, maxHeight: "100%", overflow: "hidden" }}
             >
-              {crop ? (
+              {background ?? (crop ? (
                 <ContentCropPreview
                   sourceUri={image.uri}
                   sourceWidth={image.width}
@@ -550,11 +583,18 @@ export default function ImageMarkupEditor({
                   aspectRatio={canvasAspect}
                   canvasAspectRatio={canvasAspect}
                   disabled
+                  onImageLoad={onImageReady}
                   onCropChange={() => undefined}
                 />
               ) : (
-                <Image source={{ uri: image.uri }} contentFit="fill" style={StyleSheet.absoluteFill} />
-              )}
+                <Image
+                  source={{ uri: image.uri }}
+                  contentFit="fill"
+                  cachePolicy="memory-disk"
+                  onLoad={onImageReady}
+                  style={StyleSheet.absoluteFill}
+                />
+              ))}
               {fillColor ? (
                 <View
                   pointerEvents="none"

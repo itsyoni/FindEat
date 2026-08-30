@@ -10,6 +10,7 @@ import { CustomDropdown } from "./CustomDropdown";
 
 const providerOptions = [
   { value: "NONE", label: "Choose a booking service" },
+  { value: "FINDEAT", label: "FindEat native booking · Pro" },
   { value: "ONTOP", label: "Ontopo" },
   { value: "TABIT", label: "Tabit" },
   { value: "OTHER", label: "Other provider" },
@@ -29,6 +30,13 @@ function initialConfig(restaurant: ManagedRestaurant): RestaurantReservationConf
     integrationMode: "EXTERNAL_LINK",
     reservationUrl: restaurant.ontopoUrl ?? restaurant.tabitUrl ?? null,
     enabled: provider !== "NONE",
+    slotDurationMinutes: 90,
+    bookingIntervalMinutes: 30,
+    minPartySize: 1,
+    maxPartySize: 12,
+    advanceBookingDays: 30,
+    minimumLeadMinutes: 60,
+    autoConfirm: true,
   };
 }
 
@@ -58,7 +66,7 @@ export function ReservationSettingsPanel({
       setStatus("Choose a reservation provider first.");
       return;
     }
-    if (provider !== "NONE" && cleanUrl) {
+    if (provider !== "NONE" && provider !== "FINDEAT" && cleanUrl) {
       try {
         const parsed = new URL(cleanUrl);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
@@ -67,7 +75,7 @@ export function ReservationSettingsPanel({
         return;
       }
     }
-    if (enabled && !cleanUrl) {
+    if (enabled && provider !== "FINDEAT" && !cleanUrl) {
       setStatus("Add the reservation link before enabling booking.");
       return;
     }
@@ -80,7 +88,10 @@ export function ReservationSettingsPanel({
         body: JSON.stringify({
           provider,
           enabled,
-          reservationUrl: provider === "NONE" ? null : cleanUrl || null,
+          reservationUrl:
+            provider === "NONE" || provider === "FINDEAT"
+              ? null
+              : cleanUrl || null,
         }),
       });
       await onSaved();
@@ -142,7 +153,7 @@ export function ReservationSettingsPanel({
 
       {enabled ? (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
+          {provider !== "FINDEAT" ? <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
             Booking service
             <CustomDropdown
               value={provider}
@@ -150,7 +161,7 @@ export function ReservationSettingsPanel({
               onChange={changeProvider}
               ariaLabel="Booking service"
             />
-          </label>
+          </label> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">Native booking is configured from the Business Pro Reservations workspace, where you can also add tables and manage bookings.</div>}
           <label className="grid min-w-0 gap-2 text-sm font-extrabold text-[var(--ink)]">
             Your booking page link
             <input

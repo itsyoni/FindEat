@@ -69,6 +69,7 @@ export type CreateReviewDraft = {
 type RestaurantReviewItem = {
   id: string;
   name: string;
+  imageUrl?: string | null;
   rating?: number | null;
   text?: string | null;
 };

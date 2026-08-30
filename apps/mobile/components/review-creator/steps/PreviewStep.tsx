@@ -40,6 +40,8 @@ type PreviewMediaItem = {
   id: string;
   type: "IMAGE" | "VIDEO";
   uri: string;
+  videoOverlayUri?: string;
+  muted?: boolean;
   dishName?: string;
   dishPrice?: number | null;
   fallbackUri?: string | null;
@@ -179,11 +181,13 @@ export default function PreviewStep({
                   {item.type === "VIDEO" ? (
                     <ContentVideo
                       uri={item.uri}
+                      overlayUri={item.videoOverlayUri}
                       style={{ width: "100%", height: "100%" }}
                       contentFit="cover"
                       autoPlay
                       tapToToggle
                       showProgress
+                      muted={item.muted}
                     />
                   ) : item.dishName ? (
                     <DishPreviewImage

@@ -39,6 +39,7 @@ export type ContentPost = {
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
   videoUrl?: string | null;
+  videoOverlayImageUrl?: string | null;
   media?: ContentPostMedia[];
   sound?: Sound | null;
   soundId?: string | null;

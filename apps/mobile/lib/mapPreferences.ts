@@ -16,7 +16,7 @@ export const DEFAULT_MAP_PREFERENCES: MapPreferences = {
   badgeKeys: [],
 };
 
-const MAP_PREFERENCES_VERSION = 3;
+const MAP_PREFERENCES_VERSION = 4;
 const FILTERS: RestaurantMapFilter[] = [
   "ALL",
   "SAVED",
@@ -59,9 +59,11 @@ export async function getMapPreferences(userId: string) {
     const parsed = JSON.parse(stored) as Partial<MapPreferences> & {
       version?: number;
     };
-    const storedRadius = RADII.includes(parsed.radiusKm as number | null)
-      ? (parsed.radiusKm as number | null)
-      : DEFAULT_MAP_PREFERENCES.radiusKm;
+    const storedRadius =
+      parsed.version === MAP_PREFERENCES_VERSION &&
+      RADII.includes(parsed.radiusKm as number | null)
+        ? (parsed.radiusKm as number | null)
+        : DEFAULT_MAP_PREFERENCES.radiusKm;
     return {
       filter: FILTERS.includes(parsed.filter as RestaurantMapFilter)
         ? (parsed.filter as RestaurantMapFilter)

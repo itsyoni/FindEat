@@ -174,6 +174,7 @@ export type RestaurantPermission =
   | "MANAGE_MENU"
   | "VIEW_REVIEWS"
   | "MANAGE_OFFERS"
+  | "MANAGE_RESERVATIONS"
   | "PUBLISH_POSTS"
   | "MANAGE_PROFILE"
   | "MANAGE_MESSAGES"

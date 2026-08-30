@@ -29,6 +29,13 @@ export type ImageTextMarkup = {
   color: string;
 };
 
+export type ImageMarkupState = {
+  strokes: MarkupStroke[];
+  textMarkup: ImageTextMarkup | null;
+  fillColor: string | null;
+  fillAfterStrokeIndex: number;
+};
+
 export type MarkupSourceCrop = {
   originX: number;
   originY: number;
@@ -163,5 +170,86 @@ export async function renderImageMarkup(
   surface.dispose();
   image.dispose();
   data.dispose();
+  return { uri: output.uri, width, height };
+}
+
+export async function renderMarkupOverlay(
+  width: number,
+  height: number,
+  strokes: MarkupStroke[],
+  textMarkup: ImageTextMarkup | null,
+  fillColor: string | null = null,
+  fillAfterStrokeIndex = 0,
+) {
+  const surface = Skia.Surface.Make(width, height);
+  if (!surface) throw new Error("The video overlay could not be rendered.");
+
+  const canvas = surface.getCanvas();
+  canvas.clear(Skia.Color("transparent"));
+  const normalizedFillIndex = fillColor
+    ? Math.max(0, Math.min(strokes.length, fillAfterStrokeIndex))
+    : 0;
+
+  const drawStroke = (stroke: MarkupStroke) => {
+    if (!stroke.points.length) return;
+    const path = Skia.Path.Make();
+    const first = stroke.points[0];
+    path.moveTo(first.x * width, first.y * height);
+    for (const point of stroke.points.slice(1)) {
+      path.lineTo(point.x * width, point.y * height);
+    }
+    const paint = Skia.Paint();
+    paint.setAntiAlias(true);
+    paint.setStyle(PaintStyle.Stroke);
+    paint.setStrokeCap(StrokeCap.Round);
+    paint.setStrokeJoin(StrokeJoin.Round);
+    paint.setStrokeWidth(Math.max(2, stroke.width * width));
+    paint.setColor(Skia.Color(stroke.color));
+    paint.setAlphaf(stroke.opacity ?? 1);
+    canvas.drawPath(path, paint);
+    paint.dispose();
+    path.dispose();
+  };
+
+  for (const stroke of strokes.slice(0, normalizedFillIndex)) drawStroke(stroke);
+  if (fillColor) {
+    const fillPaint = Skia.Paint();
+    fillPaint.setColor(Skia.Color(fillColor));
+    canvas.drawPaint(fillPaint);
+    fillPaint.dispose();
+  }
+  for (const stroke of strokes.slice(normalizedFillIndex)) drawStroke(stroke);
+
+  if (textMarkup?.text.trim()) {
+    const builder = Skia.ParagraphBuilder.Make({});
+    builder.pushStyle({
+      color: Skia.Color(textMarkup.color),
+      fontFamilies: ["Arial", "sans-serif"],
+      fontSize: textMarkup.fontSize * width,
+      fontStyle: { weight: FontWeight.Bold },
+      shadows: [
+        {
+          color: Skia.Color("rgba(0,0,0,0.55)"),
+          offset: Skia.Point(0, Math.max(1, width * 0.002)),
+          blurRadius: Math.max(2, width * 0.005),
+        },
+      ],
+    });
+    builder.addText(textMarkup.text.trim());
+    const paragraph = builder.build();
+    paragraph.layout(Math.max(1, textMarkup.width * width));
+    paragraph.paint(canvas, textMarkup.x * width, textMarkup.y * height);
+    paragraph.dispose();
+    builder.dispose();
+  }
+
+  surface.flush();
+  const snapshot = surface.makeImageSnapshot();
+  const bytes = snapshot.encodeToBytes(ImageFormat.PNG, 100);
+  const output = new File(Paths.cache, `findeat-video-overlay-${Date.now()}.png`);
+  output.create({ overwrite: true, intermediates: true });
+  output.write(bytes);
+  snapshot.dispose();
+  surface.dispose();
   return { uri: output.uri, width, height };
 }

@@ -136,6 +136,36 @@ function readableColorForeground(color: string) {
   return brightness > 155 ? "#171717" : "#FAF9F6";
 }
 
+function preferredSnapPictureSize(sizes: string[]) {
+  const parsed = sizes
+    .map((size) => {
+      const match = size.match(/^(\d+)x(\d+)$/i);
+      if (!match) return null;
+      const width = Number(match[1]);
+      const height = Number(match[2]);
+      return {
+        size,
+        area: width * height,
+        longEdge: Math.max(width, height),
+        aspectRatio: Math.max(width, height) / Math.min(width, height),
+      };
+    })
+    .filter((size): size is NonNullable<typeof size> => Boolean(size));
+  if (!parsed.length) return undefined;
+
+  const useful = parsed.filter((size) => size.area >= 1_500_000);
+  const candidates = useful.length ? useful : parsed;
+  return [...candidates].sort((first, second) => {
+    const firstScore =
+      Math.abs(first.longEdge - 1920) +
+      Math.abs(first.aspectRatio - 16 / 9) * 700;
+    const secondScore =
+      Math.abs(second.longEdge - 1920) +
+      Math.abs(second.aspectRatio - 16 / 9) * 700;
+    return firstScore - secondScore;
+  })[0]?.size;
+}
+
 function snapRenderDimensions(crop: ContentCropRect) {
   const width = 1080;
   const aspect =
@@ -232,6 +262,9 @@ export default function CreateSnapScreen() {
   const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null);
   const [cameraFacing, setCameraFacing] = useState<CameraType>("back");
   const [cameraZoom, setCameraZoom] = useState(0);
+  const [cameraPictureSize, setCameraPictureSize] = useState<
+    string | undefined
+  >(undefined);
   const [flash, setFlash] = useState<FlashMode>("off");
   const [cameraReady, setCameraReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -279,6 +312,10 @@ export default function CreateSnapScreen() {
     useState<EditableImage | null>(null);
   const [snapDrawingDraft, setSnapDrawingDraft] =
     useState<SnapDrawingDraft | null>(null);
+  const [snapDrawingEditorReady, setSnapDrawingEditorReady] = useState(false);
+  const [pendingDrawingCloseUri, setPendingDrawingCloseUri] = useState<
+    string | null
+  >(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const {
     status: gallerySaveStatus,
@@ -639,6 +676,8 @@ export default function CreateSnapScreen() {
 
   function openSnapDrawing() {
     if (!imageUri || !imageSize) return;
+    setSnapDrawingEditorReady(false);
+    setPendingDrawingCloseUri(null);
     const canResume =
       snapDrawingDraft?.renderedUri === imageUri &&
       cropsMatch(imageCrop, snapDrawingDraft.renderedCrop);
@@ -669,6 +708,14 @@ export default function CreateSnapScreen() {
       );
     }
   }
+
+  useEffect(() => {
+    if (imageUri || videoUri || !cameraReady) return;
+    const frame = requestAnimationFrame(() => {
+      void cameraRef.current?.resumePreview().catch(() => undefined);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [cameraReady, imageUri, videoUri]);
 
   useEffect(() => {
     let mounted = true;
@@ -815,19 +862,41 @@ export default function CreateSnapScreen() {
     focusCamera(ended.locationX, ended.locationY);
   }
 
+  async function handleCameraReady() {
+    const camera = cameraRef.current;
+    if (camera && !cameraPictureSize) {
+      try {
+        const sizes = await camera.getAvailablePictureSizesAsync();
+        setCameraPictureSize(preferredSnapPictureSize(sizes));
+      } catch (error) {
+        console.warn("Could not select snap camera picture size", error);
+      }
+    }
+    setCameraReady(true);
+  }
+
   async function takePhoto() {
     if (!cameraRef.current || !cameraReady || capturing) return;
     setCapturing(true);
+    const camera = cameraRef.current;
+    let previewPaused = false;
     try {
       const previewSize = canvasSizeRef.current;
       const previewAspect =
         previewSize.width > 1 && previewSize.height > 1
           ? previewSize.width / previewSize.height
           : 9 / 16;
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.9,
+      const photoPromise = camera.takePictureAsync({
+        quality: 0.82,
         mirror: false,
       });
+      try {
+        await camera.pausePreview();
+        previewPaused = true;
+      } catch {
+        // Some Android cameras finish the capture before the preview can pause.
+      }
+      const photo = await photoPromise;
       if (photo?.uri) {
         setSnapDrawingDraft(null);
         if (cameraFacing === "front") {
@@ -861,6 +930,9 @@ export default function CreateSnapScreen() {
         updateTextOverlay(null);
       }
     } catch {
+      if (previewPaused) {
+        await camera.resumePreview().catch(() => undefined);
+      }
       Alert.alert(t("common:error"), t("snaps:captureError"));
     } finally {
       setCapturing(false);
@@ -1133,9 +1205,8 @@ export default function CreateSnapScreen() {
         Math.max(0, canvasSize.width - displayedTextOverlayWidth),
       )
     : 0;
-  if (snapDrawingImage) {
-    const drawingCrop =
-      snapDrawingDraft?.crop ??
+  const drawingCrop = snapDrawingImage
+    ? (snapDrawingDraft?.crop ??
       imageCrop ??
       defaultImageCrop(
         snapDrawingImage.width,
@@ -1143,52 +1214,19 @@ export default function CreateSnapScreen() {
         canvasSize.width > 1 && canvasSize.height > 1
           ? canvasSize.width / canvasSize.height
           : 9 / 16,
-      );
-    const drawingTarget = snapRenderDimensions(drawingCrop);
-    return (
-      <ImageMarkupEditor
-        key={snapDrawingImage.uri}
-        image={snapDrawingImage}
-        allowText={false}
-        allowDrawing
-        immersive
-        crop={drawingCrop}
-        outputWidth={drawingTarget.width}
-        outputHeight={drawingTarget.height}
-        initialStrokes={snapDrawingDraft?.markup.strokes}
-        initialTextMarkup={snapDrawingDraft?.markup.textMarkup}
-        initialFillColor={snapDrawingDraft?.markup.fillColor}
-        initialFillAfterStrokeIndex={
-          snapDrawingDraft?.markup.fillAfterStrokeIndex
-        }
-        initialTool="draw"
-        onCancel={() => setSnapDrawingImage(null)}
-        onApply={async (edited, markup) => {
-          await Image.prefetch(edited.uri, {
-            cachePolicy: "memory-disk",
-          }).catch(() => false);
-          const renderedCrop = defaultImageCrop(
-            edited.width,
-            edited.height,
-            edited.width / edited.height,
-          );
-          setImageUri(edited.uri);
-          setImageFilterSourceUri(edited.uri);
-          setImageSize({ width: edited.width, height: edited.height });
-          setImageCrop(renderedCrop);
-          setSnapDrawingDraft({
-            baseImage: snapDrawingImage,
-            crop: drawingCrop,
-            markup,
-            renderedUri: edited.uri,
-            renderedCrop,
-          });
-          setPhotoFilter("ORIGINAL");
-          setSnapDrawingImage(null);
-        }}
-      />
-    );
+      ))
+    : null;
+  const drawingTarget = drawingCrop
+    ? snapRenderDimensions(drawingCrop)
+    : null;
+
+  function handleSnapPreviewImageLoad() {
+    if (!pendingDrawingCloseUri || imageUri !== pendingDrawingCloseUri) return;
+    setPendingDrawingCloseUri(null);
+    setSnapDrawingEditorReady(false);
+    setSnapDrawingImage(null);
   }
+
   return (
     <View
       style={styles.screen}
@@ -1231,6 +1269,7 @@ export default function CreateSnapScreen() {
                   movingOverlayText ||
                   resizingOverlayText
                 }
+                onImageLoad={handleSnapPreviewImageLoad}
                 onCropChange={setImageCrop}
               />
             </View>
@@ -1804,8 +1843,9 @@ export default function CreateSnapScreen() {
             mirror={false}
             flash={flash}
             mode="picture"
+            pictureSize={cameraPictureSize}
             zoom={cameraZoom}
-            onCameraReady={() => setCameraReady(true)}
+            onCameraReady={() => void handleCameraReady()}
             style={StyleSheet.absoluteFill}
           />
           <View
@@ -1898,6 +1938,63 @@ export default function CreateSnapScreen() {
           </SafeAreaView>
         </View>
       )}
+      {snapDrawingImage && drawingCrop && drawingTarget ? (
+        <View
+          pointerEvents={snapDrawingEditorReady ? "auto" : "none"}
+          style={[
+            StyleSheet.absoluteFill,
+            styles.drawingEditorOverlay,
+            { opacity: snapDrawingEditorReady ? 1 : 0 },
+          ]}
+        >
+          <ImageMarkupEditor
+            key={snapDrawingImage.uri}
+            image={snapDrawingImage}
+            allowText={false}
+            allowDrawing
+            immersive
+            crop={drawingCrop}
+            outputWidth={drawingTarget.width}
+            outputHeight={drawingTarget.height}
+            initialStrokes={snapDrawingDraft?.markup.strokes}
+            initialTextMarkup={snapDrawingDraft?.markup.textMarkup}
+            initialFillColor={snapDrawingDraft?.markup.fillColor}
+            initialFillAfterStrokeIndex={
+              snapDrawingDraft?.markup.fillAfterStrokeIndex
+            }
+            initialTool="draw"
+            onImageReady={() => setSnapDrawingEditorReady(true)}
+            onCancel={() => {
+              setSnapDrawingEditorReady(false);
+              setPendingDrawingCloseUri(null);
+              setSnapDrawingImage(null);
+            }}
+            onApply={async (edited, markup) => {
+              await Image.prefetch(edited.uri, {
+                cachePolicy: "memory-disk",
+              }).catch(() => false);
+              const renderedCrop = defaultImageCrop(
+                edited.width,
+                edited.height,
+                edited.width / edited.height,
+              );
+              setPendingDrawingCloseUri(edited.uri);
+              setImageUri(edited.uri);
+              setImageFilterSourceUri(edited.uri);
+              setImageSize({ width: edited.width, height: edited.height });
+              setImageCrop(renderedCrop);
+              setSnapDrawingDraft({
+                baseImage: snapDrawingImage,
+                crop: drawingCrop,
+                markup,
+                renderedUri: edited.uri,
+                renderedCrop,
+              });
+              setPhotoFilter("ORIGINAL");
+            }}
+          />
+        </View>
+      ) : null}
       <SoundPickerModal
         visible={soundPickerOpen}
         value={soundSelection}
@@ -1922,6 +2019,10 @@ export default function CreateSnapScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: "#0B0B0A",
+  },
+  drawingEditorOverlay: {
+    zIndex: 100,
     backgroundColor: "#0B0B0A",
   },
   previewScrim: {

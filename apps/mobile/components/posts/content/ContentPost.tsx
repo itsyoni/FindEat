@@ -437,6 +437,7 @@ export default function ContentPost({
           >
             <ContentVideo
               uri={videoMedia.videoUrl}
+              overlayUri={content?.videoOverlayImageUrl ?? undefined}
               style={{ width: "100%", height: "100%" }}
               contentFit="cover"
               autoPlay={isActive}

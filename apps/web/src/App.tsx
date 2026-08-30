@@ -9,6 +9,7 @@ import { adminSectionFromPath, businessSectionFromPath } from './lib/navigation'
 import { ErrorPage } from './components/ErrorPage'
 import { KnownIssuesPage } from './pages/KnownIssuesPage'
 import { UpcomingFeaturesPage } from './pages/UpcomingFeaturesPage'
+import { BusinessProPage } from './pages/BusinessProPage'
 
 export default function App() {
   const pathname = usePathname()
@@ -18,24 +19,26 @@ export default function App() {
   const legalPage = legalPageKind(pathname)
   const knownIssuesPage = pathname === '/known-issues' || pathname === '/status'
   const upcomingFeaturesPage = pathname === '/upcoming' || pathname === '/roadmap' || pathname === '/planned-features'
+  const publicBusinessProPage = pathname === '/business-pro' && !authenticated
   const knownDashboardPath = Boolean(
     businessSectionFromPath(pathname) || adminSectionFromPath(pathname),
   )
   const notFound = !legalPage
     && !knownIssuesPage
     && !upcomingFeaturesPage
+    && !publicBusinessProPage
     && pathname !== '/'
     && pathname !== '/login'
     && !knownDashboardPath
 
   useEffect(() => {
-    if (legalPage || knownIssuesPage || upcomingFeaturesPage || notFound) return
+    if (legalPage || knownIssuesPage || upcomingFeaturesPage || publicBusinessProPage || notFound) return
     if (authenticated && (pathname === '/' || pathname === '/login')) {
       navigateTo('/home', true)
     } else if (!authenticated && pathname !== '/login') {
       navigateTo('/login', true)
     }
-  }, [authenticated, knownIssuesPage, legalPage, notFound, pathname, upcomingFeaturesPage])
+  }, [authenticated, knownIssuesPage, legalPage, notFound, pathname, publicBusinessProPage, upcomingFeaturesPage])
 
   const logout = useCallback(() => {
     invalidateRequestCache()
@@ -52,6 +55,9 @@ export default function App() {
   }
   if (upcomingFeaturesPage) {
     return <UpcomingFeaturesPage />
+  }
+  if (publicBusinessProPage) {
+    return <BusinessProPage />
   }
   if (notFound) {
     return (

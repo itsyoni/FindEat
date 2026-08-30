@@ -47,6 +47,7 @@ export function createPostsApi(api: AxiosInstance) {
       soundStartTimeMs?: number;
       soundVolume?: number;
       originalAudioVolume?: number;
+      videoOverlayImageUrl?: string;
     }) {
       const canonicalPayload = {
         ...payload,

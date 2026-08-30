@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { BugIcon, EyeIcon, EyeSlashIcon, LightbulbIcon, MoonIcon, SunIcon } from '@phosphor-icons/react'
+import { BugIcon, CrownSimpleIcon, EyeIcon, EyeSlashIcon, LightbulbIcon, MoonIcon, SunIcon } from '@phosphor-icons/react'
 import { request } from '../lib/api'
 import { useWebTheme } from '../hooks/useWebTheme'
 
@@ -99,7 +99,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         </form>
         <div className="mt-6 border-t border-line pt-5">
           <p className="m-0 mb-3 text-xs font-extrabold uppercase tracking-[.1em] text-muted">FindEat product updates</p>
-          <nav className="grid grid-cols-2 gap-2.5 max-[420px]:grid-cols-1">
+          <nav className="grid grid-cols-3 gap-2.5 max-[560px]:grid-cols-1">
+            <a href="/business-pro" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-soft px-3 text-sm font-extrabold text-ink no-underline hover:bg-surface-hover"><CrownSimpleIcon size={18} weight="fill" /> Business Pro</a>
             <a href="/known-issues" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-soft px-3 text-sm font-extrabold text-ink no-underline hover:bg-surface-hover"><BugIcon size={18} weight="duotone" /> Known issues</a>
             <a href="/upcoming" className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-soft px-3 text-sm font-extrabold text-ink no-underline hover:bg-surface-hover"><LightbulbIcon size={18} weight="duotone" /> Upcoming</a>
           </nav>

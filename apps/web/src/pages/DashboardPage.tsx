@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { BellIcon } from "@phosphor-icons/react/dist/csr/Bell";
 import { ChartLineUpIcon } from "@phosphor-icons/react/dist/csr/ChartLineUp";
 import { ChatCircleDotsIcon } from "@phosphor-icons/react/dist/csr/ChatCircleDots";
@@ -16,7 +17,8 @@ import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/csr/SidebarSimple"
 import { GiftIcon } from "@phosphor-icons/react/dist/csr/Gift";
 import { ImageSquareIcon } from "@phosphor-icons/react/dist/csr/ImageSquare";
 import { UsersThreeIcon } from "@phosphor-icons/react/dist/csr/UsersThree";
-import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
+import { CalendarCheckIcon } from "@phosphor-icons/react/dist/csr/CalendarCheck";
+import { CrownSimpleIcon } from "@phosphor-icons/react/dist/csr/CrownSimple";
 import { ListIcon } from "@phosphor-icons/react/dist/csr/List";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import type {
@@ -60,6 +62,8 @@ import { SettingsOverlay, SettingsPage } from "./SettingsPage";
 import { OffersPage } from "./OffersPage";
 import { OfficialPostsPage } from "./OfficialPostsPage";
 import { TeamPage } from "./TeamPage";
+import { ReservationsPage } from "./ReservationsPage";
+import { BusinessProPage } from "./BusinessProPage";
 import { ErrorPage } from "../components/ErrorPage";
 import {
   adminPaths,
@@ -234,11 +238,11 @@ function RestaurantSwitcher({
         ) : (
           <span>{restaurant.name.charAt(0).toUpperCase()}</span>
         )}
-        <div>
-          <div className="restaurant-name-row [display:flex] [align-items:center] [gap:7px] [min-width:0] [&>strong]:[min-width:0] [&>strong]:[flex:1]">
+        <div className="[position:relative]">
+          <div className="restaurant-name-row [display:flex] [align-items:center] [min-width:0] [padding-right:72px] [&>strong]:[min-width:0] [&>strong]:[flex:1]">
             <strong>{restaurant.name}</strong>
             {restaurant.accessRole === "ADMIN" ? (
-              <span className="restaurant-access-pill [flex:0_0_auto] [padding:3px_7px] [border-radius:999px] [background:var(--success-soft)] [color:var(--success)] [font-size:8px] [font-weight:900] [white-space:nowrap]">Admin access</span>
+              <span className="restaurant-access-pill [position:absolute] [top:50%] [right:0] [display:inline-flex] [align-items:center] [justify-content:center] [min-height:18px] [padding:3px_7px] [transform:translateY(-50%)] [border-radius:999px] [background:var(--success-soft)] [color:var(--success)] [font-size:8px] [font-weight:900] [line-height:1] [white-space:nowrap]">Admin access</span>
             ) : null}
           </div>
           <small>
@@ -263,7 +267,7 @@ function RestaurantSwitcher({
             <strong>Switch restaurant</strong>
             <small>{restaurants.length} profiles</small>
           </div>
-          <div className="restaurant-switcher-options [display:grid] [gap:3px] [max-width:100%] [max-height:320px] [overflow-x:hidden] [overflow-y:auto] [padding:6px] [&>button]:[display:flex] [&>button]:[align-items:center] [&>button]:[gap:10px] [&>button]:[width:100%] [&>button]:[min-width:0] [&>button]:[max-width:100%] [&>button]:[padding:9px] [&>button]:[overflow:hidden] [&>button]:[border:0] [&>button]:[border-radius:11px] [&>button]:[background:transparent] [&>button]:[color:var(--ink)] [&>button]:[text-align:left] [&>button]:[cursor:pointer] [&>button:hover]:[background:var(--soft)] [&>button.selected]:[background:var(--soft)] [&>button.highlighted]:[background:var(--soft)] [&>button.highlighted]:[box-shadow:inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_38%,transparent)] [&_img]:[display:grid] [&_img]:[place-items:center] [&_img]:[width:36px] [&_img]:[height:36px] [&_img]:[flex:0_0_36px] [&_img]:[border-radius:50%] [&_img]:[background:var(--neutral-chip)] [&_img]:[object-fit:cover] [&_img]:[font-size:12px] [&_img]:[font-weight:900] [&>button>span]:[display:grid] [&>button>span]:[place-items:center] [&>button>span]:[width:36px] [&>button>span]:[height:36px] [&>button>span]:[flex:0_0_36px] [&>button>span]:[border-radius:50%] [&>button>span]:[background:var(--neutral-chip)] [&>button>span]:[object-fit:cover] [&>button>span]:[font-size:12px] [&>button>span]:[font-weight:900] [&>button>div]:[min-width:0] [&>button>div]:[flex:1] [&_strong]:[display:block] [&_strong]:[width:100%] [&_strong]:[max-width:100%] [&_strong]:[overflow:hidden] [&_strong]:[white-space:nowrap] [&_strong]:[text-overflow:ellipsis] [&_small]:[display:block] [&_small]:[width:100%] [&_small]:[max-width:100%] [&_small]:[overflow:hidden] [&_small]:[white-space:nowrap] [&_small]:[text-overflow:ellipsis] [&_strong]:[font-size:12px] [&_small]:[margin-top:2px] [&_small]:[color:var(--muted)] [&_small]:[font-size:10px] [&_i]:[display:grid] [&_i]:[place-items:center] [&_i]:[width:24px] [&_i]:[height:24px] [&_i]:[flex:0_0_24px] [&_i]:[border-radius:50%] [&_i]:[background:var(--accent-soft)] [&_i]:[color:var(--accent)]">
+          <div className="restaurant-switcher-options [display:grid] [gap:3px] [max-width:100%] [max-height:320px] [overflow-x:hidden] [overflow-y:auto] [padding:6px] [&>button]:[display:flex] [&>button]:[align-items:center] [&>button]:[gap:10px] [&>button]:[width:100%] [&>button]:[min-width:0] [&>button]:[max-width:100%] [&>button]:[padding:9px] [&>button]:[overflow:hidden] [&>button]:[border:0] [&>button]:[border-radius:11px] [&>button]:[background:transparent] [&>button]:[color:var(--ink)] [&>button]:[text-align:left] [&>button]:[cursor:pointer] [&>button:hover]:[background:var(--soft)] [&>button.highlighted]:[background:var(--soft)] [&>button.highlighted]:[box-shadow:inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_30%,transparent)] [&>button.selected]:[background:var(--accent-soft)] [&>button.selected]:[box-shadow:inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_55%,transparent)] [&>button.selected_strong]:[color:var(--accent)] [&_img]:[display:grid] [&_img]:[place-items:center] [&_img]:[width:36px] [&_img]:[height:36px] [&_img]:[flex:0_0_36px] [&_img]:[border-radius:50%] [&_img]:[background:var(--neutral-chip)] [&_img]:[object-fit:cover] [&_img]:[font-size:12px] [&_img]:[font-weight:900] [&>button>span]:[display:grid] [&>button>span]:[place-items:center] [&>button>span]:[width:36px] [&>button>span]:[height:36px] [&>button>span]:[flex:0_0_36px] [&>button>span]:[border-radius:50%] [&>button>span]:[background:var(--neutral-chip)] [&>button>span]:[object-fit:cover] [&>button>span]:[font-size:12px] [&>button>span]:[font-weight:900] [&>button>div]:[min-width:0] [&>button>div]:[flex:1] [&_strong]:[display:block] [&_strong]:[width:100%] [&_strong]:[max-width:100%] [&_strong]:[overflow:hidden] [&_strong]:[white-space:nowrap] [&_strong]:[text-overflow:ellipsis] [&_small]:[display:block] [&_small]:[width:100%] [&_small]:[max-width:100%] [&_small]:[overflow:hidden] [&_small]:[white-space:nowrap] [&_small]:[text-overflow:ellipsis] [&_strong]:[font-size:12px] [&_small]:[margin-top:2px] [&_small]:[color:var(--muted)] [&_small]:[font-size:10px]">
             {restaurants.map((item) => {
               const selected = item.id === restaurant.id;
               return (
@@ -288,26 +292,74 @@ function RestaurantSwitcher({
                   ) : (
                     <span>{item.name.charAt(0).toUpperCase()}</span>
                   )}
-                  <div>
-                    <div className="restaurant-name-row [display:flex] [align-items:center] [gap:7px] [min-width:0] [&>strong]:[min-width:0] [&>strong]:[flex:1]">
+                  <div className="[position:relative]">
+                    <div className="restaurant-name-row [display:flex] [align-items:center] [min-width:0] [padding-right:72px] [&>strong]:[min-width:0] [&>strong]:[flex:1]">
                       <strong>{item.name}</strong>
                       {item.accessRole === "ADMIN" ? (
-                        <span className="restaurant-access-pill [flex:0_0_auto] [padding:3px_7px] [border-radius:999px] [background:var(--success-soft)] [color:var(--success)] [font-size:8px] [font-weight:900] [white-space:nowrap]">Admin access</span>
+                        <span className="restaurant-access-pill [position:absolute] [top:50%] [right:0] [display:inline-flex] [align-items:center] [justify-content:center] [min-height:18px] [padding:3px_7px] [transform:translateY(-50%)] [border-radius:999px] [background:var(--success-soft)] [color:var(--success)] [font-size:8px] [font-weight:900] [line-height:1] [white-space:nowrap]">Admin access</span>
                       ) : null}
                     </div>
                     <small>{restaurantSubtitle(item)}</small>
                   </div>
-                  {selected ? (
-                    <i aria-hidden="true">
-                      <CheckIcon size={15} weight="bold" />
-                    </i>
-                  ) : null}
                 </button>
               );
             })}
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function WorkspaceDialog({
+  label,
+  onClose,
+  children,
+  wide = false,
+}: {
+  label: string;
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-1000 grid place-items-center bg-[#171717]/55 p-3 backdrop-blur-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        className={`relative h-[min(92dvh,900px)] w-full overflow-hidden rounded-[26px] border border-line bg-surface pt-12 shadow-[0_28px_90px_rgba(0,0,0,.28)] max-[650px]:h-[94dvh] max-[650px]:rounded-[22px] ${wide ? "max-w-7xl" : "max-w-5xl"}`}
+      >
+        <button
+          type="button"
+          className="absolute right-4 top-3 z-20 grid size-9 place-items-center rounded-full border border-line bg-soft p-0 text-ink transition hover:bg-surface-hover"
+          onClick={onClose}
+          aria-label={`Close ${label.toLowerCase()}`}
+        >
+          <XIcon size={17} weight="bold" />
+        </button>
+        <div className="h-full min-h-0 overflow-hidden [&>.messages-page]:flex [&>.messages-page]:h-full [&>.messages-page]:min-h-0 [&>.messages-page]:flex-col [&>.messages-page]:overflow-hidden [&>.messages-page]:px-5 [&>.messages-page]:pb-5 [&>.messages-page]:pt-3 max-[650px]:[&>.messages-page]:px-3 max-[650px]:[&>.messages-page]:pb-3">
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
@@ -327,12 +379,15 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
   const [restaurantUnreadCount, setRestaurantUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [badgesOpen, setBadgesOpen] = useState(false);
+  const [messagesOpen, setMessagesOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const {
     sidebarRef,
     open: desktopSidebarOpen,
     setOpen: setDesktopSidebarOpen,
+    width: desktopSidebarWidth,
     startResize: startSidebarResize,
   } = useResizableSidebar(
     SHARED_SIDEBAR_WIDTH_STORAGE_KEY,
@@ -358,6 +413,15 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
     Set<BusinessDashboardSection>
   >(() => new Set([section]));
   const navigateSection = useCallback((next: BusinessDashboardSection) => {
+    if (next === "messages") {
+      setNotificationsOpen(false);
+      if (window.matchMedia("(max-width: 800px)").matches) {
+        navigateTo(businessPaths.messages);
+        return;
+      }
+      setMessagesOpen(true);
+      return;
+    }
     navigateTo(businessPaths[next]);
   }, []);
 
@@ -628,6 +692,9 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
 
   const selectRestaurant = (restaurantId: string) => {
     setNotificationsOpen(false);
+    setBadgesOpen(false);
+    setMessagesOpen(false);
+    setSettingsOpen(false);
     setMenus([]);
     setReviews([]);
     setConversations([]);
@@ -699,7 +766,12 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
       </div>
     );
   return (
-    <div className="dashboard [height:100vh] [min-height:0] [display:grid] [grid-template-columns:260px_minmax(0,_1fr)] [overflow:hidden] [background:var(--page)] [color:var(--ink)] max-[800px]:[grid-template-columns:1fr] max-[800px]:[grid-template-rows:auto_minmax(0,_1fr)] dark:[background:var(--page)] dark:[color:var(--ink)] max-[800px]:[height:100vh] max-[800px]:[height:100dvh] max-[800px]:[overflow:hidden] max-[800px]:[&>aside]:[position:relative] max-[800px]:[&>aside]:[z-index:30] max-[800px]:[&>aside]:[display:block] max-[800px]:[&>aside]:[width:100%] max-[800px]:[&>aside]:[height:auto] max-[800px]:[&>aside]:[min-width:0] max-[800px]:[&>aside]:[padding:10px_12px] max-[800px]:[&>aside]:[border-right:0] max-[800px]:[&>aside]:[border-bottom:1px_solid_var(--line)] max-[800px]:[&>aside]:[box-shadow:0_5px_20px_color-mix(in_srgb,_var(--ink)_6%,_transparent)] max-[800px]:[&>aside_.restaurant-switcher]:[width:100%] max-[800px]:[&>aside_.restaurant-chip]:[min-height:52px] max-[800px]:[&>aside_.restaurant-chip]:[margin:0] max-[800px]:[&>aside_.restaurant-chip]:[padding:7px_10px] max-[800px]:[&>aside_.restaurant-chip]:[border-color:var(--line)] max-[800px]:[&>aside_.restaurant-chip]:[background:var(--surface-subtle)] max-[800px]:[&>aside_.restaurant-chip_img]:[width:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[height:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[flex-basis:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[width:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[height:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[flex-basis:36px] max-[800px]:[&>aside_nav]:[display:none] max-[800px]:[&>aside_nav]:[grid-template-columns:repeat(2,_minmax(0,_1fr))] max-[800px]:[&>aside_nav]:[gap:5px] max-[800px]:[&>aside_nav]:[width:100%] max-[800px]:[&>aside_nav]:[margin:10px_0_0] max-[800px]:[&>aside_nav]:[padding:9px_0_0] max-[800px]:[&>aside_nav]:[overflow:visible] max-[800px]:[&>aside_nav]:[border-top:1px_solid_var(--line)] max-[800px]:[&>aside.mobile-nav-open_nav]:[display:grid] max-[800px]:[&>aside_nav_a]:[justify-content:flex-start] max-[800px]:[&>aside_nav_a]:[width:100%] max-[800px]:[&>aside_nav_a]:[min-width:0] max-[800px]:[&>aside_nav_a]:[min-height:42px] max-[800px]:[&>aside_nav_a]:[gap:7px] max-[800px]:[&>aside_nav_a]:[padding:9px_11px] max-[800px]:[&>aside_nav_a]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_a]:[border-radius:11px] max-[800px]:[&>aside_nav_a]:[font-size:11px] max-[800px]:[&>aside_nav_a]:[white-space:normal] max-[800px]:[&>aside_nav_button]:[justify-content:flex-start] max-[800px]:[&>aside_nav_button]:[width:100%] max-[800px]:[&>aside_nav_button]:[min-width:0] max-[800px]:[&>aside_nav_button]:[min-height:42px] max-[800px]:[&>aside_nav_button]:[gap:7px] max-[800px]:[&>aside_nav_button]:[padding:9px_11px] max-[800px]:[&>aside_nav_button]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_button]:[border-radius:11px] max-[800px]:[&>aside_nav_button]:[font-size:11px] max-[800px]:[&>aside_nav_button]:[white-space:normal] max-[800px]:[&>aside_nav_a.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_button.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_.nav-icon]:[width:17px] max-[800px]:[&>aside_nav_.nav-icon]:[height:17px] max-[800px]:[&>aside_nav_.nav-icon]:[flex-basis:17px] max-[800px]:[&>aside_.nav-count]:[margin-left:1px] max-[380px]:[&>aside_nav]:[grid-template-columns:1fr] max-[380px]:[&>aside_nav_a]:[padding-inline:9px] max-[380px]:[&>aside_nav_button]:[padding-inline:9px]">
+    <div
+      className="dashboard [height:100vh] [min-height:0] [display:grid] [grid-template-columns:var(--initial-sidebar-width)_minmax(0,_1fr)] [overflow:hidden] [background:var(--page)] [color:var(--ink)] max-[800px]:[grid-template-columns:1fr] max-[800px]:[grid-template-rows:auto_minmax(0,_1fr)] dark:[background:var(--page)] dark:[color:var(--ink)] max-[800px]:[height:100vh] max-[800px]:[height:100dvh] max-[800px]:[overflow:hidden] max-[800px]:[&>aside]:[position:relative] max-[800px]:[&>aside]:[z-index:30] max-[800px]:[&>aside]:[display:block] max-[800px]:[&>aside]:[width:100%] max-[800px]:[&>aside]:[height:auto] max-[800px]:[&>aside]:[min-width:0] max-[800px]:[&>aside]:[padding:10px_12px] max-[800px]:[&>aside]:[border-right:0] max-[800px]:[&>aside]:[border-bottom:1px_solid_var(--line)] max-[800px]:[&>aside]:[box-shadow:0_5px_20px_color-mix(in_srgb,_var(--ink)_6%,_transparent)] max-[800px]:[&>aside_.restaurant-switcher]:[width:100%] max-[800px]:[&>aside_.restaurant-chip]:[min-height:52px] max-[800px]:[&>aside_.restaurant-chip]:[margin:0] max-[800px]:[&>aside_.restaurant-chip]:[padding:7px_10px] max-[800px]:[&>aside_.restaurant-chip]:[border-color:var(--line)] max-[800px]:[&>aside_.restaurant-chip]:[background:var(--surface-subtle)] max-[800px]:[&>aside_.restaurant-chip_img]:[width:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[height:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[flex-basis:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[width:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[height:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[flex-basis:36px] max-[800px]:[&>aside_nav]:[display:none] max-[800px]:[&>aside_nav]:[grid-template-columns:repeat(2,_minmax(0,_1fr))] max-[800px]:[&>aside_nav]:[gap:5px] max-[800px]:[&>aside_nav]:[width:100%] max-[800px]:[&>aside_nav]:[margin:10px_0_0] max-[800px]:[&>aside_nav]:[padding:9px_0_0] max-[800px]:[&>aside_nav]:[overflow:visible] max-[800px]:[&>aside_nav]:[border-top:1px_solid_var(--line)] max-[800px]:[&>aside.mobile-nav-open_nav]:[display:grid] max-[800px]:[&>aside_nav_a]:[justify-content:flex-start] max-[800px]:[&>aside_nav_a]:[width:100%] max-[800px]:[&>aside_nav_a]:[min-width:0] max-[800px]:[&>aside_nav_a]:[min-height:42px] max-[800px]:[&>aside_nav_a]:[gap:7px] max-[800px]:[&>aside_nav_a]:[padding:9px_11px] max-[800px]:[&>aside_nav_a]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_a]:[border-radius:11px] max-[800px]:[&>aside_nav_a]:[font-size:11px] max-[800px]:[&>aside_nav_a]:[white-space:normal] max-[800px]:[&>aside_nav_button]:[justify-content:flex-start] max-[800px]:[&>aside_nav_button]:[width:100%] max-[800px]:[&>aside_nav_button]:[min-width:0] max-[800px]:[&>aside_nav_button]:[min-height:42px] max-[800px]:[&>aside_nav_button]:[gap:7px] max-[800px]:[&>aside_nav_button]:[padding:9px_11px] max-[800px]:[&>aside_nav_button]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_button]:[border-radius:11px] max-[800px]:[&>aside_nav_button]:[font-size:11px] max-[800px]:[&>aside_nav_button]:[white-space:normal] max-[800px]:[&>aside_nav_a.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_button.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_.nav-icon]:[width:17px] max-[800px]:[&>aside_nav_.nav-icon]:[height:17px] max-[800px]:[&>aside_nav_.nav-icon]:[flex-basis:17px] max-[800px]:[&>aside_.nav-count]:[margin-left:1px] max-[380px]:[&>aside_nav]:[grid-template-columns:1fr] max-[380px]:[&>aside_nav_a]:[padding-inline:9px] max-[380px]:[&>aside_nav_button]:[padding-inline:9px]"
+      style={{
+        "--initial-sidebar-width": `${desktopSidebarOpen ? desktopSidebarWidth : 76}px`,
+      } as CSSProperties}
+    >
       <aside ref={sidebarRef} className={`sticky top-0 flex h-screen flex-col overflow-hidden border-r border-[#ffffff1f] bg-[#24211f] px-4.5 py-6.25 text-[#faf9f6] transition-[padding] duration-200 ease-out max-[800px]:static max-[800px]:h-auto max-[800px]:overflow-visible max-[800px]:p-3.5 ${desktopSidebarOpen ? "" : "min-[801px]:px-2 min-[801px]:[&_.brand]:hidden min-[801px]:[&_.restaurant-switcher]:hidden min-[801px]:[&_nav]:pt-12 min-[801px]:[&_nav_a]:justify-center min-[801px]:[&_nav_a]:gap-0 min-[801px]:[&_nav_a]:text-[0px] min-[801px]:[&_nav_button]:justify-center min-[801px]:[&_nav_button]:gap-0 min-[801px]:[&_nav_button]:text-[0px] min-[801px]:[&_.nav-count]:hidden min-[801px]:[&_.nav-premium]:hidden min-[801px]:[&_[data-sidebar-group-label]]:hidden min-[801px]:[&_[data-sidebar-group-caret]]:hidden min-[801px]:[&_[data-sidebar-group-content]]:hidden min-[801px]:[&_[data-sidebar-group]>button]:justify-center min-[801px]:[&_.aside-footer]:px-0 min-[801px]:[&_.sidebar-account]:flex min-[801px]:[&_.sidebar-account]:justify-center min-[801px]:[&_.sidebar-account>div]:hidden min-[801px]:[&_.sidebar-account>button]:hidden min-[801px]:[&_.web-version]:hidden"} ${mobileNavOpen ? "mobile-nav-open max-[800px]:fixed! max-[800px]:inset-0! max-[800px]:z-100! max-[800px]:h-dvh! max-[800px]:overflow-y-auto! max-[800px]:border-0! max-[800px]:bg-[#24211fe6]! max-[800px]:backdrop-blur-xl max-[800px]:shadow-none!" : "max-[800px]:[&_.workspace-switcher]:hidden"}`}>
         <button
           type="button"
@@ -773,7 +845,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             id="business-restaurant-management"
             label="Restaurant management"
             icon={<ForkKnifeIcon size={20} weight="duotone" />}
-            active={["menu", "reviews", "badges", "offers", "posts", "profile", "team"].includes(section)}
+            active={["menu", "reviews", "badges", "offers", "reservations", "posts", "profile", "team"].includes(section)}
           >
           {canRestaurant(restaurant, "MANAGE_MENU") && <AppLink
             to={businessPaths.menu}
@@ -787,18 +859,17 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           >
             <StarIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Reviews
           </AppLink>}
-          {canRestaurant(restaurant, "VIEW_REVIEWS") && <AppLink
-            to={businessPaths.badges}
-            className={section === "badges" ? "active" : ""}
-          >
-            <MedalIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Badges
-            {(restaurant.earnedBadges?.length ?? 0) > 0 && <small className="nav-count [margin-left:auto] [min-width:22px] [padding:3px_6px] [border-radius:20px] [background:#ffe4da] [color:#a6382a] [text-align:center] [font-size:10px] [font-weight:900] [&.neutral]:[background:#ebe9e5] [&.neutral]:[color:#555] [&.neutral]:[background:var(--neutral-chip)] [&.neutral]:[color:var(--neutral-chip-text)] [background:var(--accent-soft)] [color:var(--accent-dark)]">{restaurant.earnedBadges?.length}</small>}
-          </AppLink>}
           {canRestaurant(restaurant, "MANAGE_OFFERS") && <AppLink
             to={businessPaths.offers}
             className={section === "offers" ? "active" : ""}
           >
             <GiftIcon className="nav-icon" size={20} weight="duotone" /> Offers and rewards
+          </AppLink>}
+          {canRestaurant(restaurant, "MANAGE_RESERVATIONS") && <AppLink
+            to={businessPaths.reservations}
+            className={section === "reservations" ? "active" : ""}
+          >
+            <CalendarCheckIcon className="nav-icon" size={20} weight="duotone" /> Reservations <small className="nav-premium [margin-left:auto] [padding:2px_5px] [border-radius:5px] [background:var(--warning-soft)] [color:var(--warning)] [font-size:8px] [font-weight:900] max-[800px]:[display:none]">PRO</small>
           </AppLink>}
           {canRestaurant(restaurant, "PUBLISH_POSTS") && <AppLink
             to={businessPaths.posts}
@@ -825,6 +896,30 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           >
             <HeadsetIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Help and support
           </AppLink>}
+          <AppLink
+            to={businessPaths.pro}
+            className={`${section === "pro" ? "active bg-[#ffffff22]! font-bold! text-[#faf9f6]!" : "text-[#faf9f6]!"} min-[801px]:hidden!`}
+          >
+            <CrownSimpleIcon className="nav-icon" size={20} weight="fill" /> Business Pro
+            <small className="nav-premium ml-auto rounded-md bg-warning-soft px-1.5 py-0.5 text-[8px] font-black text-warning">PRO</small>
+          </AppLink>
+          <AppLink
+            to={businessPaths.messages}
+            className={`${section === "messages" ? "active bg-[#ffffff22]! font-bold! text-[#faf9f6]!" : "text-[#faf9f6]!"} min-[801px]:hidden!`}
+          >
+            <ChatCircleDotsIcon className="nav-icon" size={20} weight="duotone" /> Messages
+            {messageUnreadCount > 0 ? (
+              <small className="nav-count ml-auto min-w-5.5 rounded-full bg-accent px-1.5 py-0.5 text-center text-[9px] font-black text-white">
+                {messageUnreadCount > 99 ? "99+" : messageUnreadCount}
+              </small>
+            ) : null}
+          </AppLink>
+          <AppLink
+            to={businessPaths.settings}
+            className={`${section === "settings" ? "active bg-[#ffffff22]! font-bold! text-[#faf9f6]!" : "text-[#faf9f6]!"} min-[801px]:hidden!`}
+          >
+            <GearSixIcon className="nav-icon" size={20} weight="duotone" /> Settings
+          </AppLink>
         </nav>
         <div className="aside-footer [margin-top:auto] [padding:16px_10px_0] [border-top:1px_solid_var(--line)] [&_p]:[margin-bottom:5px] [&_p]:[font-weight:800] [&_p]:[font-size:13px] [&_small]:[display:block] [&_small]:[color:var(--muted)] [&_small]:[line-height:1.45] [&_button]:[margin-top:18px] [&_button]:[padding:0] [&_button]:[border:0] [&_button]:[background:none] [&_button]:[color:#a13c2a] [&_button]:[font-weight:700] [&_.sidebar-account>button]:[display:grid] [&_.sidebar-account>button]:[place-items:center] [&_.sidebar-account>button]:[width:34px] [&_.sidebar-account>button]:[height:34px] [&_.sidebar-account>button]:[margin:0] [&_.sidebar-account>button]:[padding:0] [&_.sidebar-account>button]:[border:1px_solid_var(--line)] [&_.sidebar-account>button]:[border-radius:11px] [&_.sidebar-account>button]:[background:var(--surface-subtle)] [&_.sidebar-account>button]:[color:var(--muted)] [&_.sidebar-account>button]:[transition:background-color_.16s_ease,color_.16s_ease] [&_.sidebar-account>button:hover]:[background:var(--danger-soft)] [&_.sidebar-account>button:hover]:[color:var(--danger)] max-[800px]:[display:none] [&_.web-version]:[display:block] [&_.web-version]:[margin-top:12px] [&_.web-version]:[color:color-mix(in_srgb,var(--muted)_72%,transparent)] [&_.web-version]:[font-size:9px] [&_.web-version]:[font-weight:800] [&_.web-version]:[letter-spacing:.06em] [&_.web-version]:[text-align:center] [&_.web-version]:[text-transform:uppercase] [&_button]:[color:var(--danger)]">
           <div className="sidebar-account [display:grid] [grid-template-columns:auto_minmax(0,1fr)_34px] [align-items:center] [gap:11px] [&>div]:[min-width:0] [&_strong]:[display:block] [&_strong]:[overflow:hidden] [&_strong]:[text-overflow:ellipsis] [&_strong]:[white-space:nowrap] [&_small]:[display:block] [&_small]:[overflow:hidden] [&_small]:[text-overflow:ellipsis] [&_small]:[white-space:nowrap] [&_strong]:[font-size:12px] [&_small]:[margin-top:2px] [&_small]:[font-size:9px]">
@@ -855,7 +950,7 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
         )}
       </aside>
       <main className="content [min-width:0] [min-height:0] [height:100vh] [display:grid] [grid-template-rows:76px_minmax(0,_1fr)] [overflow:hidden] [&>header]:[position:relative] [&>header]:[z-index:10] [&>:not(header)]:[min-height:0] [&>:not(header)]:[overflow-y:auto] [&>:not(header)]:[overscroll-behavior:contain] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0] [&>.messages-page]:[margin-top:0] [&>.messages-page]:[margin-bottom:0] [&>.admin-content]:[margin-top:0] [&>.admin-content]:[margin-bottom:0] [&>.messages-page]:[display:flex] [&>.messages-page]:[flex-direction:column] [&>.messages-page]:[height:100%] [&>.messages-page]:[min-height:0] [&>.messages-page]:[overflow:hidden] max-[800px]:[height:100%] max-[800px]:[min-height:0] [&>.support-admin-content]:[display:flex] [&>.support-admin-content]:[flex-direction:column] [&>.support-admin-content]:[height:100%] [&>.support-admin-content]:[min-height:0] [&>.support-admin-content]:[overflow:hidden] [&>.support-admin-content]:[padding-bottom:32px] max-[800px]:[&>.support-admin-content]:[padding-top:22px] max-[800px]:[&>.support-admin-content]:[padding-bottom:18px] max-[800px]:[grid-template-rows:60px_minmax(0,_1fr)] max-[800px]:[&>header]:[display:flex] max-[800px]:[&>header]:[height:60px] max-[800px]:[&>header]:[min-width:0] max-[800px]:[&>header]:[padding:0_16px] max-[800px]:[&>header>div:first-child]:[min-width:0] max-[380px]:[&>header]:[padding-inline:12px] max-[380px]:[&>header>div:first-child>strong]:[max-width:34vw] max-[380px]:[&>header>div:first-child>strong]:[font-size:12px]">
-        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-10.5 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-5 max-[380px]:[&_.top-actions]:[gap:6px] max-[380px]:[&_.top-actions_.notifications-trigger]:[width:34px] max-[380px]:[&_.top-actions_.notifications-trigger]:[height:34px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[width:18px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[height:18px]">
+        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-6 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-4 max-[380px]:[&_.top-actions]:[gap:6px] max-[380px]:[&_.top-actions_.notifications-trigger]:[width:34px] max-[380px]:[&_.top-actions_.notifications-trigger]:[height:34px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[width:18px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[height:18px]">
           <div className="header-identity-group [display:flex] [align-items:center] [gap:18px] [min-width:0] [flex:1] max-[800px]:[align-self:stretch] max-[800px]:[gap:7px] max-[800px]:[min-width:0] max-[800px]:[flex:1]">
             <div className="header-restaurant-switcher [min-width:0] [&_.restaurant-switcher]:[width:min(360px,42vw)] [&_.restaurant-chip]:[min-height:50px] [&_.restaurant-chip]:[padding:6px_8px] [&_.restaurant-chip]:[border-color:transparent] [&_.restaurant-chip]:[background:transparent] [&_.restaurant-chip:hover]:[background:var(--surface-hover)] [&_.restaurant-chip.open]:[background:var(--surface-hover)] [&_.restaurant-switcher-menu]:[right:auto] [&_.restaurant-switcher-menu]:[left:0] [&_.restaurant-switcher-menu]:[width:100%] [&_.restaurant-switcher-menu]:[max-width:none] max-[800px]:[display:flex] max-[800px]:[align-self:stretch] max-[800px]:[align-items:center] max-[800px]:[justify-content:flex-start] max-[800px]:[min-width:0] max-[800px]:[flex:1] max-[800px]:[&_.restaurant-switcher]:[width:100%] max-[800px]:[&_.restaurant-switcher]:[max-width:none] max-[800px]:[&_.restaurant-chip]:[min-height:44px] max-[800px]:[&_.restaurant-chip]:[padding:4px_7px] max-[800px]:[&_.restaurant-chip]:[border-color:transparent] max-[800px]:[&_.restaurant-chip]:[background:transparent] max-[800px]:[&_.restaurant-chip:hover]:[background:var(--surface-hover)] max-[800px]:[&_.restaurant-chip.open]:[background:var(--surface-hover)] max-[800px]:[&_.restaurant-chip_img]:[width:34px] max-[800px]:[&_.restaurant-chip_img]:[height:34px] max-[800px]:[&_.restaurant-chip_img]:[flex-basis:34px] max-[800px]:[&_.restaurant-chip>span]:[width:34px] max-[800px]:[&_.restaurant-chip>span]:[height:34px] max-[800px]:[&_.restaurant-chip>span]:[flex-basis:34px] max-[800px]:[&_.restaurant-switcher-menu]:[top:calc(100%_+_7px)] max-[800px]:[&_.restaurant-switcher-menu]:[right:auto] max-[800px]:[&_.restaurant-switcher-menu]:[left:0] max-[800px]:[&_.restaurant-switcher-menu]:[width:100%] max-[800px]:[&_.restaurant-switcher-menu]:[max-width:none]">
               <RestaurantSwitcher
@@ -867,23 +962,59 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
           </div>
           <div className="top-actions [display:flex] [align-items:center] [gap:14px] max-[800px]:[min-width:0] max-[800px]:[flex:0_0_auto] max-[800px]:[justify-content:flex-end] max-[800px]:[gap:9px]">
             <AppLink
-              to={businessPaths.messages}
-              className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#FAF9F6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#FAF9F6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:[width:38px] max-[800px]:[height:38px] messages-trigger [text-decoration:none] ${section === "messages" ? "active" : ""}`}
+              to={businessPaths.pro}
+              className={`flex min-h-10 items-center gap-2 rounded-full border border-[#f0a14566] bg-[linear-gradient(135deg,#ff7255,#f2a23a)] px-4 text-xs font-black text-white no-underline shadow-[0_8px_22px_rgba(255,114,85,.2)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(255,114,85,.28)] max-[800px]:hidden! ${section === "pro" ? "ring-2 ring-[#ff725555] ring-offset-2 ring-offset-surface" : ""}`}
+              aria-label="Open Business Pro"
+              title="Business Pro"
+              onClick={() => setNotificationsOpen(false)}
+            >
+              <CrownSimpleIcon size={18} weight="fill" aria-hidden="true" />
+              <span className="max-[800px]:hidden">Business Pro</span>
+            </AppLink>
+            {canRestaurant(restaurant, "VIEW_REVIEWS") && (
+              <button
+                type="button"
+                className={`notifications-trigger relative grid size-10.5 place-items-center rounded-full border border-line bg-surface p-0 text-ink no-underline transition hover:bg-surface-hover max-[800px]:hidden! ${badgesOpen ? "active border-accent bg-accent-soft text-accent" : ""}`}
+                aria-label="Open restaurant badges"
+                aria-haspopup="dialog"
+                aria-expanded={badgesOpen}
+                title="Badges"
+                onClick={() => {
+                  setNotificationsOpen(false);
+                  setMessagesOpen(false);
+                  setSettingsOpen(false);
+                  setBadgesOpen(true);
+                }}
+              >
+                <MedalIcon size={21} weight="duotone" aria-hidden="true" />
+                {(restaurant.earnedBadges?.length ?? 0) > 0 ? (
+                  <b className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full border-2 border-surface bg-accent px-1 text-[9px] font-black leading-none text-white">
+                    {(restaurant.earnedBadges?.length ?? 0) > 99
+                      ? "99+"
+                      : restaurant.earnedBadges?.length}
+                  </b>
+                ) : null}
+              </button>
+            )}
+            <button
+              type="button"
+              className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#FAF9F6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#FAF9F6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:hidden! messages-trigger [text-decoration:none] ${messagesOpen ? "active" : ""}`}
               aria-label="Open messages"
+              aria-haspopup="dialog"
+              aria-expanded={messagesOpen}
               title="Messages"
-              onClick={(event) => {
+              onClick={() => {
                 setNotificationsOpen(false);
-                if (window.matchMedia("(max-width: 800px)").matches) {
-                  event.preventDefault();
-                  setMobileSettingsOpen(true);
-                }
+                setBadgesOpen(false);
+                setSettingsOpen(false);
+                setMessagesOpen(true);
               }}
             >
               <ChatCircleDotsIcon size={21} weight="duotone" aria-hidden="true" />
               {messageUnreadCount > 0 ? (
                 <b>{messageUnreadCount > 99 ? "99+" : messageUnreadCount}</b>
               ) : null}
-            </AppLink>
+            </button>
             <div className="notifications-menu [position:relative]">
               <button
                 className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#faf9f6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#faf9f6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:[width:38px] max-[800px]:[height:38px] ${notificationsOpen ? "active" : ""}`}
@@ -914,15 +1045,22 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
                 />
               )}
             </div>
-            <AppLink
-              to={businessPaths.settings}
-              className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#faf9f6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#faf9f6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:[width:38px] max-[800px]:[height:38px] settings-trigger [text-decoration:none] ${section === "settings" ? "active" : ""}`}
+            <button
+              type="button"
+              className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#faf9f6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#faf9f6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] dark:[&>b]:[border-color:var(--surface)] max-[800px]:hidden! settings-trigger [text-decoration:none] ${settingsOpen ? "active" : ""}`}
               aria-label="Open settings"
+              aria-haspopup="dialog"
+              aria-expanded={settingsOpen}
               title="Settings"
-              onClick={() => setNotificationsOpen(false)}
+              onClick={() => {
+                setNotificationsOpen(false);
+                setBadgesOpen(false);
+                setMessagesOpen(false);
+                setSettingsOpen(true);
+              }}
             >
               <GearSixIcon size={21} weight="duotone" aria-hidden="true" />
-            </AppLink>
+            </button>
           </div>
         </header>
         {(section === "overview" || visitedSections.has("overview")) && (
@@ -981,6 +1119,11 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <OffersPage key={restaurant.id} restaurant={restaurant} />
           </div>
         )}
+        {(section === "reservations" || visitedSections.has("reservations")) && (
+          <div className="dashboard-page-slot min-h-0 overflow-y-auto overscroll-contain [&[hidden]]:hidden" hidden={section !== "reservations"}>
+            <ReservationsPage key={restaurant.id} restaurant={restaurant} />
+          </div>
+        )}
         {(section === "posts" || visitedSections.has("posts")) && (
           <div className="dashboard-page-slot [min-height:0] [overflow-y:auto] [overscroll-behavior:contain] [&[hidden]]:[display:none]" hidden={section !== "posts"}>
             <OfficialPostsPage key={restaurant.id} restaurant={restaurant} />
@@ -1025,8 +1168,29 @@ export function DashboardPage({ onLogout }: { onLogout: () => void }) {
             <SettingsPage />
           </div>
         )}
+        {(section === "pro" || visitedSections.has("pro")) && (
+          <div className="dashboard-page-slot min-h-0 overflow-y-auto overscroll-contain [&[hidden]]:hidden" hidden={section !== "pro"}>
+            <BusinessProPage key={restaurant.id} restaurant={restaurant} />
+          </div>
+        )}
       </main>
-      {mobileSettingsOpen ? <SettingsOverlay onClose={() => setMobileSettingsOpen(false)} /> : null}
+      {badgesOpen ? (
+        <WorkspaceDialog label="Restaurant badges" onClose={() => setBadgesOpen(false)}>
+          <BadgesPage restaurant={restaurant} />
+        </WorkspaceDialog>
+      ) : null}
+      {messagesOpen ? (
+        <WorkspaceDialog label="Customer messages" onClose={() => setMessagesOpen(false)} wide>
+          <MessagesPage
+            key={`messages-dialog-${restaurant.id}`}
+            restaurant={restaurant}
+            account={account}
+            conversations={conversations}
+            reloadConversations={loadRestaurantConversations}
+          />
+        </WorkspaceDialog>
+      ) : null}
+      {settingsOpen ? <SettingsOverlay onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 }

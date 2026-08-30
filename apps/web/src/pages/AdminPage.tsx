@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
 import { SealCheckIcon } from "@phosphor-icons/react/dist/csr/SealCheck";
 import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
@@ -33,7 +33,7 @@ import { AccountAvatar } from "../components/AccountAvatar";
 import { RestaurantOwnershipManager } from "../components/RestaurantOwnershipManager";
 import { SupportTicketsPanel } from "../components/SupportTicketsPanel";
 import { ProductUpdatesAdmin } from "../components/ProductUpdatesAdmin";
-import { SettingsOverlay, SettingsPage } from "./SettingsPage";
+import { SettingsPage } from "./SettingsPage";
 import { WEB_VERSION } from "../lib/version";
 import { UserIdentity } from "../components/UserIdentity";
 import { ModerationPanel } from "../components/ModerationPanel";
@@ -94,6 +94,7 @@ export function AdminPage({
     sidebarRef,
     open: desktopSidebarOpen,
     setOpen: setDesktopSidebarOpen,
+    width: desktopSidebarWidth,
     startResize: startSidebarResize,
   } = useResizableSidebar(SHARED_SIDEBAR_WIDTH_STORAGE_KEY);
   const [openSidebarGroup, setOpenSidebarGroup] =
@@ -103,7 +104,6 @@ export function AdminPage({
   const [adminActivity, setAdminActivity] = useState<AdminActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [activityUnreadCount, setActivityUnreadCount] = useState(0);
   const [visitedSections, setVisitedSections] = useState<
     Set<AdminDashboardSection>
@@ -129,14 +129,24 @@ export function AdminPage({
       const items = await request<AdminActivityItem[]>("/admin/activity", {
         cache: "reload",
       });
-      setAdminActivity(items);
+      const clearedThrough = localStorage.getItem(
+        `findeat-admin-activity-cleared:${account.id}`,
+      );
+      const clearedThroughAt = clearedThrough
+        ? new Date(clearedThrough).getTime()
+        : 0;
+      const visibleItems = items.filter(
+        (item) => new Date(item.createdAt).getTime() > clearedThroughAt,
+      );
+      setAdminActivity(visibleItems);
       const lastSeen = localStorage.getItem(
         `findeat-admin-activity-seen:${account.id}`,
       );
       const lastSeenAt = lastSeen ? new Date(lastSeen).getTime() : 0;
       setActivityUnreadCount(
-        items.filter((item) => new Date(item.createdAt).getTime() > lastSeenAt)
-          .length,
+        visibleItems.filter(
+          (item) => new Date(item.createdAt).getTime() > lastSeenAt,
+        ).length,
       );
     } catch (nextError) {
       console.error("Could not load admin notifications", nextError);
@@ -165,6 +175,20 @@ export function AdminPage({
     setActivityUnreadCount(0);
     setNotificationsOpen(true);
     void loadAdminActivity();
+  }
+
+  function clearAdminNotifications() {
+    const clearedAt = new Date().toISOString();
+    localStorage.setItem(
+      `findeat-admin-activity-cleared:${account.id}`,
+      clearedAt,
+    );
+    localStorage.setItem(
+      `findeat-admin-activity-seen:${account.id}`,
+      clearedAt,
+    );
+    setAdminActivity([]);
+    setActivityUnreadCount(0);
   }
 
   async function decide(claimId: string, decision: "approve" | "reject") {
@@ -275,7 +299,12 @@ export function AdminPage({
   }
 
   return (
-    <div className="dashboard h-screen min-h-0 grid grid-cols-[260px_minmax(0,_1fr)] overflow-hidden bg-page text-ink max-[800px]:h-dvh max-[800px]:grid-cols-1 max-[800px]:grid-rows-[auto_minmax(0,_1fr)] max-[800px]:overflow-hidden max-[800px]:[&>aside]:[position:relative] max-[800px]:[&>aside]:[z-index:30] max-[800px]:[&>aside]:[display:block] max-[800px]:[&>aside]:[width:100%] max-[800px]:[&>aside]:[height:auto] max-[800px]:[&>aside]:[min-width:0] max-[800px]:[&>aside]:[padding:10px_12px] max-[800px]:[&>aside]:[border-right:0] max-[800px]:[&>aside]:[border-bottom:1px_solid_var(--line)] max-[800px]:[&>aside]:[box-shadow:0_5px_20px_color-mix(in_srgb,_var(--ink)_6%,_transparent)] max-[800px]:[&>aside_.restaurant-switcher]:[width:100%] max-[800px]:[&>aside_.restaurant-chip]:[min-height:52px] max-[800px]:[&>aside_.restaurant-chip]:[margin:0] max-[800px]:[&>aside_.restaurant-chip]:[padding:7px_10px] max-[800px]:[&>aside_.restaurant-chip]:[border-color:var(--line)] max-[800px]:[&>aside_.restaurant-chip]:[background:var(--surface-subtle)] max-[800px]:[&>aside_.restaurant-chip_img]:[width:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[height:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[flex-basis:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[width:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[height:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[flex-basis:36px] max-[800px]:[&>aside_nav]:[display:none] max-[800px]:[&>aside_nav]:[grid-template-columns:repeat(2,_minmax(0,_1fr))] max-[800px]:[&>aside_nav]:[gap:5px] max-[800px]:[&>aside_nav]:[width:100%] max-[800px]:[&>aside_nav]:[margin:10px_0_0] max-[800px]:[&>aside_nav]:[padding:9px_0_0] max-[800px]:[&>aside_nav]:[overflow:visible] max-[800px]:[&>aside_nav]:[border-top:1px_solid_var(--line)] max-[800px]:[&>aside.mobile-nav-open_nav]:[display:grid] max-[800px]:[&>aside_nav_a]:[justify-content:flex-start] max-[800px]:[&>aside_nav_a]:[width:100%] max-[800px]:[&>aside_nav_a]:[min-width:0] max-[800px]:[&>aside_nav_a]:[min-height:42px] max-[800px]:[&>aside_nav_a]:[gap:7px] max-[800px]:[&>aside_nav_a]:[padding:9px_11px] max-[800px]:[&>aside_nav_a]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_a]:[border-radius:11px] max-[800px]:[&>aside_nav_a]:[font-size:11px] max-[800px]:[&>aside_nav_a]:[white-space:normal] max-[800px]:[&>aside_nav_button]:[justify-content:flex-start] max-[800px]:[&>aside_nav_button]:[width:100%] max-[800px]:[&>aside_nav_button]:[min-width:0] max-[800px]:[&>aside_nav_button]:[min-height:42px] max-[800px]:[&>aside_nav_button]:[gap:7px] max-[800px]:[&>aside_nav_button]:[padding:9px_11px] max-[800px]:[&>aside_nav_button]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_button]:[border-radius:11px] max-[800px]:[&>aside_nav_button]:[font-size:11px] max-[800px]:[&>aside_nav_button]:[white-space:normal] max-[800px]:[&>aside_nav_a.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_button.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_.nav-icon]:[width:17px] max-[800px]:[&>aside_nav_.nav-icon]:[height:17px] max-[800px]:[&>aside_nav_.nav-icon]:[flex-basis:17px] max-[800px]:[&>aside_.nav-count]:[margin-left:1px] max-[380px]:[&>aside_nav]:[grid-template-columns:1fr] max-[380px]:[&>aside_nav_a]:[padding-inline:9px] max-[380px]:[&>aside_nav_button]:[padding-inline:9px] admin-dashboard max-[800px]:[&_nav]:[grid-template-columns:repeat(auto-fit,minmax(100px,1fr))]">
+    <div
+      className="dashboard h-screen min-h-0 grid [grid-template-columns:var(--initial-sidebar-width)_minmax(0,_1fr)] overflow-hidden bg-page text-ink max-[800px]:h-dvh max-[800px]:grid-cols-1 max-[800px]:grid-rows-[auto_minmax(0,_1fr)] max-[800px]:overflow-hidden max-[800px]:[&>aside]:[position:relative] max-[800px]:[&>aside]:[z-index:30] max-[800px]:[&>aside]:[display:block] max-[800px]:[&>aside]:[width:100%] max-[800px]:[&>aside]:[height:auto] max-[800px]:[&>aside]:[min-width:0] max-[800px]:[&>aside]:[padding:10px_12px] max-[800px]:[&>aside]:[border-right:0] max-[800px]:[&>aside]:[border-bottom:1px_solid_var(--line)] max-[800px]:[&>aside]:[box-shadow:0_5px_20px_color-mix(in_srgb,_var(--ink)_6%,_transparent)] max-[800px]:[&>aside_.restaurant-switcher]:[width:100%] max-[800px]:[&>aside_.restaurant-chip]:[min-height:52px] max-[800px]:[&>aside_.restaurant-chip]:[margin:0] max-[800px]:[&>aside_.restaurant-chip]:[padding:7px_10px] max-[800px]:[&>aside_.restaurant-chip]:[border-color:var(--line)] max-[800px]:[&>aside_.restaurant-chip]:[background:var(--surface-subtle)] max-[800px]:[&>aside_.restaurant-chip_img]:[width:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[height:36px] max-[800px]:[&>aside_.restaurant-chip_img]:[flex-basis:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[width:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[height:36px] max-[800px]:[&>aside_.restaurant-chip>span]:[flex-basis:36px] max-[800px]:[&>aside_nav]:[display:none] max-[800px]:[&>aside_nav]:[grid-template-columns:repeat(2,_minmax(0,_1fr))] max-[800px]:[&>aside_nav]:[gap:5px] max-[800px]:[&>aside_nav]:[width:100%] max-[800px]:[&>aside_nav]:[margin:10px_0_0] max-[800px]:[&>aside_nav]:[padding:9px_0_0] max-[800px]:[&>aside_nav]:[overflow:visible] max-[800px]:[&>aside_nav]:[border-top:1px_solid_var(--line)] max-[800px]:[&>aside.mobile-nav-open_nav]:[display:grid] max-[800px]:[&>aside_nav_a]:[justify-content:flex-start] max-[800px]:[&>aside_nav_a]:[width:100%] max-[800px]:[&>aside_nav_a]:[min-width:0] max-[800px]:[&>aside_nav_a]:[min-height:42px] max-[800px]:[&>aside_nav_a]:[gap:7px] max-[800px]:[&>aside_nav_a]:[padding:9px_11px] max-[800px]:[&>aside_nav_a]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_a]:[border-radius:11px] max-[800px]:[&>aside_nav_a]:[font-size:11px] max-[800px]:[&>aside_nav_a]:[white-space:normal] max-[800px]:[&>aside_nav_button]:[justify-content:flex-start] max-[800px]:[&>aside_nav_button]:[width:100%] max-[800px]:[&>aside_nav_button]:[min-width:0] max-[800px]:[&>aside_nav_button]:[min-height:42px] max-[800px]:[&>aside_nav_button]:[gap:7px] max-[800px]:[&>aside_nav_button]:[padding:9px_11px] max-[800px]:[&>aside_nav_button]:[border:1px_solid_transparent] max-[800px]:[&>aside_nav_button]:[border-radius:11px] max-[800px]:[&>aside_nav_button]:[font-size:11px] max-[800px]:[&>aside_nav_button]:[white-space:normal] max-[800px]:[&>aside_nav_a.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_button.active]:[border-color:var(--line)] max-[800px]:[&>aside_nav_.nav-icon]:[width:17px] max-[800px]:[&>aside_nav_.nav-icon]:[height:17px] max-[800px]:[&>aside_nav_.nav-icon]:[flex-basis:17px] max-[800px]:[&>aside_.nav-count]:[margin-left:1px] max-[380px]:[&>aside_nav]:[grid-template-columns:1fr] max-[380px]:[&>aside_nav_a]:[padding-inline:9px] max-[380px]:[&>aside_nav_button]:[padding-inline:9px] admin-dashboard max-[800px]:[&_nav]:[grid-template-columns:repeat(auto-fit,minmax(100px,1fr))]"
+      style={{
+        "--initial-sidebar-width": `${desktopSidebarOpen ? desktopSidebarWidth : 76}px`,
+      } as CSSProperties}
+    >
       <aside ref={sidebarRef} className={`sticky top-0 flex h-screen flex-col overflow-hidden border-r border-[#ffffff1f] bg-[#24211f] px-4.5 py-6.25 text-[#faf9f6] transition-[padding] duration-200 ease-out max-[800px]:static max-[800px]:h-auto max-[800px]:overflow-visible max-[800px]:p-3.5 ${desktopSidebarOpen ? "" : "min-[801px]:px-2 min-[801px]:[&_.brand]:hidden min-[801px]:[&_nav]:pt-12 min-[801px]:[&_nav_button]:justify-center min-[801px]:[&_nav_button]:gap-0 min-[801px]:[&_nav_button]:text-[0px] min-[801px]:[&_.nav-count]:hidden min-[801px]:[&_[data-sidebar-group-label]]:hidden min-[801px]:[&_[data-sidebar-group-caret]]:hidden min-[801px]:[&_[data-sidebar-group-content]]:hidden min-[801px]:[&_[data-sidebar-group]>button]:justify-center min-[801px]:[&_.aside-footer]:px-0 min-[801px]:[&_.sidebar-account]:flex min-[801px]:[&_.sidebar-account]:justify-center min-[801px]:[&_.sidebar-account>div]:hidden min-[801px]:[&_.sidebar-account>button]:hidden min-[801px]:[&_.web-version]:hidden"} ${mobileNavOpen ? "mobile-nav-open max-[800px]:fixed! max-[800px]:inset-0! max-[800px]:z-100! max-[800px]:h-dvh! max-[800px]:overflow-y-auto! max-[800px]:border-0! max-[800px]:bg-[#24211fe6]! max-[800px]:backdrop-blur-xl max-[800px]:shadow-none!" : "max-[800px]:[&_.workspace-switcher]:hidden"}`}>
         <button
           type="button"
@@ -467,6 +496,15 @@ export function AdminPage({
             <UsersThreeIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Admins{" "}
             <small className="nav-count [margin-left:auto] [min-width:22px] [padding:3px_6px] [border-radius:20px] [background:#ffe4da] [color:#a6382a] [text-align:center] [font-size:10px] [font-weight:900] [&.neutral]:[background:#ebe9e5] [&.neutral]:[color:#555] [&.neutral]:[background:var(--neutral-chip)] [&.neutral]:[color:var(--neutral-chip-text)] [background:var(--accent-soft)] [color:var(--accent-dark)] neutral">{admins.length}</small>
           </button>
+          <button
+            className={`${section === "settings" ? "active bg-[#ffffff22]! font-bold! text-[#faf9f6]!" : "text-[#faf9f6]!"} min-[801px]:hidden!`}
+            onClick={() => {
+              onNavigate("settings");
+              setError("");
+            }}
+          >
+            <GearSixIcon className="nav-icon" size={20} weight="duotone" /> Settings
+          </button>
         </nav>
         <div className="aside-footer [margin-top:auto] [padding:16px_10px_0] [border-top:1px_solid_var(--line)] [&_p]:[margin-bottom:5px] [&_p]:[font-weight:800] [&_p]:[font-size:13px] [&_small]:[display:block] [&_small]:[color:var(--muted)] [&_small]:[line-height:1.45] [&_button]:[margin-top:18px] [&_button]:[padding:0] [&_button]:[border:0] [&_button]:[background:none] [&_button]:[color:#a13c2a] [&_button]:[font-weight:700] [&_.sidebar-account>button]:[display:grid] [&_.sidebar-account>button]:[place-items:center] [&_.sidebar-account>button]:[width:34px] [&_.sidebar-account>button]:[height:34px] [&_.sidebar-account>button]:[margin:0] [&_.sidebar-account>button]:[padding:0] [&_.sidebar-account>button]:[border:1px_solid_var(--line)] [&_.sidebar-account>button]:[border-radius:11px] [&_.sidebar-account>button]:[background:var(--surface-subtle)] [&_.sidebar-account>button]:[color:var(--muted)] [&_.sidebar-account>button]:[transition:background-color_.16s_ease,color_.16s_ease] [&_.sidebar-account>button:hover]:[background:var(--danger-soft)] [&_.sidebar-account>button:hover]:[color:var(--danger)] max-[800px]:[display:none] [&_.web-version]:[display:block] [&_.web-version]:[margin-top:12px] [&_.web-version]:[color:color-mix(in_srgb,var(--muted)_72%,transparent)] [&_.web-version]:[font-size:9px] [&_.web-version]:[font-weight:800] [&_.web-version]:[letter-spacing:.06em] [&_.web-version]:[text-align:center] [&_.web-version]:[text-transform:uppercase] [&_button]:[color:var(--danger)]">
           <div className="sidebar-account [display:grid] [grid-template-columns:auto_minmax(0,1fr)_34px] [align-items:center] [gap:11px] [&>div]:[min-width:0] [&_strong]:[display:block] [&_strong]:[overflow:hidden] [&_strong]:[text-overflow:ellipsis] [&_strong]:[white-space:nowrap] [&_small]:[display:block] [&_small]:[overflow:hidden] [&_small]:[text-overflow:ellipsis] [&_small]:[white-space:nowrap] [&_strong]:[font-size:12px] [&_small]:[margin-top:2px] [&_small]:[font-size:9px]">
@@ -497,7 +535,7 @@ export function AdminPage({
         )}
       </aside>
       <main className="content [min-width:0] [min-height:0] [height:100vh] [display:grid] [grid-template-rows:76px_minmax(0,_1fr)] [overflow:hidden] [&>header]:[position:relative] [&>header]:[z-index:10] [&>:not(header)]:[min-height:0] [&>:not(header)]:[overflow-y:auto] [&>:not(header)]:[overscroll-behavior:contain] [&>.page-stack]:[margin-top:0] [&>.page-stack]:[margin-bottom:0] [&>.messages-page]:[margin-top:0] [&>.messages-page]:[margin-bottom:0] [&>.admin-content]:[margin-top:0] [&>.admin-content]:[margin-bottom:0] [&>.messages-page]:[display:flex] [&>.messages-page]:[flex-direction:column] [&>.messages-page]:[height:100%] [&>.messages-page]:[min-height:0] [&>.messages-page]:[overflow:hidden] max-[800px]:[height:100%] max-[800px]:[min-height:0] [&>.support-admin-content]:[display:flex] [&>.support-admin-content]:[flex-direction:column] [&>.support-admin-content]:[height:100%] [&>.support-admin-content]:[min-height:0] [&>.support-admin-content]:[overflow:hidden] [&>.support-admin-content]:[padding-bottom:32px] max-[800px]:[&>.support-admin-content]:[padding-top:22px] max-[800px]:[&>.support-admin-content]:[padding-bottom:18px] max-[800px]:[grid-template-rows:60px_minmax(0,_1fr)] max-[800px]:[&>header]:[display:flex] max-[800px]:[&>header]:[height:60px] max-[800px]:[&>header]:[min-width:0] max-[800px]:[&>header]:[padding:0_16px] max-[800px]:[&>header>div:first-child]:[min-width:0] max-[380px]:[&>header]:[padding-inline:12px] max-[380px]:[&>header>div:first-child>strong]:[max-width:34vw] max-[380px]:[&>header>div:first-child>strong]:[font-size:12px]">
-        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-10.5 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-5 max-[380px]:[&_.top-actions]:[gap:6px] max-[380px]:[&_.top-actions_.notifications-trigger]:[width:34px] max-[380px]:[&_.top-actions_.notifications-trigger]:[height:34px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[width:18px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[height:18px]">
+        <header className="flex h-19 items-center justify-between border-b border-line bg-surface px-6 [&>div]:flex [&>div]:items-center [&>div]:gap-2.5 max-[800px]:px-4 max-[380px]:[&_.top-actions]:[gap:6px] max-[380px]:[&_.top-actions_.notifications-trigger]:[width:34px] max-[380px]:[&_.top-actions_.notifications-trigger]:[height:34px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[width:18px] max-[380px]:[&_.top-actions_.notifications-trigger>svg]:[height:18px]">
           <div>
             <strong>Admin workspace</strong>
             <span className="admin-badge [padding:4px_9px] [border-radius:20px] [background:#f2e8ff] [color:#7040a0] [font-size:11px] [font-weight:800] [background:var(--purple-soft)] [color:var(--purple)] max-[600px]:[max-width:30vw] max-[600px]:[overflow:hidden] max-[600px]:[text-overflow:ellipsis] max-[600px]:[white-space:nowrap] max-[380px]:[font-size:9px]">Admin</span>
@@ -527,21 +565,18 @@ export function AdminPage({
                   loading={activityLoading}
                   onNavigate={onNavigate}
                   onClose={() => setNotificationsOpen(false)}
+                  onClear={clearAdminNotifications}
                 />
               ) : null}
             </div>
             <button
               type="button"
-              className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:#d8c9bb] [&.active]:[background:#faf8f5] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#faf9f6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#faf9f6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:[width:38px] max-[800px]:[height:38px] settings-trigger [text-decoration:none] ${section === "settings" ? "active" : ""}`}
+              className={`notifications-trigger [position:relative] [display:grid] [place-items:center] [width:42px] [height:42px] [padding:0] [border:1px_solid_var(--line)] [border-radius:50%] [background:var(--surface)] [color:var(--ink)] [&:hover]:[border-color:#d8c9bb] [&:hover]:[background:#faf8f5] [&.active]:[border-color:var(--line)] [&.active]:[background:var(--surface-hover)] [&>svg]:[width:21px] [&>svg]:[height:21px] [&>svg]:[display:block] [&>b]:[position:absolute] [&>b]:[right:-5px] [&>b]:[top:-5px] [&>b]:[display:grid] [&>b]:[place-items:center] [&>b]:[min-width:19px] [&>b]:[height:19px] [&>b]:[padding:0_5px] [&>b]:[border:2px_solid_#faf9f6] [&>b]:[border-radius:10px] [&>b]:[background:var(--accent)] [&>b]:[color:#faf9f6] [&>b]:[font-size:9px] [&:hover]:[border-color:var(--line)] [&:hover]:[background:var(--surface-hover)] dark:[&>b]:[border-color:var(--surface)] max-[800px]:hidden! settings-trigger [text-decoration:none] ${section === "settings" ? "active" : ""}`}
               aria-label="Open settings"
               title="Settings"
               onClick={() => {
                 setNotificationsOpen(false);
-                if (window.matchMedia("(max-width: 800px)").matches) {
-                  setMobileSettingsOpen(true);
-                } else {
-                  onNavigate("settings");
-                }
+                onNavigate("settings");
               }}
             >
               <GearSixIcon size={21} weight="duotone" aria-hidden="true" />
@@ -549,7 +584,7 @@ export function AdminPage({
           </div>
         </header>
         <div
-          className={`admin-content [width:min(1120px,100%)] [margin:auto] [padding:48px_42px_75px] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,4vw,22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] [width:min(1120px,_100%)] [margin:auto] [padding:48px_42px_75px] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,_4vw,_22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] ${section === "support" || section === "bugs" || section === "features" ? "flex h-full min-h-0 flex-col overflow-hidden pb-8 max-[800px]:py-[18px] max-[800px]:pt-[22px]" : ""}`}
+          className={`admin-content w-full p-[48px_42px_75px] max-[800px]:p-[26px_clamp(14px,4vw,22px)_calc(42px+env(safe-area-inset-bottom))] max-[380px]:px-3 ${section === "support" || section === "bugs" || section === "features" ? "flex h-full min-h-0 flex-col overflow-hidden pb-8 max-[800px]:py-[18px] max-[800px]:pt-[22px]" : "overflow-y-auto"}`}
         >
           {(section === "overview" || visitedSections.has("overview")) && (
             <div className="admin-page-slot [&[hidden]]:[display:none]" hidden={section !== "overview"}>
@@ -808,7 +843,6 @@ export function AdminPage({
           ) : null}
         </div>
       </main>
-      {mobileSettingsOpen ? <SettingsOverlay onClose={() => setMobileSettingsOpen(false)} /> : null}
     </div>
   );
 }

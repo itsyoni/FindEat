@@ -82,6 +82,8 @@ export type BusinessDashboardSection =
   | "reviews"
   | "badges"
   | "offers"
+  | "reservations"
+  | "pro"
   | "posts"
   | "team"
   | "messages"

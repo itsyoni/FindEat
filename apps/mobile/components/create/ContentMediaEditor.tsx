@@ -15,7 +15,6 @@ import {
   TrashIcon,
 } from "phosphor-react-native";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -116,14 +115,6 @@ export default function ContentMediaEditor({
     onClose: () => void;
     onApply: (filterId: PhotoFilterId) => Promise<void>;
   }> | null>(null);
-  const selectedMediaId = selectedMedia?.id;
-  const handleCropChange = useCallback(
-    (crop: ContentCropRect) => {
-      if (selectedMediaId) onCropChange(selectedMediaId, crop);
-    },
-    [onCropChange, selectedMediaId],
-  );
-
   useEffect(() => {
     let mounted = true;
     void import("@/components/create/PhotoFilterPickerModal")
@@ -236,24 +227,37 @@ export default function ContentMediaEditor({
             backgroundColor: isDark ? "#0A0A0A" : "#EEEAE4",
           }}
         >
-          {selectedMedia ? (
-            <ContentCropPreview
-              key={`${selectedMedia.id}-${selectedMedia.uri}`}
-              sourceUri={selectedMedia.cropSourceUri ?? selectedMedia.uri}
-              sourceWidth={
-                selectedMedia.cropSourceWidth ?? selectedMedia.width
-              }
-              sourceHeight={
-                selectedMedia.cropSourceHeight ?? selectedMedia.height
-              }
-              crop={selectedMedia.crop}
-              aspectRatio={aspectRatio}
-              canvasAspectRatio={canvasAspectRatio}
-              cropShape={cropShape}
-              disabled={busy}
-              onCropChange={handleCropChange}
-            />
-          ) : null}
+          {media.map((item, index) => {
+            const selected = index === selectedIndex;
+            return (
+              <View
+                key={item.id}
+                pointerEvents={selected ? "auto" : "none"}
+                accessibilityElementsHidden={!selected}
+                importantForAccessibility={
+                  selected ? "auto" : "no-hide-descendants"
+                }
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  opacity: selected ? 1 : 0,
+                  zIndex: selected ? 1 : 0,
+                }}
+              >
+                <ContentCropPreview
+                  sourceUri={item.cropSourceUri ?? item.uri}
+                  sourceWidth={item.cropSourceWidth ?? item.width}
+                  sourceHeight={item.cropSourceHeight ?? item.height}
+                  crop={item.crop}
+                  aspectRatio={aspectRatio}
+                  canvasAspectRatio={canvasAspectRatio}
+                  cropShape={cropShape}
+                  disabled={busy || !selected}
+                  onCropChange={(crop) => onCropChange(item.id, crop)}
+                />
+              </View>
+            );
+          })}
           {showEditorTools ? (
           <View className="absolute right-3 top-3 gap-3">
             {additionalEditorTools.map((tool) => (

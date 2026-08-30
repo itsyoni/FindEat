@@ -142,13 +142,23 @@ export default function RestaurantHeader({ restaurant, loading = false, onToggle
     ? 'Ontopo'
     : reservation?.provider === 'TABIT'
       ? 'Tabit'
+      : reservation?.provider === 'FINDEAT'
+        ? 'FindEat'
       : reservation?.provider === 'OTHER'
         ? t('externalBookingProvider')
         : null;
   const restaurantId = restaurant.id;
+  const restaurantDisplayName = restaurant.name;
 
   async function openReservation() {
     if (!reservation || booking) return;
+    if (reservation.provider === 'FINDEAT') {
+      router.push({
+        pathname: '/restaurants/reserve',
+        params: { restaurantId, restaurantName: restaurantDisplayName },
+      });
+      return;
+    }
     setBooking(true);
     try {
       const result = await api.reservations.resolveBookingLink(restaurantId, {

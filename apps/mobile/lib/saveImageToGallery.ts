@@ -16,3 +16,13 @@ export async function saveImageToGallery(uri: string) {
 
   await MediaLibrary.Asset.create(uri);
 }
+
+export async function saveVideoToGallery(uri: string) {
+  let permission = await MediaLibrary.getPermissionsAsync(true, ["video"]);
+  if (!permission.granted) {
+    permission = await MediaLibrary.requestPermissionsAsync(true, ["video"]);
+  }
+  if (!permission.granted) throw new MediaLibraryPermissionError();
+
+  await MediaLibrary.Asset.create(uri);
+}

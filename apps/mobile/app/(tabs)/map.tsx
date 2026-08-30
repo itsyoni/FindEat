@@ -687,7 +687,7 @@ export default function MapScreen() {
             ? { latitude: discoveryLatitude, longitude: discoveryLongitude }
             : {}),
           countryCode: activeCountry?.code,
-          ...(activeCountry?.viewport
+          ...(radiusKm === null && activeCountry?.viewport
             ? {
                 south: activeCountry.viewport.southwest[1],
                 west: activeCountry.viewport.southwest[0],
@@ -939,25 +939,21 @@ export default function MapScreen() {
       let active = true;
       void (async () => {
         if (restaurantFocusActiveRef.current) return;
-        if (
-          activeCountry?.viewport &&
-          activeCountry.latitude != null &&
-          activeCountry.longitude != null
-        ) {
+        const location =
+          userLocationRef.current ?? (await loadUserLocation());
+        if (!active) return;
+        if (location) {
           await loadRestaurants({
-            latitude: activeCountry.latitude,
-            longitude: activeCountry.longitude,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
           });
           return;
         }
-        const location = userLocationRef.current ?? (await loadUserLocation());
-        if (!active) return;
-
         await loadRestaurants(
-          location
+          activeCountry?.latitude != null && activeCountry.longitude != null
             ? {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
+                latitude: activeCountry.latitude,
+                longitude: activeCountry.longitude,
               }
             : undefined,
         );
@@ -1219,6 +1215,14 @@ export default function MapScreen() {
     )
       return;
     const viewport = activeCountry.viewport;
+    const location = userLocationRef.current;
+    if (!location) return;
+    const userIsInsideActiveCountry =
+      location.coords.latitude >= viewport.southwest[1] &&
+      location.coords.latitude <= viewport.northeast[1] &&
+      location.coords.longitude >= viewport.southwest[0] &&
+      location.coords.longitude <= viewport.northeast[0];
+    if (userIsInsideActiveCountry) return;
     const timer = setTimeout(() => {
       if (restaurantFocusActiveRef.current) return;
       cameraRef.current?.fitBounds(

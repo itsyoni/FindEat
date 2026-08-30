@@ -1,4 +1,5 @@
 import type {
+  Reservation,
   ReservationBookingLinkResponse,
   ReservationClickSource,
   ReservationProvider,
@@ -15,6 +16,13 @@ export function createReservationsApi(api: AxiosInstance) {
       return data;
     },
 
+    async getPublicConfig(restaurantId: string) {
+      const { data } = await api.get<RestaurantReservationConfig>(
+        `/restaurants/${restaurantId}/reservation-config/public`,
+      );
+      return data;
+    },
+
     async updateConfig(
       restaurantId: string,
       payload: {
@@ -22,6 +30,13 @@ export function createReservationsApi(api: AxiosInstance) {
         enabled: boolean;
         reservationUrl?: string | null;
         providerMetadata?: Record<string, unknown> | null;
+        slotDurationMinutes?: number;
+        bookingIntervalMinutes?: number;
+        minPartySize?: number;
+        maxPartySize?: number;
+        advanceBookingDays?: number;
+        minimumLeadMinutes?: number;
+        autoConfirm?: boolean;
       },
     ) {
       const { data } = await api.patch<RestaurantReservationConfig>(
@@ -49,6 +64,21 @@ export function createReservationsApi(api: AxiosInstance) {
     ) {
       const { data } = await api.post<ReservationBookingLinkResponse>(
         `/restaurants/${restaurantId}/reservations/booking-link`,
+        payload,
+      );
+      return data;
+    },
+
+    async createNative(
+      restaurantId: string,
+      payload: {
+        reservationTime: string;
+        partySize: number;
+        guestNotes?: string;
+      },
+    ) {
+      const { data } = await api.post<Reservation>(
+        `/restaurants/${restaurantId}/reservations/native`,
         payload,
       );
       return data;

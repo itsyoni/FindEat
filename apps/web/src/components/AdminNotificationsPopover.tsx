@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BellSlashIcon } from "@phosphor-icons/react/dist/csr/BellSlash";
 import { BugIcon } from "@phosphor-icons/react/dist/csr/Bug";
 import { FlagIcon } from "@phosphor-icons/react/dist/csr/Flag";
@@ -34,13 +34,16 @@ export function AdminNotificationsPopover({
   loading,
   onNavigate,
   onClose,
+  onClear,
 }: {
   items: AdminActivityItem[];
   loading: boolean;
   onNavigate: (section: AdminDashboardSection) => void;
   onClose: () => void;
+  onClear: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
     function close(event: MouseEvent) {
@@ -57,9 +60,32 @@ export function AdminNotificationsPopover({
     <>
       <div className="pointer-events-none fixed inset-0 z-40 hidden bg-[#171717]/45 backdrop-blur-lg max-[800px]:block max-[800px]:pointer-events-auto" aria-hidden="true" />
       <div className="notifications-popover [position:absolute] [z-index:50] [right:0] [top:calc(100%_+_12px)] [width:min(420px,calc(100vw_-_32px))] [max-height:min(620px,calc(100vh_-_104px))] [overflow:hidden] [border:1px_solid_var(--line)] [border-radius:20px] [background:var(--surface)] [box-shadow:0_24px_70px_#2f211429] [&_.restaurant-notification-list]:[max-height:calc(min(620px,100vh_-_104px)_-_70px)] [&_.restaurant-notification-list]:[overflow-y:auto] [&_.restaurant-notification-list]:[border:0] [&_.restaurant-notification-list]:[border-radius:0] [&_.restaurant-notification-list]:[box-shadow:none] [&_.restaurant-notification-row]:[min-height:76px] [&_.restaurant-notification-row]:[padding:12px_16px] [&_.notification-avatar]:[width:42px] [&_.notification-avatar]:[height:42px] max-[800px]:[position:fixed] max-[800px]:[top:72px] max-[800px]:[right:12px] max-[800px]:[left:12px] max-[800px]:[width:auto] max-[800px]:[max-height:calc(100vh_-_84px)] max-[800px]:[top:64px] max-[800px]:[bottom:12px] max-[800px]:[max-height:none] max-[600px]:[right:8px] max-[600px]:[bottom:8px] max-[600px]:[left:8px] max-[600px]:[border-radius:17px] admin-notifications-popover [width:min(430px,calc(100vw_-_32px))]" ref={rootRef} role="dialog" aria-modal="true" aria-label="Admin notifications">
-      <div className="notifications-popover-heading [display:flex] [align-items:center] [justify-content:space-between] [min-height:70px] [padding:14px_16px_13px_20px] [border-bottom:1px_solid_var(--line)] [&_strong]:[display:block] [&_small]:[display:block] [&_strong]:[font-size:17px] [&_small]:[max-width:280px] [&_small]:[margin-top:3px] [&_small]:[overflow:hidden] [&_small]:[color:var(--muted)] [&_small]:[font-size:10px] [&_small]:[text-overflow:ellipsis] [&_small]:[white-space:nowrap]">
+      <div className="notifications-popover-heading [display:flex] [align-items:center] [justify-content:space-between] [gap:12px] [min-height:70px] [padding:14px_16px_13px_20px] [border-bottom:1px_solid_var(--line)] [&_strong]:[display:block] [&_small]:[display:block] [&_strong]:[font-size:17px] [&_small]:[max-width:280px] [&_small]:[margin-top:3px] [&_small]:[overflow:hidden] [&_small]:[color:var(--muted)] [&_small]:[font-size:10px] [&_small]:[text-overflow:ellipsis] [&_small]:[white-space:nowrap]">
         <div><strong>Admin notifications</strong><small>Open items across FindEat</small></div>
-        <button className="close [.notifications-popover-actions_button&]:[display:grid] [.notifications-popover-actions_button&]:[place-items:center] [.notifications-popover-actions_button&]:[width:32px] [.notifications-popover-actions_button&]:[height:32px] [.notifications-popover-actions_button&]:[padding:0] [.notifications-popover-actions_button&]:[border-radius:50%] [.notifications-popover-actions_button&]:[background:#f4f0eb] [.notifications-popover-actions_button&]:[color:var(--ink)] [.notifications-popover-actions_button&]:[font-size:20px] [.notifications-popover-actions_button&]:[line-height:1] [.notifications-popover-actions_button&]:[background:var(--neutral-chip)] [.notifications-popover-actions_button&]:[color:var(--neutral-chip-text)]" type="button" onClick={onClose} aria-label="Close notifications"><XIcon size={17} weight="bold" /></button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {items.length > 0 ? (
+            <>
+              <button
+                type="button"
+                className={`min-h-8 rounded-lg border-0 px-2.5 text-[10px] font-extrabold transition hover:bg-soft ${confirmClear ? "bg-danger-soft text-danger" : "bg-transparent text-muted"}`}
+                onClick={() => {
+                  if (!confirmClear) {
+                    setConfirmClear(true);
+                    return;
+                  }
+                  onClear();
+                  setConfirmClear(false);
+                }}
+              >
+                {confirmClear ? "Confirm clear" : "Clear all"}
+              </button>
+              {confirmClear ? (
+                <button type="button" className="min-h-8 rounded-lg border-0 bg-transparent px-2 text-[10px] font-extrabold text-muted hover:bg-soft" onClick={() => setConfirmClear(false)}>Cancel</button>
+              ) : null}
+            </>
+          ) : null}
+          <button className="close grid size-8 place-items-center rounded-full border-0 bg-neutral-chip p-0 text-neutral-chip-text" type="button" onClick={onClose} aria-label="Close notifications"><XIcon size={17} weight="bold" /></button>
+        </div>
       </div>
       {loading ? (
         <div className="notifications-popover-state [display:grid] [place-items:center] [min-height:220px] [padding:30px] [color:var(--muted)] [text-align:center] [&>span]:[color:var(--accent)] [&>svg]:[color:var(--accent)] [&_strong]:[margin-top:8px] [&_strong]:[color:var(--ink)] [&_p]:[max-width:260px] [&_p]:[margin:5px_0_0] [&_p]:[font-size:12px] [&_p]:[line-height:1.5]">Loading notifications…</div>

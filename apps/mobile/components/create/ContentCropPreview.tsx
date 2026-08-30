@@ -26,6 +26,7 @@ type Props = {
   canvasAspectRatio?: number;
   cropShape?: "rectangle" | "circle";
   disabled?: boolean;
+  onImageLoad?: () => void;
   onCropChange: (crop: ContentCropRect) => void;
 };
 
@@ -37,6 +38,87 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+function initialCropTransform(
+  frameWidth: number,
+  frameHeight: number,
+  sourceWidth: number,
+  sourceHeight: number,
+  initialCrop?: ContentCropRect,
+) {
+  const coverScale = Math.max(
+    frameWidth / sourceWidth,
+    frameHeight / sourceHeight,
+  );
+  if (!initialCrop?.width || !initialCrop?.height) {
+    return {
+      zoom: 1,
+      translateX: 0,
+      translateY: 0,
+      normalizedCrop: undefined,
+    };
+  }
+
+  const targetAspect = frameWidth / frameHeight;
+  const cropCenterX = initialCrop.originX + initialCrop.width / 2;
+  const cropCenterY = initialCrop.originY + initialCrop.height / 2;
+  let cropWidth = clamp(initialCrop.width, 1, sourceWidth);
+  let cropHeight = clamp(initialCrop.height, 1, sourceHeight);
+
+  if (cropWidth / cropHeight > targetAspect) {
+    cropWidth = cropHeight * targetAspect;
+  } else {
+    cropHeight = cropWidth / targetAspect;
+  }
+  if (cropHeight > sourceHeight) {
+    cropHeight = sourceHeight;
+    cropWidth = cropHeight * targetAspect;
+  }
+  if (cropWidth > sourceWidth) {
+    cropWidth = sourceWidth;
+    cropHeight = cropWidth / targetAspect;
+  }
+
+  const normalizedOriginX = clamp(
+    cropCenterX - cropWidth / 2,
+    0,
+    sourceWidth - cropWidth,
+  );
+  const normalizedOriginY = clamp(
+    cropCenterY - cropHeight / 2,
+    0,
+    sourceHeight - cropHeight,
+  );
+  const nextZoom = clamp(
+    Math.max(
+      frameWidth / cropWidth / coverScale,
+      frameHeight / cropHeight / coverScale,
+    ),
+    1,
+    MAX_ZOOM,
+  );
+  const displayScale = coverScale * nextZoom;
+  const unclampedX =
+    (sourceWidth / 2 - (normalizedOriginX + cropWidth / 2)) * displayScale;
+  const unclampedY =
+    (sourceHeight / 2 - (normalizedOriginY + cropHeight / 2)) * displayScale;
+  const baseWidth = sourceWidth * coverScale;
+  const baseHeight = sourceHeight * coverScale;
+  const maxX = Math.max(0, (baseWidth * nextZoom - frameWidth) / 2);
+  const maxY = Math.max(0, (baseHeight * nextZoom - frameHeight) / 2);
+
+  return {
+    zoom: nextZoom,
+    translateX: clamp(unclampedX, -maxX, maxX),
+    translateY: clamp(unclampedY, -maxY, maxY),
+    normalizedCrop: {
+      originX: normalizedOriginX,
+      originY: normalizedOriginY,
+      width: cropWidth,
+      height: cropHeight,
+    },
+  };
+}
+
 export default function ContentCropPreview({
   sourceUri,
   sourceWidth,
@@ -46,6 +128,7 @@ export default function ContentCropPreview({
   canvasAspectRatio,
   cropShape = "rectangle",
   disabled = false,
+  onImageLoad,
   onCropChange,
 }: Props) {
   const [available, setAvailable] = useState({ width: 0, height: 0 });
@@ -125,78 +208,30 @@ export default function ContentCropPreview({
     ].join(":");
     if (initializedCropKey.current === nextInitializationKey) return;
     initializedCropKey.current = nextInitializationKey;
-    const initialCrop = crop;
-    if (initialCrop?.width && initialCrop?.height) {
-      const targetAspect = frame.width / frame.height;
-      const cropCenterX = initialCrop.originX + initialCrop.width / 2;
-      const cropCenterY = initialCrop.originY + initialCrop.height / 2;
-      let cropWidth = clamp(initialCrop.width, 1, sourceWidth);
-      let cropHeight = clamp(initialCrop.height, 1, sourceHeight);
-
-      if (cropWidth / cropHeight > targetAspect) {
-        cropWidth = cropHeight * targetAspect;
-      } else {
-        cropHeight = cropWidth / targetAspect;
-      }
-      if (cropHeight > sourceHeight) {
-        cropHeight = sourceHeight;
-        cropWidth = cropHeight * targetAspect;
-      }
-      if (cropWidth > sourceWidth) {
-        cropWidth = sourceWidth;
-        cropHeight = cropWidth / targetAspect;
-      }
-
-      const normalizedOriginX = clamp(
-        cropCenterX - cropWidth / 2,
-        0,
-        sourceWidth - cropWidth,
-      );
-      const normalizedOriginY = clamp(
-        cropCenterY - cropHeight / 2,
-        0,
-        sourceHeight - cropHeight,
-      );
-      const nextZoom = clamp(
-        Math.max(
-          frame.width / cropWidth / geometry.coverScale,
-          frame.height / cropHeight / geometry.coverScale,
-        ),
-        1,
-        MAX_ZOOM,
-      );
-      const displayScale = geometry.coverScale * nextZoom;
-      const unclampedX =
-        (sourceWidth / 2 - (normalizedOriginX + cropWidth / 2)) *
-        displayScale;
-      const unclampedY =
-        (sourceHeight / 2 - (normalizedOriginY + cropHeight / 2)) *
-        displayScale;
-      const maxX = Math.max(
-        0,
-        (geometry.baseWidth * nextZoom - frame.width) / 2,
-      );
-      const maxY = Math.max(
-        0,
-        (geometry.baseHeight * nextZoom - frame.height) / 2,
-      );
-      const nextX = clamp(unclampedX, -maxX, maxX);
-      const nextY = clamp(unclampedY, -maxY, maxY);
-      zoom.set(nextZoom);
-      translateX.set(nextX);
-      translateY.set(nextY);
+    const initialTransform = initialCropTransform(
+      frame.width,
+      frame.height,
+      sourceWidth,
+      sourceHeight,
+      crop,
+    );
+    zoom.set(initialTransform.zoom);
+    translateX.set(initialTransform.translateX);
+    translateY.set(initialTransform.translateY);
+    if (crop && initialTransform.normalizedCrop) {
+      const normalizedCrop = initialTransform.normalizedCrop;
       const cropWasNormalized =
-        Math.abs(initialCrop.originX - normalizedOriginX) > 0.5 ||
-        Math.abs(initialCrop.originY - normalizedOriginY) > 0.5 ||
-        Math.abs(initialCrop.width - cropWidth) > 0.5 ||
-        Math.abs(initialCrop.height - cropHeight) > 0.5;
+        Math.abs(crop.originX - normalizedCrop.originX) > 0.5 ||
+        Math.abs(crop.originY - normalizedCrop.originY) > 0.5 ||
+        Math.abs(crop.width - normalizedCrop.width) > 0.5 ||
+        Math.abs(crop.height - normalizedCrop.height) > 0.5;
       if (cropWasNormalized) {
-        cropFromTransform(nextX, nextY, nextZoom);
+        cropFromTransform(
+          initialTransform.translateX,
+          initialTransform.translateY,
+          initialTransform.zoom,
+        );
       }
-    } else {
-      zoom.set(1);
-      translateX.set(0);
-      translateY.set(0);
     }
     gridOpacity.set(1);
     gridOpacity.set(withDelay(650, withTiming(0, { duration: 180 })));
@@ -329,27 +364,22 @@ export default function ContentCropPreview({
 
   const imageStyle = useAnimatedStyle(() => {
     if (!geometry) return {};
-    const displayedWidth = geometry.baseWidth * zoom.get();
-    const displayedHeight = geometry.baseHeight * zoom.get();
     return {
-      width: displayedWidth,
-      height: displayedHeight,
-      left: (frame.width - displayedWidth) / 2 + translateX.get(),
-      top: (frame.height - displayedHeight) / 2 + translateY.get(),
+      transform: [
+        { translateX: translateX.get() },
+        { translateY: translateY.get() },
+        { scale: zoom.get() },
+      ],
     };
   });
   const blurredImageStyle = useAnimatedStyle(() => {
     if (!geometry) return {};
-    const displayedWidth = geometry.baseWidth * zoom.get();
-    const displayedHeight = geometry.baseHeight * zoom.get();
     return {
-      width: displayedWidth,
-      height: displayedHeight,
-      left: (frame.width - displayedWidth) / 2 + translateX.get(),
-      top:
-        cropOffsetY +
-        (frame.height - displayedHeight) / 2 +
-        translateY.get(),
+      transform: [
+        { translateX: translateX.get() },
+        { translateY: translateY.get() },
+        { scale: zoom.get() },
+      ],
     };
   });
   const gridStyle = useAnimatedStyle(() => ({ opacity: gridOpacity.get() }));
@@ -360,6 +390,28 @@ export default function ContentCropPreview({
 
   function handleLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
+    const ratio = canvasAspectRatio ?? aspectRatio;
+    const nextCanvasWidth = Math.min(width, height * ratio);
+    const nextCanvasHeight = nextCanvasWidth / ratio;
+    const nextFrameHeight =
+      cropShape === "circle" ? nextCanvasWidth : nextCanvasHeight;
+    if (
+      nextCanvasWidth > 0 &&
+      nextFrameHeight > 0 &&
+      sourceWidth > 0 &&
+      sourceHeight > 0
+    ) {
+      const initialTransform = initialCropTransform(
+        nextCanvasWidth,
+        nextFrameHeight,
+        sourceWidth,
+        sourceHeight,
+        crop,
+      );
+      zoom.set(initialTransform.zoom);
+      translateX.set(initialTransform.translateX);
+      translateY.set(initialTransform.translateY);
+    }
     setAvailable((current) =>
       current.width === width && current.height === height
         ? current
@@ -396,7 +448,15 @@ export default function ContentCropPreview({
                 <>
                   <Animated.View
                     style={[
-                      { position: "absolute" },
+                      {
+                        position: "absolute",
+                        width: geometry.baseWidth,
+                        height: geometry.baseHeight,
+                        left: (frame.width - geometry.baseWidth) / 2,
+                        top:
+                          cropOffsetY +
+                          (frame.height - geometry.baseHeight) / 2,
+                      },
                       blurredImageStyle,
                     ]}
                   >
@@ -441,6 +501,7 @@ export default function ContentCropPreview({
                         style={{ width: "100%", height: "100%" }}
                         contentFit="fill"
                         cachePolicy="memory-disk"
+                        onLoad={onImageLoad}
                         onError={(event) =>
                           console.error("Crop image preview failed", {
                             uri: sourceUri,
@@ -469,6 +530,7 @@ export default function ContentCropPreview({
                     style={{ width: "100%", height: "100%" }}
                     contentFit="fill"
                     cachePolicy="memory-disk"
+                    onLoad={onImageLoad}
                     onError={(event) =>
                       console.error("Crop image preview failed", {
                         uri: sourceUri,

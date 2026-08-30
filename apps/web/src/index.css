@@ -252,3 +252,69 @@ textarea:focus {
 :root[data-theme="dark"] textarea:focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
+
+/*
+ * Dashboard workspaces live inside a fixed app shell. Keep the shell itself
+ * still, let the active page own the remaining viewport, and scroll inside
+ * that page instead of constraining every screen to a narrow centered column.
+ */
+.dashboard-page-slot {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.dashboard-page-slot > :first-child {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  min-height: 100%;
+  margin-inline: 0 !important;
+}
+
+/* Messages already divide their own height between the thread list and chat. */
+.dashboard-page-slot.messages-page-slot {
+  overflow: hidden;
+}
+
+.dashboard-page-slot.messages-page-slot > .messages-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-content {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.admin-page-slot {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+}
+
+.admin-page-slot > :first-child {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  margin-inline: 0 !important;
+}
+
+@media (max-width: 800px) {
+  .dashboard-page-slot,
+  .admin-content {
+    scrollbar-gutter: auto;
+  }
+}

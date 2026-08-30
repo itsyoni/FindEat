@@ -63,6 +63,8 @@ export type LinkedContentPreview = {
     id: string;
     type: "IMAGE" | "VIDEO";
     uri: string;
+    videoOverlayUri?: string;
+    muted?: boolean;
   }[];
   caption: string;
 };

@@ -12,6 +12,9 @@ import ReviewCreator, {
 import ReviewParticipantsStep from "@/components/review-creator/steps/ReviewParticipantsStep";
 import KeyboardAwareFormScrollView from "@/components/common/layout/KeyboardAwareFormScrollView";
 import ContentMediaEditor from "@/components/create/ContentMediaEditor";
+import ContentVideoEditor from "@/components/create/ContentVideoEditor";
+import ImageMarkupEditor from "@/components/create/ImageMarkupEditor";
+import type { EditableImage } from "@/components/create/SingleImageCropEditor";
 import SoundPickerModal from "@/components/sounds/SoundPickerModal";
 import SoundPlayback from "@/components/sounds/SoundPlayback";
 import { useAppTheme } from "@/contexts/ThemeContext";
@@ -38,8 +41,10 @@ import {
 import {
   MediaLibraryPermissionError,
   saveImageToGallery,
+  saveVideoToGallery,
 } from "@/lib/saveImageToGallery";
 import type { PhotoFilterId } from "@/lib/photoFilters";
+import type { ImageMarkupState } from "@/lib/renderImageMarkup";
 import {
   coordinateDistanceKm,
   coordinatesFromExif,
@@ -66,6 +71,7 @@ import {
   type CameraType,
   type FlashMode,
 } from "expo-camera";
+import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -79,6 +85,8 @@ import {
   SquareIcon,
   StorefrontIcon,
   NotePencilIcon,
+  PencilSimpleIcon,
+  TextAaIcon,
   TrashIcon,
   UsersThreeIcon,
   XIcon,
@@ -108,6 +116,7 @@ import type { KeyboardAwareScrollViewRef } from "react-native-keyboard-controlle
 type Step =
   | "CAMERA"
   | "EDIT_MEDIA"
+  | "EDIT_VIDEO"
   | "DETAILS"
   | "RESTAURANT"
   | "PEOPLE"
@@ -119,6 +128,7 @@ const CAMERA_ZOOM_VALUES: Record<Exclude<CameraZoomPreset, "CUSTOM">, number> = 
   "0.5": 0,
   "1": 0,
 };
+const CONTENT_CAMERA_ASPECT = 11 / 17;
 
 function preferredPictureSize(sizes: string[]) {
   const parsed = sizes
@@ -175,7 +185,7 @@ export default function CreateContentScreen() {
   const userId = user?.id;
   const { showToast } = useToast();
   const { startPostUpload } = usePostUpload();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const cameraRef = useRef<CameraView>(null);
   const mediaListRef = useRef<FlatList<ContentMediaDraft>>(null);
   const detailsScrollRef = useRef<KeyboardAwareScrollViewRef>(null);
@@ -214,6 +224,17 @@ export default function CreateContentScreen() {
   const [linkedReviewSnapshot, setLinkedReviewSnapshot] =
     useState<ReviewCreatorSnapshot | null>(null);
   const [editingMedia, setEditingMedia] = useState(false);
+  const [imageMarkupImage, setImageMarkupImage] =
+    useState<EditableImage | null>(null);
+  const [imageMarkupMediaId, setImageMarkupMediaId] = useState<string | null>(
+    null,
+  );
+  const [imageMarkupTool, setImageMarkupTool] =
+    useState<"text" | "draw" | null>(null);
+  const [videoMarkupImage, setVideoMarkupImage] =
+    useState<EditableImage | null>(null);
+  const [videoMarkupTool, setVideoMarkupTool] =
+    useState<"text" | "draw" | null>(null);
   const {
     status: gallerySaveStatus,
     isSaving: savingPhotoToGallery,
@@ -467,7 +488,9 @@ export default function CreateContentScreen() {
     setSoundSelection(availableDraft.soundSelection ?? null);
     setStep(
       availableDraft.step === "CAMERA"
-        ? "EDIT_MEDIA"
+        ? availableDraft.media.every((item) => item.type === "IMAGE")
+          ? "EDIT_MEDIA"
+          : "EDIT_VIDEO"
         : availableDraft.step === "READY"
           ? "DETAILS"
           : availableDraft.step,
@@ -484,7 +507,11 @@ export default function CreateContentScreen() {
     setPreviewMediaIndex((current) =>
       Math.min(current, Math.max(0, media.length - 1)),
     );
-    setStep(media.every((item) => item.type === "IMAGE") ? "EDIT_MEDIA" : "DETAILS");
+    setStep(
+      media.every((item) => item.type === "IMAGE")
+        ? "EDIT_MEDIA"
+        : "EDIT_VIDEO",
+    );
   }
 
   async function discardAvailableDraft() {
@@ -536,14 +563,29 @@ export default function CreateContentScreen() {
   }
 
   const takeCameraPhoto = useCallback(async () => {
-    if (!cameraRef.current || !cameraReady || capturing) return;
+    const camera = cameraRef.current;
+    if (!camera || !cameraReady || capturing) return;
+
+    let previewPaused = false;
 
     try {
       setCapturing(true);
-      const photo = await cameraRef.current.takePictureAsync({
+      const photoPromise = camera.takePictureAsync({
         quality: 0.8,
         mirror: false,
       });
+
+      // Keep the exact shutter frame visible while the native camera finishes
+      // writing and orienting the photo instead of leaving a stale live preview.
+      try {
+        await camera.pausePreview();
+        previewPaused = true;
+      } catch {
+        // Some camera implementations complete the capture before they can
+        // pause. The captured photo is still valid in that case.
+      }
+
+      const photo = await photoPromise;
       const capturedPhoto =
         cameraFacing === "front"
           ? await normalizeFrontCameraPhoto(photo.uri)
@@ -575,6 +617,9 @@ export default function CreateContentScreen() {
         );
       }
     } catch (error) {
+      if (previewPaused) {
+        await camera.resumePreview().catch(() => undefined);
+      }
       console.error("content camera capture failed", error);
       showToast(t("imageCropErrorBody"), { kind: "error" });
     } finally {
@@ -660,7 +705,7 @@ export default function CreateContentScreen() {
         },
       ]);
       setPreviewMediaIndex(0);
-      setStep("DETAILS");
+      setStep("EDIT_VIDEO");
     } catch (error) {
       console.error("content camera recording failed", error);
       setCameraReady(false);
@@ -694,6 +739,15 @@ export default function CreateContentScreen() {
     }
     setCameraReady(true);
   }, [captureMode, pictureSize]);
+
+  useEffect(() => {
+    if (step !== "CAMERA" || !cameraReady) return;
+
+    const frame = requestAnimationFrame(() => {
+      void cameraRef.current?.resumePreview().catch(() => undefined);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [cameraReady, step]);
 
   const openGallery = useCallback(async (options?: { append?: boolean }) => {
     try {
@@ -741,7 +795,7 @@ export default function CreateContentScreen() {
         setAvailableDraft(null);
         setAppendingCameraPhoto(false);
         setPreviewMediaIndex(0);
-        setStep("DETAILS");
+        setStep("EDIT_VIDEO");
         return;
       }
       const selected: ContentMediaDraft[] = result.assets
@@ -848,6 +902,66 @@ export default function CreateContentScreen() {
     }
   }, [editingMedia, media, showToast, t, userId]);
 
+  const openImageMarkup = useCallback(
+    async (tool: "text" | "draw") => {
+      const selected = media[previewMediaIndex];
+      if (!selected || selected.type !== "IMAGE" || editingMedia) return;
+
+      setEditingMedia(true);
+      try {
+        const sourceUri = selected.cropSourceUri ?? selected.uri;
+        const sourceWidth = selected.cropSourceWidth ?? selected.width;
+        const sourceHeight = selected.cropSourceHeight ?? selected.height;
+        const crop =
+          selected.crop ?? defaultContentCrop(sourceWidth, sourceHeight);
+        const rendered = await renderContentCrop(sourceUri, crop);
+        setImageMarkupMediaId(selected.id);
+        setImageMarkupTool(tool);
+        setImageMarkupImage(rendered);
+      } catch (error) {
+        console.error("Could not open content image markup", error);
+        showToast(t("imageEditError"), { kind: "error" });
+      } finally {
+        setEditingMedia(false);
+      }
+    }, [editingMedia, media, previewMediaIndex, showToast, t],
+  );
+
+  const applyImageMarkup = useCallback(
+    async (edited: EditableImage) => {
+      if (!imageMarkupMediaId) return;
+      const stableUri = userId
+        ? (await persistContentMediaUri(
+            userId,
+            edited.uri,
+            `image-markup-${imageMarkupMediaId}-${Date.now()}`,
+          )) ?? edited.uri
+        : edited.uri;
+      setMedia((current) =>
+        current.map((item) =>
+          item.id === imageMarkupMediaId
+            ? {
+                ...item,
+                uri: stableUri,
+                width: edited.width,
+                height: edited.height,
+                cropSourceUri: undefined,
+                cropSourceWidth: undefined,
+                cropSourceHeight: undefined,
+                crop: defaultContentCrop(edited.width, edited.height),
+                filterSourceUri: stableUri,
+                photoFilter: "ORIGINAL",
+              }
+            : item,
+        ),
+      );
+      setImageMarkupImage(null);
+      setImageMarkupMediaId(null);
+      setImageMarkupTool(null);
+    },
+    [imageMarkupMediaId, userId],
+  );
+
   const saveSelectedPhotoToGallery = useCallback(async () => {
     const selected = media[previewMediaIndex];
     if (
@@ -879,6 +993,41 @@ export default function CreateContentScreen() {
     failGallerySave,
     media,
     previewMediaIndex,
+    savingPhotoToGallery,
+    showToast,
+    t,
+  ]);
+
+  const saveSelectedVideoToGallery = useCallback(async () => {
+    const selected = media[0];
+    if (
+      !selected ||
+      selected.type !== "VIDEO" ||
+      editingMedia ||
+      savingPhotoToGallery
+    ) return;
+    beginGallerySave();
+    try {
+      await saveVideoToGallery(selected.uri);
+      completeGallerySave();
+      showToast(t("common:savedToGallery"), { kind: "success" });
+    } catch (error) {
+      failGallerySave();
+      showToast(
+        t(
+          error instanceof MediaLibraryPermissionError
+            ? "common:saveToGalleryPermission"
+            : "common:saveToGalleryFailed",
+        ),
+        { kind: "error" },
+      );
+    }
+  }, [
+    beginGallerySave,
+    completeGallerySave,
+    editingMedia,
+    failGallerySave,
+    media,
     savingPhotoToGallery,
     showToast,
     t,
@@ -1138,8 +1287,15 @@ export default function CreateContentScreen() {
         return uploadedItem;
       }),
     );
-    let generatedVideoCoverUrl: string | undefined;
     const video = isVideoPost ? pendingMedia[0] : undefined;
+    const videoOverlayImageUrl = video?.videoOverlayUri
+      ? await uploadImage(
+          video.videoOverlayUri,
+          "post",
+          (progress) => reportProgress(0.9 + progress * 0.02),
+        )
+      : undefined;
+    let generatedVideoCoverUrl: string | undefined;
     if (video && needsReviewCover) {
       const cover = await createVideoCover(video.uri);
       generatedVideoCoverUrl = await uploadImage(
@@ -1159,7 +1315,11 @@ export default function CreateContentScreen() {
       soundId: pendingSoundSelection?.sound.id,
       soundStartTimeMs: pendingSoundSelection?.soundStartTimeMs,
       soundVolume: pendingSoundSelection?.soundVolume,
-      originalAudioVolume: pendingSoundSelection?.originalAudioVolume,
+      originalAudioVolume:
+        isVideoPost && pendingMedia[0]?.muted
+          ? 0
+          : pendingSoundSelection?.originalAudioVolume,
+      videoOverlayImageUrl,
     });
     reportProgress(0.98);
 
@@ -1420,12 +1580,199 @@ export default function CreateContentScreen() {
     setAvailableCameraLenses([]);
   }
 
+  function updateVideoMuted(mediaId: string, muted: boolean) {
+    setMedia((current) =>
+      current.map((item) =>
+        item.id === mediaId ? { ...item, muted } : item,
+      ),
+    );
+  }
+
+  async function openVideoMarkup(tool: "text" | "draw") {
+    const video = media[0];
+    if (!video || video.type !== "VIDEO" || editingMedia) return;
+
+    setEditingMedia(true);
+    try {
+      const frame = await createVideoCover(video.uri);
+      setVideoMarkupTool(tool);
+      setVideoMarkupImage({
+        uri: frame.uri,
+        width: frame.width,
+        height: frame.height,
+      });
+    } catch (error) {
+      console.error("Could not prepare video markup", error);
+      showToast(t("imageEditError"), { kind: "error" });
+    } finally {
+      setEditingMedia(false);
+    }
+  }
+
+  async function applyVideoMarkup(
+    videoId: string,
+    renderedOverlay: EditableImage,
+    markup: ImageMarkupState,
+  ) {
+    const hasMarkup =
+      markup.strokes.length > 0 ||
+      Boolean(markup.textMarkup?.text.trim()) ||
+      Boolean(markup.fillColor);
+    const overlayUri = hasMarkup
+      ? userId
+        ? await persistContentMediaUri(
+            userId,
+            renderedOverlay.uri,
+            `video-overlay-${videoId}-${Date.now()}`,
+          )
+        : renderedOverlay.uri
+      : undefined;
+
+    setMedia((current) =>
+      current.map((item) =>
+        item.id === videoId
+          ? {
+              ...item,
+              videoOverlayUri: overlayUri,
+              videoMarkup: hasMarkup ? markup : undefined,
+            }
+          : item,
+      ),
+    );
+    setVideoMarkupImage(null);
+    setVideoMarkupTool(null);
+  }
+
   if (!draftHydrated) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
         <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator color="#FAF9F6" size="large" />
       </View>
+    );
+  }
+
+  if (
+    step === "EDIT_MEDIA" &&
+    imageMarkupImage &&
+    imageMarkupMediaId
+  ) {
+    const initialTextMarkup =
+      imageMarkupTool === "text"
+        ? {
+            text: "",
+            x: 0.12,
+            y: 0.38,
+            width: 0.76,
+            fontSize: 0.06,
+            color: "#FAF9F6",
+          }
+        : null;
+
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ImageMarkupEditor
+          image={imageMarkupImage}
+          initialTool={imageMarkupTool ?? undefined}
+          initialTextMarkup={initialTextMarkup}
+          onCancel={() => {
+            setImageMarkupImage(null);
+            setImageMarkupMediaId(null);
+            setImageMarkupTool(null);
+          }}
+          onApply={(edited) => applyImageMarkup(edited)}
+        />
+      </>
+    );
+  }
+
+  if (
+    step === "EDIT_VIDEO" &&
+    media[0]?.type === "VIDEO" &&
+    videoMarkupImage
+  ) {
+    const video = media[0];
+    const crop = defaultContentCrop(
+      videoMarkupImage.width,
+      videoMarkupImage.height,
+    );
+    const initialTextMarkup =
+      video.videoMarkup?.textMarkup ??
+      (videoMarkupTool === "text"
+        ? {
+            text: "",
+            x: 0.12,
+            y: 0.38,
+            width: 0.76,
+            fontSize: 0.06,
+            color: "#FAF9F6",
+          }
+        : null);
+
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ImageMarkupEditor
+          image={videoMarkupImage}
+          crop={crop}
+          outputWidth={1080}
+          outputHeight={Math.round(1080 / CONTENT_CAMERA_ASPECT)}
+          initialTool={videoMarkupTool ?? undefined}
+          initialStrokes={video.videoMarkup?.strokes}
+          initialTextMarkup={initialTextMarkup}
+          initialFillColor={video.videoMarkup?.fillColor}
+          initialFillAfterStrokeIndex={
+            video.videoMarkup?.fillAfterStrokeIndex
+          }
+          markupOnly
+          title={t("editVideo")}
+          background={
+            <ContentVideo
+              uri={video.uri}
+              overlayUri={undefined}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
+              autoPlay
+              tapToToggle
+              muted={Boolean(video.muted)}
+            />
+          }
+          onCancel={() => {
+            setVideoMarkupImage(null);
+            setVideoMarkupTool(null);
+          }}
+          onApply={(overlay, markup) =>
+            applyVideoMarkup(video.id, overlay, markup)
+          }
+        />
+      </>
+    );
+  }
+
+  if (step === "EDIT_VIDEO" && media[0]?.type === "VIDEO") {
+    const video = media[0];
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ContentVideoEditor
+          uri={video.uri}
+          overlayUri={video.videoOverlayUri}
+          muted={Boolean(video.muted)}
+          busy={editingMedia}
+          gallerySaveStatus={gallerySaveStatus}
+          onBack={() => {
+            setCameraReady(false);
+            setStep("CAMERA");
+          }}
+          onNext={() => setStep("DETAILS")}
+          onMutedChange={(muted) => updateVideoMuted(video.id, muted)}
+          onEditText={() => void openVideoMarkup("text")}
+          onEditDraw={() => void openVideoMarkup("draw")}
+          onSaveToGallery={() => void saveSelectedVideoToGallery()}
+          onDelete={removePreviewMedia}
+        />
+      </>
     );
   }
 
@@ -1446,6 +1793,34 @@ export default function CreateContentScreen() {
           onNext={() => void finishContentImageEditing()}
           onAdd={promptAddPhoto}
           onCropChange={updateContentCrop}
+          additionalEditorTools={[
+            {
+              key: "text",
+              label: t("snaps:textTool"),
+              disabled: editingMedia,
+              onPress: () => void openImageMarkup("text"),
+              icon: (
+                <TextAaIcon
+                  size={23}
+                  color="#FFFFFFCC"
+                  weight="bold"
+                />
+              ),
+            },
+            {
+              key: "draw",
+              label: t("common:draw"),
+              disabled: editingMedia,
+              onPress: () => void openImageMarkup("draw"),
+              icon: (
+                <PencilSimpleIcon
+                  size={23}
+                  color="#FFFFFFCC"
+                  weight="bold"
+                />
+              ),
+            },
+          ]}
           onRotate={() => void rotateSelectedPhoto()}
           onApplyFilter={applySelectedPhotoFilter}
           onSaveToGallery={() => void saveSelectedPhotoToGallery()}
@@ -1458,6 +1833,14 @@ export default function CreateContentScreen() {
 
   if (step === "CAMERA") {
     const canAskForCamera = cameraPermission?.canAskAgain !== false;
+    const contentCameraFrameHeight = Math.min(
+      screenHeight,
+      screenWidth / CONTENT_CAMERA_ASPECT,
+    );
+    const contentCameraBlurHeight = Math.max(
+      0,
+      (screenHeight - contentCameraFrameHeight) / 2,
+    );
 
     return (
       <View className="flex-1 bg-black">
@@ -1483,6 +1866,7 @@ export default function CreateContentScreen() {
                 mirror={false}
                 flash={flashMode}
                 mode={captureMode}
+                videoStabilizationMode="off"
                 zoom={cameraZoom}
                 autofocus={cameraAutofocus}
                 pictureSize={captureMode === "picture" ? pictureSize : undefined}
@@ -1494,6 +1878,34 @@ export default function CreateContentScreen() {
                 }
                 onCameraReady={() => void handleCameraReady()}
               />
+              {contentCameraBlurHeight > 0 ? (
+                <View pointerEvents="none" style={{ position: "absolute", inset: 0 }}>
+                  <BlurView
+                    intensity={48}
+                    tint="dark"
+                    blurMethod="dimezisBlurViewSdk31Plus"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: contentCameraBlurHeight,
+                    }}
+                  />
+                  <BlurView
+                    intensity={48}
+                    tint="dark"
+                    blurMethod="dimezisBlurViewSdk31Plus"
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: contentCameraBlurHeight,
+                    }}
+                  />
+                </View>
+              ) : null}
               {focusPoint ? (
                 <View
                   pointerEvents="none"
@@ -1633,7 +2045,7 @@ export default function CreateContentScreen() {
                 ) : null}
               </View>
 
-              <View className="pb-8">
+              <View className="pb-3">
                 {cameraFacing === "back" && ultraWideLens ? (
                   <View className="mb-3 items-center">
                     <TouchableOpacity
@@ -1981,11 +2393,16 @@ export default function CreateContentScreen() {
                       ) : (
                         <ContentVideo
                           uri={item.uri}
+                          overlayUri={item.videoOverlayUri}
                           style={{ width: "100%", height: "100%" }}
                           contentFit="cover"
                           autoPlay
                           tapToToggle
                           showProgress
+                          muted={item.muted}
+                          onMutedChange={(muted) =>
+                            updateVideoMuted(item.id, muted)
+                          }
                           volume={soundSelection?.originalAudioVolume ?? 1}
                         />
                       )}
@@ -2131,7 +2548,7 @@ export default function CreateContentScreen() {
             onPress={() =>
               media.every((item) => item.type === "IMAGE")
                 ? setStep("EDIT_MEDIA")
-                : confirmExit()
+                : setStep("EDIT_VIDEO")
             }
             className="h-11 w-11 items-center justify-center rounded-full"
           >
@@ -2214,11 +2631,16 @@ export default function CreateContentScreen() {
                       ) : (
                         <ContentVideo
                           uri={item.uri}
+                          overlayUri={item.videoOverlayUri}
                           style={{ width: "100%", height: "100%" }}
                           contentFit="cover"
                           autoPlay
                           tapToToggle
                           showProgress
+                          muted={item.muted}
+                          onMutedChange={(muted) =>
+                            updateVideoMuted(item.id, muted)
+                          }
                           volume={soundSelection?.originalAudioVolume ?? 1}
                         />
                       )}

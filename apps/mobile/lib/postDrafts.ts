@@ -12,11 +12,13 @@ import type {
 } from "@findeat/types";
 import type { PhotoFilterId } from "@/lib/photoFilters";
 import type { ContentCropRect } from "@/components/create/ContentCropPreview";
+import type { ImageMarkupState } from "@/lib/renderImageMarkup";
 
 export type ContentPostDraft = {
   step:
     | "CAMERA"
     | "EDIT_MEDIA"
+    | "EDIT_VIDEO"
     | "DETAILS"
     | "RESTAURANT"
     | "PEOPLE"
@@ -51,6 +53,9 @@ export type ContentMediaDraft = {
   width: number;
   height: number;
   durationMs?: number;
+  muted?: boolean;
+  videoOverlayUri?: string;
+  videoMarkup?: ImageMarkupState;
   locationLatitude?: number;
   locationLongitude?: number;
 };
@@ -170,12 +175,14 @@ export async function loadContentPostDraft(userId: string) {
       const originalUri = await existingImage(item.originalUri);
       const filterSourceUri = await existingImage(item.filterSourceUri);
       const cropSourceUri = await existingImage(item.cropSourceUri);
+      const videoOverlayUri = await existingImage(item.videoOverlayUri);
       return {
         ...item,
         uri,
         originalUri: originalUri ?? uri,
         filterSourceUri,
         cropSourceUri,
+        videoOverlayUri,
         originalWidth: item.originalWidth ?? item.width,
         originalHeight: item.originalHeight ?? item.height,
       };
@@ -244,12 +251,19 @@ export async function saveContentPostDraft(
             "content",
             `post-media-${index}-crop-source`,
           );
+          const videoOverlayUri = await keepDraftImage(
+            item.videoOverlayUri,
+            userId,
+            "content",
+            `post-media-${index}-video-overlay`,
+          );
           return {
             ...item,
             uri,
             originalUri: originalUri ?? uri,
             filterSourceUri,
             cropSourceUri,
+            videoOverlayUri,
             originalWidth: item.originalWidth ?? item.width,
             originalHeight: item.originalHeight ?? item.height,
           };

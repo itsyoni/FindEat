@@ -46,7 +46,7 @@ export function ReviewsPage({ reviews }: { reviews: RestaurantReview[] }) {
     return (
       <div className="page-stack [width:min(1120px,100%)] [margin:auto] [padding:46px_42px_70px] [.restaurant-setup-shell>&]:[width:min(960px,100%)] [.restaurant-setup-shell>&]:[margin:auto] max-[800px]:[padding:30px_18px] max-[800px]:[width:100%] max-[800px]:[padding:26px_clamp(14px,4vw,22px)_calc(42px_+_env(safe-area-inset-bottom))] max-[380px]:[padding-inline:12px] review-detail-page [width:min(980px,100%)] [margin:0_auto]">
         <button
-          className="review-detail-back [display:inline-flex] [align-items:center] [gap:8px] [align-self:flex-start] [padding:9px_12px] [border:0] [border-radius:10px] [background:var(--soft)] [color:var(--ink)] [font-weight:800]"
+          className="review-detail-back [display:inline-flex] [align-items:center] [gap:8px] [align-self:flex-start] [padding:9px_12px] [margin-bottom:20px] [border:0] [border-radius:10px] [background:var(--soft)] [color:var(--ink)] [font-weight:800]"
           onClick={() => setSelectedReview(null)}
         >
           <ArrowLeftIcon size={18} weight="bold" aria-hidden="true" />
@@ -128,19 +128,28 @@ export function ReviewsPage({ reviews }: { reviews: RestaurantReview[] }) {
               {selectedReview.items.length === 0 ? (
                 <p className="muted [.login-card>&]:[line-height:1.55] [color:var(--muted)] max-[650px]:[.messages-heading_&]:[display:none] max-[800px]:[.support-admin-content_.support-heading_&]:[display:none]">No dishes were attached to this review.</p>
               ) : (
-                <div className="review-dish-grid [display:grid] [grid-template-columns:repeat(2,minmax(0,1fr))] [gap:10px] [margin-top:16px] [&_article]:[padding:14px] [&_article]:[border:1px_solid_var(--line)] [&_article]:[border-radius:14px] [&_article]:[background:var(--surface-subtle)] [&_article>div]:[display:flex] [&_article>div]:[align-items:center] [&_article>div]:[justify-content:space-between] [&_article>div]:[gap:12px] [&_article_span]:[display:flex] [&_article_span]:[align-items:center] [&_article_span]:[gap:4px] [&_article_span]:[flex:0_0_auto] [&_article_span]:[color:#815c00] [&_article_span]:[font-size:11px] [&_article_span]:[font-weight:900] [&_article_p]:[margin:9px_0_0] [&_article_p]:[color:var(--muted)] [&_article_p]:[font-size:12px] [&_article_p]:[line-height:1.45] dark:[&_article]:[background:var(--surface-subtle)] max-[800px]:[grid-template-columns:1fr]">
+                <div className="review-dish-list mt-4 grid gap-2.5">
                   {selectedReview.items.map((item) => (
-                    <article key={item.id}>
-                      <div>
-                        <strong>{item.name}</strong>
-                        {item.rating != null && (
-                          <span>
-                            <StarIcon size={12} weight="fill" aria-hidden="true" />
-                            {item.rating}/10
-                          </span>
-                        )}
+                    <article className="grid min-h-24 grid-cols-[160px_minmax(0,1fr)] overflow-hidden rounded-[14px] border border-line bg-surface-subtle max-[560px]:min-h-20 max-[560px]:grid-cols-[112px_minmax(0,1fr)]" key={item.id}>
+                      {item.imageUrl ? (
+                        <img className="h-full min-h-24 w-full object-cover max-[560px]:min-h-20" src={item.imageUrl} alt={item.name} />
+                      ) : (
+                        <div className="grid min-h-24 place-items-center bg-soft text-muted max-[560px]:min-h-20">
+                          <ForkKnifeIcon size={27} weight="duotone" aria-hidden="true" />
+                        </div>
+                      )}
+                      <div className="min-w-0 self-center p-4 max-[560px]:p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <strong className="min-w-0 text-sm leading-5">{item.name}</strong>
+                          {item.rating != null ? (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-warning-soft px-2 py-1 text-[11px] font-black text-warning">
+                              <StarIcon size={12} weight="fill" aria-hidden="true" />
+                              {item.rating}/10
+                            </span>
+                          ) : null}
+                        </div>
+                        {item.text ? <p className="mt-2 mb-0 text-xs leading-5 text-muted">{item.text}</p> : <p className="mt-2 mb-0 text-xs text-muted">No dish caption was added.</p>}
                       </div>
-                      {item.text && <p>{item.text}</p>}
                     </article>
                   ))}
                 </div>

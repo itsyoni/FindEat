@@ -1,4 +1,5 @@
 import { useEvent, useEventListener } from "expo";
+import { Image as ExpoImage } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useFocusEffect } from "expo-router";
 import {
@@ -28,6 +29,7 @@ import Text from "@/components/common/AppText";
 
 type Props = {
   uri: string;
+  overlayUri?: string;
   style?: StyleProp<ViewStyle>;
   contentFit?: "contain" | "cover" | "fill";
   autoPlay?: boolean;
@@ -66,6 +68,7 @@ function formatVideoTime(seconds: number, roundUp = false) {
 
 export default function ContentVideo({
   uri,
+  overlayUri,
   style,
   contentFit = "contain",
   autoPlay = false,
@@ -406,6 +409,15 @@ export default function ContentVideo({
             allowsPictureInPicture={false}
             surfaceType="textureView"
           />
+          {overlayUri ? (
+            <ExpoImage
+              pointerEvents="none"
+              source={{ uri: overlayUri }}
+              contentFit="fill"
+              cachePolicy="memory-disk"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
         </Animated.View>
       {tapToToggle && manuallyPaused && !isPlaying && !mediaOnly ? (
         <View pointerEvents="box-none" style={styles.pausedControls}>
