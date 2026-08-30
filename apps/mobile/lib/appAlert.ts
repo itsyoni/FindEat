@@ -6,6 +6,7 @@ export type AppAlertButtonIcon =
   | "gallery"
   | "check"
   | "trash"
+  | "sign-out"
   | "close";
 
 export type AppAlertButton = AlertButton & {
@@ -16,12 +17,14 @@ export type AppAlertTone =
   | "default"
   | "info"
   | "success"
+  | "error"
   | "warning"
   | "destructive";
 
 export type AppAlertOptions = AlertOptions & {
   tone?: AppAlertTone;
   illustration?: "auto" | "guide" | "none";
+  icon?: "auto" | "sign-out";
 };
 
 export type AppAlertRequest = {
@@ -50,6 +53,7 @@ export const AppAlert = {
       const {
         tone: _tone,
         illustration: _illustration,
+        icon: _icon,
         ...nativeOptions
       } = options ?? {};
       NativeAlert.alert(title, message, buttons, nativeOptions);

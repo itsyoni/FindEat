@@ -48,8 +48,8 @@ export default function SettingsScreen() {
   function confirmLogout() {
     Alert.alert(t('common:logout'), t('profile:logoutConfirmation'), [
       { text: t('common:cancel'), style: 'cancel' },
-      { text: t('common:logout'), style: 'destructive', onPress: () => void logout() },
-    ]);
+      { text: t('common:logout'), style: 'destructive', icon: 'sign-out', onPress: () => void logout() },
+    ], { icon: 'sign-out' });
   }
 
   return (

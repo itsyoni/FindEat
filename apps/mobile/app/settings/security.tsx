@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SecuritySettingsScreen() {
   const { t } = useTranslation('settings');
   const { isDark } = useAppTheme();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, markProviderConnected } = useAuth();
   const [workingProvider, setWorkingProvider] = useState<SocialAuthProvider | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(Platform.OS === 'ios');
   const hasPassword = user?.authMethods?.hasPassword !== false;
@@ -40,7 +40,12 @@ export default function SecuritySettingsScreen() {
   async function linkProvider(provider: SocialAuthProvider) {
     if (workingProvider) return;
     if (provider === 'GOOGLE' && !isGoogleAuthConfigured()) {
-      Alert.alert(t('providerLinkErrorTitle'), t('googleLinkNotConfigured'));
+      Alert.alert(
+        t('providerLinkErrorTitle'),
+        t('googleLinkNotConfigured'),
+        undefined,
+        { tone: 'error' },
+      );
       return;
     }
 
@@ -50,17 +55,22 @@ export default function SecuritySettingsScreen() {
         ? await requestAppleAuth()
         : await requestGoogleAuth();
       if (!payload) return;
-      await api.auth.linkProvider(payload);
-      await refreshUser();
+      const result = await api.auth.linkProvider(payload);
+      await markProviderConnected(result.provider);
       Alert.alert(
         t('providerConnectedTitle'),
         t('providerConnectedBody', { provider: provider === 'APPLE' ? 'Apple' : 'Google' }),
+        undefined,
+        { tone: 'success' },
       );
+      void refreshUser().catch(() => undefined);
     } catch (error) {
       if ((error as { code?: string }).code === 'ERR_REQUEST_CANCELED') return;
       Alert.alert(
         t('providerLinkErrorTitle'),
         getErrorMessage(error, t('providerLinkError')),
+        undefined,
+        { tone: 'error' },
       );
     } finally {
       setWorkingProvider(null);

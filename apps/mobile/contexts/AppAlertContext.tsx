@@ -10,8 +10,10 @@ import {
   CameraIcon,
   ImagesSquareIcon,
   InfoIcon,
+  SignOutIcon,
   TrashIcon,
   WarningDiamondIcon,
+  XCircleIcon,
   XIcon,
 } from "phosphor-react-native";
 import type { AlertButton } from "react-native";
@@ -149,20 +151,25 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
   const toneVisual =
     tone === "success"
       ? { background: isDark ? "#18351F" : "#E7F4E8", color: "#4F9D5D" }
+      : tone === "error"
+        ? { background: isDark ? "#421D1D" : "#FBE7E5", color: "#D64A42" }
       : tone === "warning"
         ? { background: isDark ? "#402D12" : "#FFF0D4", color: "#D97706" }
         : tone === "destructive"
           ? { background: isDark ? "#421D1D" : "#FBE7E5", color: "#D64A42" }
           : { background: isDark ? "#2E2B25" : "#F3E7CE", color: "#D97706" };
 
-  const ToneIcon =
-    tone === "success"
+  const ToneIcon = request?.options?.icon === "sign-out"
+    ? SignOutIcon
+    : tone === "success"
       ? CheckCircleIcon
-      : tone === "warning"
-        ? WarningDiamondIcon
-        : tone === "destructive"
-          ? TrashIcon
-          : InfoIcon;
+      : tone === "error"
+        ? XCircleIcon
+        : tone === "warning"
+          ? WarningDiamondIcon
+          : tone === "destructive"
+            ? TrashIcon
+            : InfoIcon;
 
   return (
     <>
@@ -293,6 +300,8 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
                         ? CheckCircleIcon
                         : button.icon === "trash"
                           ? TrashIcon
+                          : button.icon === "sign-out"
+                            ? SignOutIcon
                           : button.icon === "close"
                             ? XIcon
                             : destructive

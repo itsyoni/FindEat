@@ -43,6 +43,7 @@ type AuthContextValue = {
   verifyEmail: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  markProviderConnected: (provider: SocialAuthInput["provider"]) => Promise<void>;
 };
 
 function toAppLanguage(language?: User["language"]) {
@@ -207,6 +208,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(user);
   }
 
+  async function markProviderConnected(provider: SocialAuthInput["provider"]) {
+    if (!user) return;
+    const providers = user.authMethods?.providers ?? [];
+    if (providers.includes(provider)) return;
+
+    const updatedUser: User = {
+      ...user,
+      authMethods: {
+        hasPassword: user.authMethods?.hasPassword ?? true,
+        providers: [...providers, provider],
+      },
+    };
+    setUser(updatedUser);
+    await storeSessionUser(updatedUser);
+  }
+
   useEffect(
     () =>
       setAuthSessionListeners({
@@ -240,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyEmail,
         logout,
         refreshUser,
+        markProviderConnected,
       }}
     >
       {children}
