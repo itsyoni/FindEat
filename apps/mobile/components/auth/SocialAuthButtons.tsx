@@ -5,6 +5,11 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import { AppAlert as Alert } from "@/lib/appAlert";
 import { api } from "@/lib/api";
 import { requestAppleAuth } from "@/lib/appleAuth";
+import {
+  isGoogleAuthConfigured,
+  loadGoogleAuthModule,
+  requestGoogleAuth,
+} from "@/lib/googleAuth";
 import { getErrorMessage } from "@findeat/utils";
 import type { SocialAuthInput } from "@findeat/types";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -23,27 +28,6 @@ import { FontAwesome6 } from "@expo/vector-icons";
 import { CheckCircleIcon, UserIcon, XCircleIcon, XIcon } from "phosphor-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
-const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
-type GoogleSignInModule = typeof import("@react-native-google-signin/google-signin");
-let googleModulePromise: Promise<GoogleSignInModule> | null = null;
-
-function loadGoogleModule() {
-  if (!googleModulePromise) {
-    googleModulePromise = import("@react-native-google-signin/google-signin").then(
-      (module) => {
-        module.GoogleSignin.configure({
-          ...(googleWebClientId ? { webClientId: googleWebClientId } : {}),
-          ...(googleIosClientId ? { iosClientId: googleIosClientId } : {}),
-          offlineAccess: false,
-        });
-        return module;
-      },
-    );
-  }
-  return googleModulePromise;
-}
-
 export default function SocialAuthButtons({
   showDivider = true,
   appearance = "default",
@@ -56,7 +40,6 @@ export default function SocialAuthButtons({
   const { socialAuth } = useAuth();
   const [workingProvider, setWorkingProvider] = useState<"GOOGLE" | "APPLE" | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(Platform.OS === "ios");
-  const [googleModule, setGoogleModule] = useState<GoogleSignInModule | null>(null);
   const [pendingAppleAuth, setPendingAppleAuth] = useState<SocialAuthInput | null>(null);
   const [username, setUsername] = useState("");
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -75,9 +58,8 @@ export default function SocialAuthButtons({
   const buttonText = isGlass ? "#F8F5EF" : isDark ? "#F5F2EC" : "#24221F";
 
   useEffect(() => {
-    void loadGoogleModule()
-      .then(setGoogleModule)
-      .catch(() => setGoogleModule(null));
+    void loadGoogleAuthModule()
+      .catch(() => undefined);
     if (Platform.OS === "ios") {
       void AppleAuthentication.isAvailableAsync()
         .then(setAppleAvailable)
@@ -118,27 +100,15 @@ export default function SocialAuthButtons({
 
   async function continueWithGoogle() {
     if (workingProvider) return;
-    if (!googleWebClientId) {
+    if (!isGoogleAuthConfigured()) {
       Alert.alert(t("common:error"), t("auth:googleNotConfigured"));
       return;
     }
     try {
       setWorkingProvider("GOOGLE");
-      const activeGoogleModule = googleModule ?? (await loadGoogleModule());
-      setGoogleModule(activeGoogleModule);
-      if (Platform.OS === "android") {
-        await activeGoogleModule.GoogleSignin.hasPlayServices({
-          showPlayServicesUpdateDialog: true,
-        });
-      }
-      const result = await activeGoogleModule.GoogleSignin.signIn();
-      if (result.type !== "success") return;
-      if (!result.data.idToken) throw new Error(t("auth:socialAuthFailed"));
-      await socialAuth({
-        provider: "GOOGLE",
-        identityToken: result.data.idToken,
-        displayName: result.data.user.name ?? undefined,
-      });
+      const payload = await requestGoogleAuth();
+      if (!payload) return;
+      await socialAuth(payload);
     } catch (error) {
       showError(error);
     } finally {

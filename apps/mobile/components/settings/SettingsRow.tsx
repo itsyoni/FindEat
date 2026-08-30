@@ -13,14 +13,16 @@ type Props = {
   onPress: () => void;
   destructive?: boolean;
   valueEmphasis?: boolean;
+  disabled?: boolean;
+  showChevron?: boolean;
 };
 
-export default function SettingsRow({ icon, title, subtitle, value, onPress, destructive, valueEmphasis }: Props) {
+export default function SettingsRow({ icon, title, subtitle, value, onPress, destructive, valueEmphasis, disabled = false, showChevron = true }: Props) {
   const { isDark } = useAppTheme();
   const { rowStyle, textStyle } = useSettingsDirection();
 
   return (
-    <TouchableOpacity accessibilityRole="button" onPress={onPress} activeOpacity={0.65} className="flex-row items-center px-5 py-4" style={rowStyle}>
+    <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} activeOpacity={0.65} className="flex-row items-center px-5 py-4" style={rowStyle}>
       <View className="h-10 w-10 items-center justify-center rounded-full bg-soft dark:bg-gray-900" style={{ marginEnd: 16 }}>{icon}</View>
       <View className="flex-1">
         <Text
@@ -43,7 +45,7 @@ export default function SettingsRow({ icon, title, subtitle, value, onPress, des
           {value}
         </Text>
       ) : null}
-      {!destructive ? <DirectionalIcon direction="forward" size={18} color={isDark ? '#666' : '#A09D97'} /> : null}
+      {!destructive && showChevron ? <DirectionalIcon direction="forward" size={18} color={isDark ? '#666' : '#A09D97'} /> : null}
     </TouchableOpacity>
   );
 }

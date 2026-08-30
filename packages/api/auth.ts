@@ -4,6 +4,8 @@ import type {
   AccountCredential,
   AuthSession,
   LoginInput,
+  LinkAuthProviderInput,
+  LinkAuthProviderResult,
   SignupInput,
   SignupResult,
   SocialAuthInput,
@@ -55,6 +57,14 @@ export function createAuthApi(api: AxiosInstance) {
 
     async socialAuth(payload: SocialAuthInput) {
       const { data } = await api.post<SocialAuthResult>("/auth/social", payload);
+      return data;
+    },
+
+    async linkProvider(payload: LinkAuthProviderInput) {
+      const { data } = await api.post<LinkAuthProviderResult>(
+        "/auth/providers/link",
+        payload,
+      );
       return data;
     },
 

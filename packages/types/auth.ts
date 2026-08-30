@@ -21,6 +21,16 @@ export type SocialAuthInput = {
   authorizationCode?: string;
 };
 
+export type LinkAuthProviderInput = Pick<
+  SocialAuthInput,
+  "provider" | "identityToken" | "authorizationCode"
+>;
+
+export type LinkAuthProviderResult = {
+  ok: true;
+  provider: SocialAuthProvider;
+};
+
 export type AccountCredential = {
   password?: string;
   provider?: SocialAuthProvider;
