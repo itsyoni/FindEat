@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { AppNotification } from "@findeat/types";
 import { io } from "socket.io-client";
 import { API_URL, getAccessToken } from "../lib/api";
+import { SOCKET_CLIENT_METADATA } from "../lib/socketMetadata";
 
 type RestaurantActivitySocketOptions = {
   restaurantId?: string;
@@ -19,7 +20,7 @@ export function useRestaurantActivitySocket({
     if (!restaurantId || !token) return;
 
     const socket = io(`${API_URL}/notifications`, {
-      auth: { token, workspace: "business" },
+      auth: { token, workspace: "business", ...SOCKET_CLIENT_METADATA },
     });
 
     socket.on("connect", onConnected);

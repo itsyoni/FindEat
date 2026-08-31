@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AppState } from "react-native";
 import type { Socket } from "socket.io-client";
 import { io } from "socket.io-client";
+import { SOCKET_CLIENT_METADATA } from "@/lib/socketMetadata";
 
 export default function PresenceConnection() {
   const { token } = useAuth();
@@ -16,7 +17,7 @@ export default function PresenceConnection() {
       if (socket?.connected) return;
       socket?.disconnect();
       socket = io(API_URL, {
-        auth: { token, trackPresence: true },
+        auth: { token, trackPresence: true, ...SOCKET_CLIENT_METADATA },
       });
     };
     const disconnect = () => {

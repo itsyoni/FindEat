@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { RestaurantMessage } from "@findeat/types";
 import { io } from "socket.io-client";
 import { API_URL, getAccessToken } from "../lib/api";
+import { SOCKET_CLIENT_METADATA } from "../lib/socketMetadata";
 
 type InboxSocketOptions = {
   conversationIds: string[];
@@ -24,7 +25,7 @@ export function useInboxSocket({
     if (!token) return;
 
     const socket = io(API_URL, {
-      auth: { token, trackPresence: false },
+      auth: { token, trackPresence: false, ...SOCKET_CLIENT_METADATA },
     });
 
     socket.on("connect", () => {

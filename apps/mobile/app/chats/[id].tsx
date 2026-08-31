@@ -50,6 +50,7 @@ import {
 } from "react-native-safe-area-context";
 import type { Socket } from "socket.io-client";
 import { io } from "socket.io-client";
+import { SOCKET_CLIENT_METADATA } from "@/lib/socketMetadata";
 import ChatSkeleton, { ChatHeaderSkeleton } from "@/components/chats/ChatSkeleton";
 import Animated, {
   cancelAnimation,
@@ -745,7 +746,7 @@ export default function ChatScreen() {
     if (!user?.id || !token || isNewChat) return;
 
     const socket = io(API_URL, {
-      auth: { token, trackPresence: false },
+      auth: { token, trackPresence: false, ...SOCKET_CLIENT_METADATA },
     });
     const typingUserTimers = typingUserTimersRef.current;
 
@@ -1056,7 +1057,6 @@ export default function ChatScreen() {
         "send_message",
         {
           conversationId,
-          userId: user.id,
           type: "TEXT",
           content: trimmedContent,
           replyToId,

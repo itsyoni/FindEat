@@ -10,6 +10,7 @@ import type { AppNotification, NotificationsPage } from "@findeat/types";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import { router, usePathname, useRootNavigationState } from "expo-router";
 import Constants from "expo-constants";
+import { SOCKET_CLIENT_METADATA } from "@/lib/socketMetadata";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -293,7 +294,9 @@ export function NotificationProvider({
 
   useEffect(() => {
     if (!user || !token) return;
-    const socket = io(`${API_URL}/notifications`, { auth: { token } });
+    const socket = io(`${API_URL}/notifications`, {
+      auth: { token, ...SOCKET_CLIENT_METADATA },
+    });
 
     socket.on("notification", async (incoming: AppNotification) => {
       const item = await hydrateNotificationActor(incoming);
