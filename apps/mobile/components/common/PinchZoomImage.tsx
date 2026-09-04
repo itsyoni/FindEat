@@ -1,5 +1,5 @@
 import { Portal } from "@gorhom/portal";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   Dimensions,
   I18nManager,
@@ -23,10 +23,6 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import ProgressiveImage from "./ProgressiveImage";
-import {
-  contentFeedPerfNow,
-  logContentFeedPerf,
-} from "@/lib/contentFeedDiagnostics";
 
 type Props = {
   uri: string;
@@ -37,7 +33,6 @@ type Props = {
   onDoubleTap?: (x: number, y: number) => void;
   onPinchStart?: () => void;
   onPinchEnd?: () => void;
-  diagnosticLabel?: string;
 };
 
 const resetSpring = {
@@ -55,11 +50,8 @@ export default function PinchZoomImage({
   onDoubleTap,
   onPinchStart,
   onPinchEnd,
-  diagnosticLabel,
 }: Props) {
   const [overlayMounted, setOverlayMounted] = useState(false);
-  const mountedAtRef = useRef(contentFeedPerfNow());
-  const loadStartedAtRef = useRef<number | null>(null);
   const imageRef = useAnimatedRef<View>();
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -69,18 +61,6 @@ export default function PinchZoomImage({
   const width = useSharedValue(0);
   const height = useSharedValue(0);
   const overlayActive = useSharedValue(0);
-
-  useEffect(() => {
-    if (!diagnosticLabel) return;
-    const mountedAt = mountedAtRef.current;
-    logContentFeedPerf("image-mounted", { media: diagnosticLabel });
-    return () => {
-      logContentFeedPerf("image-unmounted", {
-        media: diagnosticLabel,
-        lifetimeMs: Math.round(contentFeedPerfNow() - mountedAt),
-      });
-    };
-  }, [diagnosticLabel]);
 
   const pinch = Gesture.Pinch()
     // Wait until a real two-finger pinch activates. `onBegin` also runs for a
@@ -200,31 +180,6 @@ export default function PinchZoomImage({
             style={StyleSheet.absoluteFill}
             contentFit={resizeMode}
             priority="normal"
-            onLoadStart={() => {
-              if (!diagnosticLabel) return;
-              loadStartedAtRef.current = contentFeedPerfNow();
-              logContentFeedPerf("image-load-start", {
-                media: diagnosticLabel,
-              });
-            }}
-            onDisplay={() => {
-              if (!diagnosticLabel) return;
-              const startedAt = loadStartedAtRef.current;
-              logContentFeedPerf("image-displayed", {
-                media: diagnosticLabel,
-                loadToDisplayMs:
-                  startedAt == null
-                    ? null
-                    : Math.round(contentFeedPerfNow() - startedAt),
-              });
-            }}
-            onError={(error) => {
-              if (!diagnosticLabel) return;
-              logContentFeedPerf("image-error", {
-                media: diagnosticLabel,
-                error: error.error,
-              });
-            }}
           />
         </Animated.View>
       </GestureDetector>

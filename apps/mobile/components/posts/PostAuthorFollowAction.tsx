@@ -11,12 +11,20 @@ import { TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 
 type Props = {
-  post: Post;
+  post?: Post;
+  authorId?: string | null;
+  hasAuthor?: boolean;
+  authorRestaurantId?: string | null;
+  authorRelationship?: UserRelationship | null;
   onMedia?: boolean;
 };
 
 export default function PostAuthorFollowAction({
   post,
+  authorId: authorIdProp,
+  hasAuthor: hasAuthorProp,
+  authorRestaurantId: authorRestaurantIdProp,
+  authorRelationship: authorRelationshipProp,
   onMedia = false,
 }: Props) {
   const { user } = useAuth();
@@ -28,19 +36,25 @@ export default function PostAuthorFollowAction({
     authorId: string;
     relationship: UserRelationship;
   } | null>(null);
+  const authorId = post?.authorId ?? authorIdProp ?? null;
+  const hasAuthor = post ? Boolean(post.author) : Boolean(hasAuthorProp);
+  const authorRestaurantId =
+    post?.authorRestaurantId ?? authorRestaurantIdProp ?? null;
+  const authorRelationship =
+    post?.authorRelationship ?? authorRelationshipProp ?? "NONE";
   const [submitting, setSubmitting] = useState(false);
   const relationship =
-    relationshipOverride?.authorId === post.authorId
+    relationshipOverride?.authorId === authorId
       ? (relationshipOverride?.relationship ??
-        post.authorRelationship ??
+        authorRelationship ??
         "NONE")
-      : (post.authorRelationship ?? "NONE");
+      : (authorRelationship ?? "NONE");
 
   if (
-    !post.authorId ||
-    !post.author ||
-    post.authorRestaurantId ||
-    post.authorId === user?.id
+    !authorId ||
+    !hasAuthor ||
+    authorRestaurantId ||
+    authorId === user?.id
   ) {
     return null;
   }
@@ -68,27 +82,27 @@ export default function PostAuthorFollowAction({
   }
 
   async function followAuthor() {
-    if (submitting || !post.authorId) return;
+    if (submitting || !authorId) return;
     const previousRelationship = relationship;
     setSubmitting(true);
     setRelationshipOverride({
-      authorId: post.authorId,
+      authorId,
       relationship: getNextRelationshipAfterToggle(relationship),
     });
 
     try {
-      const result = await api.users.follow(post.authorId);
+      const result = await api.users.follow(authorId);
       setRelationshipOverride({
-        authorId: post.authorId,
+        authorId,
         relationship: result.relationship,
       });
       updatePostInFeedCache(queryClient, (cachedPost) =>
-        cachedPost.authorId === post.authorId
+        cachedPost.authorId === authorId
           ? { ...cachedPost, authorRelationship: result.relationship }
           : cachedPost,
       );
       void queryClient.invalidateQueries({
-        queryKey: ["user-profile", post.authorId],
+        queryKey: ["user-profile", authorId],
       });
       void queryClient.invalidateQueries({
         queryKey: homeFeedQueryKey("EXPLORE"),
@@ -96,7 +110,7 @@ export default function PostAuthorFollowAction({
       });
     } catch (error) {
       setRelationshipOverride({
-        authorId: post.authorId,
+        authorId,
         relationship: previousRelationship,
       });
       console.error("Could not follow feed author", error);

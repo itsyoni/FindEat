@@ -4,17 +4,12 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import {
-  contentFeedPerfNow,
-  logContentFeedPerf,
-} from "@/lib/contentFeedDiagnostics";
 
 type Props = {
   sound?: Sound | null;
   startTimeMs?: number;
   volume?: number;
   playing: boolean;
-  diagnosticLabel?: string;
 };
 
 export default function SoundPlayback({
@@ -22,9 +17,7 @@ export default function SoundPlayback({
   startTimeMs = 0,
   volume = 1,
   playing,
-  diagnosticLabel,
 }: Props) {
-  const diagnosticMountedAtRef = useRef(contentFeedPerfNow());
   const [mountedAt] = useState(() => Date.now());
   const { activeCountry } = useActiveCountry();
   const territoryAllowed =
@@ -43,22 +36,6 @@ export default function SoundPlayback({
   const screenFocused = useIsFocused();
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
   const shouldPlay = playing && screenFocused && appActive;
-
-  useEffect(() => {
-    if (!diagnosticLabel) return;
-    const mountedAt = diagnosticMountedAtRef.current;
-    logContentFeedPerf("sound-player-mounted", {
-      media: diagnosticLabel,
-      hasSource: Boolean(source),
-    });
-    return () => {
-      logContentFeedPerf("sound-player-unmounted", {
-        media: diagnosticLabel,
-        hasSource: Boolean(source),
-        lifetimeMs: Math.round(contentFeedPerfNow() - mountedAt),
-      });
-    };
-  }, [diagnosticLabel, source]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {

@@ -699,7 +699,6 @@ export default function HomeScreen() {
                   }}
                 >
                 <ContentFeedList
-                  diagnosticLabel="home-following"
                   active={activeFeed === "FOLLOWING"}
                   lightweightInactivePosts
                   posts={followingPosts}
@@ -745,7 +744,6 @@ export default function HomeScreen() {
                   }}
                 >
                 <ContentFeedList
-                  diagnosticLabel="home-explore"
                   active={activeFeed === "EXPLORE"}
                   lightweightInactivePosts
                   posts={explorePosts}

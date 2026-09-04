@@ -48,3 +48,39 @@ export function prefetchUpcomingPosts(posts: Post[], visibleIndex: number) {
       .flatMap((post) => postImageUrls(post, true)),
   );
 }
+
+function preparedContentPostImageUrls(post?: Post | null) {
+  if (!post?.contentPost) return [];
+  const content = post.contentPost;
+  const mediaUrls = (content.media ?? [])
+    .slice(0, 2)
+    .flatMap((item) => [item.thumbnailUrl, item.imageUrl]);
+
+  return [
+    ...mediaUrls,
+    content.thumbnailUrl,
+    content.imageUrl,
+    content.videoOverlayImageUrl,
+  ];
+}
+
+export function prefetchPreparedContentPosts(
+  posts: Post[],
+  centerIndex: number,
+  direction: -1 | 0 | 1 = 0,
+) {
+  const preparedIndices = new Set([
+    centerIndex - 1,
+    centerIndex,
+    centerIndex + 1,
+  ]);
+  if (direction !== 0) preparedIndices.add(centerIndex + direction * 2);
+
+  prefetchImageUrls(
+    [...preparedIndices].flatMap((index) =>
+      index >= 0 && index < posts.length
+        ? preparedContentPostImageUrls(posts[index])
+        : [],
+    ),
+  );
+}

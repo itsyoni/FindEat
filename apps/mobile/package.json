@@ -6,8 +6,6 @@
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
     "start:clean": "expo start --dev-client --clear",
-    "start:feed-profile": "EXPO_PUBLIC_CONTENT_FEED_DIAGNOSTIC_MODE=profile expo start --dev-client --clear",
-    "start:feed-placeholder": "EXPO_PUBLIC_CONTENT_FEED_DIAGNOSTIC_MODE=placeholder expo start --dev-client --clear",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

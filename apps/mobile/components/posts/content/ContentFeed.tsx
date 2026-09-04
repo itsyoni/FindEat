@@ -1,18 +1,17 @@
 import { Post } from "@findeat/types/post";
 import {
   memo,
-  Profiler,
   type ReactElement,
-  type ProfilerOnRenderCallback,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
   FlatList,
-  Text as NativeText,
+  Platform,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -20,16 +19,13 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS, useSharedValue } from "react-native-reanimated";
+import { useVideoPlayer } from "expo-video";
 import ContentPost from "./ContentPost";
 import EmptyPostsState from "../EmptyPostsState";
 import { Skeleton, SkeletonPulse } from "@/components/common";
-import { prefetchUpcomingPosts } from "@/lib/imagePrefetch";
-import {
-  contentFeedDiagnosticMode,
-  contentFeedDiagnosticsEnabled,
-  contentFeedPerfNow,
-  logContentFeedPerf,
-} from "@/lib/contentFeedDiagnostics";
+import { prefetchPreparedContentPosts } from "@/lib/imagePrefetch";
+import { createMediaSuspensionController } from "./mediaSuspensionController";
+import { FeedVideoController } from "./feedVideoController";
 
 type Props = {
   posts: Post[];
@@ -63,49 +59,38 @@ type Props = {
   active?: boolean;
   useExternalBookmarkHandler?: boolean;
   externalSavedRestaurantIds?: ReadonlySet<string>;
-  diagnosticLabel?: string;
   lightweightInactivePosts?: boolean;
 };
 
 const contentViewabilityConfig = { itemVisiblePercentThreshold: 60 };
 
-type DiagnosticScrollSession = {
-  id: number;
-  active: boolean;
-  startedAt: number;
-  startOffset: number;
-  gestureStartIndex: number;
-  rawTargetIndex: number | null;
-  scrollEventCount: number;
-  lastScrollEventAt: number;
-  maxScrollEventGapMs: number;
-  maxScrollHandlerMs: number;
-  maxEventLoopStallMs: number;
-  lastAnimationFrameAt: number;
-  maxAnimationFrameGapMs: number;
+type PreparedWindow = {
+  centerIndex: number;
+  direction: -1 | 0 | 1;
 };
 
-function DiagnosticPlaceholderPost({
-  height,
-  index,
-}: {
-  height: number;
-  index: number;
-}) {
-  return (
-    <View
-      style={{
-        height,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: index % 2 === 0 ? "#171717" : "#242424",
-      }}
-    >
-      <NativeText style={{ color: "#FAF9F6", fontSize: 18, fontWeight: "700" }}>
-        Diagnostic placeholder {index + 1}
-      </NativeText>
-    </View>
-  );
+type PagingMode = "ios-native-paging" | "interval-snap";
+
+function PreparedPagePlaceholder({ height }: { height: number }) {
+  return <View style={{ height, backgroundColor: "#0B0B0A" }} />;
+}
+
+function schedulePreparedWindowCommit(callback: () => void) {
+  const handle = requestAnimationFrame(callback);
+  return () => cancelAnimationFrame(handle);
+}
+
+function FeedVideoPlayerOwner({ controller }: { controller: FeedVideoController }) {
+  const player = useVideoPlayer(null, (videoPlayer) => {
+    videoPlayer.timeUpdateEventInterval = 0;
+  });
+
+  useLayoutEffect(() => {
+    controller.attachPlayer(player);
+    return () => controller.detachPlayer(player);
+  }, [controller, player]);
+
+  return null;
 }
 
 function ContentFeed({
@@ -135,20 +120,26 @@ function ContentFeed({
   active = true,
   useExternalBookmarkHandler = false,
   externalSavedRestaurantIds,
-  diagnosticLabel,
   lightweightInactivePosts = false,
 }: Props) {
-  const diagnosticsEnabled =
-    contentFeedDiagnosticsEnabled && Boolean(diagnosticLabel);
-  const renderDiagnosticPlaceholders =
-    diagnosticsEnabled && contentFeedDiagnosticMode === "placeholder";
   const [isPinchingMedia, setIsPinchingMedia] = useState(false);
-  const [mediaUpdatesSuspended, setMediaUpdatesSuspended] = useState(false);
   const [visiblePostIndex, setVisiblePostIndex] = useState(initialIndex);
   const [activePostId, setActivePostId] = useState<string | null>(
     initialPostId ?? posts[initialIndex]?.id ?? null,
   );
+  const [preparedWindow, setPreparedWindow] = useState<PreparedWindow>({
+    centerIndex: initialIndex,
+    direction: 0,
+  });
   const listRef = useRef<FlatList<Post>>(null);
+  const mediaSuspensionController = useMemo(
+    () => createMediaSuspensionController(),
+    [],
+  );
+  const feedVideoController = useMemo(
+    () => new FeedVideoController(),
+    [],
+  );
   const appliedInitialPostIdRef = useRef<string | null>(null);
   const pendingInitialPostIdRef = useRef<string | null>(
     initialPostId ?? posts[initialIndex]?.id ?? null,
@@ -156,21 +147,11 @@ function ContentFeed({
   const scrollOffsetRef = useRef(initialIndex * height);
   const requestedNextPageAtCountRef = useRef(0);
   const onEndReachedRef = useRef(onEndReached);
-  const diagnosticSessionSequenceRef = useRef(0);
-  const diagnosticScrollSessionRef = useRef<DiagnosticScrollSession | null>(
-    null,
-  );
-  const diagnosticAnimationFrameRef = useRef<number | null>(null);
-  const diagnosticProfilerWindowRef = useRef({
-    startedAt: contentFeedPerfNow(),
-    commits: 0,
-    totalDurationMs: 0,
-    maxDurationMs: 0,
-  });
-  const diagnosticInputSnapshotRef = useRef<Record<string, unknown> | null>(
-    null,
-  );
-  const diagnosticFeedCommitCountRef = useRef(0);
+  const cancelPendingPreparationRef = useRef<(() => void) | null>(null);
+  const preparationGenerationRef = useRef(0);
+  const verticalGestureActiveRef = useRef(false);
+  const gestureStartIndexRef = useRef(initialIndex);
+  const preparedDirectionRef = useRef<-1 | 0 | 1>(0);
   const gestureScrollOffset = useSharedValue(initialIndex * height);
   const topPullStartX = useSharedValue(0);
   const topPullStartY = useSharedValue(0);
@@ -183,99 +164,63 @@ function ContentFeed({
     onEndReachedRef.current = onEndReached;
   }, [onEndReached]);
 
-  useEffect(() => {
-    if (!diagnosticsEnabled) return;
-    diagnosticFeedCommitCountRef.current += 1;
-    const nextSnapshot: Record<string, unknown> = {
-      posts,
-      height,
-      active,
-      feedScrollEnabled,
-      refreshing,
-      activePostId,
-      visiblePostIndex,
-      isPinchingMedia,
-      mediaUpdatesSuspended,
-      onRefresh,
-      onEndReached,
-      onToggleLike,
-      onOpenComments,
-      onDeletePost,
-      onOpenSharePost,
-      onOpenPostOptions,
-      onToggleWantToTry,
-      onPullDownAtTop,
-      onScrollOffsetChange,
-      lightweightInactivePosts,
-    };
-    const previousSnapshot = diagnosticInputSnapshotRef.current;
-    const changedInputs = previousSnapshot
-      ? Object.keys(nextSnapshot).filter(
-          (key) => previousSnapshot[key] !== nextSnapshot[key],
-        )
-      : ["initial-mount"];
-    diagnosticInputSnapshotRef.current = nextSnapshot;
-    logContentFeedPerf("feed-react-commit", {
-      feed: diagnosticLabel,
-      commit: diagnosticFeedCommitCountRef.current,
-      changedInputs,
-      postCount: posts.length,
-    });
-  });
-
-  useEffect(() => {
-    if (!diagnosticsEnabled || !diagnosticLabel) return;
-    logContentFeedPerf("feed-mounted", {
-      feed: diagnosticLabel,
-      mode: contentFeedDiagnosticMode,
-      height,
-      postCount: postsRef.current.length,
-      initialIndex,
-    });
-
-    let expectedTickAt = contentFeedPerfNow() + 250;
-    let lastProfilerFlushAt = contentFeedPerfNow();
-    const timer = setInterval(() => {
-      const now = contentFeedPerfNow();
-      const eventLoopStallMs = Math.max(0, now - expectedTickAt);
-      expectedTickAt = now + 250;
-      const session = diagnosticScrollSessionRef.current;
-      if (session?.active) {
-        session.maxEventLoopStallMs = Math.max(
-          session.maxEventLoopStallMs,
-          eventLoopStallMs,
-        );
-      }
-
-      if (now - lastProfilerFlushAt < 1_000) return;
-      lastProfilerFlushAt = now;
-      const profilerWindow = diagnosticProfilerWindowRef.current;
-      if (profilerWindow.commits > 0) {
-        logContentFeedPerf("react-commit-window", {
-          feed: diagnosticLabel,
-          windowMs: Math.round(now - profilerWindow.startedAt),
-          commits: profilerWindow.commits,
-          totalDurationMs: Number(profilerWindow.totalDurationMs.toFixed(1)),
-          maxDurationMs: Number(profilerWindow.maxDurationMs.toFixed(1)),
-          whileScrolling: Boolean(session?.active),
+  const prepareWindowAround = useCallback(
+    (index: number, direction: -1 | 0 | 1) => {
+      const postCount = postsRef.current.length;
+      if (postCount === 0) return;
+      const nextCenter = Math.max(0, Math.min(postCount - 1, index));
+      prefetchPreparedContentPosts(postsRef.current, nextCenter, direction);
+      cancelPendingPreparationRef.current?.();
+      const generation = preparationGenerationRef.current + 1;
+      preparationGenerationRef.current = generation;
+      // Commit on the first frame after native momentum ends instead of waiting
+      // for an idle period that a rapid reverse gesture can outrun.
+      cancelPendingPreparationRef.current = schedulePreparedWindowCommit(() => {
+        cancelPendingPreparationRef.current = null;
+        if (
+          generation !== preparationGenerationRef.current ||
+          verticalGestureActiveRef.current
+        ) {
+          return;
+        }
+        setPreparedWindow((current) => {
+          if (
+            generation !== preparationGenerationRef.current ||
+            verticalGestureActiveRef.current
+          ) {
+            return current;
+          }
+          if (
+            current.centerIndex === nextCenter &&
+            current.direction === direction
+          ) {
+            return current;
+          }
+          preparedDirectionRef.current = direction;
+          return { centerIndex: nextCenter, direction };
         });
-      }
-      diagnosticProfilerWindowRef.current = {
-        startedAt: now,
-        commits: 0,
-        totalDurationMs: 0,
-        maxDurationMs: 0,
-      };
-    }, 250);
+      });
+    },
+    [],
+  );
 
+  useEffect(
+    () => () => {
+      preparationGenerationRef.current += 1;
+      cancelPendingPreparationRef.current?.();
+      cancelPendingPreparationRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    feedVideoController.resume();
     return () => {
-      clearInterval(timer);
-      if (diagnosticAnimationFrameRef.current != null) {
-        cancelAnimationFrame(diagnosticAnimationFrameRef.current);
-      }
-      logContentFeedPerf("feed-unmounted", { feed: diagnosticLabel });
+      // useVideoPlayer releases the native player after this component
+      // unmounts; the controller first removes its persistent subscription.
+      feedVideoController.dispose();
     };
-  }, [diagnosticLabel, diagnosticsEnabled, height, initialIndex]);
+  }, [feedVideoController]);
 
   useEffect(() => {
     const selectedIndex = initialPostId
@@ -288,6 +233,12 @@ function ContentFeed({
     pendingInitialPostIdRef.current = initialPost.id;
     setActivePostId(initialPost.id);
     setVisiblePostIndex(selectedIndex);
+    cancelPendingPreparationRef.current?.();
+    cancelPendingPreparationRef.current = null;
+    preparationGenerationRef.current += 1;
+    preparedDirectionRef.current = 0;
+    setPreparedWindow({ centerIndex: selectedIndex, direction: 0 });
+    prefetchPreparedContentPosts(posts, selectedIndex);
 
     const scrollToSelectedPost = () => {
       const offset = selectedIndex * height;
@@ -300,7 +251,6 @@ function ContentFeed({
   }, [gestureScrollOffset, height, initialIndex, initialPostId, posts]);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<Post>[] }) => {
-      const callbackStartedAt = contentFeedPerfNow();
       const visibleItem = viewableItems.find(
         (item) => item.isViewable && typeof item.index === "number",
       );
@@ -315,26 +265,9 @@ function ContentFeed({
 
       if (typeof index === "number" && visiblePostId) {
         pendingInitialPostIdRef.current = null;
-        if (!renderDiagnosticPlaceholders) {
-          prefetchUpcomingPosts(postsRef.current, index);
-        }
-        if (diagnosticsEnabled) {
-          logContentFeedPerf("viewability-change", {
-            feed: diagnosticLabel,
-            index,
-            postId: visiblePostId,
-            callbackDurationMs: Number(
-              (contentFeedPerfNow() - callbackStartedAt).toFixed(2),
-            ),
-            viewablePostIds: viewableItems
-              .filter((item) => item.isViewable)
-              .map((item) => item.item.id),
-            prefetchEnabled: !renderDiagnosticPlaceholders,
-          });
-        }
       }
     },
-    [diagnosticLabel, diagnosticsEnabled, renderDiagnosticPlaceholders],
+    [],
   );
 
   const handlePageSettled = useCallback(
@@ -350,44 +283,16 @@ function ContentFeed({
       );
       const post = postsRef.current[index];
       if (!post) return;
-      const settledAt = contentFeedPerfNow();
-      const settledOffset = event.nativeEvent.contentOffset.y;
-      const session = diagnosticScrollSessionRef.current;
-      if (diagnosticsEnabled && session?.active) {
-        const rawSettledIndex = Math.round(settledOffset / height);
-        const pagesAdvanced = index - session.gestureStartIndex;
-        logContentFeedPerf("page-settled", {
-          feed: diagnosticLabel,
-          sessionId: session.id,
-          index,
-          gestureStartIndex: session.gestureStartIndex,
-          rawTargetIndex: session.rawTargetIndex,
-          rawSettledIndex,
-          finalClampedIndex: index,
-          pagesAdvanced,
-          postId: post.id,
-          totalSwipeMs: Math.round(settledAt - session.startedAt),
-          scrollEventCount: session.scrollEventCount,
-          maxScrollEventGapMs: Number(session.maxScrollEventGapMs.toFixed(1)),
-          maxScrollHandlerMs: Number(session.maxScrollHandlerMs.toFixed(2)),
-          maxEventLoopStallMs: Number(session.maxEventLoopStallMs.toFixed(1)),
-          maxAnimationFrameGapMs: Number(
-            session.maxAnimationFrameGapMs.toFixed(1),
-          ),
-          settledOffset: Number(settledOffset.toFixed(1)),
-          snapErrorPx: Number(
-            Math.abs(settledOffset - index * height).toFixed(2),
-          ),
-        });
-        session.active = false;
-        if (diagnosticAnimationFrameRef.current != null) {
-          cancelAnimationFrame(diagnosticAnimationFrameRef.current);
-          diagnosticAnimationFrameRef.current = null;
-        }
-      }
+      verticalGestureActiveRef.current = false;
+      const movement = Math.sign(index - gestureStartIndexRef.current);
+      const direction: -1 | 0 | 1 =
+        movement === -1 || movement === 1
+          ? movement
+          : preparedDirectionRef.current;
       setVisiblePostIndex(index);
       setActivePostId(post.id);
-      setMediaUpdatesSuspended(false);
+      mediaSuspensionController.setSuspended(false);
+      prepareWindowAround(index, direction);
 
       if (
         index >= postCount - 4 &&
@@ -397,7 +302,11 @@ function ContentFeed({
         onEndReachedRef.current?.();
       }
     },
-    [diagnosticLabel, diagnosticsEnabled, height],
+    [
+      height,
+      mediaSuspensionController,
+      prepareWindowAround,
+    ],
   );
 
   const handlePinchStart = useCallback(() => setIsPinchingMedia(true), []);
@@ -405,7 +314,6 @@ function ContentFeed({
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const handlerStartedAt = contentFeedPerfNow();
       const rawOffset = event.nativeEvent.contentOffset.y;
       scrollOffsetRef.current = Math.max(
         0,
@@ -413,145 +321,27 @@ function ContentFeed({
       );
       gestureScrollOffset.set(scrollOffsetRef.current);
       onScrollOffsetChange?.(scrollOffsetRef.current);
-      const session = diagnosticScrollSessionRef.current;
-      if (diagnosticsEnabled && session?.active) {
-        const handledAt = contentFeedPerfNow();
-        if (session.lastScrollEventAt > 0) {
-          session.maxScrollEventGapMs = Math.max(
-            session.maxScrollEventGapMs,
-            handlerStartedAt - session.lastScrollEventAt,
-          );
-        }
-        session.lastScrollEventAt = handlerStartedAt;
-        session.scrollEventCount += 1;
-        session.maxScrollHandlerMs = Math.max(
-          session.maxScrollHandlerMs,
-          handledAt - handlerStartedAt,
-        );
-      }
     },
-    [diagnosticsEnabled, gestureScrollOffset, onScrollOffsetChange],
+    [gestureScrollOffset, onScrollOffsetChange],
   );
 
   const handleScrollBeginDrag = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      setMediaUpdatesSuspended(true);
-      if (!diagnosticsEnabled) return;
-      const startedAt = contentFeedPerfNow();
+      verticalGestureActiveRef.current = true;
+      preparationGenerationRef.current += 1;
+      cancelPendingPreparationRef.current?.();
+      cancelPendingPreparationRef.current = null;
+      mediaSuspensionController.setSuspended(true);
       const startOffset = event.nativeEvent.contentOffset.y;
       const postCount = postsRef.current.length;
       const gestureStartIndex = Math.max(
         0,
         Math.min(postCount - 1, Math.round(startOffset / height)),
       );
-      const session: DiagnosticScrollSession = {
-        id: diagnosticSessionSequenceRef.current + 1,
-        active: true,
-        startedAt,
-        startOffset,
-        gestureStartIndex,
-        rawTargetIndex: null,
-        scrollEventCount: 0,
-        lastScrollEventAt: 0,
-        maxScrollEventGapMs: 0,
-        maxScrollHandlerMs: 0,
-        maxEventLoopStallMs: 0,
-        lastAnimationFrameAt: startedAt,
-        maxAnimationFrameGapMs: 0,
-      };
-      diagnosticSessionSequenceRef.current = session.id;
-      diagnosticScrollSessionRef.current = session;
-      if (diagnosticAnimationFrameRef.current != null) {
-        cancelAnimationFrame(diagnosticAnimationFrameRef.current);
-      }
-      const sampleAnimationFrame = (frameAt: number) => {
-        const activeSession = diagnosticScrollSessionRef.current;
-        if (!activeSession?.active) return;
-        activeSession.maxAnimationFrameGapMs = Math.max(
-          activeSession.maxAnimationFrameGapMs,
-          frameAt - activeSession.lastAnimationFrameAt,
-        );
-        activeSession.lastAnimationFrameAt = frameAt;
-        diagnosticAnimationFrameRef.current =
-          requestAnimationFrame(sampleAnimationFrame);
-      };
-      diagnosticAnimationFrameRef.current =
-        requestAnimationFrame(sampleAnimationFrame);
-      logContentFeedPerf("drag-start", {
-        feed: diagnosticLabel,
-        sessionId: session.id,
-        startOffset: Number(session.startOffset.toFixed(1)),
-        gestureStartIndex: session.gestureStartIndex,
-      });
+      gestureStartIndexRef.current = gestureStartIndex;
     },
-    [diagnosticLabel, diagnosticsEnabled, height],
+    [height, mediaSuspensionController],
   );
-
-  const handleScrollEndDrag = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (!diagnosticsEnabled) return;
-      const session = diagnosticScrollSessionRef.current;
-      if (!session?.active) return;
-      const rawTargetOffset = event.nativeEvent.targetContentOffset?.y;
-      session.rawTargetIndex =
-        typeof rawTargetOffset === "number"
-          ? Math.round(rawTargetOffset / height)
-          : null;
-      logContentFeedPerf("drag-end", {
-        feed: diagnosticLabel,
-        sessionId: session.id,
-        gestureStartIndex: session.gestureStartIndex,
-        rawTargetIndex: session.rawTargetIndex,
-        elapsedMs: Math.round(contentFeedPerfNow() - session.startedAt),
-        releaseOffset: Number(event.nativeEvent.contentOffset.y.toFixed(1)),
-        velocityY: event.nativeEvent.velocity?.y ?? null,
-      });
-    },
-    [diagnosticLabel, diagnosticsEnabled, height],
-  );
-
-  const handleMomentumScrollBegin = useCallback(() => {
-    if (!diagnosticsEnabled) return;
-    const session = diagnosticScrollSessionRef.current;
-    if (!session?.active) return;
-    logContentFeedPerf("momentum-start", {
-      feed: diagnosticLabel,
-      sessionId: session.id,
-      elapsedMs: Math.round(contentFeedPerfNow() - session.startedAt),
-    });
-  }, [diagnosticLabel, diagnosticsEnabled]);
-
-  const handlePostProfilerRender: ProfilerOnRenderCallback = useCallback(
-    (id, phase, actualDuration) => {
-      if (!diagnosticsEnabled) return;
-      const profilerWindow = diagnosticProfilerWindowRef.current;
-      profilerWindow.commits += 1;
-      profilerWindow.totalDurationMs += actualDuration;
-      profilerWindow.maxDurationMs = Math.max(
-        profilerWindow.maxDurationMs,
-        actualDuration,
-      );
-      if (phase === "mount" || actualDuration >= 12) {
-        logContentFeedPerf("post-react-render", {
-          feed: diagnosticLabel,
-          post: id,
-          phase,
-          actualDurationMs: Number(actualDuration.toFixed(1)),
-          whileScrolling: Boolean(diagnosticScrollSessionRef.current?.active),
-        });
-      }
-    },
-    [diagnosticLabel, diagnosticsEnabled],
-  );
-
-  useEffect(() => {
-    if (!diagnosticsEnabled) return;
-    logContentFeedPerf("active-post-committed", {
-      feed: diagnosticLabel,
-      postId: activePostId,
-      visiblePostIndex,
-    });
-  }, [activePostId, diagnosticLabel, diagnosticsEnabled, visiblePostIndex]);
 
   const topPullGesture = useMemo(
     () =>
@@ -632,9 +422,15 @@ function ContentFeed({
 
   const lockTopOverscroll = preventTopOverscroll && visiblePostIndex === 0;
   const hasPosts = posts.length > 0;
+  const pagingMode: PagingMode =
+    Platform.OS === "ios" ? "ios-native-paging" : "interval-snap";
+  const usesIosNativePaging = hasPosts && pagingMode === "ios-native-paging";
 
   return (
     <View style={{ flex: 1 }}>
+      {active ? (
+        <FeedVideoPlayerOwner controller={feedVideoController} />
+      ) : null}
       <GestureDetector gesture={feedGesture}>
       <FlatList
         ref={listRef}
@@ -642,23 +438,22 @@ function ContentFeed({
         keyExtractor={(item) => item.id}
         refreshing={nativeRefreshEnabled ? refreshing : false}
         onRefresh={nativeRefreshEnabled ? onRefresh : undefined}
-        initialNumToRender={Math.max(
-          2,
-          Math.min(posts.length, initialIndex + 1),
-        )}
-        maxToRenderPerBatch={2}
-        windowSize={3}
-        removeClippedSubviews
+        initialNumToRender={Math.min(posts.length, 3)}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={16}
+        windowSize={5}
+        removeClippedSubviews={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={contentViewabilityConfig}
-        snapToInterval={hasPosts ? height : undefined}
-        snapToAlignment="start"
-        disableIntervalMomentum={hasPosts}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onScrollEndDrag={diagnosticsEnabled ? handleScrollEndDrag : undefined}
-        onMomentumScrollBegin={
-          diagnosticsEnabled ? handleMomentumScrollBegin : undefined
+        pagingEnabled={usesIosNativePaging}
+        snapToInterval={
+          hasPosts && !usesIosNativePaging ? height : undefined
         }
+        snapToAlignment={usesIosNativePaging ? undefined : "start"}
+        disableIntervalMomentum={
+          hasPosts && !usesIosNativePaging ? true : undefined
+        }
+        onScrollBeginDrag={handleScrollBeginDrag}
         onMomentumScrollEnd={hasPosts ? handlePageSettled : undefined}
         onScroll={handleScroll}
         scrollEventThrottle={32}
@@ -687,49 +482,45 @@ function ContentFeed({
           index,
         })}
         renderItem={({ item, index }) => {
-          const post = renderDiagnosticPlaceholders ? (
-            <DiagnosticPlaceholderPost height={height} index={index} />
-          ) : (
-            <ContentPost
-            post={item}
-            height={height}
-            isActive={active && item.id === activePostId}
-            contentTopInset={contentTopInset}
-            controlsTopInset={controlsTopInset}
-            bottomAuthorBarHeight={bottomAuthorBarHeight}
-            onToggleLike={onToggleLike}
-            onOpenComments={onOpenComments}
-            onToggleWantToTry={onToggleWantToTry}
-            useExternalBookmarkHandler={useExternalBookmarkHandler}
-            savedToExternalList={
-              !!item.restaurant?.id &&
-              externalSavedRestaurantIds?.has(item.restaurant.id)
-            }
-            onOpenSharePost={onOpenSharePost}
-            onOpenPostOptions={onOpenPostOptions}
-            onPinchStart={handlePinchStart}
-            onPinchEnd={handlePinchEnd}
-            deferMediaWhenInactive={lightweightInactivePosts}
-            suspendMediaUpdates={
-              mediaUpdatesSuspended && active && item.id === activePostId
-            }
-            diagnosticLabel={
-              diagnosticsEnabled
-                ? `${diagnosticLabel ?? "content-feed"}:${item.id}`
-                : undefined
-            }
-          />
-          );
+          const distanceFromPreparedCenter =
+            index - preparedWindow.centerIndex;
+          const isDirectionalCandidate =
+            preparedWindow.direction !== 0 &&
+            distanceFromPreparedCenter === preparedWindow.direction * 2;
+          if (
+            Math.abs(distanceFromPreparedCenter) > 1 &&
+            !isDirectionalCandidate
+          ) {
+            return <PreparedPagePlaceholder height={height} />;
+          }
 
-          return diagnosticsEnabled ? (
-            <Profiler
-              id={`${diagnosticLabel ?? "content-feed"}:${item.id}`}
-              onRender={handlePostProfilerRender}
-            >
-              {post}
-            </Profiler>
-          ) : (
-            post
+          return (
+            <ContentPost
+              post={item}
+              height={height}
+              isActive={active && item.id === activePostId}
+              contentTopInset={contentTopInset}
+              controlsTopInset={controlsTopInset}
+              bottomAuthorBarHeight={bottomAuthorBarHeight}
+              onToggleLike={onToggleLike}
+              onOpenComments={onOpenComments}
+              onToggleWantToTry={onToggleWantToTry}
+              useExternalBookmarkHandler={useExternalBookmarkHandler}
+              savedToExternalList={
+                !!item.restaurant?.id &&
+                externalSavedRestaurantIds?.has(item.restaurant.id)
+              }
+              onOpenSharePost={onOpenSharePost}
+              onOpenPostOptions={onOpenPostOptions}
+              onPinchStart={handlePinchStart}
+              onPinchEnd={handlePinchEnd}
+              deferMediaWhenInactive={lightweightInactivePosts}
+              enablePreparedCarouselInteraction={
+                active && !isDirectionalCandidate
+              }
+              mediaSuspensionController={mediaSuspensionController}
+              feedVideoController={feedVideoController}
+            />
           );
         }}
       />

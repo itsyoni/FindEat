@@ -1,6 +1,10 @@
 import { useEventListener } from "expo";
 import { Image as ExpoImage } from "expo-image";
-import { useVideoPlayer, VideoView } from "expo-video";
+import {
+  useVideoPlayer,
+  VideoView,
+  type VideoPlayer,
+} from "expo-video";
 import { useFocusEffect } from "expo-router";
 import {
   PlayIcon,
@@ -13,6 +17,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   Pressable,
@@ -32,12 +37,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Text from "@/components/common/AppText";
-import {
-  contentFeedPerfNow,
-  logContentFeedPerf,
-} from "@/lib/contentFeedDiagnostics";
+import { FeedVideoController } from "./feedVideoController";
 
-type Props = {
+export type ContentVideoProps = {
   uri: string;
   overlayUri?: string;
   style?: StyleProp<ViewStyle>;
@@ -62,8 +64,22 @@ type Props = {
   onPlayingChange?: (playing: boolean) => void;
   onPlaybackEnd?: () => void;
   onSeek?: (seconds: number) => void;
-  diagnosticLabel?: string;
   updatesSuspended?: boolean;
+};
+
+type Props = ContentVideoProps;
+
+type PlayerBackedProps = Props & {
+  player: VideoPlayer;
+  playbackController?: FeedVideoController;
+  sourceKey?: string;
+  acceptsPlayerEvent?: () => boolean;
+  ownsPlayerLease?: () => boolean;
+  posterUri?: string | null;
+  surfaceActive?: boolean;
+  sourceGeneration?: number;
+  postId?: string;
+  mediaId?: string;
 };
 
 function formatVideoTime(seconds: number, roundUp = false) {
@@ -78,7 +94,334 @@ function formatVideoTime(seconds: number, roundUp = false) {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-export default function ContentVideo({
+export default function ContentVideo(props: Props) {
+  return <OwnedContentVideo {...props} />;
+}
+
+function OwnedContentVideo(props: Props) {
+  const {
+    uri,
+    loop = true,
+    muted = false,
+    volume = 1,
+    showProgress = false,
+  } = props;
+  const player = useVideoPlayer(
+    { uri, useCaching: true },
+    (videoPlayer) => {
+      videoPlayer.loop = loop;
+      videoPlayer.muted = muted;
+      videoPlayer.volume = volume;
+      videoPlayer.timeUpdateEventInterval = showProgress ? 0.25 : 0;
+    },
+  );
+
+  return (
+    <PlayerBackedContentVideo
+      {...props}
+      player={player}
+    />
+  );
+}
+
+type FeedContentVideoProps = Props & {
+  controller: FeedVideoController;
+  sourceKey: string;
+  posterUri?: string | null;
+  active: boolean;
+  postId: string;
+  mediaId: string;
+};
+
+export function FeedContentVideo({
+  controller,
+  sourceKey,
+  posterUri,
+  active,
+  postId,
+  mediaId,
+  ...props
+}: FeedContentVideoProps) {
+  const { uri } = props;
+  const lifecycle = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
+  );
+
+  useEffect(() => {
+    if (!active) return;
+    const generation = controller.activate({
+      key: sourceKey,
+      uri,
+      postId,
+      mediaId,
+    });
+    return () => controller.deactivate(sourceKey, generation);
+  }, [active, controller, mediaId, postId, sourceKey, uri]);
+
+  const sourceRequested =
+    lifecycle.activeKey === sourceKey && lifecycle.activeUri === uri;
+  const generation = sourceRequested ? lifecycle.requestedGeneration : -1;
+  const sourceAccepted =
+    sourceRequested &&
+    generation >= 0 &&
+    lifecycle.acceptedGeneration === generation;
+  const shouldRenderVideoView =
+    active && lifecycle.player !== null && sourceAccepted;
+  const ownsPlayerLease = useCallback(
+    () => controller.isCurrent(sourceKey, generation),
+    [controller, generation, sourceKey],
+  );
+  const acceptsPlayerEvent = useCallback(
+    () => controller.acceptsEvents(sourceKey, generation),
+    [controller, generation, sourceKey],
+  );
+  const player = lifecycle.player;
+
+  if (!shouldRenderVideoView || !player) {
+    return (
+      <View style={[props.style, styles.videoPoster]}>
+        {posterUri ? (
+          <ExpoImage
+            source={{ uri: posterUri }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+        {props.overlayUri ? (
+          <ExpoImage
+            source={{ uri: props.overlayUri }}
+            contentFit="fill"
+            cachePolicy="memory-disk"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
+  return (
+    <PlayerBackedContentVideo
+      {...props}
+      player={player}
+      playbackController={controller}
+      sourceKey={sourceKey}
+      acceptsPlayerEvent={acceptsPlayerEvent}
+      ownsPlayerLease={ownsPlayerLease}
+      posterUri={posterUri}
+      surfaceActive={active}
+      sourceGeneration={generation}
+      postId={postId}
+      mediaId={mediaId}
+    />
+  );
+}
+
+type SharedVideoTimelineProps = {
+  controller: FeedVideoController;
+  sourceKey: string;
+  postId: string;
+  mediaId: string;
+  sourceGeneration: number;
+  player: VideoPlayer;
+  shouldAutoPlay: boolean;
+  onSeek?: (seconds: number) => void;
+};
+
+function SharedVideoTimeline({
+  controller,
+  sourceKey,
+  postId,
+  mediaId,
+  sourceGeneration,
+  player,
+  shouldAutoPlay,
+  onSeek,
+}: SharedVideoTimelineProps) {
+  const playback = useSyncExternalStore(
+    controller.subscribePlayback,
+    controller.getPlaybackSnapshot,
+    controller.getPlaybackSnapshot,
+  );
+  const matchesCurrentSource =
+    playback.postId === postId &&
+    playback.mediaId === mediaId &&
+    playback.sourceGeneration === sourceGeneration;
+  const currentTime = matchesCurrentSource ? playback.currentTime : 0;
+  const duration = matchesCurrentSource ? playback.duration : 0;
+  const [scrubberWidth, setScrubberWidth] = useState(0);
+  const [scrubProgress, setScrubProgress] = useState<number | null>(null);
+  const pendingScrubRatioRef = useRef(0);
+  const resumeAfterScrubRef = useRef(false);
+  const scrubTouchStartX = useSharedValue(0);
+  const scrubTouchStartY = useSharedValue(0);
+  const scrubberExpansion = useSharedValue(0);
+  const progress =
+    duration > 0
+      ? Math.max(0, Math.min(1, currentTime / duration))
+      : 0;
+  const displayedProgress = scrubProgress ?? progress;
+  const displayedTime = displayedProgress * Math.max(0, duration);
+
+  useEffect(() => {
+    scrubberExpansion.value = withTiming(scrubProgress === null ? 0 : 1, {
+      duration: 140,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [scrubProgress, scrubberExpansion]);
+
+  function scrubRatio(locationX: number) {
+    if (!scrubberWidth) return 0;
+    return Math.max(0, Math.min(1, locationX / scrubberWidth));
+  }
+
+  function beginScrub(locationX: number) {
+    if (
+      !matchesCurrentSource ||
+      !controller.acceptsEvents(sourceKey, sourceGeneration) ||
+      !scrubberWidth ||
+      duration <= 0
+    ) {
+      return;
+    }
+    pendingScrubRatioRef.current = scrubRatio(locationX);
+    resumeAfterScrubRef.current = playback.isPlaying;
+    player.pause();
+    setScrubProgress(pendingScrubRatioRef.current);
+  }
+
+  function moveScrub(locationX: number) {
+    if (
+      !matchesCurrentSource ||
+      !controller.acceptsEvents(sourceKey, sourceGeneration) ||
+      !scrubberWidth ||
+      duration <= 0
+    ) {
+      return;
+    }
+    pendingScrubRatioRef.current = scrubRatio(locationX);
+    setScrubProgress(pendingScrubRatioRef.current);
+  }
+
+  function finishScrub() {
+    if (
+      !matchesCurrentSource ||
+      !controller.acceptsEvents(sourceKey, sourceGeneration)
+    ) {
+      setScrubProgress(null);
+      return;
+    }
+    const targetTime = pendingScrubRatioRef.current * duration;
+    if (controller.seekTo(sourceKey, sourceGeneration, targetTime)) {
+      onSeek?.(targetTime);
+    }
+    setScrubProgress(null);
+    if (resumeAfterScrubRef.current && shouldAutoPlay) player.play();
+  }
+
+  /* eslint-disable react-hooks/refs */
+  const scrubberPanGesture = Gesture.Pan()
+    .manualActivation(true)
+    .onTouchesDown((event) => {
+      const touch = event.allTouches[0] ?? event.changedTouches[0];
+      if (!touch) return;
+      scrubTouchStartX.set(touch.absoluteX);
+      scrubTouchStartY.set(touch.absoluteY);
+    })
+    .onTouchesMove((event, manager) => {
+      const touch = event.allTouches[0] ?? event.changedTouches[0];
+      if (!touch) return;
+      const deltaX = touch.absoluteX - scrubTouchStartX.get();
+      const deltaY = touch.absoluteY - scrubTouchStartY.get();
+      if (Math.abs(deltaX) < 7 && Math.abs(deltaY) < 7) return;
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+        manager.activate();
+      } else {
+        manager.fail();
+      }
+    })
+    .onStart((event) => runOnJS(beginScrub)(event.x))
+    .onUpdate((event) => runOnJS(moveScrub)(event.x))
+    .onEnd(() => runOnJS(finishScrub)());
+  const scrubberTapGesture = Gesture.Tap().onEnd((event) => {
+    runOnJS(beginScrub)(event.x);
+    runOnJS(finishScrub)();
+  });
+  const scrubberGesture = Gesture.Race(
+    scrubberPanGesture,
+    scrubberTapGesture,
+  );
+  /* eslint-enable react-hooks/refs */
+
+  const progressTrackAnimatedStyle = useAnimatedStyle(() => ({
+    height: 3 + scrubberExpansion.value * 5,
+  }));
+  const progressHandleAnimatedStyle = useAnimatedStyle(() => {
+    const size = 10 + scrubberExpansion.value * 6;
+    const trackHeight = 3 + scrubberExpansion.value * 5;
+
+    return {
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      right: -size / 2,
+      top: (trackHeight - size) / 2,
+    };
+  });
+  const scrubberTimeAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: scrubberExpansion.value,
+    transform: [{ translateY: (1 - scrubberExpansion.value) * 5 }],
+  }));
+
+  return (
+    <>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.scrubberTimeOverlay, scrubberTimeAnimatedStyle]}
+      >
+        <View style={styles.scrubberTimePill}>
+          <Text style={styles.scrubberTimeText}>
+            {formatVideoTime(displayedTime)}/{formatVideoTime(duration, true)}
+          </Text>
+        </View>
+      </Animated.View>
+      <GestureDetector gesture={scrubberGesture}>
+        <View
+          accessibilityRole="adjustable"
+          accessibilityValue={{
+            min: 0,
+            max: 100,
+            now: Math.round(displayedProgress * 100),
+          }}
+          onLayout={(event) => {
+            setScrubberWidth(event.nativeEvent.layout.width);
+          }}
+          style={styles.scrubberTouchArea}
+        >
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.progressTrack, progressTrackAnimatedStyle]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${displayedProgress * 100}%` },
+              ]}
+            >
+              <Animated.View
+                style={[styles.progressHandle, progressHandleAnimatedStyle]}
+              />
+            </View>
+          </Animated.View>
+        </View>
+      </GestureDetector>
+    </>
+  );
+}
+
+function PlayerBackedContentVideo({
   uri,
   overlayUri,
   style,
@@ -103,31 +446,23 @@ export default function ContentVideo({
   onPlayingChange,
   onPlaybackEnd,
   onSeek,
-  diagnosticLabel,
   updatesSuspended = false,
-}: Props) {
-  const videoMountedAtRef = useRef(contentFeedPerfNow());
-  const videoLoadStartedAtRef = useRef(contentFeedPerfNow());
+  player,
+  playbackController,
+  sourceKey,
+  acceptsPlayerEvent,
+  ownsPlayerLease,
+  posterUri,
+  surfaceActive = true,
+  sourceGeneration,
+  postId,
+  mediaId,
+}: PlayerBackedProps) {
   const acceptsUpdatesRef = useRef(!updatesSuspended);
-  const player = useVideoPlayer(
-    { uri, useCaching: true },
-    (videoPlayer) => {
-      if (diagnosticLabel) {
-        logContentFeedPerf("video-player-created", {
-          media: diagnosticLabel,
-          createDelayMs: Math.round(
-            contentFeedPerfNow() - videoMountedAtRef.current,
-          ),
-        });
-      }
-      videoPlayer.loop = loop;
-      videoPlayer.muted = muted;
-      videoPlayer.volume = volume;
-      // Progress does not need to drive React at 20 Hz. Four updates per
-      // second keeps the scrubber readable without competing with paging.
-      videoPlayer.timeUpdateEventInterval = showProgress ? 0.25 : 0;
-    },
+  const [renderedFrameUri, setRenderedFrameUri] = useState<string | null>(
+    posterUri ? null : uri,
   );
+  const firstFrameReady = !posterUri || renderedFrameUri === uri;
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(player.playing);
@@ -154,64 +489,23 @@ export default function ContentVideo({
   const scrubTouchStartX = useSharedValue(0);
   const scrubTouchStartY = useSharedValue(0);
   const scrubberExpansion = useSharedValue(0);
-
-  useEffect(() => {
-    if (!diagnosticLabel) return;
-    const mountedAt = videoMountedAtRef.current;
-    logContentFeedPerf("video-mounted", { media: diagnosticLabel });
-    return () => {
-      logContentFeedPerf("video-unmounted", {
-        media: diagnosticLabel,
-        lifetimeMs: Math.round(contentFeedPerfNow() - mountedAt),
-      });
-    };
-  }, [diagnosticLabel]);
-
-  useEffect(() => {
-    if (!diagnosticLabel) return;
-    logContentFeedPerf("video-react-updates", {
-      media: diagnosticLabel,
-      suspended: updatesSuspended,
-    });
-  }, [diagnosticLabel, updatesSuspended]);
-
-  useEventListener(player, "statusChange", ({ status, oldStatus, error }) => {
+  useEventListener(player, "sourceLoad", ({ duration }) => {
     if (!acceptsUpdatesRef.current) return;
-    if (!diagnosticLabel) return;
-    logContentFeedPerf("video-status-change", {
-      media: diagnosticLabel,
-      status,
-      oldStatus: oldStatus ?? null,
-      elapsedSinceMountMs: Math.round(
-        contentFeedPerfNow() - videoMountedAtRef.current,
-      ),
-      error: error?.message ?? null,
-    });
-  });
-
-  useEventListener(player, "sourceLoad", ({ duration, availableVideoTracks }) => {
-    if (!acceptsUpdatesRef.current) return;
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
+    if (playbackController) return;
     setDuration(duration);
-    if (!diagnosticLabel) return;
-    logContentFeedPerf("video-source-loaded", {
-      media: diagnosticLabel,
-      loadMs: Math.round(
-        contentFeedPerfNow() - videoLoadStartedAtRef.current,
-      ),
-      durationSeconds: duration,
-      dimensions: availableVideoTracks[0]?.size
-          ? `${availableVideoTracks[0].size.width}x${availableVideoTracks[0].size.height}`
-          : null,
-    });
   });
 
   useEventListener(player, "timeUpdate", (event) => {
     if (!acceptsUpdatesRef.current) return;
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
+    if (playbackController) return;
     setCurrentTime(event.currentTime);
   });
 
   useEventListener(player, "playingChange", (event) => {
     if (!acceptsUpdatesRef.current) return;
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
     setIsPlaying(event.isPlaying);
   });
 
@@ -219,6 +513,25 @@ export default function ContentVideo({
   // eslint-disable-next-line react-hooks/immutability
   useLayoutEffect(() => {
     acceptsUpdatesRef.current = !updatesSuspended;
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
+    if (
+      playbackController &&
+      sourceKey &&
+      sourceGeneration != null
+    ) {
+      playbackController.setProgressUpdatesEnabled(
+        sourceKey,
+        sourceGeneration,
+        showProgress && !updatesSuspended,
+      );
+      return () => {
+        playbackController.setProgressUpdatesEnabled(
+          sourceKey,
+          sourceGeneration,
+          false,
+        );
+      };
+    }
     try {
       // Disable native progress events while a vertical page gesture is active.
       // eslint-disable-next-line react-hooks/immutability
@@ -227,30 +540,41 @@ export default function ContentVideo({
     } catch {
       // A stale player may already have been released after page settlement.
     }
-  }, [player, showProgress, updatesSuspended]);
+  }, [
+    ownsPlayerLease,
+    playbackController,
+    player,
+    showProgress,
+    sourceGeneration,
+    sourceKey,
+    updatesSuspended,
+  ]);
 
   useEffect(() => {
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
     // Keep every mounted feed player aligned with the shared audio choice.
     // eslint-disable-next-line react-hooks/immutability
     player.muted = isMuted;
-  }, [isMuted, player]);
+  }, [isMuted, ownsPlayerLease, player]);
 
   useEffect(() => {
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
     // expo-video exposes volume as an imperative player property.
     // eslint-disable-next-line react-hooks/immutability
     player.volume = Math.max(0, Math.min(1, volume));
-  }, [player, volume]);
+  }, [ownsPlayerLease, player, volume]);
 
   useEffect(() => {
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
     // Let the native player own looping. Manual replay calls race native end
     // events on both AVPlayer and ExoPlayer.
     // eslint-disable-next-line react-hooks/immutability
     player.loop = loop;
-  }, [loop, player]);
+  }, [loop, ownsPlayerLease, player]);
 
   useEffect(() => {
-    if (!updatesSuspended) onPlayingChange?.(isPlaying);
-  }, [isPlaying, onPlayingChange, updatesSuspended]);
+    if (surfaceActive && !updatesSuspended) onPlayingChange?.(isPlaying);
+  }, [isPlaying, onPlayingChange, surfaceActive, updatesSuspended]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
@@ -273,24 +597,47 @@ export default function ContentVideo({
     }, []),
   );
 
-  const shouldAutoPlay = autoPlay && isScreenFocused && appIsActive && !paused;
+  const shouldAutoPlay =
+    surfaceActive && autoPlay && isScreenFocused && appIsActive && !paused;
 
   useEventListener(player, "playToEnd", () => {
     if (!acceptsUpdatesRef.current) return;
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
     onPlaybackEnd?.();
   });
 
   useEffect(() => {
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
     if (shouldAutoPlay) {
       if (restartOnActivate && !wasAutoPlayingRef.current && player.currentTime > 0) {
-        player.seekBy(-player.currentTime);
+        if (
+          !playbackController ||
+          !sourceKey ||
+          sourceGeneration == null ||
+          !playbackController.seekTo(sourceKey, sourceGeneration, 0)
+        ) {
+          player.seekBy(-player.currentTime);
+        }
       }
       player.play();
     } else {
       player.pause();
     }
     wasAutoPlayingRef.current = shouldAutoPlay;
-  }, [player, restartOnActivate, shouldAutoPlay]);
+  }, [
+    appIsActive,
+    autoPlay,
+    isScreenFocused,
+    ownsPlayerLease,
+    player,
+    playbackController,
+    paused,
+    restartOnActivate,
+    shouldAutoPlay,
+    sourceGeneration,
+    sourceKey,
+    surfaceActive,
+  ]);
 
   const progress =
     duration > 0
@@ -312,6 +659,7 @@ export default function ContentVideo({
   }
 
   function beginScrub(locationX: number) {
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
     if (!scrubberWidth || player.duration <= 0) return;
     pendingScrubRatioRef.current = scrubRatio(locationX);
     resumeAfterScrubRef.current = player.playing;
@@ -320,12 +668,14 @@ export default function ContentVideo({
   }
 
   function moveScrub(locationX: number) {
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
     if (!scrubberWidth || player.duration <= 0) return;
     pendingScrubRatioRef.current = scrubRatio(locationX);
     setScrubProgress(pendingScrubRatioRef.current);
   }
 
   function finishScrub() {
+    if (acceptsPlayerEvent && !acceptsPlayerEvent()) return;
     if (scrubberWidth && player.duration > 0) {
       const targetTime = pendingScrubRatioRef.current * player.duration;
       player.seekBy(targetTime - player.currentTime);
@@ -337,6 +687,7 @@ export default function ContentVideo({
 
   function togglePlayback() {
     if (!tapToToggle) return;
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
     if (player.playing) {
       player.pause();
       setManuallyPaused(true);
@@ -374,6 +725,7 @@ export default function ContentVideo({
 
   function toggleMuted(event: GestureResponderEvent) {
     event.stopPropagation();
+    if (ownsPlayerLease && !ownsPlayerLease()) return;
     const nextMuted = !isMuted;
     // expo-video exposes mute as an imperative player property.
     // eslint-disable-next-line react-hooks/immutability
@@ -389,7 +741,7 @@ export default function ContentVideo({
   // refs there is intentional and does not happen during React rendering.
   /* eslint-disable react-hooks/refs */
   const scrubberPanGesture = Gesture.Pan()
-    .enabled(showProgress)
+    .enabled(showProgress && surfaceActive)
     .manualActivation(true)
     .onTouchesDown((event) => {
       const touch = event.allTouches[0] ?? event.changedTouches[0];
@@ -413,7 +765,7 @@ export default function ContentVideo({
     .onUpdate((event) => runOnJS(moveScrub)(event.x))
     .onEnd(() => runOnJS(finishScrub)());
   const scrubberTapGesture = Gesture.Tap()
-    .enabled(showProgress)
+    .enabled(showProgress && surfaceActive)
     .onEnd((event) => {
       runOnJS(beginScrub)(event.x);
       runOnJS(finishScrub)();
@@ -425,7 +777,7 @@ export default function ContentVideo({
   /* eslint-enable react-hooks/refs */
 
   const pinchGesture = Gesture.Pinch()
-    .enabled(pinchToZoom)
+    .enabled(pinchToZoom && surfaceActive)
     .onStart(() => {
       if (onPinchStart) onPinchStart();
     })
@@ -476,7 +828,7 @@ export default function ContentVideo({
   return (
     <GestureDetector gesture={pinchGesture}>
       <Pressable
-        disabled={!tapToToggle && !onLongPress}
+        disabled={!surfaceActive || (!tapToToggle && !onLongPress)}
         accessibilityRole={tapToToggle ? "button" : undefined}
         delayLongPress={220}
         onPress={handlePress}
@@ -503,7 +855,25 @@ export default function ContentVideo({
             nativeControls={nativeControls && !tapToToggle}
             allowsPictureInPicture={false}
             surfaceType="textureView"
+            onFirstFrameRender={() => {
+              if (acceptsPlayerEvent && !acceptsPlayerEvent()) {
+                return;
+              }
+              if (renderedFrameUri === uri) {
+                return;
+              }
+              setRenderedFrameUri(uri);
+            }}
           />
+          {!firstFrameReady && posterUri ? (
+            <ExpoImage
+              pointerEvents="none"
+              source={{ uri: posterUri }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
           {overlayUri ? (
             <ExpoImage
               pointerEvents="none"
@@ -514,7 +884,7 @@ export default function ContentVideo({
             />
           ) : null}
         </Animated.View>
-      {tapToToggle && manuallyPaused && !isPlaying && !mediaOnly ? (
+      {surfaceActive && tapToToggle && manuallyPaused && !isPlaying && !mediaOnly ? (
         <View pointerEvents="box-none" style={styles.pausedControls}>
           <Pressable
             accessibilityRole="button"
@@ -533,7 +903,27 @@ export default function ContentVideo({
           </View>
         </View>
       ) : null}
-      {showProgress && !mediaOnly ? (
+      {surfaceActive &&
+      showProgress &&
+      !mediaOnly &&
+      playbackController &&
+      sourceKey &&
+      sourceGeneration != null &&
+      postId &&
+      mediaId ? (
+        <SharedVideoTimeline
+          key={`${sourceKey}:${sourceGeneration}`}
+          controller={playbackController}
+          sourceKey={sourceKey}
+          postId={postId}
+          mediaId={mediaId}
+          sourceGeneration={sourceGeneration}
+          player={player}
+          shouldAutoPlay={shouldAutoPlay}
+          onSeek={onSeek}
+        />
+      ) : null}
+      {surfaceActive && showProgress && !mediaOnly && !playbackController ? (
         <Animated.View
           pointerEvents="none"
           style={[styles.scrubberTimeOverlay, scrubberTimeAnimatedStyle]}
@@ -545,7 +935,7 @@ export default function ContentVideo({
           </View>
         </Animated.View>
       ) : null}
-      {showProgress && !mediaOnly ? (
+      {surfaceActive && showProgress && !mediaOnly && !playbackController ? (
         <GestureDetector gesture={scrubberGesture}>
         <View
           accessibilityRole="adjustable"
@@ -583,6 +973,10 @@ export default function ContentVideo({
 }
 
 const styles = StyleSheet.create({
+  videoPoster: {
+    overflow: "hidden",
+    backgroundColor: "#080808",
+  },
   pausedControls: {
     position: "absolute",
     left: "50%",
