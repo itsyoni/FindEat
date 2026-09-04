@@ -2,9 +2,10 @@ import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
 import type { PlaceListSummary } from "@findeat/types";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
-import { CalendarBlankIcon, FolderSimpleIcon, UsersThreeIcon } from "phosphor-react-native";
+import { CalendarBlankIcon } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import DefaultPlaceListCover from "./DefaultPlaceListCover";
 import SystemPlaceListCover from "./SystemPlaceListCover";
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
 
 export default function PlaceListCard({ list, onPress }: Props) {
   const { t } = useTranslation("common");
-  const previews = list.previewImages.slice(0, 4);
+  const preview = list.previewImages[0];
   const title = list.systemType
     ? t(
         list.systemType === "WANT_TO_TRY"
@@ -43,106 +44,58 @@ export default function PlaceListCard({ list, onPress }: Props) {
           />
         ) : list.systemType ? (
           <SystemPlaceListCover type={list.systemType} />
-        ) : previews.length ? (
-          <View className="flex-1 flex-row flex-wrap">
-            {Array.from({ length: 4 }, (_, index) => {
-              const uri = previews[index];
-              return uri ? (
-                <ProgressiveImage
-                  key={`${uri}-${index}`}
-                  source={{ uri }}
-                  style={{ width: "50%", height: "50%" }}
-                  contentFit="cover"
-                  transition={150}
-                />
-              ) : (
-                <View
-                  key={`empty-${index}`}
-                  className="h-1/2 w-1/2 bg-amber-100 dark:bg-amber-950/60"
-                />
-              );
-            })}
-          </View>
+        ) : preview ? (
+          <ProgressiveImage
+            source={{ uri: preview }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            transition={150}
+          />
         ) : (
-          <View className="flex-1 items-center justify-center">
-            <FolderSimpleIcon size={44} color="#D97706" weight="duotone" />
-          </View>
+          <DefaultPlaceListCover />
         )}
-        {!list.systemType ? (
-          <>
-            <View
-              pointerEvents="none"
-              className="absolute inset-0 bg-[#171512]/45"
-            />
-            <View
-              pointerEvents="none"
-              className="absolute inset-0 items-center justify-center px-4"
-            >
-              <Text
-                numberOfLines={2}
-                weight="bold"
-                className="text-center text-lg leading-6 text-[#FAF9F6]"
-                style={{
-                  textShadowColor: "rgba(11,10,9,0.72)",
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 5,
-                }}
-              >
-                {title}
-              </Text>
-            </View>
-          </>
-        ) : null}
-        {list.eventType ? (
-          <View className="absolute left-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/55">
-            <CalendarBlankIcon size={17} color="#FAF9F6" weight="fill" />
-          </View>
-        ) : null}
-        {list.memberCount > 1 ? (
-          <View className="absolute bottom-2 right-2 flex-row items-center rounded-full bg-black/60 px-2 py-1">
-            <UsersThreeIcon size={13} color="#FAF9F6" weight="fill" />
-            <Text className="ml-1 text-xs font-bold text-white">
-              {list.memberCount}
+        {list.eventAt ? (
+          <View className="absolute bottom-2 left-2 max-w-[68%] flex-row items-center rounded-full bg-black/60 px-2 py-1.5">
+            <CalendarBlankIcon size={13} color="#FAF9F6" weight="fill" />
+            <Text numberOfLines={1} className="ml-1 text-xs font-bold text-white">
+              {new Intl.DateTimeFormat(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }).format(new Date(list.eventAt))}
             </Text>
           </View>
         ) : null}
+        {list.memberCount > 1 ? (
+          <View
+            pointerEvents="none"
+            className="absolute bottom-2 right-2 flex-row items-center"
+          >
+            {list.memberPreviews.slice(0, 3).map((member, index) => (
+              <View
+                key={member.id}
+                className="rounded-full border-2 border-white bg-white dark:border-gray-900 dark:bg-gray-900"
+                style={{ marginLeft: index ? -7 : 0 }}
+              >
+                <Avatar
+                  uri={member.avatarUrl}
+                  username={member.username}
+                  size={24}
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
-      {list.systemType ? (
-        <Text
-          numberOfLines={1}
-          className="mt-2.5 text-base font-bold text-black dark:text-white"
-        >
-          {title}
-        </Text>
-      ) : null}
       <Text
-        className={`${list.systemType ? "mt-0.5" : "mt-2.5"} text-sm text-gray-500 dark:text-gray-400`}
+        numberOfLines={1}
+        className="mt-2.5 text-base font-bold text-black dark:text-white"
       >
+        {title}
+      </Text>
+      <Text className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
         {t("placesCount", { count: list.itemCount })}
       </Text>
-      {list.eventAt ? (
-        <View className="mt-1 flex-row items-center">
-          <CalendarBlankIcon size={13} color="#D97706" weight="bold" />
-          <Text className="ml-1 text-xs text-amber-700 dark:text-amber-300">
-            {new Intl.DateTimeFormat(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            }).format(new Date(list.eventAt))}
-          </Text>
-        </View>
-      ) : list.memberCount > 1 ? (
-        <View className="mt-1 flex-row items-center">
-          {list.memberPreviews.slice(0, 3).map((member, index) => (
-            <View key={member.id} style={{ marginLeft: index ? -6 : 0 }}>
-              <Avatar uri={member.avatarUrl} username={member.username} size={20} />
-            </View>
-          ))}
-          <Text className="ml-1.5 text-xs text-gray-500 dark:text-gray-400">
-            {t("sharedList")}
-          </Text>
-        </View>
-      ) : null}
     </TouchableOpacity>
   );
 }

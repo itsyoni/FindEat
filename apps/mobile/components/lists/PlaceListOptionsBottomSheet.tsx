@@ -4,6 +4,8 @@ import type { PlaceListDetail } from "@findeat/types";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import {
+  CalendarDotsIcon,
+  MapTrifoldIcon,
   PencilSimpleIcon,
   SignOutIcon,
   TrashIcon,
@@ -18,6 +20,7 @@ type Props = {
   onClose: () => void;
   onDelete: () => void;
   onLeave: () => void;
+  onViewMap: () => void;
 };
 
 export default function PlaceListOptionsBottomSheet({
@@ -26,11 +29,39 @@ export default function PlaceListOptionsBottomSheet({
   onClose,
   onDelete,
   onLeave,
+  onViewMap,
 }: Props) {
   const { t } = useTranslation("common");
   if (!list) return null;
 
   const actions = [
+    ...(list.items.some(
+      ({ restaurant }) =>
+        restaurant.latitude != null && restaurant.longitude != null,
+    )
+      ? [
+          {
+            key: "map",
+            label: t("viewFolderOnMap"),
+            icon: MapTrifoldIcon,
+            run: onViewMap,
+          },
+        ]
+      : []),
+    ...(list.eventType === "TRIP"
+      ? [
+          {
+            key: "plan",
+            label: t("planTripByDay"),
+            icon: CalendarDotsIcon,
+            run: () =>
+              router.push({
+                pathname: "/saved-lists/plan/[id]",
+                params: { id: list.id },
+              }),
+          },
+        ]
+      : []),
     ...(list.canEdit && !list.systemType
       ? [
           {
@@ -58,7 +89,19 @@ export default function PlaceListOptionsBottomSheet({
   ];
 
   return (
-    <AppBottomSheet open={open} onClose={onClose} snapPoints={[list.accessRole === "OWNER" ? "40%" : "34%"]}>
+    <AppBottomSheet
+      open={open}
+      onClose={onClose}
+      snapPoints={[
+        actions.length >= 4
+          ? "68%"
+          : actions.length === 3
+            ? "56%"
+            : list.accessRole === "OWNER"
+              ? "40%"
+              : "34%",
+      ]}
+    >
       <BottomSheetView className="flex-1 px-5 pb-7 pt-1">
         <Text className="mb-3 text-center text-lg font-bold text-black dark:text-white">
           {list.name}
