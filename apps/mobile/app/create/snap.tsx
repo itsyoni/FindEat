@@ -91,6 +91,7 @@ import {
   ActivityIndicator,
   Keyboard,
   Linking,
+  Platform,
   type NativeSyntheticEvent,
   type NativeTouchEvent,
   Pressable,
@@ -940,13 +941,15 @@ export default function CreateSnapScreen() {
   }
 
   async function chooseMedia() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(
-        t("snaps:photosPermissionTitle"),
-        t("snaps:photosPermissionBody"),
-      );
-      return;
+    if (Platform.OS === "ios") {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          t("snaps:photosPermissionTitle"),
+          t("snaps:photosPermissionBody"),
+        );
+        return;
+      }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"],

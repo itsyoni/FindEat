@@ -1009,10 +1009,12 @@ function PhotosPermissionStep({ saving, persist }: Pick<StepProps, "saving" | "p
       requestLabelKey="enablePhotos"
       saving={saving}
       load={async () => {
+        if (Platform.OS === "android") return "granted";
         const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
         return permission.accessPrivileges === "limited" ? "limited" : permission.status;
       }}
       request={async () => {
+        if (Platform.OS === "android") return "granted";
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         return permission.accessPrivileges === "limited" ? "limited" : permission.status;
       }}

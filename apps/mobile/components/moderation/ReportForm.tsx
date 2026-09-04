@@ -1,5 +1,5 @@
 import Text from "@/components/common/AppText";
-import { TextInput } from "@/components/common";
+import TextInput from "@/components/common/inputs/AppTextInput";
 import { api } from "@/lib/api";
 import type {
   ReportReason,

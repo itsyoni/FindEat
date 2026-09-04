@@ -65,6 +65,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         : []),
       "@react-native-community/datetimepicker",
       "@bacons/apple-targets",
+      "./plugins/withAndroidOptionalMicrophone",
     ],
 
     ios: {

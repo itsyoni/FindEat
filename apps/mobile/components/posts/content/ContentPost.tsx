@@ -112,6 +112,7 @@ type Props = {
   savedToExternalList?: boolean;
   deferMediaWhenInactive?: boolean;
   enablePreparedCarouselInteraction?: boolean;
+  prepareSoundPlayback?: boolean;
   mediaSuspensionController: MediaSuspensionController;
   feedVideoController: FeedVideoController;
 };
@@ -1044,6 +1045,7 @@ function ContentPost({
   onPinchEnd,
   deferMediaWhenInactive = false,
   enablePreparedCarouselInteraction = false,
+  prepareSoundPlayback = false,
   mediaSuspensionController,
   feedVideoController,
 }: Props) {
@@ -1170,6 +1172,9 @@ function ContentPost({
   const singleImageMedia =
     !videoMedia && media.length === 1 && media[0].imageUrl ? media[0] : null;
   const deferMediaLifecycle = deferMediaWhenInactive && !isActive;
+  const shouldMountSoundPlayback =
+    Boolean(content?.sound?.audioUrl) &&
+    (videoMedia ? isActive : prepareSoundPlayback);
   const captionIsRtl = isRtlText(caption, isRtl);
 
   const heartOverlayScale = useSharedValue(0);
@@ -1495,7 +1500,7 @@ function ContentPost({
           </View>
         )}
 
-        {content?.sound?.audioUrl && isActive ? (
+        {shouldMountSoundPlayback && content?.sound ? (
           <SuspendedSoundPlayback
             key={`${content.sound.id}-${soundPlaybackRevision}`}
             active={isActive}
@@ -1507,6 +1512,7 @@ function ContentPost({
             }
             volume={contentFeedMuted ? 0 : (content.soundVolume ?? 1)}
             playing={isActive && (videoMedia ? videoPlaying : true)}
+            prepareWhileInactive={!videoMedia}
           />
         ) : null}
 

@@ -16,7 +16,7 @@ import {
 } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Linking, ScrollView, TouchableOpacity, View } from "react-native";
+import { AppState, Linking, Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import useSettingsDirection from "@/components/settings/useSettingsDirection";
@@ -48,17 +48,21 @@ export default function PermissionsSettingsScreen() {
     try {
       const [camera, photos, location, notifications] = await Promise.all([
         Camera.getCameraPermissionsAsync(),
-        ImagePicker.getMediaLibraryPermissionsAsync(),
+        Platform.OS === "android"
+          ? Promise.resolve(null)
+          : ImagePicker.getMediaLibraryPermissionsAsync(),
         Location.getForegroundPermissionsAsync(),
         Notifications.getPermissionsAsync(),
       ]);
       setPermissions({
         camera: { status: camera.status, canAskAgain: camera.canAskAgain },
-        photos: {
-          status: photos.status,
-          canAskAgain: photos.canAskAgain,
-          limited: photos.accessPrivileges === "limited",
-        },
+        photos: photos
+          ? {
+              status: photos.status,
+              canAskAgain: photos.canAskAgain,
+              limited: photos.accessPrivileges === "limited",
+            }
+          : { status: "granted", canAskAgain: false },
         location: { status: location.status, canAskAgain: location.canAskAgain },
         notifications: {
           status: notifications.status,
@@ -91,7 +95,9 @@ export default function PermissionsSettingsScreen() {
     setWorking(key);
     try {
       if (key === "camera") await Camera.requestCameraPermissionsAsync();
-      if (key === "photos") await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (key === "photos" && Platform.OS === "ios") {
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
       if (key === "location") await Location.requestForegroundPermissionsAsync();
       if (key === "notifications") await Notifications.requestPermissionsAsync();
       await loadPermissions();

@@ -19,6 +19,13 @@
       "package": "com.itsyoni.findeat.dev",
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#FAF9F6",
         "foregroundImage": "./assets/images/icon.png"
@@ -93,7 +100,8 @@
           "locationAlwaysAndWhenInUsePermission": "When Visit Detection is enabled, FindEat uses region monitoring to recognize likely restaurant visits and remind you afterwards, even when the app is not open.",
           "locationAlwaysPermission": "When Visit Detection is enabled, FindEat uses region monitoring to recognize likely restaurant visits and remind you afterwards, even when the app is not open.",
           "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": false
         }
       ]
     ],

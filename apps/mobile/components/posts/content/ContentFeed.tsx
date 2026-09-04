@@ -518,6 +518,9 @@ function ContentFeed({
               enablePreparedCarouselInteraction={
                 active && !isDirectionalCandidate
               }
+              prepareSoundPlayback={
+                active && Math.abs(distanceFromPreparedCenter) <= 1
+              }
               mediaSuspensionController={mediaSuspensionController}
               feedVideoController={feedVideoController}
             />

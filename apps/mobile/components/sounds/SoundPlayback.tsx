@@ -10,6 +10,7 @@ type Props = {
   startTimeMs?: number;
   volume?: number;
   playing: boolean;
+  prepareWhileInactive?: boolean;
 };
 
 export default function SoundPlayback({
@@ -17,6 +18,7 @@ export default function SoundPlayback({
   startTimeMs = 0,
   volume = 1,
   playing,
+  prepareWhileInactive = false,
 }: Props) {
   const [mountedAt] = useState(() => Date.now());
   const { activeCountry } = useActiveCountry();
@@ -30,12 +32,18 @@ export default function SoundPlayback({
     (!sound.availableFrom || new Date(sound.availableFrom).getTime() <= mountedAt) &&
     (!sound.availableUntil || new Date(sound.availableUntil).getTime() > mountedAt);
   const source = available ? sound?.audioUrl ?? null : null;
-  const player = useAudioPlayer(source, { updateInterval: 250, downloadFirst: false });
+  const player = useAudioPlayer(source, {
+    updateInterval: 250,
+    downloadFirst: false,
+    preferredForwardBufferDuration: prepareWhileInactive ? 10 : 0,
+  });
   const status = useAudioPlayerStatus(player);
   const playbackRequestRef = useRef(0);
+  const preparedStartTimeRef = useRef<number | null>(null);
   const screenFocused = useIsFocused();
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
   const shouldPlay = playing && screenFocused && appActive;
+  const startTimeSeconds = startTimeMs / 1000;
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
@@ -55,6 +63,10 @@ export default function SoundPlayback({
   }, [player, volume]);
 
   useEffect(() => {
+    preparedStartTimeRef.current = null;
+  }, [player, source, startTimeSeconds]);
+
+  useEffect(() => {
     const requestId = playbackRequestRef.current + 1;
     playbackRequestRef.current = requestId;
     if (!source || !shouldPlay) {
@@ -65,8 +77,29 @@ export default function SoundPlayback({
       }
       return;
     }
+
+    const isPrepared =
+      prepareWhileInactive &&
+      (preparedStartTimeRef.current === startTimeSeconds ||
+        Math.abs(player.currentTime - startTimeSeconds) <= 0.075);
+    if (isPrepared) {
+      try {
+        player.play();
+      } catch {
+        // Ignore a stale play request after the post left the screen.
+      }
+      return () => {
+        playbackRequestRef.current += 1;
+        try {
+          player.pause();
+        } catch {
+          // useAudioPlayer may have disposed the native object first.
+        }
+      };
+    }
+
     void player
-      .seekTo(startTimeMs / 1000)
+      .seekTo(startTimeSeconds)
       .then(() => {
         if (playbackRequestRef.current !== requestId) return;
         try {
@@ -84,13 +117,53 @@ export default function SoundPlayback({
         // useAudioPlayer may have disposed the native object first.
       }
     };
-  }, [player, shouldPlay, source, startTimeMs]);
+  }, [player, prepareWhileInactive, shouldPlay, source, startTimeSeconds]);
+
+  useEffect(() => {
+    if (
+      !prepareWhileInactive ||
+      !source ||
+      shouldPlay ||
+      !status.isLoaded
+    ) {
+      return;
+    }
+
+    const requestId = playbackRequestRef.current + 1;
+    playbackRequestRef.current = requestId;
+    try {
+      player.pause();
+    } catch {
+      return;
+    }
+
+    if (Math.abs(player.currentTime - startTimeSeconds) <= 0.075) {
+      preparedStartTimeRef.current = startTimeSeconds;
+      return;
+    }
+
+    preparedStartTimeRef.current = null;
+    void player
+      .seekTo(startTimeSeconds)
+      .then(() => {
+        if (playbackRequestRef.current !== requestId) return;
+        preparedStartTimeRef.current = startTimeSeconds;
+      })
+      .catch(() => undefined);
+  }, [
+    player,
+    prepareWhileInactive,
+    shouldPlay,
+    source,
+    startTimeSeconds,
+    status.isLoaded,
+  ]);
 
   useEffect(() => {
     if (!shouldPlay || !status.didJustFinish) return;
     const requestId = playbackRequestRef.current;
     void player
-      .seekTo(startTimeMs / 1000)
+      .seekTo(startTimeSeconds)
       .then(() => {
         if (playbackRequestRef.current !== requestId) return;
         try {
@@ -100,7 +173,7 @@ export default function SoundPlayback({
         }
       })
       .catch(() => undefined);
-  }, [player, shouldPlay, startTimeMs, status.didJustFinish]);
+  }, [player, shouldPlay, startTimeSeconds, status.didJustFinish]);
 
   return null;
 }
