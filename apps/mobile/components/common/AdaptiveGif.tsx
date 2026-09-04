@@ -1,7 +1,6 @@
 import { Image } from "expo-image";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
-  Image as NativeImage,
   type DimensionValue,
   type StyleProp,
   type ViewStyle,
@@ -33,28 +32,19 @@ export default function AdaptiveGif({
 }: Props) {
   const [aspectRatio, setAspectRatio] = useState(1);
 
-  useEffect(() => {
-    let active = true;
-    NativeImage.getSize(
-      uri,
-      (imageWidth, imageHeight) => {
-        if (active) {
-          setAspectRatio(boundedAspectRatio(imageWidth, imageHeight));
-        }
-      },
-      () => undefined,
-    );
-    return () => {
-      active = false;
-    };
-  }, [uri]);
-
   return (
     <View style={[{ width, aspectRatio, overflow: "hidden" }, style]}>
       <Image
         source={{ uri }}
         style={{ width: "100%", height: "100%" }}
         contentFit="contain"
+        cachePolicy="memory-disk"
+        transition={0}
+        onLoad={(event) =>
+          setAspectRatio(
+            boundedAspectRatio(event.source.width, event.source.height),
+          )
+        }
       />
       {showGiphyAttribution ? (
         <View
@@ -69,7 +59,8 @@ export default function AdaptiveGif({
             gap: 5,
             borderRadius: 6,
             paddingHorizontal: 7,
-            backgroundColor: "rgba(11,11,10,0.72)",
+            backgroundColor: "rgba(11,11,10,0.48)",
+            opacity: 0.72,
           }}
         >
           <View style={{ flexDirection: "row", gap: 1 }}>

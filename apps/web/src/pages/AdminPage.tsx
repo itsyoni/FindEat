@@ -22,6 +22,7 @@ import { BroadcastIcon } from "@phosphor-icons/react/dist/csr/Broadcast";
 import { ToolboxIcon } from "@phosphor-icons/react/dist/csr/Toolbox";
 import { TrayIcon } from "@phosphor-icons/react/dist/csr/Tray";
 import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/csr/SidebarSimple";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import type {
   AdminActivityItem,
   AdminDashboardSection,
@@ -40,6 +41,7 @@ import { ModerationPanel } from "../components/ModerationPanel";
 import { AddressChangeRequestsPanel } from "../components/AddressChangeRequestsPanel";
 import { SoundCatalogAdmin } from "../components/SoundCatalogAdmin";
 import { AdminOverviewPage } from "../components/AdminOverviewPage";
+import { AdminDirectoryPage } from "../components/AdminDirectoryPage";
 import { AdminNotificationsPopover } from "../components/AdminNotificationsPopover";
 import { SidebarNavGroup } from "../components/SidebarNavGroup";
 import { request } from "../lib/api";
@@ -55,10 +57,14 @@ type AdminSidebarGroup = "platform" | "feedback" | "content";
 function adminSidebarGroupForSection(
   section: AdminDashboardSection,
 ): AdminSidebarGroup | null {
-  if (["claims", "addresses", "moderation", "ownership"].includes(section)) {
+  if (
+    ["claims", "addresses", "moderation", "directory", "ownership", "support"].includes(
+      section,
+    )
+  ) {
     return "platform";
   }
-  if (["support", "bugs", "features"].includes(section)) return "feedback";
+  if (["bugs", "features"].includes(section)) return "feedback";
   if (["updates", "sounds"].includes(section)) return "content";
   return null;
 }
@@ -373,7 +379,14 @@ export function AdminPage({
             id="admin-platform-management"
             label="Platform management"
             icon={<ToolboxIcon size={20} weight="duotone" />}
-            active={["claims", "addresses", "moderation", "ownership"].includes(section)}
+            active={[
+              "claims",
+              "addresses",
+              "moderation",
+              "directory",
+              "ownership",
+              "support",
+            ].includes(section)}
             open={openSidebarGroup === "platform"}
             onOpenChange={(open) =>
               setOpenSidebarGroup(open ? "platform" : null)
@@ -409,6 +422,15 @@ export function AdminPage({
             <FlagIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Moderation
           </button>
           <button
+            className={section === "directory" ? "active" : ""}
+            onClick={() => {
+              onNavigate("directory");
+              setError("");
+            }}
+          >
+            <MagnifyingGlassIcon className="nav-icon" size={20} weight="duotone" /> Account directory
+          </button>
+          <button
             className={section === "ownership" ? "active" : ""}
             onClick={() => {
               onNavigate("ownership");
@@ -417,17 +439,6 @@ export function AdminPage({
           >
             <StorefrontIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Ownership
           </button>
-          </SidebarNavGroup>
-          <SidebarNavGroup
-            id="admin-feedback-inbox"
-            label="Feedback inbox"
-            icon={<TrayIcon size={20} weight="duotone" />}
-            active={["support", "bugs", "features"].includes(section)}
-            open={openSidebarGroup === "feedback"}
-            onOpenChange={(open) =>
-              setOpenSidebarGroup(open ? "feedback" : null)
-            }
-          >
           <button
             className={section === "support" ? "active" : ""}
             onClick={() => {
@@ -437,6 +448,17 @@ export function AdminPage({
           >
             <HeadsetIcon className="nav-icon [nav_button_&]:[width:20px] [nav_button_&]:[height:20px] [nav_button_&]:[flex:0_0_20px] [nav_button_&]:[display:block] [nav_button_&]:[transition:transform_.16s_ease] [nav_a_&]:[width:20px] [nav_a_&]:[height:20px] [nav_a_&]:[flex:0_0_20px] [nav_a_&]:[display:block] [nav_a_&]:[transition:transform_.16s_ease] [#business-navigation_button_&]:[width:20px] [#business-navigation_button_&]:[height:20px] [#business-navigation_button_&]:[flex-basis:20px] [#business-navigation_a_&]:[width:20px] [#business-navigation_a_&]:[height:20px] [#business-navigation_a_&]:[flex-basis:20px] [#admin-navigation_button_&]:[width:20px] [#admin-navigation_button_&]:[height:20px] [#admin-navigation_button_&]:[flex-basis:20px] [#admin-navigation_a_&]:[width:20px] [#admin-navigation_a_&]:[height:20px] [#admin-navigation_a_&]:[flex-basis:20px] [@media_(hover:hover)]:[nav_button:hover_&]:[transform:scale(1.08)] [@media_(hover:hover)]:[nav_a:hover_&]:[transform:scale(1.08)]" weight="duotone" /> Support
           </button>
+          </SidebarNavGroup>
+          <SidebarNavGroup
+            id="admin-feedback-inbox"
+            label="Feedback inbox"
+            icon={<TrayIcon size={20} weight="duotone" />}
+            active={["bugs", "features"].includes(section)}
+            open={openSidebarGroup === "feedback"}
+            onOpenChange={(open) =>
+              setOpenSidebarGroup(open ? "feedback" : null)
+            }
+          >
           <button
             className={section === "bugs" ? "active" : ""}
             onClick={() => {
@@ -599,6 +621,11 @@ export function AdminPage({
           {(section === "moderation" || visitedSections.has("moderation")) && (
             <div className="admin-page-slot [&[hidden]]:[display:none]" hidden={section !== "moderation"}>
               <ModerationPanel />
+            </div>
+          )}
+          {(section === "directory" || visitedSections.has("directory")) && (
+            <div className="admin-page-slot [&[hidden]]:[display:none]" hidden={section !== "directory"}>
+              <AdminDirectoryPage />
             </div>
           )}
           {(section === "ownership" || visitedSections.has("ownership")) && (

@@ -1,13 +1,20 @@
 import type { Sound } from "@findeat/types";
 import { useActiveCountry } from "@/contexts/ActiveCountryContext";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
+import {
+  contentFeedPerfNow,
+  logContentFeedPerf,
+} from "@/lib/contentFeedDiagnostics";
 
 type Props = {
   sound?: Sound | null;
   startTimeMs?: number;
   volume?: number;
   playing: boolean;
+  diagnosticLabel?: string;
 };
 
 export default function SoundPlayback({
@@ -15,7 +22,9 @@ export default function SoundPlayback({
   startTimeMs = 0,
   volume = 1,
   playing,
+  diagnosticLabel,
 }: Props) {
+  const diagnosticMountedAtRef = useRef(contentFeedPerfNow());
   const [mountedAt] = useState(() => Date.now());
   const { activeCountry } = useActiveCountry();
   const territoryAllowed =
@@ -31,6 +40,32 @@ export default function SoundPlayback({
   const player = useAudioPlayer(source, { updateInterval: 250, downloadFirst: false });
   const status = useAudioPlayerStatus(player);
   const playbackRequestRef = useRef(0);
+  const screenFocused = useIsFocused();
+  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  const shouldPlay = playing && screenFocused && appActive;
+
+  useEffect(() => {
+    if (!diagnosticLabel) return;
+    const mountedAt = diagnosticMountedAtRef.current;
+    logContentFeedPerf("sound-player-mounted", {
+      media: diagnosticLabel,
+      hasSource: Boolean(source),
+    });
+    return () => {
+      logContentFeedPerf("sound-player-unmounted", {
+        media: diagnosticLabel,
+        hasSource: Boolean(source),
+        lifetimeMs: Math.round(contentFeedPerfNow() - mountedAt),
+      });
+    };
+  }, [diagnosticLabel, source]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      setAppActive(state === "active");
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     try {
@@ -45,7 +80,7 @@ export default function SoundPlayback({
   useEffect(() => {
     const requestId = playbackRequestRef.current + 1;
     playbackRequestRef.current = requestId;
-    if (!source || !playing) {
+    if (!source || !shouldPlay) {
       try {
         player.pause();
       } catch {
@@ -72,10 +107,10 @@ export default function SoundPlayback({
         // useAudioPlayer may have disposed the native object first.
       }
     };
-  }, [player, playing, source, startTimeMs]);
+  }, [player, shouldPlay, source, startTimeMs]);
 
   useEffect(() => {
-    if (!playing || !status.didJustFinish) return;
+    if (!shouldPlay || !status.didJustFinish) return;
     const requestId = playbackRequestRef.current;
     void player
       .seekTo(startTimeMs / 1000)
@@ -88,7 +123,7 @@ export default function SoundPlayback({
         }
       })
       .catch(() => undefined);
-  }, [player, playing, startTimeMs, status.didJustFinish]);
+  }, [player, shouldPlay, startTimeMs, status.didJustFinish]);
 
   return null;
 }

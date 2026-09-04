@@ -58,7 +58,7 @@ export default function SettingsScreen() {
       <ScrollView>
         <SettingsSection title={t('settings:yourAccount')}>
           <SettingsRow icon={<LockKeyIcon size={23} color={color} />} title={t('settings:passwordSecurity')} subtitle={t('settings:passwordSecuritySubtitle')} onPress={() => router.push('/settings/security')} />
-          <SettingsRow icon={<ArchiveIcon size={23} color={color} weight="fill" />} title={t('settings:archivedPosts')} subtitle={t('settings:archivedPostsSubtitle')} onPress={() => router.push('/settings/archived-posts')} />
+          <SettingsRow icon={<ArchiveIcon size={23} color={color} weight="fill" />} title={t('settings:archive')} subtitle={t('settings:archiveSubtitle')} onPress={() => router.push('/settings/archived-posts')} />
           <SettingsRow icon={<BookmarkSimpleIcon size={23} color="#D1A928" weight="fill" />} title={t('settings:savedPosts')} subtitle={t('settings:savedPostsSubtitle')} onPress={() => router.push('/settings/saved-posts')} />
           <SettingsRow icon={<ForkKnifeIcon size={23} color="#E11D48" weight="fill" />} title={t('settings:favoriteDishes')} subtitle={t('settings:favoriteDishesSubtitle')} onPress={() => router.push('/settings/favorite-dishes')} />
           <SettingsRow icon={<GiftIcon size={23} color="#E4573D" weight="duotone" />} title={t('settings:myRewards')} subtitle={t('settings:myRewardsSubtitle')} onPress={() => router.push('/settings/rewards')} />

@@ -36,6 +36,7 @@ import {
   TrashIcon,
   XIcon,
   GifIcon,
+  FlagIcon,
 } from "phosphor-react-native";
 import { api } from "@/lib/api";
 import MentionSuggestions from "./MentionSuggestions";
@@ -50,12 +51,16 @@ import Animated, {
   withSequence,
   withSpring,
 } from "react-native-reanimated";
+import ReportBottomSheet from "@/components/moderation/ReportBottomSheet";
+import { updatePostInFeedCache } from "@/hooks/useFeed";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Props = {
   postId: string | null;
   focusedCommentId?: string;
   onClose: () => void;
   onCommentAdded?: (postId: string) => void;
+  onCommentsCountChange?: (postId: string, count: number) => void;
 };
 
 type CommentActionTarget = {
@@ -63,6 +68,8 @@ type CommentActionTarget = {
   pin: () => void;
   edit: () => void;
   remove: () => void;
+  report: () => void;
+  canReport: boolean;
 };
 
 type CommentComposerProps = {
@@ -357,14 +364,17 @@ export default function CommentsBottomSheet({
   focusedCommentId,
   onClose,
   onCommentAdded,
+  onCommentsCountChange,
 }: Props) {
   const { t, i18n } = useTranslation("chat");
   const { isDark } = useAppTheme();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const {
     comments,
     rankingLikesByCommentId,
     loading,
+    loaded,
     submitting,
     isPostAuthor,
     canCreateAuthorNote,
@@ -386,6 +396,27 @@ export default function CommentsBottomSheet({
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const keyboardVisibleRef = useRef(false);
   const gifPickerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifiedCommentCountRef = useRef("");
+  const onCommentsCountChangeRef = useRef(onCommentsCountChange);
+
+  useEffect(() => {
+    onCommentsCountChangeRef.current = onCommentsCountChange;
+  }, [onCommentsCountChange]);
+
+  useEffect(() => {
+    if (!postId || !loaded) return;
+    const count = comments.length;
+    const notificationKey = `${postId}:${count}`;
+    if (notifiedCommentCountRef.current === notificationKey) return;
+    notifiedCommentCountRef.current = notificationKey;
+
+    updatePostInFeedCache(queryClient, (post) =>
+      post.id === postId && post.commentsCount !== count
+        ? { ...post, commentsCount: count }
+        : post,
+    );
+    onCommentsCountChangeRef.current?.(postId, count);
+  }, [comments.length, loaded, postId, queryClient]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
@@ -435,6 +466,7 @@ export default function CommentsBottomSheet({
   }, []);
   const [commentActionTarget, setCommentActionTarget] =
     useState<CommentActionTarget | null>(null);
+  const [reportCommentId, setReportCommentId] = useState<string | null>(null);
   const commentActionCount = commentActionTarget
     ? Number(commentActionTarget.comment.canPin) +
       Number(
@@ -444,7 +476,8 @@ export default function CommentsBottomSheet({
       Number(
         commentActionTarget.comment.canDelete ||
           commentActionTarget.comment.canModerate,
-      )
+      ) +
+      Number(commentActionTarget.canReport)
     : 0;
   const [showAuthorNoteComposer, setShowAuthorNoteComposer] = useState(false);
   const [showAuthorToolsSheet, setShowAuthorToolsSheet] = useState(false);
@@ -495,7 +528,11 @@ export default function CommentsBottomSheet({
     [expandedReplyParents, focusedReplyRootId],
   );
   const authorNote = useMemo(
-    () => comments.find((comment) => comment.isAuthorNote && !comment.parentId) ?? null,
+    () =>
+      comments.find(
+        (comment) =>
+          comment.isAuthorNote && !comment.parentId && !comment.isRemoved,
+      ) ?? null,
     [comments],
   );
 
@@ -725,7 +762,7 @@ export default function CommentsBottomSheet({
     async (gif: GifSelection) => {
       if (!postId) return;
       try {
-        await addComment("", replyingTo?.id, gif.url);
+        await addComment("", replyingTo?.id, gif.previewUrl);
         if (replyingTo?.id) {
           setExpandedReplyParents((existing) =>
             new Set(existing).add(replyRootId(replyingTo.id)),
@@ -874,12 +911,12 @@ export default function CommentsBottomSheet({
             setEditingComment(item);
           },
           remove: confirmRemoveComment,
+          canReport: !item.canDelete,
+          report: () => setReportCommentId(item.id),
         });
       }
 
-      const canOpenCommentActions =
-        !item.isAuthorNote &&
-        (item.canDelete || item.canModerate || item.canPin);
+      const canOpenCommentActions = !item.isAuthorNote && !item.isRemoved;
 
       return (
       <Pressable
@@ -978,7 +1015,11 @@ export default function CommentsBottomSheet({
             </Text>
           ) : null}
 
-          {item.content.trim() ? (
+          {item.isRemoved ? (
+            <Text className="mt-1 italic text-gray-400 dark:text-gray-500">
+              {t("commentModerationRemoved")}
+            </Text>
+          ) : item.content.trim() ? (
             <MentionText
               className="mt-1 text-gray-700 dark:text-gray-300"
               content={item.content}
@@ -998,7 +1039,7 @@ export default function CommentsBottomSheet({
           ) : null}
 
           <View className="mt-2 flex-row items-center gap-3">
-            {!item.isAuthorNote ? (
+            {!item.isAuthorNote && !item.isRemoved ? (
               <TouchableOpacity
                 onPress={() => {
                   setEditingComment(null);
@@ -1057,7 +1098,9 @@ export default function CommentsBottomSheet({
             </TouchableOpacity>
           ) : null}
         </View>
-        <CommentLikeButton comment={item} onToggle={toggleCommentLike} />
+        {!item.isRemoved ? (
+          <CommentLikeButton comment={item} onToggle={toggleCommentLike} />
+        ) : null}
       </Pressable>
       );
     },
@@ -1587,8 +1630,10 @@ export default function CommentsBottomSheet({
       <AppBottomSheet
         open={!!commentActionTarget}
         snapPoints={[
-          commentActionCount >= 3
-            ? "42%"
+          commentActionCount >= 4
+            ? "52%"
+            : commentActionCount === 3
+              ? "42%"
             : commentActionCount === 2
               ? "34%"
               : "26%",
@@ -1674,9 +1719,34 @@ export default function CommentsBottomSheet({
                 </Text>
               </TouchableOpacity>
             ) : null}
+
+            {commentActionTarget.canReport ? (
+              <TouchableOpacity
+                onPress={() => {
+                  const action = commentActionTarget.report;
+                  setCommentActionTarget(null);
+                  setTimeout(action, 180);
+                }}
+                className="mt-3 flex-row items-center rounded-2xl bg-gray-100 p-4 dark:bg-gray-800"
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-white dark:bg-gray-700">
+                  <FlagIcon size={21} color="#EF4444" weight="fill" />
+                </View>
+                <Text className="ml-3 flex-1 font-bold text-black dark:text-white">
+                  {t("reportComment")}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : null}
       </AppBottomSheet>
+
+      <ReportBottomSheet
+        open={!!reportCommentId}
+        targetType="COMMENT"
+        targetId={reportCommentId ?? ""}
+        onClose={() => setReportCommentId(null)}
+      />
     </>
   );
 }

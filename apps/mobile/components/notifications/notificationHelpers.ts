@@ -5,6 +5,7 @@ import { userDisplayName } from '@/lib/userIdentity';
 
 export function notificationText(item: AppNotification, t: TFunction) {
   const name = userDisplayName(item.actor) || t('someone');
+  if (item.type === 'APPEAL_DECISION' && item.title) return item.title;
   if (item.type === 'MESSAGE' && item.body) {
     return `${item.title || name}: ${item.body}`;
   }
@@ -31,6 +32,12 @@ export function notificationHref(item: AppNotification): Href | null {
   }
   if (item.type === 'RESTAURANT_DISPUTE') return '/settings/restaurant-disputes';
   if (item.type === 'MODERATION_ACTION' || item.type === 'APPEAL_DECISION') {
+    if (item.moderationActionId) {
+      return {
+        pathname: '/settings/moderation-actions/[id]',
+        params: { id: item.moderationActionId },
+      };
+    }
     return '/settings/moderation-actions';
   }
   if (item.type === 'PROFILE_TAG_UNLOCKED') return '/settings/profile-tags';

@@ -95,6 +95,7 @@ export type BusinessDashboardSection =
 
 export type AdminDashboardSection =
   | "overview"
+  | "directory"
   | "claims"
   | "addresses"
   | "moderation"
@@ -157,7 +158,218 @@ export type AdminDashboardOverview = {
     pendingReports: number;
     pendingAppeals: number;
   };
+  moderation: {
+    reports7d: number;
+    previousReports7d: number;
+    resolved7d: number;
+    dismissed7d: number;
+    removals7d: number;
+    reversedRemovals7d: number;
+    appealsApproved7d: number;
+    appealsRejected7d: number;
+    unresolvedOlderThan48h: number;
+    repeatOffenders: number;
+    averageResolutionHours30d: number | null;
+    suspensionPolicy: "MANUAL_REVIEW";
+    automaticSuspensionThreshold: number | null;
+  };
+  retention: {
+    activeRate7d: number;
+    deactivated30d: number;
+    deleted30d: number;
+  };
 };
+
+export type AdminDirectorySearchUser = {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  createdAt: string;
+  deletedAt?: string | null;
+  deactivatedAt?: string | null;
+  isSuspended: boolean;
+  isAdmin: boolean;
+  _count: {
+    reportsReceived: number;
+    reportsSubmitted: number;
+    moderationActionsReceived: number;
+  };
+};
+
+export type AdminDirectorySearchRestaurant = {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  address?: string | null;
+  city?: string | null;
+  countryCode?: string | null;
+  status: "PENDING" | "VERIFIED" | "CLAIMED";
+  createdAt: string;
+  _count: {
+    reports: number;
+    disputesReported: number;
+    members: number;
+    followers: number;
+  };
+};
+
+export type AdminDirectorySearchResult = {
+  users: AdminDirectorySearchUser[];
+  restaurants: AdminDirectorySearchRestaurant[];
+};
+
+export type AdminDirectoryReport = {
+  id: string;
+  targetType: string;
+  reason: string;
+  details?: string | null;
+  status: string;
+  resolution?: string | null;
+  resolutionNote?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  postId?: string | null;
+  commentId?: string | null;
+  snapId?: string | null;
+  restaurant?: { id: string; name: string } | null;
+  reporter?: {
+    id: string;
+    displayName: string;
+    username: string;
+    avatarUrl?: string | null;
+  } | null;
+  reportedUser?: {
+    id: string;
+    displayName: string;
+    username: string;
+    avatarUrl?: string | null;
+  } | null;
+};
+
+export type AdminDirectoryModerationAction = {
+  id: string;
+  action: string;
+  reason: string;
+  metadata?: unknown;
+  postId?: string | null;
+  reportId?: string | null;
+  createdAt: string;
+  reversedAt?: string | null;
+  actor: { id: string; displayName: string; username: string };
+  appeals: Array<{
+    id: string;
+    status: string;
+    reason: string;
+    resolutionNote?: string | null;
+    createdAt: string;
+    reviewedAt?: string | null;
+  }>;
+};
+
+export type AdminDirectoryProfileRequest = {
+  id: string;
+  subject: string;
+  message: string;
+  status: string;
+  adminReply?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  handledBy?: {
+    id: string;
+    displayName: string;
+    username: string;
+  } | null;
+};
+
+export type AdminDirectoryUserDetail = {
+  kind: "USER";
+  profile: AdminDirectorySearchUser & {
+    emailVerifiedAt?: string | null;
+    coverUrl?: string | null;
+    bio?: string | null;
+    phoneNumber?: string | null;
+    birthday?: string | null;
+    pronouns?: string | null;
+    language: string;
+    isPrivate: boolean;
+    suspendedAt?: string | null;
+    isOnline: boolean;
+    lastSeenAt?: string | null;
+    updatedAt: string;
+    onboardingCompletedAt?: string | null;
+    authIdentities: Array<{
+      provider: string;
+      providerEmail?: string | null;
+      createdAt: string;
+    }>;
+    restaurantMemberships: Array<{
+      role: string;
+      isPublic: boolean;
+      restaurant: {
+        id: string;
+        name: string;
+        logoUrl?: string | null;
+        status: string;
+      };
+      teamRole?: { id: string; name: string } | null;
+    }>;
+  };
+  analytics: Record<string, number>;
+  strikes: {
+    policy: "MANUAL_REVIEW";
+    automaticSuspensionThreshold: null;
+    active: number;
+    lifetime: number;
+    reversed: number;
+  };
+  reportsSent: AdminDirectoryReport[];
+  reportsReceived: AdminDirectoryReport[];
+  moderationActions: AdminDirectoryModerationAction[];
+  appeals: Array<Record<string, unknown>>;
+  enforcements: Array<Record<string, unknown>>;
+  profileRequests: AdminDirectoryProfileRequest[];
+};
+
+export type AdminDirectoryRestaurantDetail = {
+  kind: "RESTAURANT";
+  profile: AdminDirectorySearchRestaurant & {
+    bio?: string | null;
+    coverUrl?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    mapboxId?: string | null;
+    googlePlaceId?: string | null;
+    phone?: string | null;
+    website?: string | null;
+    instagram?: string | null;
+    source: string;
+    updatedAt: string;
+    menuPublishedAt?: string | null;
+    members: Array<{
+      id: string;
+      role: string;
+      isPublic: boolean;
+      teamRole?: { id: string; name: string } | null;
+      user: {
+        id: string;
+        displayName: string;
+        username: string;
+        email: string;
+        avatarUrl?: string | null;
+      };
+    }>;
+  };
+  analytics: Record<string, number>;
+  reportsSent: AdminDirectoryReport[];
+  reportsReceived: AdminDirectoryReport[];
+  profileRequests: AdminDirectoryProfileRequest[];
+};
+
+export type AdminDirectoryDetail =
+  | AdminDirectoryUserDetail
+  | AdminDirectoryRestaurantDetail;
 
 export type AdminActivityItem = {
   id: string;

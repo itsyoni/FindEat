@@ -1,6 +1,7 @@
 import Text from "@/components/common/AppText";
 import Avatar from "@/components/common/Avatar";
-import { Post } from "@findeat/types/post";
+import ProgressiveImage from "@/components/common/ProgressiveImage";
+import { Post, type ContentPostMedia } from "@findeat/types/post";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import {
@@ -9,6 +10,8 @@ import {
   ShareFatIcon,
   DotsThreeIcon,
   RepeatIcon,
+  SpeakerHighIcon,
+  SpeakerSlashIcon,
 } from "phosphor-react-native";
 import {
   ActivityIndicator,
@@ -42,7 +45,7 @@ import PostAuthorFollowAction from "@/components/posts/PostAuthorFollowAction";
 import ContentVideo from "./ContentVideo";
 import SoundPlayback from "@/components/sounds/SoundPlayback";
 import SoundLabel from "@/components/sounds/SoundLabel";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import SnapAvatarButton from "@/components/snaps/SnapAvatarButton";
 import TaggedUsersBottomSheet from "./TaggedUsersBottomSheet";
@@ -56,6 +59,10 @@ import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/contexts/ToastContext";
 import { updatePostInFeedCache } from "@/hooks/useFeed";
+import {
+  contentFeedPerfNow,
+  logContentFeedPerf,
+} from "@/lib/contentFeedDiagnostics";
 
 const CONTENT_ACTION_ICON_SIZE = 31;
 
@@ -79,9 +86,82 @@ type Props = {
   ) => void;
   useExternalBookmarkHandler?: boolean;
   savedToExternalList?: boolean;
+  diagnosticLabel?: string;
+  deferMediaWhenInactive?: boolean;
+  suspendMediaUpdates?: boolean;
 };
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+function getContentMedia(post: Post): ContentPostMedia[] {
+  const content = post.contentPost;
+  if (content?.media?.length) return content.media;
+  if (content?.videoUrl) {
+    return [
+      {
+        id: `${post.id}-video`,
+        contentPostId: post.id,
+        type: "VIDEO",
+        videoUrl: content.videoUrl,
+        thumbnailUrl: content.thumbnailUrl,
+        width: 4,
+        height: 5,
+        order: 0,
+      },
+    ];
+  }
+  if (content?.imageUrl) {
+    return [
+      {
+        id: `${post.id}-image`,
+        contentPostId: post.id,
+        type: "IMAGE",
+        imageUrl: content.imageUrl,
+        thumbnailUrl: content.thumbnailUrl,
+        width: 4,
+        height: 5,
+        order: 0,
+      },
+    ];
+  }
+  return [];
+}
+
+function StaticMediaPresentation({
+  uri,
+  thumbnailUrl,
+  overlayUri,
+}: {
+  uri?: string | null;
+  thumbnailUrl?: string | null;
+  overlayUri?: string | null;
+}) {
+  return (
+    <View className="absolute inset-0 bg-black">
+      {uri ? (
+        <ProgressiveImage
+          source={{ uri }}
+          thumbnailUrl={thumbnailUrl}
+          contentFit="cover"
+          transition={0}
+          style={{ position: "absolute", inset: 0 }}
+        />
+      ) : (
+        <View className="absolute inset-0 items-center justify-center bg-gray-900">
+          <ActivityIndicator size="large" color="#FAF9F6" />
+        </View>
+      )}
+      {overlayUri ? (
+        <ProgressiveImage
+          source={{ uri: overlayUri }}
+          contentFit="fill"
+          transition={0}
+          style={{ position: "absolute", inset: 0 }}
+        />
+      ) : null}
+    </View>
+  );
+}
 
 function ContentPaginationDot({ active }: { active: boolean }) {
   const progress = useSharedValue(active ? 1 : 0);
@@ -95,7 +175,7 @@ function ContentPaginationDot({ active }: { active: boolean }) {
   return <Animated.View className="h-1.5 rounded-full bg-white" style={style} />;
 }
 
-export default function ContentPost({
+function ContentPost({
   post,
   height,
   contentTopInset = 0,
@@ -110,7 +190,11 @@ export default function ContentPost({
   savedToExternalList = false,
   onPinchStart,
   onPinchEnd,
+  diagnosticLabel,
+  deferMediaWhenInactive = false,
+  suspendMediaUpdates = false,
 }: Props) {
+  const mountedAtRef = useRef(contentFeedPerfNow());
   const { t } = useTranslation("restaurants");
   const { t: tCommon, i18n } = useTranslation("common");
   const { width } = useWindowDimensions();
@@ -129,6 +213,7 @@ export default function ContentPost({
   } | null>(null);
   const [soundPlaybackRevision, setSoundPlaybackRevision] = useState(0);
   const [soundPlaybackOffsetMs, setSoundPlaybackOffsetMs] = useState(0);
+  const [soundControlVisible, setSoundControlVisible] = useState(false);
   const contentFeedMuted = useContentFeedAudio();
   const mediaHeight = Math.max(1, height - bottomAuthorBarHeight);
   const likePressStartedAt = useRef(0);
@@ -214,42 +299,45 @@ export default function ContentPost({
     ? (post.authorRestaurant?.name ?? "")
     : userDisplayName(post.author);
 
-  const media =
-    content?.media?.length
-      ? content.media
-      : content?.videoUrl
-        ? [
-            {
-              id: `${post.id}-video`,
-              contentPostId: post.id,
-              type: "VIDEO" as const,
-              videoUrl: content.videoUrl,
-              width: 4,
-              height: 5,
-              order: 0,
-            },
-          ]
-        : content?.imageUrl
-          ? [
-              {
-                id: `${post.id}-image`,
-                contentPostId: post.id,
-                type: "IMAGE" as const,
-                imageUrl: content.imageUrl,
-                thumbnailUrl: content.thumbnailUrl,
-                width: 4,
-                height: 5,
-                order: 0,
-              },
-            ]
-          : [];
+  const media = getContentMedia(post);
   const caption = content?.caption;
   const videoMedia = media.find(
     (item) => item.type === "VIDEO" && !!item.videoUrl,
   );
   const singleImageMedia =
     !videoMedia && media.length === 1 && media[0].imageUrl ? media[0] : null;
+  const deferMediaLifecycle = deferMediaWhenInactive && !isActive;
   const captionIsRtl = isRtlText(caption, isRtl);
+  const diagnosticMediaKind = videoMedia
+    ? "video"
+    : singleImageMedia
+      ? "single-image"
+      : media.length > 1
+        ? "image-carousel"
+        : "text";
+
+  useEffect(() => {
+    if (!diagnosticLabel) return;
+    const mountedAt = mountedAtRef.current;
+    logContentFeedPerf("post-mounted", {
+      post: diagnosticLabel,
+      mediaKind: diagnosticMediaKind,
+      mediaCount: media.length,
+      hasSound: Boolean(content?.sound),
+    });
+    return () => {
+      logContentFeedPerf("post-unmounted", {
+        post: diagnosticLabel,
+        mediaKind: diagnosticMediaKind,
+        lifetimeMs: Math.round(contentFeedPerfNow() - mountedAt),
+      });
+    };
+  }, [
+    content?.sound,
+    diagnosticLabel,
+    diagnosticMediaKind,
+    media.length,
+  ]);
 
   const heartOverlayScale = useSharedValue(0);
   const heartOverlayOpacity = useSharedValue(0);
@@ -393,6 +481,11 @@ export default function ContentPost({
         delayLongPress={220}
         onLongPress={videoMedia?.videoUrl ? undefined : () => setMediaOnly(true)}
         onPressOut={videoMedia?.videoUrl ? undefined : () => setMediaOnly(false)}
+        onPress={
+          content?.sound && !videoMedia
+            ? () => setSoundControlVisible((visible) => !visible)
+            : undefined
+        }
       >
       <Animated.View
         style={[
@@ -435,37 +528,52 @@ export default function ContentPost({
               backgroundColor: "#080808",
             }}
           >
-            <ContentVideo
-              uri={videoMedia.videoUrl}
-              overlayUri={content?.videoOverlayImageUrl ?? undefined}
-              style={{ width: "100%", height: "100%" }}
-              contentFit="cover"
-              autoPlay={isActive}
-              nativeControls={false}
-              tapToToggle
-              showProgress
-              muted={contentFeedMuted}
-              volume={content?.originalAudioVolume ?? 1}
-              onMutedChange={setContentFeedMuted}
-              onPlayingChange={setVideoPlaying}
-              onSeek={(seconds) => {
-                setSoundPlaybackOffsetMs(Math.round(seconds * 1000));
-                setSoundPlaybackRevision((current) => current + 1);
-              }}
-              onDoubleTap={handleDoubleTapLike}
-              mediaOnly={mediaOnly}
-              pinchToZoom
-              onLongPress={() => setMediaOnly(true)}
-              onPressOut={() => setMediaOnly(false)}
-              onPinchStart={() => {
-                setMediaOnly(true);
-                onPinchStart?.();
-              }}
-              onPinchEnd={() => {
-                setMediaOnly(false);
-                onPinchEnd?.();
-              }}
-            />
+            {deferMediaLifecycle ? (
+              <StaticMediaPresentation
+                uri={videoMedia.thumbnailUrl ?? content?.thumbnailUrl}
+                thumbnailUrl={videoMedia.thumbnailUrl ?? content?.thumbnailUrl}
+                overlayUri={content?.videoOverlayImageUrl}
+              />
+            ) : (
+              <ContentVideo
+                uri={videoMedia.videoUrl}
+                overlayUri={content?.videoOverlayImageUrl ?? undefined}
+                style={{ width: "100%", height: "100%" }}
+                contentFit="cover"
+                autoPlay={isActive}
+                nativeControls={false}
+                tapToToggle
+                showProgress
+                muted={contentFeedMuted}
+                volume={content?.originalAudioVolume ?? 1}
+                paused={suspendMediaUpdates}
+                updatesSuspended={suspendMediaUpdates}
+                onMutedChange={setContentFeedMuted}
+                onPlayingChange={setVideoPlaying}
+                onSeek={(seconds) => {
+                  setSoundPlaybackOffsetMs(Math.round(seconds * 1000));
+                  setSoundPlaybackRevision((current) => current + 1);
+                }}
+                onDoubleTap={handleDoubleTapLike}
+                mediaOnly={mediaOnly}
+                pinchToZoom
+                onLongPress={() => setMediaOnly(true)}
+                onPressOut={() => setMediaOnly(false)}
+                onPinchStart={() => {
+                  setMediaOnly(true);
+                  onPinchStart?.();
+                }}
+                onPinchEnd={() => {
+                  setMediaOnly(false);
+                  onPinchEnd?.();
+                }}
+                diagnosticLabel={
+                  diagnosticLabel
+                    ? `${diagnosticLabel}:video:${videoMedia.id}`
+                    : undefined
+                }
+              />
+            )}
           </View>
         ) : singleImageMedia?.imageUrl ? (
           <View
@@ -477,16 +585,33 @@ export default function ContentPost({
               backgroundColor: "#080808",
             }}
           >
-            <PinchZoomImage
-              uri={singleImageMedia.imageUrl}
-              thumbnailUrl={singleImageMedia.thumbnailUrl}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-              onDoubleTap={handleDoubleTapLike}
-              onPinchStart={onPinchStart}
-              onPinchEnd={onPinchEnd}
-            />
+            {deferMediaLifecycle ? (
+              <StaticMediaPresentation
+                uri={singleImageMedia.imageUrl}
+                thumbnailUrl={singleImageMedia.thumbnailUrl}
+              />
+            ) : (
+              <PinchZoomImage
+                uri={singleImageMedia.imageUrl}
+                thumbnailUrl={singleImageMedia.thumbnailUrl}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+                onDoubleTap={handleDoubleTapLike}
+                onPinchStart={onPinchStart}
+                onPinchEnd={onPinchEnd}
+                diagnosticLabel={
+                  diagnosticLabel
+                    ? `${diagnosticLabel}:image:${singleImageMedia.id}`
+                    : undefined
+                }
+              />
+            )}
           </View>
+        ) : media.length && deferMediaLifecycle ? (
+          <StaticMediaPresentation
+            uri={media[0]?.imageUrl ?? media[0]?.thumbnailUrl}
+            thumbnailUrl={media[0]?.thumbnailUrl}
+          />
         ) : media.length ? (
           <GestureDetector gesture={mediaCarouselGesture}>
           <FlatList
@@ -520,6 +645,11 @@ export default function ContentPost({
                     onDoubleTap={handleDoubleTapLike}
                     onPinchStart={onPinchStart}
                     onPinchEnd={onPinchEnd}
+                    diagnosticLabel={
+                      diagnosticLabel
+                        ? `${diagnosticLabel}:image:${item.id}`
+                        : undefined
+                    }
                   />
                 ) : null}
               </View>
@@ -545,18 +675,59 @@ export default function ContentPost({
           </View>
         )}
 
-        <SoundPlayback
-          key={`${content?.sound?.id ?? "none"}-${soundPlaybackRevision}`}
-          sound={content?.sound}
-          startTimeMs={
-            content?.sound
-              ? ((content.soundStartTimeMs ?? 0) + soundPlaybackOffsetMs) %
-                Math.max(1, content.sound.durationMs)
-              : 0
-          }
-          volume={contentFeedMuted ? 0 : (content?.soundVolume ?? 1)}
-          playing={Boolean(content?.sound) && isActive && (videoMedia ? videoPlaying : true)}
-        />
+        {content?.sound?.audioUrl && isActive && !suspendMediaUpdates ? (
+          <SoundPlayback
+            key={`${content.sound.id}-${soundPlaybackRevision}`}
+            sound={content.sound}
+            startTimeMs={
+              ((content.soundStartTimeMs ?? 0) + soundPlaybackOffsetMs) %
+              Math.max(1, content.sound.durationMs)
+            }
+            volume={contentFeedMuted ? 0 : (content.soundVolume ?? 1)}
+            playing={isActive && (videoMedia ? videoPlaying : true)}
+            diagnosticLabel={
+              diagnosticLabel ? `${diagnosticLabel}:sound` : undefined
+            }
+          />
+        ) : null}
+
+        {!mediaOnly &&
+        content?.sound &&
+        !videoMedia &&
+        isActive &&
+        soundControlVisible ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={contentFeedMuted ? "Unmute" : "Mute"}
+            onPress={(event) => {
+              event.stopPropagation();
+              setContentFeedMuted(!contentFeedMuted);
+            }}
+            style={[
+              {
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                zIndex: 30,
+                width: 48,
+                height: 48,
+                marginLeft: -24,
+                marginTop: -24,
+                borderRadius: 24,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(0,0,0,0.58)",
+              },
+              iconShadow,
+            ]}
+          >
+            {contentFeedMuted ? (
+              <SpeakerSlashIcon size={25} color="#FFFFFF" weight="fill" />
+            ) : (
+              <SpeakerHighIcon size={25} color="#FFFFFF" weight="fill" />
+            )}
+          </Pressable>
+        ) : null}
 
         {!mediaOnly && media.length > 1 ? (
           <View
@@ -984,18 +1155,24 @@ export default function ContentPost({
           ) : null}
         </View>
       ) : null}
-      <TaggedUsersBottomSheet
-        open={taggedUsersOpen}
-        users={post.taggedUsers ?? []}
-        displayNames
-        showRelationshipActions
-        onClose={() => setTaggedUsersOpen(false)}
-      />
-      <PostLikesBottomSheet
-        postId={post.id}
-        open={likesOpen}
-        onClose={() => setLikesOpen(false)}
-      />
+      {taggedUsersOpen ? (
+        <TaggedUsersBottomSheet
+          open
+          users={post.taggedUsers ?? []}
+          displayNames
+          showRelationshipActions
+          onClose={() => setTaggedUsersOpen(false)}
+        />
+      ) : null}
+      {likesOpen ? (
+        <PostLikesBottomSheet
+          postId={post.id}
+          open
+          onClose={() => setLikesOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
+
+export default memo(ContentPost);

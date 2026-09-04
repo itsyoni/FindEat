@@ -22,6 +22,7 @@ export default function FullScreenImageViewer({
   closeButtonSide = "right",
 }: Props) {
   const insets = useSafeAreaInsets();
+  if (!visible) return null;
   if (!uri && !showDefaultAvatar) return null;
 
   const isSvg =

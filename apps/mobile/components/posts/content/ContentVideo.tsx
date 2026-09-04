@@ -1,4 +1,4 @@
-import { useEvent, useEventListener } from "expo";
+import { useEventListener } from "expo";
 import { Image as ExpoImage } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useFocusEffect } from "expo-router";
@@ -7,7 +7,13 @@ import {
   SpeakerHighIcon,
   SpeakerSlashIcon,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Pressable,
   StyleSheet,
@@ -26,6 +32,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Text from "@/components/common/AppText";
+import {
+  contentFeedPerfNow,
+  logContentFeedPerf,
+} from "@/lib/contentFeedDiagnostics";
 
 type Props = {
   uri: string;
@@ -52,6 +62,8 @@ type Props = {
   onPlayingChange?: (playing: boolean) => void;
   onPlaybackEnd?: () => void;
   onSeek?: (seconds: number) => void;
+  diagnosticLabel?: string;
+  updatesSuspended?: boolean;
 };
 
 function formatVideoTime(seconds: number, roundUp = false) {
@@ -91,25 +103,34 @@ export default function ContentVideo({
   onPlayingChange,
   onPlaybackEnd,
   onSeek,
+  diagnosticLabel,
+  updatesSuspended = false,
 }: Props) {
+  const videoMountedAtRef = useRef(contentFeedPerfNow());
+  const videoLoadStartedAtRef = useRef(contentFeedPerfNow());
+  const acceptsUpdatesRef = useRef(!updatesSuspended);
   const player = useVideoPlayer(
     { uri, useCaching: true },
     (videoPlayer) => {
+      if (diagnosticLabel) {
+        logContentFeedPerf("video-player-created", {
+          media: diagnosticLabel,
+          createDelayMs: Math.round(
+            contentFeedPerfNow() - videoMountedAtRef.current,
+          ),
+        });
+      }
       videoPlayer.loop = loop;
       videoPlayer.muted = muted;
       videoPlayer.volume = volume;
-      videoPlayer.timeUpdateEventInterval = 0.05;
+      // Progress does not need to drive React at 20 Hz. Four updates per
+      // second keeps the scrubber readable without competing with paging.
+      videoPlayer.timeUpdateEventInterval = showProgress ? 0.25 : 0;
     },
   );
-  const timeUpdate = useEvent(player, "timeUpdate", {
-    currentTime: 0,
-    currentLiveTimestamp: null,
-    currentOffsetFromLive: null,
-    bufferedPosition: 0,
-  });
-  const { isPlaying } = useEvent(player, "playingChange", {
-    isPlaying: player.playing,
-  });
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(player.playing);
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [localMuted, setLocalMuted] = useState(muted);
   const isMuted = onMutedChange ? muted : localMuted;
@@ -135,6 +156,80 @@ export default function ContentVideo({
   const scrubberExpansion = useSharedValue(0);
 
   useEffect(() => {
+    if (!diagnosticLabel) return;
+    const mountedAt = videoMountedAtRef.current;
+    logContentFeedPerf("video-mounted", { media: diagnosticLabel });
+    return () => {
+      logContentFeedPerf("video-unmounted", {
+        media: diagnosticLabel,
+        lifetimeMs: Math.round(contentFeedPerfNow() - mountedAt),
+      });
+    };
+  }, [diagnosticLabel]);
+
+  useEffect(() => {
+    if (!diagnosticLabel) return;
+    logContentFeedPerf("video-react-updates", {
+      media: diagnosticLabel,
+      suspended: updatesSuspended,
+    });
+  }, [diagnosticLabel, updatesSuspended]);
+
+  useEventListener(player, "statusChange", ({ status, oldStatus, error }) => {
+    if (!acceptsUpdatesRef.current) return;
+    if (!diagnosticLabel) return;
+    logContentFeedPerf("video-status-change", {
+      media: diagnosticLabel,
+      status,
+      oldStatus: oldStatus ?? null,
+      elapsedSinceMountMs: Math.round(
+        contentFeedPerfNow() - videoMountedAtRef.current,
+      ),
+      error: error?.message ?? null,
+    });
+  });
+
+  useEventListener(player, "sourceLoad", ({ duration, availableVideoTracks }) => {
+    if (!acceptsUpdatesRef.current) return;
+    setDuration(duration);
+    if (!diagnosticLabel) return;
+    logContentFeedPerf("video-source-loaded", {
+      media: diagnosticLabel,
+      loadMs: Math.round(
+        contentFeedPerfNow() - videoLoadStartedAtRef.current,
+      ),
+      durationSeconds: duration,
+      dimensions: availableVideoTracks[0]?.size
+          ? `${availableVideoTracks[0].size.width}x${availableVideoTracks[0].size.height}`
+          : null,
+    });
+  });
+
+  useEventListener(player, "timeUpdate", (event) => {
+    if (!acceptsUpdatesRef.current) return;
+    setCurrentTime(event.currentTime);
+  });
+
+  useEventListener(player, "playingChange", (event) => {
+    if (!acceptsUpdatesRef.current) return;
+    setIsPlaying(event.isPlaying);
+  });
+
+  // expo-video exposes the update interval as an imperative player property.
+  // eslint-disable-next-line react-hooks/immutability
+  useLayoutEffect(() => {
+    acceptsUpdatesRef.current = !updatesSuspended;
+    try {
+      // Disable native progress events while a vertical page gesture is active.
+      // eslint-disable-next-line react-hooks/immutability
+      player.timeUpdateEventInterval =
+        showProgress && !updatesSuspended ? 0.25 : 0;
+    } catch {
+      // A stale player may already have been released after page settlement.
+    }
+  }, [player, showProgress, updatesSuspended]);
+
+  useEffect(() => {
     // Keep every mounted feed player aligned with the shared audio choice.
     // eslint-disable-next-line react-hooks/immutability
     player.muted = isMuted;
@@ -154,8 +249,8 @@ export default function ContentVideo({
   }, [loop, player]);
 
   useEffect(() => {
-    onPlayingChange?.(isPlaying);
-  }, [isPlaying, onPlayingChange]);
+    if (!updatesSuspended) onPlayingChange?.(isPlaying);
+  }, [isPlaying, onPlayingChange, updatesSuspended]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
@@ -181,6 +276,7 @@ export default function ContentVideo({
   const shouldAutoPlay = autoPlay && isScreenFocused && appIsActive && !paused;
 
   useEventListener(player, "playToEnd", () => {
+    if (!acceptsUpdatesRef.current) return;
     onPlaybackEnd?.();
   });
 
@@ -196,10 +292,9 @@ export default function ContentVideo({
     wasAutoPlayingRef.current = shouldAutoPlay;
   }, [player, restartOnActivate, shouldAutoPlay]);
 
-  const duration = player.duration;
   const progress =
     duration > 0
-      ? Math.max(0, Math.min(1, timeUpdate.currentTime / duration))
+      ? Math.max(0, Math.min(1, currentTime / duration))
       : 0;
   const displayedProgress = scrubProgress ?? progress;
   const displayedTime = displayedProgress * Math.max(0, duration);

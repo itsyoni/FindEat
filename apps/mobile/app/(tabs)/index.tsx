@@ -20,7 +20,14 @@ import { SearchEntityType, SearchResultItem } from "@findeat/types/search";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import type { FeedPage, RecentSearchItem } from "@findeat/types";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import Animated, {
@@ -116,6 +123,38 @@ export default function HomeScreen() {
     !followingFeed.isError &&
     followingPosts.length === 0;
   const refetchFollowingFeed = followingFeed.refetch;
+  const refetchExploreFeed = exploreFeed.refetch;
+  const fetchNextFollowingPage = followingFeed.fetchNextPage;
+  const fetchNextExplorePage = exploreFeed.fetchNextPage;
+  const followingPaginationRef = useRef({
+    hasNextPage: followingFeed.hasNextPage,
+    isFetchingNextPage: followingFeed.isFetchingNextPage,
+    fetchNextPage: fetchNextFollowingPage,
+  });
+  const explorePaginationRef = useRef({
+    hasNextPage: exploreFeed.hasNextPage,
+    isFetchingNextPage: exploreFeed.isFetchingNextPage,
+    fetchNextPage: fetchNextExplorePage,
+  });
+  useLayoutEffect(() => {
+    followingPaginationRef.current = {
+      hasNextPage: followingFeed.hasNextPage,
+      isFetchingNextPage: followingFeed.isFetchingNextPage,
+      fetchNextPage: fetchNextFollowingPage,
+    };
+    explorePaginationRef.current = {
+      hasNextPage: exploreFeed.hasNextPage,
+      isFetchingNextPage: exploreFeed.isFetchingNextPage,
+      fetchNextPage: fetchNextExplorePage,
+    };
+  }, [
+    exploreFeed.hasNextPage,
+    exploreFeed.isFetchingNextPage,
+    fetchNextExplorePage,
+    fetchNextFollowingPage,
+    followingFeed.hasNextPage,
+    followingFeed.isFetchingNextPage,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -143,117 +182,139 @@ export default function HomeScreen() {
             : current,
       );
 
-      if (scope === "FOLLOWING") await followingFeed.refetch();
-      else await exploreFeed.refetch();
+      if (scope === "FOLLOWING") await refetchFollowingFeed();
+      else await refetchExploreFeed();
       await queryClient.invalidateQueries({ queryKey: snapsQueryKey });
     },
-    [exploreFeed, followingFeed, queryClient],
+    [queryClient, refetchExploreFeed, refetchFollowingFeed],
   );
 
-  async function toggleLike(postId: string, isLiked: boolean) {
-    updatePostInFeedCache(queryClient, (post) =>
-      post.id === postId
-        ? {
-            ...post,
-            isLiked: !isLiked,
-            likesCount: Math.max(0, post.likesCount + (isLiked ? -1 : 1)),
-          }
-        : post,
-    );
-
-    try {
-      await api.posts.toggleLike(postId, isLiked);
-    } catch (error) {
-      console.error("toggle like failed", error);
-
+  const toggleLike = useCallback(
+    async (postId: string, isLiked: boolean) => {
       updatePostInFeedCache(queryClient, (post) =>
         post.id === postId
           ? {
               ...post,
-              isLiked,
-              likesCount: Math.max(0, post.likesCount + (isLiked ? 1 : -1)),
+              isLiked: !isLiked,
+              likesCount: Math.max(
+                0,
+                post.likesCount + (isLiked ? -1 : 1),
+              ),
             }
           : post,
       );
-    }
-  }
 
-  async function toggleWantToTry(
-    postId: string,
-    restaurantId: string,
-    isWantToTry: boolean,
-  ) {
-    updatePostInFeedCache(queryClient, (post) => {
-      if (post.restaurant?.id !== restaurantId) return post;
+      try {
+        await api.posts.toggleLike(postId, isLiked);
+      } catch (error) {
+        console.error("toggle like failed", error);
 
-      return {
-        ...post,
-        restaurantSavesCount: Math.max(
-          0,
-          (post.restaurantSavesCount ?? 0) + (isWantToTry ? -1 : 1),
-        ),
-        restaurant: {
-          ...post.restaurant,
-          userSaves: isWantToTry
-            ? []
-            : [
-                {
-                  id: "",
-                  wantToTry: true,
-                  visited: false,
-                  favorite: false,
-                },
-              ],
-        },
-      };
-    });
-
-    try {
-      if (isWantToTry) {
-        await api.restaurants.removeWantToTry(restaurantId);
-      } else {
-        const status = await api.restaurants.wantToTry(restaurantId, postId);
-        updateRestaurantStatusInFeedCache(queryClient, restaurantId, status);
+        updatePostInFeedCache(queryClient, (post) =>
+          post.id === postId
+            ? {
+                ...post,
+                isLiked,
+                likesCount: Math.max(
+                  0,
+                  post.likesCount + (isLiked ? 1 : -1),
+                ),
+              }
+            : post,
+        );
       }
-    } catch (error) {
-      console.error("toggle want to try failed", error);
-      await feed.refetch();
-      Alert.alert("Could not save post", "Please try again.");
-    }
-  }
+    },
+    [queryClient],
+  );
 
-  async function deletePost(postId: string) {
-    try {
-      await api.posts.delete(postId);
+  const toggleWantToTry = useCallback(
+    async (
+      postId: string,
+      restaurantId: string,
+      isWantToTry: boolean,
+    ) => {
+      updatePostInFeedCache(queryClient, (post) => {
+        if (post.restaurant?.id !== restaurantId) return post;
+
+        return {
+          ...post,
+          restaurantSavesCount: Math.max(
+            0,
+            (post.restaurantSavesCount ?? 0) + (isWantToTry ? -1 : 1),
+          ),
+          restaurant: {
+            ...post.restaurant,
+            userSaves: isWantToTry
+              ? []
+              : [
+                  {
+                    id: "",
+                    wantToTry: true,
+                    visited: false,
+                    favorite: false,
+                  },
+                ],
+          },
+        };
+      });
+
+      try {
+        if (isWantToTry) {
+          await api.restaurants.removeWantToTry(restaurantId);
+        } else {
+          const status = await api.restaurants.wantToTry(restaurantId, postId);
+          updateRestaurantStatusInFeedCache(queryClient, restaurantId, status);
+        }
+      } catch (error) {
+        console.error("toggle want to try failed", error);
+        if (activeFeed === "FOLLOWING") await refetchFollowingFeed();
+        else await refetchExploreFeed();
+        Alert.alert("Could not save post", "Please try again.");
+      }
+    },
+    [activeFeed, queryClient, refetchExploreFeed, refetchFollowingFeed],
+  );
+
+  const deletePost = useCallback(
+    async (postId: string) => {
+      try {
+        await api.posts.delete(postId);
+        updatePostInFeedCache(queryClient, (post) =>
+          post.id === postId ? null : post,
+        );
+      } catch (error) {
+        console.error(error);
+        Alert.alert("Error", "Could not delete post");
+        return false;
+      }
+    },
+    [queryClient],
+  );
+
+  const handleCommentAdded = useCallback(
+    (postId: string) => {
       updatePostInFeedCache(queryClient, (post) =>
-        post.id === postId ? null : post,
+        post.id === postId
+          ? { ...post, commentsCount: post.commentsCount + 1 }
+          : post,
       );
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Could not delete post");
-      return false;
-    }
-  }
+    },
+    [queryClient],
+  );
 
-  function handleCommentAdded(postId: string) {
-    updatePostInFeedCache(queryClient, (post) =>
-      post.id === postId
-        ? { ...post, commentsCount: post.commentsCount + 1 }
-        : post,
-    );
-  }
+  const handlePostShared = useCallback(
+    (postId: string) => {
+      updatePostInFeedCache(queryClient, (post) =>
+        post.id === postId
+          ? { ...post, sharesCount: (post.sharesCount ?? 0) + 1 }
+          : post,
+      );
+    },
+    [queryClient],
+  );
 
-  function handlePostShared(postId: string) {
-    updatePostInFeedCache(queryClient, (post) =>
-      post.id === postId
-        ? { ...post, sharesCount: (post.sharesCount ?? 0) + 1 }
-        : post,
-    );
-  }
-
-  function openComments(postId: string) {
+  const openComments = useCallback((postId: string) => {
     setSelectedPostId(postId);
-  }
+  }, []);
 
   async function handleSearchSelect(item: SearchResultItem) {
     if (user?.id) {
@@ -378,6 +439,41 @@ export default function HomeScreen() {
   const refreshActiveFeed = useCallback(() => {
     void onRefresh(activeFeed);
   }, [activeFeed, onRefresh]);
+  const refreshFollowingFeedList = useCallback(() => {
+    void onRefresh("FOLLOWING");
+  }, [onRefresh]);
+  const refreshExploreFeedList = useCallback(() => {
+    void onRefresh("EXPLORE");
+  }, [onRefresh]);
+  const loadMoreFollowingPosts = useCallback(() => {
+    const pagination = followingPaginationRef.current;
+    if (pagination.hasNextPage && !pagination.isFetchingNextPage) {
+      void pagination.fetchNextPage();
+    }
+  }, []);
+  const loadMoreExplorePosts = useCallback(() => {
+    const pagination = explorePaginationRef.current;
+    if (pagination.hasNextPage && !pagination.isFetchingNextPage) {
+      void pagination.fetchNextPage();
+    }
+  }, []);
+  const handleFollowingScrollOffsetChange = useCallback(
+    (offset: number) => followingScrollOffset.set(offset),
+    [followingScrollOffset],
+  );
+  const handleExploreScrollOffsetChange = useCallback(
+    (offset: number) => exploreScrollOffset.set(offset),
+    [exploreScrollOffset],
+  );
+  const followingEmptyComponent = useMemo(
+    () => (
+      <View style={{ paddingTop: topBarInset }}>
+        <View style={{ height: snapsTrayHeight }} />
+        <FollowingSuggestions topInset={0} />
+      </View>
+    ),
+    [topBarInset],
+  );
 
   useEffect(() => {
     snapsProgress.set(
@@ -389,6 +485,9 @@ export default function HomeScreen() {
   }, [snapsCollapsed, snapsProgress]);
 
   useEffect(() => {
+    // Keep the Snaps header expanded when the empty Following state appears;
+    // collapsing it here would move the suggestions beneath the user.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (showingEmptyFollowing) setSnapsCollapsed(false);
   }, [showingEmptyFollowing]);
 
@@ -600,7 +699,9 @@ export default function HomeScreen() {
                   }}
                 >
                 <ContentFeedList
+                  diagnosticLabel="home-following"
                   active={activeFeed === "FOLLOWING"}
+                  lightweightInactivePosts
                   posts={followingPosts}
                   height={feedHeight}
                   contentTopInset={contentCardTopInset}
@@ -609,23 +710,10 @@ export default function HomeScreen() {
                     followingFeed.isRefetching &&
                     !followingFeed.isFetchingNextPage
                   }
-                  onRefresh={() => onRefresh("FOLLOWING")}
-                  onEndReached={() => {
-                    if (
-                      followingFeed.hasNextPage &&
-                      !followingFeed.isFetchingNextPage
-                    ) {
-                      void followingFeed.fetchNextPage();
-                    }
-                  }}
-                  loadingMore={followingFeed.isFetchingNextPage}
+                  onRefresh={refreshFollowingFeedList}
+                  onEndReached={loadMoreFollowingPosts}
                   loading={authLoading || followingFeed.isPending}
-                  emptyComponent={
-                    <View style={{ paddingTop: topBarInset }}>
-                      <View style={{ height: snapsTrayHeight }} />
-                      <FollowingSuggestions topInset={0} />
-                    </View>
-                  }
+                  emptyComponent={followingEmptyComponent}
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
                   onToggleWantToTry={toggleWantToTry}
@@ -640,9 +728,7 @@ export default function HomeScreen() {
                   onPullDownAtTop={
                     showingEmptyFollowing ? undefined : openSnaps
                   }
-                  onScrollOffsetChange={(offset) => {
-                    followingScrollOffset.set(offset);
-                  }}
+                  onScrollOffsetChange={handleFollowingScrollOffsetChange}
                 />
                 </View>
                 <View
@@ -659,7 +745,9 @@ export default function HomeScreen() {
                   }}
                 >
                 <ContentFeedList
+                  diagnosticLabel="home-explore"
                   active={activeFeed === "EXPLORE"}
+                  lightweightInactivePosts
                   posts={explorePosts}
                   height={feedHeight}
                   contentTopInset={contentCardTopInset}
@@ -667,16 +755,8 @@ export default function HomeScreen() {
                   refreshing={
                     exploreFeed.isRefetching && !exploreFeed.isFetchingNextPage
                   }
-                  onRefresh={() => onRefresh("EXPLORE")}
-                  onEndReached={() => {
-                    if (
-                      exploreFeed.hasNextPage &&
-                      !exploreFeed.isFetchingNextPage
-                    ) {
-                      void exploreFeed.fetchNextPage();
-                    }
-                  }}
-                  loadingMore={exploreFeed.isFetchingNextPage}
+                  onRefresh={refreshExploreFeedList}
+                  onEndReached={loadMoreExplorePosts}
                   loading={authLoading || exploreFeed.isPending}
                   onToggleLike={toggleLike}
                   onOpenComments={openComments}
@@ -688,9 +768,7 @@ export default function HomeScreen() {
                   feedScrollEnabled={snapsCollapsed}
                   nativeRefreshEnabled={false}
                   onPullDownAtTop={openSnaps}
-                  onScrollOffsetChange={(offset) => {
-                    exploreScrollOffset.set(offset);
-                  }}
+                  onScrollOffsetChange={handleExploreScrollOffsetChange}
                 />
                 </View>
                 </>

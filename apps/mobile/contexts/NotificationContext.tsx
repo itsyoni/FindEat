@@ -182,10 +182,21 @@ function openPushData(data?: Record<string, unknown>) {
   const commentId = stringPushValue(data.commentId);
   const restaurantId = stringPushValue(data.restaurantId);
   const placeListId = stringPushValue(data.placeListId);
+  const moderationActionId = stringPushValue(data.moderationActionId);
   const type = stringPushValue(data.type);
   const actorId = stringPushValue(data.actorId);
 
   if (visitRoute) router.push(visitRoute);
+  else if (
+    (type === "MODERATION_ACTION" || type === "APPEAL_DECISION") &&
+    moderationActionId
+  )
+    router.push({
+      pathname: "/settings/moderation-actions/[id]",
+      params: { id: moderationActionId },
+    });
+  else if (type === "MODERATION_ACTION" || type === "APPEAL_DECISION")
+    router.push("/settings/moderation-actions");
   else if (type === "PROFILE_TAG_UNLOCKED") router.push("/settings/profile-tags");
   else if (type === "CREATOR_LEVEL_UP") router.push("/settings/creator-levels");
   else if (type === "RESTAURANT_MENU_PUBLISHED" && postId)

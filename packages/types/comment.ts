@@ -12,7 +12,9 @@ export type Comment = {
     id: string;
     content: string;
     user: UserSummary;
+    isRemoved?: boolean;
   } | null;
+  isRemoved?: boolean;
   likesCount: number;
   isLiked: boolean;
   likedByAuthor: boolean;

@@ -2,86 +2,104 @@ import Text from "@/components/common/AppText";
 import SettingsHeader from "@/components/settings/SettingsHeader";
 import { useAppTheme } from "@/contexts/ThemeContext";
 import { api } from "@/lib/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import type { ModerationActionDecision } from "@findeat/types";
+import { router } from "expo-router";
+import { ShieldCheckIcon, ShieldWarningIcon } from "phosphor-react-native";
 import { ActivityIndicator, FlatList, TouchableOpacity, View } from "react-native";
-import { AppAlert as Alert } from "@/lib/appAlert";
-import { useState } from "react";
-import { TextInput } from "@/components/common";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type Action = {
-  id: string;
-  action: string;
-  reason: string;
-  createdAt: string;
-  reversedAt?: string | null;
-  appeals?: { status: string }[];
-};
+function actionTarget(item: ModerationActionDecision) {
+  if (item.metadata?.targetType === "COMMENT") return "comment";
+  if (item.metadata?.targetType === "SNAP") return "snap";
+  return "post";
+}
 
 export default function ModerationActionsScreen() {
   const { isDark } = useAppTheme();
-  const queryClient = useQueryClient();
-  const [appealingId, setAppealingId] = useState<string | null>(null);
-  const [appealReason, setAppealReason] = useState("");
-  const actions = useQuery<Action[]>({
+  const actions = useQuery({
     queryKey: ["moderation-actions"],
     queryFn: () => api.reports.myModerationActions(),
   });
-  async function submitAppeal(item: Action) {
-    if (!appealReason.trim()) return;
-    try {
-      await api.reports.appeal(item.id, appealReason.trim());
-      setAppealingId(null);
-      setAppealReason("");
-      await queryClient.invalidateQueries({ queryKey: ["moderation-actions"] });
-    } catch {
-      Alert.alert("Could not submit appeal", "Please try again.");
-    }
-  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8" }}>
-      <SettingsHeader title="Account decisions" />
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: isDark ? "#0B0B0A" : "#FBFAF8",
+      }}
+    >
+      <SettingsHeader title="Moderation decisions" />
       {actions.isLoading ? (
-        <View className="flex-1 items-center justify-center"><ActivityIndicator /></View>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color="#FF5B35" />
+        </View>
       ) : (
         <FlatList
           data={actions.data ?? []}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
-          ListEmptyComponent={<View className="flex-1 items-center justify-center"><Text className="text-gray-500">No moderation decisions</Text></View>}
-          renderItem={({ item }) => (
-            <View className="rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
-              <Text weight="bold" className="text-lg text-black dark:text-white">{item.action.toLowerCase().replaceAll("_", " ")}</Text>
-              <Text className="mt-2 leading-5 text-gray-500">{item.reason}</Text>
-              <Text className="mt-3 text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString()}</Text>
-              {appealingId === item.id ? (
-                <View className="mt-4 gap-2">
-                  <TextInput
-                    value={appealReason}
-                    onChangeText={setAppealReason}
-                    placeholder="Why should this decision be reviewed?"
-                    multiline
-                    className="min-h-24"
-                  />
-                  <TouchableOpacity
-                    onPress={() => void submitAppeal(item)}
-                    className="items-center rounded-2xl bg-black py-3 dark:bg-white"
-                  >
-                    <Text weight="bold" className="text-white dark:text-black">Submit appeal</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : !item.reversedAt && !item.appeals?.length ? (
-                <TouchableOpacity
-                  onPress={() => setAppealingId(item.id)}
-                  className="mt-4 items-center rounded-2xl border border-gray-200 py-3 dark:border-gray-700"
-                >
-                  <Text weight="bold" className="text-black dark:text-white">Appeal decision</Text>
-                </TouchableOpacity>
-              ) : item.appeals?.[0] ? (
-                <Text weight="bold" className="mt-4 text-amber-600">Appeal: {item.appeals[0].status.toLowerCase()}</Text>
-              ) : null}
+          ListEmptyComponent={
+            <View className="flex-1 items-center justify-center px-8">
+              <ShieldCheckIcon size={42} color="#22C55E" weight="duotone" />
+              <Text weight="bold" className="mt-4 text-xl text-ink dark:text-white">
+                No moderation decisions
+              </Text>
+              <Text className="mt-2 text-center leading-5 text-gray-500">
+                If FindEat ever takes action on your content, you’ll see the
+                decision and appeal options here.
+              </Text>
             </View>
-          )}
+          }
+          renderItem={({ item }) => {
+            const appeal = item.appeals?.[0];
+            const target = actionTarget(item);
+            return (
+              <View className="rounded-3xl border border-line bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
+                <View className="flex-row items-start gap-3">
+                  <View className="size-11 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-950/40">
+                    <ShieldWarningIcon size={23} color="#EF4444" weight="duotone" />
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text weight="bold" className="text-lg text-ink dark:text-white">
+                      Your {target} was removed
+                    </Text>
+                    <Text className="mt-1 leading-5 text-gray-500" numberOfLines={2}>
+                      {item.reason}
+                    </Text>
+                    <Text className="mt-2 text-xs text-gray-400">
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+
+                {item.reversedAt ? (
+                  <Text weight="bold" className="mt-4 text-green-600">
+                    Decision reversed · {target} restored
+                  </Text>
+                ) : appeal ? (
+                  <Text weight="bold" className="mt-4 capitalize text-amber-600">
+                    Appeal {appeal.status.toLowerCase().replaceAll("_", " ")}
+                  </Text>
+                ) : null}
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/settings/moderation-actions/[id]",
+                      params: { id: item.id },
+                    })
+                  }
+                  className="mt-4 min-h-12 items-center justify-center rounded-2xl bg-black px-5 dark:bg-white"
+                >
+                  <Text weight="bold" className="text-white dark:text-black">
+                    View decision
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
         />
       )}
     </SafeAreaView>

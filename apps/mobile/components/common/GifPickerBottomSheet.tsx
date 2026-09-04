@@ -4,7 +4,7 @@ import { useAppTheme } from "@/contexts/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -60,6 +60,7 @@ export default function GifPickerBottomSheet({
   const [activeCategory, setActiveCategory] =
     useState<GifCategory>("TRENDING");
   const [loading, setLoading] = useState(false);
+  const gifListRef = useRef<React.ElementRef<typeof BottomSheetScrollView>>(null);
   const apiKey = process.env.EXPO_PUBLIC_GIPHY_API_KEY;
 
   const categories: { id: GifCategory; label: string }[] = [
@@ -139,6 +140,14 @@ export default function GifPickerBottomSheet({
       clearTimeout(timer);
     };
   }, [activeCategory, apiKey, i18n.language, open, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      gifListRef.current?.scrollTo({ y: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeCategory, open, query]);
 
   function selectGif(item: GifSelection) {
     setRecentItems((current) => {
@@ -242,6 +251,7 @@ export default function GifPickerBottomSheet({
           <View className="flex-1 items-center justify-center"><ActivityIndicator color="#FF5B35" /></View>
         ) : (
           <BottomSheetScrollView
+            ref={gifListRef}
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 14, paddingBottom: 24 }}
@@ -300,7 +310,10 @@ export default function GifPickerBottomSheet({
               ) : null}
           </BottomSheetScrollView>
         )}
-        <Text className="pt-2 text-center text-xs font-bold text-gray-400">
+        <Text
+          className="pt-2 text-center text-xs font-bold text-gray-400"
+          style={{ opacity: 0.7 }}
+        >
           Powered by GIPHY
         </Text>
       </View>

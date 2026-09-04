@@ -176,6 +176,14 @@ export default function UserReviewsFeedScreen() {
     );
   }
 
+  function handleCommentsCountChange(postId: string, commentsCount: number) {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.id === postId ? { ...post, commentsCount } : post,
+      ),
+    );
+  }
+
   function handlePostShared(postId: string) {
     setPosts((currentPosts) =>
       currentPosts.map((post) =>
@@ -237,6 +245,7 @@ export default function UserReviewsFeedScreen() {
         postId={selectedPostId}
         onClose={() => setSelectedPostId(null)}
         onCommentAdded={handleCommentAdded}
+        onCommentsCountChange={handleCommentsCountChange}
       />
     </View>
   );

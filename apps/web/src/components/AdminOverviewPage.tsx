@@ -94,6 +94,10 @@ export function AdminOverviewPage({ onNavigate }: Props) {
     overview.content.posts7d,
     overview.content.previousPosts7d,
   );
+  const reportTrend = trend(
+    overview.moderation.reports7d,
+    overview.moderation.previousReports7d,
+  );
   const openQueueTotal = Object.values(overview.queues).reduce(
     (total, value) => total + value,
     0,
@@ -229,6 +233,51 @@ export function AdminOverviewPage({ onNavigate }: Props) {
             <div><strong>{number(overview.restaurants.claimed)}</strong><span>Claimed</span></div>
             <div><strong>{number(overview.restaurants.withoutOwner)}</strong><span>Without owner</span></div>
           </div>
+        </section>
+
+        <section className="admin-monitor-card min-w-0 rounded-[20px] border border-line bg-surface p-[21px] shadow-[var(--shadow)]">
+          <div className="mb-[18px] flex items-start justify-between gap-5 [&>svg]:text-accent">
+            <div>
+              <p className="m-0 mb-1 text-xs font-extrabold tracking-[.12em] text-accent">TRUST & SAFETY · 7 DAYS</p>
+              <h3 className="m-0 text-[19px]">Moderation health</h3>
+            </div>
+            <FlagIcon size={24} weight="duotone" />
+          </div>
+          <div className="grid grid-cols-3 gap-2 max-[480px]:grid-cols-2 [&>div]:rounded-[13px] [&>div]:bg-surface-subtle [&>div]:p-[13px] [&_strong]:block [&_strong]:text-[19px] [&_span]:mt-1 [&_span]:block [&_span]:text-[9px] [&_span]:text-muted">
+            <div><strong>{number(overview.moderation.reports7d)}</strong><span>Reports received</span></div>
+            <div><strong>{number(overview.moderation.resolved7d)}</strong><span>Resolved</span></div>
+            <div><strong>{number(overview.moderation.removals7d)}</strong><span>Content removals</span></div>
+            <div><strong>{number(overview.moderation.reversedRemovals7d)}</strong><span>Reversed decisions</span></div>
+            <div><strong>{number(overview.moderation.repeatOffenders)}</strong><span>2+ active removals</span></div>
+            <div><strong>{overview.moderation.averageResolutionHours30d == null ? "—" : `${overview.moderation.averageResolutionHours30d}h`}</strong><span>Average resolution</span></div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-soft p-3 text-[10px] text-muted">
+            <span className={reportTrend > 0 ? "font-extrabold text-danger" : "font-extrabold text-success"}>{reportTrend > 0 ? "+" : ""}{reportTrend}% reports vs previous week</span>
+            <button type="button" className="border-0 bg-transparent p-0 text-[10px] font-extrabold text-accent" onClick={() => onNavigate("moderation")}>Open moderation →</button>
+          </div>
+          {overview.moderation.unresolvedOlderThan48h > 0 ? (
+            <p className="mb-0 mt-3 rounded-xl bg-warning-soft p-3 text-[10px] font-bold text-warning">{number(overview.moderation.unresolvedOlderThan48h)} reports have waited more than 48 hours.</p>
+          ) : null}
+        </section>
+
+        <section className="admin-monitor-card min-w-0 rounded-[20px] border border-line bg-surface p-[21px] shadow-[var(--shadow)]">
+          <div className="mb-[18px] flex items-start justify-between gap-5 [&>svg]:text-accent">
+            <div>
+              <p className="m-0 mb-1 text-xs font-extrabold tracking-[.12em] text-accent">AUDIENCE QUALITY</p>
+              <h3 className="m-0 text-[19px]">Engagement & retention</h3>
+            </div>
+            <UsersThreeIcon size={24} weight="duotone" />
+          </div>
+          <div className="rounded-2xl bg-surface-subtle p-4">
+            <strong className="block text-[42px] tracking-[-.05em]">{overview.retention.activeRate7d}%</strong>
+            <span className="mt-1 block text-[11px] text-muted">of active accounts used FindEat in the last 7 days</span>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-soft"><span className="block h-full rounded-full bg-gradient-to-r from-accent to-warning" style={{ width: `${Math.min(100, overview.retention.activeRate7d)}%` }} /></div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 [&>div]:rounded-xl [&>div]:bg-surface-subtle [&>div]:p-3 [&_strong]:block [&_strong]:text-xl [&_span]:mt-1 [&_span]:block [&_span]:text-[9px] [&_span]:text-muted">
+            <div><strong>{number(overview.retention.deactivated30d)}</strong><span>Deactivated · 30 days</span></div>
+            <div><strong>{number(overview.retention.deleted30d)}</strong><span>Deleted · 30 days</span></div>
+          </div>
+          <button type="button" className="mt-3 w-full rounded-xl border border-line bg-surface-subtle px-3 py-2.5 text-xs font-extrabold text-ink hover:bg-surface-hover" onClick={() => onNavigate("directory")}>Search account directory</button>
         </section>
       </div>
     </div>

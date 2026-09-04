@@ -46,7 +46,7 @@ import CreatorLevelBadge from "@/components/profile/CreatorLevelBadge";
 import ProfileTagBadge from "@/components/profile/ProfileTagBadge";
 import RelationshipActionButton from "@/components/profile/RelationshipActionButton";
 import { followSuggestionsQueryKey } from "@/components/feed/FollowingSuggestions";
-import { homeFeedQueryKey } from "@/hooks/useFeed";
+import { homeFeedQueryKey, updatePostInFeedCache } from "@/hooks/useFeed";
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams();
@@ -112,6 +112,12 @@ export default function UserProfileScreen() {
                 (wasFollowing ? 1 : 0),
             }
           : currentUser,
+      );
+
+      updatePostInFeedCache(queryClient, (post) =>
+        post.authorId === user.id
+          ? { ...post, authorRelationship: result.relationship }
+          : post,
       );
 
       queryClient.setQueryData<

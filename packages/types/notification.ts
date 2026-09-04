@@ -67,6 +67,7 @@ export type AppNotification = {
   conversationId?: string | null;
   restaurantId?: string | null;
   placeListId?: string | null;
+  moderationActionId?: string | null;
   readAt?: string | null;
   createdAt: string;
 };

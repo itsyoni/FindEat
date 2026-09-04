@@ -38,10 +38,13 @@ export function useComments(postId?: string | null) {
     try {
       setLoading(true);
 
-      const [nextComments, context] = await Promise.all([
-        api.posts.comments(postId),
-        api.posts.commentContext(postId),
-      ]);
+      void api.posts
+        .commentContext(postId)
+        .then((context) => {
+          if (requestId === requestIdRef.current) applyCommentContext(context);
+        })
+        .catch((error) => console.error("Failed to load comment context", error));
+      const nextComments = await api.posts.comments(postId);
 
       if (requestId !== requestIdRef.current) return;
 
@@ -49,7 +52,6 @@ export function useComments(postId?: string | null) {
       setRankingLikesByCommentId(
         new Map(nextComments.map((comment) => [comment.id, comment.likesCount])),
       );
-      applyCommentContext(context);
       setLoadedPostId(postId);
     } catch (error) {
       console.error("Failed to load comments", error);
@@ -175,10 +177,19 @@ export function useComments(postId?: string | null) {
 
     async function fetchComments() {
       try {
-        const [nextComments, context] = await Promise.all([
-          api.posts.comments(currentPostId),
-          api.posts.commentContext(currentPostId),
-        ]);
+        void api.posts
+          .commentContext(currentPostId)
+          .then((context) => {
+            if (!cancelled && requestId === requestIdRef.current) {
+              applyCommentContext(context);
+            }
+          })
+          .catch((error) => {
+            if (!cancelled) {
+              console.error("Failed to load comment context", error);
+            }
+          });
+        const nextComments = await api.posts.comments(currentPostId);
 
         if (cancelled || requestId !== requestIdRef.current) {
           return;
@@ -188,7 +199,6 @@ export function useComments(postId?: string | null) {
         setRankingLikesByCommentId(
           new Map(nextComments.map((comment) => [comment.id, comment.likesCount])),
         );
-        applyCommentContext(context);
         setLoadedPostId(currentPostId);
       } catch (error) {
         if (!cancelled) {
@@ -338,7 +348,8 @@ export function useComments(postId?: string | null) {
       postId && loadedPostId === postId
         ? rankingLikesByCommentId
         : new Map<string, number>(),
-    loading,
+    loaded: !!postId && loadedPostId === postId,
+    loading: (!!postId && loadedPostId !== postId) || loading,
     submitting,
     canCreateAuthorNote:
       !!postId && loadedPostId === postId && canCreateAuthorNote,

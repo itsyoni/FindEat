@@ -25,6 +25,7 @@ export const businessPaths: Record<BusinessDashboardSection, string> = {
 
 export const adminPaths: Record<AdminDashboardSection, string> = {
   overview: "/admin",
+  directory: "/admin/directory",
   claims: "/admin/claims",
   addresses: "/admin/address-requests",
   moderation: "/admin/moderation",

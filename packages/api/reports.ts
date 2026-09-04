@@ -1,4 +1,8 @@
-import type { CreateReportInput, ModerationReport } from "@findeat/types";
+import type {
+  CreateReportInput,
+  ModerationActionDecision,
+  ModerationReport,
+} from "@findeat/types";
 import type { AxiosInstance } from "axios";
 
 export function createReportsApi(api: AxiosInstance) {
@@ -27,7 +31,15 @@ export function createReportsApi(api: AxiosInstance) {
       return data;
     },
     async myModerationActions() {
-      const { data } = await api.get("/reports/moderation-actions/me");
+      const { data } = await api.get<ModerationActionDecision[]>(
+        "/reports/moderation-actions/me",
+      );
+      return data;
+    },
+    async moderationAction(id: string) {
+      const { data } = await api.get<ModerationActionDecision>(
+        `/reports/moderation-actions/${id}`,
+      );
       return data;
     },
     async appeal(actionId: string, reason: string) {

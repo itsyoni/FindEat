@@ -14,6 +14,11 @@ export function createSnapsApi(api: AxiosInstance) {
       return data;
     },
 
+    async archived() {
+      const { data } = await api.get<Snap[]>("/snaps/archive");
+      return data;
+    },
+
     async create(payload: CreateSnapInput) {
       const { data } = await api.post<Snap>("/snaps", payload);
       return data;

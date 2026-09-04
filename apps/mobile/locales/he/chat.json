@@ -123,6 +123,8 @@
   "unpublishCommentTitle": "להסיר את התגובה שלך?",
   "unpublishCommentDescription": "התגובה וכל התגובות אליה יוסרו מהפוסט.",
   "removeComment": "הסרת תגובה",
+  "commentModerationRemoved": "התגובה הוסרה",
+  "reportComment": "דיווח על תגובה",
   "editComment": "עריכת תגובה",
   "editingComment": "עריכת תגובה",
   "saveComment": "שמירה",

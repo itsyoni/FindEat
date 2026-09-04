@@ -45,6 +45,9 @@ export type ModerationUser = UserSummary & {
 
 export type ModerationReport = {
   id: string;
+  postId?: string | null;
+  commentId?: string | null;
+  snapId?: string | null;
   targetType: ReportTargetType;
   reason: ReportReason;
   details?: string | null;
@@ -65,6 +68,14 @@ export type ModerationReport = {
     postId: string;
     user: ModerationUser;
   } | null;
+  snap?: {
+    id: string;
+    userId: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+    caption?: string | null;
+    createdAt: string;
+  } | null;
   restaurant?: { id: string; name: string; logoUrl?: string | null } | null;
   reportingRestaurant?: {
     id: string;
@@ -78,4 +89,35 @@ export type ModerationReport = {
   reviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ModerationActionDecision = {
+  id: string;
+  action: string;
+  reason: string;
+  metadata?: {
+    targetType?: "COMMENT" | "POST" | "SNAP";
+    content?: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+    caption?: string | null;
+  } | null;
+  createdAt: string;
+  reversedAt?: string | null;
+  post?: {
+    id: string;
+    type: PostType;
+    contentPost?: { imageUrl?: string | null; caption?: string | null } | null;
+    reviewPost?: {
+      coverImageUrl?: string | null;
+      summary?: string | null;
+    } | null;
+  } | null;
+  appeals?: Array<{
+    id: string;
+    reason: string;
+    status: string;
+    resolutionNote?: string | null;
+    createdAt: string;
+  }>;
 };
